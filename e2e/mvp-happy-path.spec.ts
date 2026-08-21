@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { seedWorkspace } from "./seed-state";
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     if (!sessionStorage.getItem("ilgamcheck-e2e-initialized")) {
@@ -53,9 +55,11 @@ test("PWA manifest는 설치 정보만 공개한다", async ({ request }) => {
 });
 
 test("고객 수정요청 데모는 원문을 기록하고 공통 로그에 남긴다", async ({ page }) => {
+  // 이 테스트는 시드 일감이 있어야 한다. 앱은 빈 상태로 시작하므로 직접 깐다.
+  await seedWorkspace(page, "ilgamcheck-e2e-seeded");
   const response = await page.goto("/r/demo-mora-revision");
   expect(response?.headers()["x-robots-tag"]).toBe("noindex, nofollow, noarchive");
-  await expect(page.getByText("같은 브라우저 로컬 데모")).toBeVisible();
+  await expect(page.getByText("이 브라우저에 저장")).toBeVisible();
   await expect(page.getByRole("complementary", { name: "개인정보 처리 안내" })).toBeVisible();
   await expect(page.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
   await expect(page.getByText(/민감한 내용은 적지 마세요/)).toBeVisible();
@@ -69,6 +73,8 @@ test("고객 수정요청 데모는 원문을 기록하고 공통 로그에 남�
 });
 
 test("일감 완료와 재진행은 기존 업무 상태를 보존한다", async ({ page }) => {
+  // 이 테스트는 시드 일감이 있어야 한다. 앱은 빈 상태로 시작하므로 직접 깐다.
+  await seedWorkspace(page, "ilgamcheck-e2e-seeded");
   await page.goto("/jobs/job_seed_mora");
   const tasks = page.locator(".detailTaskRow");
   await tasks.first().locator("button").click();
@@ -91,6 +97,8 @@ test("일감 완료와 재진행은 기존 업무 상태를 보존한다", async
 });
 
 test("다른 탭의 고객 수정요청이 최신 작업 상태를 되돌리지 않는다", async ({ page, context }) => {
+  // 이 테스트는 시드 일감이 있어야 한다. 앱은 빈 상태로 시작하므로 직접 깐다.
+  await seedWorkspace(page, "ilgamcheck-e2e-seeded");
   await page.goto("/jobs/job_seed_mora");
   const firstTask = page.locator(".detailTaskRow").first();
   await firstTask.locator("button").click();
@@ -109,6 +117,8 @@ test("다른 탭의 고객 수정요청이 최신 작업 상태를 되돌리지 
 
 
 test("패키지 편집은 새 일감 선택지에 반영하고 기존 일감 스냅샷은 유지한다", async ({ page }) => {
+  // 이 테스트는 시드 일감이 있어야 한다. 앱은 빈 상태로 시작하므로 직접 깐다.
+  await seedWorkspace(page, "ilgamcheck-e2e-seeded");
   await page.goto("/packages");
   await page.getByLabel("패키지 이름").fill("E2E 맞춤 홈페이지");
   await page.getByTestId("save-package").click();
@@ -121,6 +131,8 @@ test("패키지 편집은 새 일감 선택지에 반영하고 기존 일감 스
 });
 
 test("추가요청은 초안 기록 뒤 확정 시에만 일감에 반영한다", async ({ page }) => {
+  // 이 테스트는 시드 일감이 있어야 한다. 앱은 빈 상태로 시작하므로 직접 깐다.
+  await seedWorkspace(page, "ilgamcheck-e2e-seeded");
   await page.goto("/jobs/job_seed_mora");
   await page.getByTestId("open-addon").click();
   await page.getByLabel("추가요청 내용").fill("이벤트 랜딩 페이지");
@@ -138,6 +150,8 @@ test("추가요청은 초안 기록 뒤 확정 시에만 일감에 반영한다"
 });
 
 test("일감 상세에서 작업 링크를 저장하고 새로고침 뒤에도 유지한다", async ({ page }) => {
+  // 이 테스트는 시드 일감이 있어야 한다. 앱은 빈 상태로 시작하므로 직접 깐다.
+  await seedWorkspace(page, "ilgamcheck-e2e-seeded");
   await page.goto("/jobs/job_seed_mora");
   await page.getByRole("button", { name: "편집" }).last().click();
   await page.getByLabel("링크 1 이름").fill("E2E 작업 링크");
@@ -150,7 +164,10 @@ test("일감 상세에서 작업 링크를 저장하고 새로고침 뒤에도 �
 
 test("알림 설정은 인앱 기준과 외부 권한 경계를 보여준다", async ({ page }) => {
   await page.goto("/settings");
-  await expect(page.getByRole("heading", { name: "알림 설정" })).toBeVisible();
+  // 알림 설정은 항목별 제목으로 나뉘었다. 아래 D-2 문구가 속한 절을 직접 확인한다.
+  await expect(page.getByRole("heading", { name: "마감 알림" })).toBeVisible();
   await expect(page.getByText("D-2 · D-1 · 당일 · 지연")).toBeVisible();
-  await expect(page.getByText("BLOCKED_EXTERNAL", { exact: true })).toBeVisible();
+  // 사용자 화면에서 BLOCKED_EXTERNAL 같은 내부 용어는 걷어냈다. 같은 경계를 사람 말로 확인한다.
+  await expect(page.getByText("아직 준비 중인 기능", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /잠금화면 알림.*아직 준비 중이에요/ })).toBeVisible();
 });

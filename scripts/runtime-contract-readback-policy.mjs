@@ -3,8 +3,10 @@ import {
   loadPolicyPublicationManifest,
   policyPublicationContract,
 } from "./policy-publication-manifest-policy.mjs";
+import { HOSTED_RUNTIME_CONTRACT } from "./verify-hosted-runtime-policy.mjs";
 
-export const RUNTIME_CONTRACT_EXPECTED = "202608170006";
+// 같은 값을 두 번 적어두면 한쪽만 올라간다. 실제로 그렇게 어긋났었다.
+export const RUNTIME_CONTRACT_EXPECTED = HOSTED_RUNTIME_CONTRACT;
 export const RUNTIME_HEALTH_PAYLOAD_KEYS = Object.freeze([
   "closedBetaConfigured",
   "databaseContractDetected",

@@ -1,3 +1,4 @@
+import { HOSTED_RUNTIME_CONTRACT } from "./verify-hosted-runtime-policy.mjs";
 import { describe, expect, it } from "vitest";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -74,7 +75,7 @@ describe("deployment receipt", () => {
   it("rejects missing, stale-project, and stale-origin receipts", () => {
     const fingerprint = "a".repeat(64);
     expect(migrationReceiptIssue(null, "abcdefghijklmnopqrst", fingerprint)).toMatch(/없습니다/);
-    expect(migrationReceiptIssue({ schemaVersion: 1, migrations: { projectRef: "other", runtimeContract: "202608170006", migrationFingerprint: fingerprint, appliedAt: "2026-08-17T00:00:00.000Z" } }, "abcdefghijklmnopqrst", fingerprint, new Date("2026-08-17T00:01:00Z")))
+    expect(migrationReceiptIssue({ schemaVersion: 1, migrations: { projectRef: "other", runtimeContract: HOSTED_RUNTIME_CONTRACT, migrationFingerprint: fingerprint, appliedAt: "2026-08-17T00:00:00.000Z" } }, "abcdefghijklmnopqrst", fingerprint, new Date("2026-08-17T00:01:00Z")))
       .toMatch(/project ref/);
     expect(authConfigReceiptIssue({ schemaVersion: 1, authConfig: { projectRef: "abcdefghijklmnopqrst", origin: "https://old.kr", signupDisabled: true, pushedAt: "2026-08-17T00:00:00.000Z" } }, "abcdefghijklmnopqrst", "https://new.kr", new Date("2026-08-17T00:01:00Z")))
       .toMatch(/origin/);
@@ -87,7 +88,7 @@ describe("deployment receipt", () => {
       schemaVersion: 1,
       migrations: {
         projectRef: "abcdefghijklmnopqrst",
-        runtimeContract: "202608170006",
+        runtimeContract: HOSTED_RUNTIME_CONTRACT,
         policyBundleDigest: POLICY_BUNDLE_DIGEST,
         migrationFingerprint: receiptFingerprint,
         ...(appliedAt === undefined ? {} : { appliedAt }),

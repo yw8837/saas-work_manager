@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { HOSTED_RUNTIME_CONTRACT } from "./verify-hosted-runtime-policy.mjs";
 import {
@@ -49,13 +49,18 @@ function validInput(overrides = {}) {
 
 describe("Supabase service-role target binding", () => {
   it("ships a data-free RPC executable only by service_role at the current contract", () => {
-    const migration = readFileSync(
-      join(process.cwd(), "supabase", "migrations", "202608170006_policy_publication_contract.sql"),
-      "utf8",
-    );
+    // 계약 함수를 마지막으로 정의한 migration이 현재 계약이다.
+    // 파일 이름을 박아두면 계약을 올릴 때마다 여기가 낡는다.
+    const migrationsDir = join(process.cwd(), "supabase", "migrations");
+    const serviceRoleFile = readdirSync(migrationsDir)
+      .filter((name) => name.endsWith(".sql"))
+      .sort()
+      .filter((name) => readFileSync(join(migrationsDir, name), "utf8")
+        .includes("function public.get_ilgamcheck_service_role_contract()"))
+      .at(-1);
+    const migration = readFileSync(join(migrationsDir, serviceRoleFile), "utf8");
     expect(migration).toMatch(/create or replace function public\.get_ilgamcheck_service_role_contract\(\)[\s\S]*?stable/);
-    expect(migration).toMatch(/select '202608170006'::text/);
-    expect(HOSTED_RUNTIME_CONTRACT).toBe("202608170006");
+    expect(migration).toMatch(new RegExp(`select '${HOSTED_RUNTIME_CONTRACT}'::text`));
     expect(migration).toMatch(
       /revoke all on function public\.get_ilgamcheck_service_role_contract\(\) from public, anon, authenticated;/,
     );

@@ -1,9 +1,11 @@
+import { fixtureOutsideRepo } from "./test-fixtures.mjs";
+import { HOSTED_RUNTIME_CONTRACT } from "./verify-hosted-runtime-policy.mjs";
 import { describe, expect, it } from "vitest";
 import { readOperationalEvidenceConfig, validateOperationalEvidence } from "./operational-evidence-policy.mjs";
 
 const nowMs = Date.parse("2026-08-17T02:00:00.000Z");
 const config = {
-  evidencePath: "C:\\secure\\operational-evidence.json",
+  evidencePath: fixtureOutsideRepo("secure", "operational-evidence.json"),
   finalOrigin: "https://ilgamcheck.kr",
   operatorName: "일감체크 운영자",
   supportEmail: "support@ilgamcheck.kr",
@@ -42,7 +44,7 @@ function validEvidence() {
     },
     backupRecovery: {
       testedAt: "2026-08-17T01:00:00.000Z",
-      runtimeContract: "202608170006",
+      runtimeContract: HOSTED_RUNTIME_CONTRACT,
       managedBackupOrPitrVerified: true,
       logicalManifestVerified: true,
       recoveryRestoreCompleted: true,
@@ -57,7 +59,7 @@ describe("operational release evidence", () => {
   it("accepts current exact policy, deletion, and recovery evidence", () => {
     expect(validateOperationalEvidence(validEvidence(), config, { nowMs })).toEqual({
       finalOrigin: "https://ilgamcheck.kr",
-      runtimeContract: "202608170006",
+      runtimeContract: HOSTED_RUNTIME_CONTRACT,
       policyBundleDigest: config.policyPublication.bundleDigest,
     });
   });

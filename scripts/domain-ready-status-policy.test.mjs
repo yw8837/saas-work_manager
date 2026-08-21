@@ -1,3 +1,4 @@
+import { HOSTED_RUNTIME_CONTRACT } from "./verify-hosted-runtime-policy.mjs";
 import { describe, expect, it } from "vitest";
 import {
   evaluateDomainReadyStatus,
@@ -27,7 +28,7 @@ function evaluate(overrides = {}) {
     migrationFingerprint,
     deploymentReceipt: {
       schemaVersion: 1,
-      migrations: { projectRef: ref, runtimeContract: "202608170006", policyBundleDigest: POLICY_BUNDLE_DIGEST, migrationFingerprint, appliedAt: "2026-08-17T00:00:00.000Z" },
+      migrations: { projectRef: ref, runtimeContract: HOSTED_RUNTIME_CONTRACT, policyBundleDigest: POLICY_BUNDLE_DIGEST, migrationFingerprint, appliedAt: "2026-08-17T00:00:00.000Z" },
       authConfig: {
         projectRef: ref,
         origin: validEnv.SUPABASE_AUTH_SITE_URL,
@@ -119,7 +120,7 @@ describe("domain-ready status policy", () => {
   it("rejects structurally incomplete local receipts before remote checks", () => {
     const result = evaluate({
       deploymentReceipt: {
-        migrations: { projectRef: ref, runtimeContract: "202608170006" },
+        migrations: { projectRef: ref, runtimeContract: HOSTED_RUNTIME_CONTRACT },
         authConfig: { projectRef: ref, origin: validEnv.SUPABASE_AUTH_SITE_URL, signupDisabled: true },
       },
     });

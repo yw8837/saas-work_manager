@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import { seedWorkspace } from "./seed-state";
+
 for (const width of [320, 375, 390]) {
   test(`${width}px 핵심 화면은 가로로 넘치지 않는다`, async ({ page }) => {
+    // 시드 일감 상세도 확인 대상이다. 앱은 빈 상태로 시작한다.
+    await seedWorkspace(page, "ilgamcheck-responsive-e2e-seeded");
     await page.setViewportSize({ width, height: 844 });
 
     for (const route of ["/", "/today", "/jobs/new", "/jobs/job_seed_mora"]) {
@@ -33,6 +37,8 @@ test("모바일 새 일감 CTA는 하단 내비 위에서 눌린다", async ({ p
 });
 
 test("상세 수정 로그는 랜딩 스타일과 격리된다", async ({ page }) => {
+  // 시드 일감 화면이 필요하다. 앱은 빈 상태로 시작한다.
+  await seedWorkspace(page, "ilgamcheck-responsive-e2e-seeded");
   await page.goto("/jobs/job_seed_mora");
 
   const revisionSection = page.locator(".jobRevisionSection");
@@ -41,19 +47,29 @@ test("상세 수정 로그는 랜딩 스타일과 격리된다", async ({ page }
 
   const style = await revisionSection.evaluate((element) => {
     const computed = window.getComputedStyle(element);
+    // 색을 숫자로 박아두면 디자인 토큰이 바뀔 때마다 테스트가 낡는다.
+    // 이 테스트가 지키려는 건 "랜딩 스타일이 새어들지 않는다"이므로 토큰과 같은지만 본다.
+    const probe = document.createElement("span");
+    probe.style.color = "var(--ink)";
+    document.body.appendChild(probe);
+    const inkColor = window.getComputedStyle(probe).color;
+    probe.remove();
     return {
       backgroundColor: computed.backgroundColor,
       color: computed.color,
+      inkColor,
       gridTemplateColumns: computed.gridTemplateColumns,
     };
   });
 
   expect(style.backgroundColor).toBe("rgb(255, 255, 255)");
-  expect(style.color).toBe("rgb(23, 32, 51)");
+  expect(style.color).toBe(style.inkColor);
   expect(style.gridTemplateColumns).toBe("none");
 });
 
 test("모바일 고정 수정 버튼은 폼을 열고 입력칸에 포커스한다", async ({ page }) => {
+  // 시드 일감 화면이 필요하다. 앱은 빈 상태로 시작한다.
+  await seedWorkspace(page, "ilgamcheck-responsive-e2e-seeded");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/jobs/job_seed_mora");
 

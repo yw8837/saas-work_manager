@@ -1,12 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+import { seedWorkspace } from "./seed-state";
+
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    if (!sessionStorage.getItem("ilgamcheck-portal-e2e-initialized")) {
-      localStorage.clear();
-      sessionStorage.setItem("ilgamcheck-portal-e2e-initialized", "1");
-    }
-  });
+  await seedWorkspace(page, "ilgamcheck-portal-e2e-initialized");
 });
 
 test("수정 링크를 끄면 기존 로컬 공개 주소를 즉시 거부한다", async ({ page }) => {
@@ -42,7 +39,7 @@ test("수정 링크 재발급은 옛 토큰을 폐기하고 새 256-bit 토큰�
   await expect(page.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeVisible();
 
   await page.goto(`/r/${newToken}`);
-  await expect(page.getByText("같은 브라우저 로컬 데모")).toBeVisible();
+  await expect(page.getByText("이 브라우저에 저장")).toBeVisible();
 });
 
 test("완료 일감은 재진행 전까지 수정 링크를 켤 수 없다", async ({ page }) => {

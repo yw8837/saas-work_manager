@@ -1,3 +1,4 @@
+import { HOSTED_RUNTIME_CONTRACT } from "./verify-hosted-runtime-policy.mjs";
 import { describe, expect, it } from "vitest";
 import {
   normalizeDeploymentUrl,
@@ -38,8 +39,8 @@ function successfulFetch(url) {
       publicConfigDigest: `sha256:${"1".repeat(64)}`,
       publicIdentityConfigured: true,
       closedBetaConfigured: true,
-      databaseContractExpected: "202608170006",
-      databaseContractDetected: "202608170006",
+      databaseContractExpected: HOSTED_RUNTIME_CONTRACT,
+      databaseContractDetected: HOSTED_RUNTIME_CONTRACT,
       serviceRoleContractCurrent: true,
       policyPublication: {
         ...POLICY_PUBLICATION_EXPECTED,
@@ -88,7 +89,7 @@ describe("remote deployment smoke policy", () => {
     const result = await runRemoteSmoke("https://preview.vercel.app", successfulFetch);
     expect(result.baseUrl).toBe("https://preview.vercel.app");
     expect(result.checks).toContain(
-      `health(hosted/configured/ref:${projectRef}/db:202608170006/service-role:current/policy:${POLICY_PUBLICATION_EXPECTED.bundleDigest}/no-store)`,
+      `health(hosted/configured/ref:${projectRef}/db:${HOSTED_RUNTIME_CONTRACT}/service-role:current/policy:${POLICY_PUBLICATION_EXPECTED.bundleDigest}/no-store)`,
     );
     expect(result.checks).toContain("/privacy(html/security-headers)");
     expect(result.checks).toContain("/terms(html/security-headers)");

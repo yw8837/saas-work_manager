@@ -1,3 +1,5 @@
+import { fixtureInsideRepo, fixtureOutsideRepo, fixtureRepoRoot } from "./test-fixtures.mjs";
+import { HOSTED_RUNTIME_CONTRACT } from "./verify-hosted-runtime-policy.mjs";
 import { describe, expect, it } from "vitest";
 import {
   backupFileNames,
@@ -8,10 +10,10 @@ import {
 
 describe("Supabase logical backup safety", () => {
   it("requires an absolute path outside the repository", () => {
-    const root = "C:\\workspace\\ilgamcheck";
+    const root = fixtureRepoRoot();
     expect(backupOutputDirectoryIssue("backups", root)).toMatch(/절대경로/);
-    expect(backupOutputDirectoryIssue("C:\\workspace\\ilgamcheck\\backups", root)).toMatch(/저장소 내부/);
-    expect(backupOutputDirectoryIssue("D:\\encrypted\\ilgamcheck", root)).toBeNull();
+    expect(backupOutputDirectoryIssue(fixtureInsideRepo(), root)).toMatch(/저장소 내부/);
+    expect(backupOutputDirectoryIssue(fixtureOutsideRepo(), root)).toBeNull();
   });
 
   it("creates unique UTC names and pinned no-shell CLI arguments", () => {
@@ -23,7 +25,7 @@ describe("Supabase logical backup safety", () => {
     });
     const lockedTarget = {
       projectRef: "abcdefghijklmnopqrst",
-      workdir: "C:\\Temp\\ilgamcheck-supabase-target-fixed",
+      workdir: fixtureOutsideRepo("Temp", "ilgamcheck-supabase-target-fixed"),
     };
     const invocations = backupInvocations(
       "D:\\b\\schema.sql",
@@ -63,7 +65,7 @@ describe("Supabase logical backup safety", () => {
     expect(manifest).toMatchObject({
       projectRef: "abcdefghijklmnopqrst",
       region: "ap-northeast-2",
-      expectedRuntimeContract: "202608170006",
+      expectedRuntimeContract: HOSTED_RUNTIME_CONTRACT,
     });
     expect(manifest).not.toHaveProperty("runtimeContract");
     expect(() => createBackupManifest({

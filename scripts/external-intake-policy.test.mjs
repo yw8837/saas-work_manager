@@ -1,3 +1,4 @@
+import { fixtureOutsideRepo } from "./test-fixtures.mjs";
 import { describe, expect, it } from "vitest";
 import { evaluateExternalInputReadiness } from "./external-intake-policy.mjs";
 import { HOSTED_VERIFY_ACK } from "./verify-hosted-runtime-policy.mjs";
@@ -16,8 +17,8 @@ const validEnv = {
   ILGAMCHECK_SMTP_RETURN_PATH_DOMAIN: "bounce.ilgamcheck.kr",
   ILGAMCHECK_SMTP_DMARC_DOMAIN: "ilgamcheck.kr",
   ILGAMCHECK_SMTP_DKIM_SELECTORS: "selector1,selector2",
-  ILGAMCHECK_SMTP_EVIDENCE_PATH: "C:\\EncryptedOps\\smtp-evidence.json",
-  ILGAMCHECK_OPERATIONAL_EVIDENCE_PATH: "C:\\EncryptedOps\\operational-evidence.json",
+  ILGAMCHECK_SMTP_EVIDENCE_PATH: fixtureOutsideRepo("EncryptedOps", "smtp-evidence.json"),
+  ILGAMCHECK_OPERATIONAL_EVIDENCE_PATH: fixtureOutsideRepo("EncryptedOps", "operational-evidence.json"),
   ILGAMCHECK_TEST_A_EMAIL: "a@example.net",
   ILGAMCHECK_TEST_A_PASSWORD: "password-a",
   ILGAMCHECK_TEST_B_EMAIL: "b@example.org",
