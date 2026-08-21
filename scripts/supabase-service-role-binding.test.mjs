@@ -58,6 +58,8 @@ describe("Supabase service-role target binding", () => {
       .filter((name) => readFileSync(join(migrationsDir, name), "utf8")
         .includes("function public.get_ilgamcheck_service_role_contract()"))
       .at(-1);
+    // 못 찾으면 join(dir, undefined)가 엉뚱한 에러를 낸다. 무엇이 없는지 먼저 말한다.
+    expect(serviceRoleFile, "service-role 계약 함수를 정의한 migration이 없습니다").toBeDefined();
     const migration = readFileSync(join(migrationsDir, serviceRoleFile), "utf8");
     expect(migration).toMatch(/create or replace function public\.get_ilgamcheck_service_role_contract\(\)[\s\S]*?stable/);
     expect(migration).toMatch(new RegExp(`select '${HOSTED_RUNTIME_CONTRACT}'::text`));

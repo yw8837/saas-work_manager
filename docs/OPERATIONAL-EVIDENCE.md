@@ -43,7 +43,7 @@ $env:ILGAMCHECK_OPERATIONAL_EVIDENCE_PATH = "D:\EncryptedOps\ilgamcheck\operatio
   },
   "backupRecovery": {
     "testedAt": "2026-08-17T02:00:00.000Z",
-    "runtimeContract": "202608170006",
+    "runtimeContract": "202608200007",
     "managedBackupOrPitrVerified": true,
     "logicalManifestVerified": true,
     "recoveryRestoreCompleted": true,

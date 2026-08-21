@@ -4,7 +4,7 @@ import { collectDeployEnvIssues } from "./deploy-env-policy.mjs";
 export const HOSTED_VERIFY_ACK = "OVERWRITE_DEDICATED_TEST_DATA";
 // 이 값은 src/lib/supabase/runtime-contract.ts의 ILGAMCHECK_RUNTIME_CONTRACT와 반드시 같아야 한다.
 // 한쪽만 올리면 DB는 올바른데 배포 검증 스크립트가 실패한다.
-// supabase-service-role-binding.test.mjs가 둘의 일치를 강제한다.
+// src/lib/supabase/contract-single-source.test.ts가 앱 상수·이 상수·migration 세 값의 일치를 강제한다.
 export const HOSTED_RUNTIME_CONTRACT = "202608200007";
 
 export function collectHostedVerificationEnvIssues(env) {
