@@ -1,0 +1,275 @@
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { Session } from "@supabase/supabase-js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createSeedState } from "@/lib/store";
+
+type AuthEvent = "INITIAL_SESSION" | "SIGNED_IN" | "SIGNED_OUT";
+type AuthCallback = (event: AuthEvent, session: Session | null) => void;
+type RealtimeStatusCallback = (status: string) => void;
+type HostedDocument = {
+  state: ReturnType<typeof createSeedState>;
+  documentVersion: number;
+  updatedAt: string;
+};
+
+const hosted = vi.hoisted(() => {
+  const channel = {
+    on: vi.fn(),
+    subscribe: vi.fn(),
+  };
+  channel.on.mockReturnValue(channel);
+  channel.subscribe.mockReturnValue(channel);
+  return {
+    authCallback: null as AuthCallback | null,
+    realtimeCallback: null as (() => void) | null,
+    realtimeStatusCallback: null as RealtimeStatusCallback | null,
+    getSession: vi.fn(),
+    load: vi.fn<(client: unknown, ownerId: string) => Promise<HostedDocument | null>>(),
+    save: vi.fn(),
+    sync: vi.fn(),
+    removeChannel: vi.fn(),
+    channel,
+  };
+});
+
+vi.mock("@/lib/notifications", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/notifications")>("@/lib/notifications");
+  return { ...actual, registerIlgamcheckServiceWorker: vi.fn().mockResolvedValue(undefined) };
+});
+
+vi.mock("@/lib/supabase", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/supabase")>("@/lib/supabase");
+  const client = {
+    auth: {
+      getSession: hosted.getSession,
+      onAuthStateChange: vi.fn((callback: AuthCallback) => {
+        hosted.authCallback = callback;
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      }),
+    },
+    channel: vi.fn(() => hosted.channel),
+    removeChannel: hosted.removeChannel,
+  };
+  return {
+    ...actual,
+    getHostedRuntimeBoundary: () => ({ requestedMode: "hosted", configured: true }),
+    getSupabaseBrowserClient: () => client,
+    loadHostedWorkspace: hosted.load,
+    saveHostedWorkspace: hosted.save,
+    syncHostedRevisionPortals: hosted.sync,
+  };
+});
+
+import { WorkspaceProvider, useWorkspace } from "./workspace-provider";
+
+class MemoryStorage implements Storage {
+  private readonly values = new Map<string, string>();
+  get length() { return this.values.size; }
+  clear() { this.values.clear(); }
+  getItem(key: string) { return this.values.get(key) ?? null; }
+  key(index: number) { return [...this.values.keys()][index] ?? null; }
+  removeItem(key: string) { this.values.delete(key); }
+  setItem(key: string, value: string) { this.values.set(key, value); }
+}
+
+function session(userId: string): Session {
+  return { user: { id: userId, email: `${userId}@example.test` } } as Session;
+}
+
+function remote(version = 7): HostedDocument {
+  return {
+    state: createSeedState("2026-08-15"),
+    documentVersion: version,
+    updatedAt: "2026-08-15T00:00:00.000Z",
+  };
+}
+
+function markedRemote(owner: string, version: number): HostedDocument {
+  const document = remote(version);
+  document.state.jobs[0].clientLabel = `${owner}-workspace`;
+  return document;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
+function Probe() {
+  const { jobs, saveStatus, realtimeStatus, realtimeError, updateSettings } = useWorkspace();
+  return (
+    <div>
+      <span data-testid="workspace-owner">{jobs[0]?.clientLabel}</span>
+      <span data-testid="save-status">{saveStatus}</span>
+      <span data-testid="realtime-status">{realtimeStatus}</span>
+      <span data-testid="realtime-error">{realtimeError}</span>
+      <button type="button" onClick={() => updateSettings({ morningDigestEnabled: false })}>edit workspace</button>
+    </div>
+  );
+}
+
+describe("hosted auth activation", () => {
+  beforeEach(() => {
+    Object.defineProperty(window, "localStorage", { configurable: true, value: new MemoryStorage() });
+    hosted.authCallback = null;
+    hosted.realtimeCallback = null;
+    hosted.realtimeStatusCallback = null;
+    hosted.getSession.mockReset();
+    hosted.load.mockReset();
+    hosted.save.mockReset();
+    hosted.sync.mockReset();
+    hosted.removeChannel.mockReset();
+    hosted.channel.on.mockReset();
+    hosted.channel.on.mockImplementation((...args: unknown[]) => {
+      hosted.realtimeCallback = args.at(-1) as () => void;
+      return hosted.channel;
+    });
+    hosted.channel.subscribe.mockReset();
+    hosted.channel.subscribe.mockImplementation((callback?: RealtimeStatusCallback) => {
+      hosted.realtimeStatusCallback = callback ?? null;
+      return hosted.channel;
+    });
+  });
+
+  it("uses INITIAL_SESSION as the single first-session entry without getSession double activation", async () => {
+    hosted.load.mockResolvedValue(remote());
+    render(<WorkspaceProvider><div>workspace</div></WorkspaceProvider>);
+
+    await waitFor(() => expect(hosted.authCallback).not.toBeNull());
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(hosted.load).toHaveBeenCalledTimes(1));
+
+    expect(hosted.getSession).not.toHaveBeenCalled();
+    expect(hosted.load).toHaveBeenCalledWith(expect.anything(), "owner-a");
+  });
+
+  it("surfaces realtime connection status instead of failing silently", async () => {
+    hosted.load.mockResolvedValue(remote());
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+
+    await waitFor(() => expect(hosted.authCallback).not.toBeNull());
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(hosted.realtimeStatusCallback).not.toBeNull());
+
+    act(() => hosted.realtimeStatusCallback?.("SUBSCRIBED"));
+    expect(screen.getByTestId("realtime-status")).toHaveTextContent("connected");
+
+    act(() => hosted.realtimeStatusCallback?.("CHANNEL_ERROR"));
+    expect(screen.getByTestId("realtime-status")).toHaveTextContent("error");
+    expect(screen.getByTestId("realtime-error")).toHaveTextContent("실시간 연결이 끊겼어요");
+  });
+
+  it("does not create a workspace after an older activation becomes stale during remote load", async () => {
+    let resolveOwnerA: ((value: HostedDocument | null) => void) | null = null;
+    hosted.load.mockImplementation((_client, ownerId) => {
+      if (ownerId === "owner-a") {
+        return new Promise((resolve) => { resolveOwnerA = resolve; });
+      }
+      return Promise.resolve(remote(11));
+    });
+    render(<WorkspaceProvider><div>workspace</div></WorkspaceProvider>);
+
+    await waitFor(() => expect(hosted.authCallback).not.toBeNull());
+    act(() => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(hosted.load).toHaveBeenCalledWith(expect.anything(), "owner-a"));
+
+    act(() => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
+    await waitFor(() => expect(hosted.load).toHaveBeenCalledWith(expect.anything(), "owner-b"));
+    await act(async () => { resolveOwnerA?.(null); });
+    await waitFor(() => expect(hosted.load).toHaveBeenCalledTimes(2));
+
+    expect(hosted.save).not.toHaveBeenCalled();
+  });
+
+  it("never writes owner B state into owner A cache when A's pending save rejects", async () => {
+    const pendingSave = deferred<{ documentVersion: number; updatedAt: string }>();
+    hosted.load.mockImplementation((_client, ownerId) => Promise.resolve(
+      ownerId === "owner-a" ? markedRemote("owner-a", 7) : markedRemote("owner-b", 11),
+    ));
+    hosted.save.mockReturnValue(pendingSave.promise);
+    hosted.sync.mockResolvedValue(undefined);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+
+    await waitFor(() => expect(hosted.authCallback).not.toBeNull());
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-a-workspace"));
+    fireEvent.click(screen.getByRole("button", { name: "edit workspace" }));
+    await waitFor(() => expect(hosted.save).toHaveBeenCalledTimes(1));
+
+    await act(async () => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
+    await act(async () => pendingSave.reject(new Error("owner-a network failed")));
+
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
+    const ownerACache = window.localStorage.getItem("ilgamcheck:mvp:v2:user:owner-a") ?? "";
+    expect(ownerACache).toContain("owner-a-workspace");
+    expect(ownerACache).not.toContain("owner-b-workspace");
+  });
+
+  it("ignores an owner A realtime response that finishes after switching to owner B", async () => {
+    const delayedRealtime = deferred<HostedDocument | null>();
+    let ownerALoads = 0;
+    hosted.load.mockImplementation((_client, ownerId) => {
+      if (ownerId === "owner-b") return Promise.resolve(markedRemote("owner-b", 11));
+      ownerALoads += 1;
+      return ownerALoads === 1
+        ? Promise.resolve(markedRemote("owner-a", 7))
+        : delayedRealtime.promise;
+    });
+    hosted.sync.mockResolvedValue(undefined);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+
+    await waitFor(() => expect(hosted.authCallback).not.toBeNull());
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(hosted.realtimeCallback).not.toBeNull());
+    const ownerARealtime = hosted.realtimeCallback;
+    act(() => ownerARealtime?.());
+    await waitFor(() => expect(ownerALoads).toBe(2));
+
+    await act(async () => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
+    await act(async () => delayedRealtime.resolve(markedRemote("owner-a-late", 8)));
+
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
+    expect(window.localStorage.getItem("ilgamcheck:mvp:v2:user:owner-b")).toContain("owner-b-workspace");
+  });
+
+  it("does not let a rejected owner A recovery overwrite owner A with owner B state", async () => {
+    const delayedRecovery = deferred<HostedDocument | null>();
+    let ownerALoads = 0;
+    hosted.load.mockImplementation((_client, ownerId) => {
+      if (ownerId === "owner-b") return Promise.resolve(markedRemote("owner-b", 11));
+      ownerALoads += 1;
+      return ownerALoads === 1
+        ? Promise.resolve(markedRemote("owner-a", 7))
+        : delayedRecovery.promise;
+    });
+    hosted.save.mockRejectedValue(new Error("owner-a save failed"));
+    hosted.sync.mockResolvedValue(undefined);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+
+    await waitFor(() => expect(hosted.authCallback).not.toBeNull());
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-a-workspace"));
+    fireEvent.click(screen.getByRole("button", { name: "edit workspace" }));
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("error"));
+    fireEvent.click(screen.getByRole("button", { name: "서버본 사용" }));
+    await waitFor(() => expect(ownerALoads).toBe(2));
+
+    await act(async () => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
+    await act(async () => delayedRecovery.reject(new Error("late owner-a recovery failure")));
+
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
+    const ownerACache = window.localStorage.getItem("ilgamcheck:mvp:v2:user:owner-a") ?? "";
+    expect(ownerACache).toContain("owner-a-workspace");
+    expect(ownerACache).not.toContain("owner-b-workspace");
+  });
+});

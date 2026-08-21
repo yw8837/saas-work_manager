@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="일감체크">
+  <rect width="512" height="512" fill="#181d26"/>
+  <rect x="112" y="112" width="288" height="288" rx="82" fill="#fff"/>
+  <path d="m174 258 49 49 121-126" fill="none" stroke="#181d26" stroke-linecap="round" stroke-linejoin="round" stroke-width="36"/>
+</svg>

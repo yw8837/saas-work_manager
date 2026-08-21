@@ -1,0 +1,16 @@
+.env*
+.git
+.github
+.vercel
+.next
+.supabase
+supabase/.branches
+supabase/.temp
+.omc
+.impeccable
+node_modules
+coverage
+playwright-report
+test-results
+qa-screenshots
+*.log

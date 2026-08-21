@@ -1,0 +1,31 @@
+name: release-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_STORAGE_MODE: hosted
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-contract.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ci_contract_only
+      NEXT_PUBLIC_OPERATOR_NAME: CI contract operator
+      NEXT_PUBLIC_SUPPORT_EMAIL: release-contract@ilgamcheck.test
+      NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false"
+      SUPABASE_SERVICE_ROLE_KEY: sb_secret_ci_contract_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check:release

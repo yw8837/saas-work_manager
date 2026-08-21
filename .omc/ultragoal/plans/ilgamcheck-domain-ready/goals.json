@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "planId": "ilgamcheck-domain-ready",
+  "createdAt": "2026-08-16T14:01:43.737Z",
+  "updatedAt": "2026-08-16T21:08:44.4380063Z",
+  "briefPath": ".omc/ultragoal/plans/ilgamcheck-domain-ready/brief.md",
+  "goalsPath": ".omc/ultragoal/plans/ilgamcheck-domain-ready/goals.json",
+  "ledgerPath": ".omc/ultragoal/plans/ilgamcheck-domain-ready/ledger.jsonl",
+  "claudeGoalMode": "aggregate",
+  "goals": [
+    {
+      "id": "G001",
+      "title": "릴리스 기준 고정",
+      "objective": "릴리스 규칙과 현재 검증 증거, 외부 차단선을 저장소에 고정한다.",
+      "status": "complete",
+      "attempt": 1,
+      "createdAt": "2026-08-16T14:01:43.737Z",
+      "updatedAt": "2026-08-16T14:02:03.221Z",
+      "startedAt": "2026-08-16T14:01:50.783Z",
+      "completedAt": "2026-08-16T14:02:03.221Z",
+      "evidence": ".omc/RELEASE_RULE.md created; docs/DEPLOYMENT.md, vercel.json, supabase/config.toml, release-gate workflow present; current version 0.1.0 and external blockers recorded."
+    },
+    {
+      "id": "G002",
+      "title": "베타 운영 표면 완성",
+      "objective": "정책 페이지·가입 동의·지원·계정삭제·보존정책·알림 약속을 무료 베타 범위에 맞게 구현한다.",
+      "status": "complete",
+      "attempt": 1,
+      "createdAt": "2026-08-16T14:01:43.737Z",
+      "updatedAt": "2026-08-16T16:19:26.969Z",
+      "startedAt": "2026-08-16T14:02:14.123Z",
+      "completedAt": "2026-08-16T16:19:26.969Z",
+      "evidence": "Privacy/terms and invited-user policy gate, closed signup, password-setup invite CLI, recent-password-AMR account deletion, token-free JSON export, 30-day receipt retention, customer revision privacy notice and noindex headers are implemented. Independent G002 audit found critical/major code defects 0; official check:release passed 32 files/127 unit tests, lint, typecheck, audit 0, 42 E2E, local and hosted builds. External legal/SMTP/infrastructure evidence remains assigned to G003/G004."
+    },
+    {
+      "id": "G003-supabase",
+      "title": "Supabase 준비",
+      "objective": "창업자 Supabase 프로젝트를 연결하고 migration·Auth·Realtime·A/B 격리를 실제 검증한다.",
+      "status": "in_progress",
+      "attempt": 1,
+      "createdAt": "2026-08-16T14:01:43.737Z",
+      "updatedAt": "2026-08-16T16:19:26.969Z",
+      "startedAt": "2026-08-16T16:19:26.969Z"
+    },
+    {
+      "id": "G004-vercel-preview",
+      "title": "Vercel Preview 준비",
+      "objective": "Vercel 프로젝트를 연결하고 Preview·원격 smoke·보안 헤더를 실제 검증한다.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-08-16T14:01:43.737Z",
+      "updatedAt": "2026-08-16T14:01:43.737Z"
+    },
+    {
+      "id": "G005-ultraqa",
+      "title": "UltraQA 최종 게이트",
+      "objective": "전체 테스트·빌드·보안·독립 코드리뷰를 반복해 도메인 연결 외 잔여 차단점 0개를 증명한다.",
+      "status": "complete",
+      "attempt": 1,
+      "createdAt": "2026-08-16T14:01:43.737Z",
+      "updatedAt": "2026-08-16T21:08:44.4380063Z",
+      "startedAt": "2026-08-16T18:27:00.000Z",
+      "completedAt": "2026-08-16T21:08:44.4380063Z",
+      "evidence": "Final fingerprint 3c9135fb2527d3b2f7e4d1d843c9b4d3adab9b00a0ca40668de01d21176b8d73 remained stable around npm run check:release exit 0: 62 files/295 unit tests, lint, typecheck, npm audit 0, local production build, retry-0 E2E 42/42 in four isolated browser batches, and hosted fail-closed production build. Fresh PostgreSQL 15 applied migrations 001-006; service-role ACL, policy/runtime contract, RLS, cascade and retention passed. Independent DB/deployment audits: Critical 0/Major 0. External infrastructure and legal evidence remain in G003/G004."
+    }
+  ],
+  "claudeObjective": "Complete all ultragoal stories in .omc/ultragoal/plans/ilgamcheck-domain-ready/goals.json: G001 릴리스 기준 고정; G002 베타 운영 표면 완성; G003-supabase Supabase 준비; G004-vercel-preview Vercel Preview 준비; G005-ultraqa UltraQA 최종 게이트",
+  "activeGoalId": "G003-supabase"
+}

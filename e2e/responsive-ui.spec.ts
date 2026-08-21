@@ -1,0 +1,104 @@
+import { expect, test } from "@playwright/test";
+
+for (const width of [320, 375, 390]) {
+  test(`${width}px 핵심 화면은 가로로 넘치지 않는다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+
+    for (const route of ["/", "/today", "/jobs/new", "/jobs/job_seed_mora"]) {
+      await page.goto(route);
+      const sizes = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(sizes.scrollWidth, `${route} horizontal overflow`).toBeLessThanOrEqual(sizes.clientWidth + 1);
+    }
+  });
+}
+
+test("모바일 새 일감 CTA는 하단 내비 위에서 눌린다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/jobs/new");
+
+  const submitBar = page.locator(".mobileSubmitBar");
+  const bottomNav = page.locator(".mobileBottomNav");
+  await expect(submitBar).toBeVisible();
+  await expect(bottomNav).toBeVisible();
+  await page.getByLabel("고객 이름").fill("모바일 CTA 확인");
+
+  const [submitBox, navBox] = await Promise.all([submitBar.boundingBox(), bottomNav.boundingBox()]);
+  expect(submitBox).not.toBeNull();
+  expect(navBox).not.toBeNull();
+  expect(submitBox!.y + submitBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
+  await expect(page.locator('[data-testid^="submit-job"]:visible')).toBeEnabled();
+});
+
+test("상세 수정 로그는 랜딩 스타일과 격리된다", async ({ page }) => {
+  await page.goto("/jobs/job_seed_mora");
+
+  const revisionSection = page.locator(".jobRevisionSection");
+  await expect(revisionSection).toBeVisible();
+  await expect(page.locator(".jobDetailPage .revisionSection")).toHaveCount(0);
+
+  const style = await revisionSection.evaluate((element) => {
+    const computed = window.getComputedStyle(element);
+    return {
+      backgroundColor: computed.backgroundColor,
+      color: computed.color,
+      gridTemplateColumns: computed.gridTemplateColumns,
+    };
+  });
+
+  expect(style.backgroundColor).toBe("rgb(255, 255, 255)");
+  expect(style.color).toBe("rgb(23, 32, 51)");
+  expect(style.gridTemplateColumns).toBe("none");
+});
+
+test("모바일 고정 수정 버튼은 폼을 열고 입력칸에 포커스한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/jobs/job_seed_mora");
+
+  const revisionButton = page.getByRole("button", { name: "수정 기록" });
+  await expect(revisionButton).toBeVisible();
+  await revisionButton.click();
+
+  const revisionForm = page.locator("#revision-entry-form");
+  const revisionTextarea = revisionForm.getByRole("textbox", { name: "수정 요청 내용" });
+  await expect(revisionForm).toBeVisible();
+  await expect(revisionButton).toHaveAttribute("aria-expanded", "true");
+  await expect(revisionTextarea).toBeFocused();
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+});
+
+test("muted 토큰은 밝은 기본 배경에서 WCAG AA 대비를 충족한다", async ({ page }) => {
+  await page.goto("/");
+
+  const ratios = await page.evaluate(() => {
+    const root = window.getComputedStyle(document.documentElement);
+    const parseRgb = (value: string) => {
+      const probe = document.createElement("span");
+      probe.style.color = value;
+      document.body.appendChild(probe);
+      const rgb = window.getComputedStyle(probe).color.match(/\d+/g)!.slice(0, 3).map(Number);
+      probe.remove();
+      return rgb;
+    };
+    const luminance = (rgb: number[]) => rgb
+      .map((channel) => channel / 255)
+      .map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+      .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+    const contrast = (foreground: string, background: string) => {
+      const [lighter, darker] = [luminance(parseRgb(foreground)), luminance(parseRgb(background))]
+        .sort((a, b) => b - a);
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    const muted = root.getPropertyValue("--muted").trim();
+    const canvas = root.getPropertyValue("--canvas").trim();
+    return {
+      onWhite: contrast(muted, "#ffffff"),
+      onCanvas: contrast(muted, canvas),
+    };
+  });
+
+  expect(ratios.onWhite).toBeGreaterThanOrEqual(4.5);
+  expect(ratios.onCanvas).toBeGreaterThanOrEqual(4.5);
+});

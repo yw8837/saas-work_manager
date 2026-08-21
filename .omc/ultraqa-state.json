@@ -1,0 +1,23 @@
+{
+  "active": false,
+  "goal_type": "custom",
+  "goal_pattern": "일감체크 domain-ready release: release gate, policy/closed-beta/account deletion, migrations 001-006, responsive E2E, deploy security all pass",
+  "cycle": 5,
+  "max_cycles": 5,
+  "failures": [
+    "cycle 1: Windows excluded TCP range blocked Playwright port 3100 (EACCES); moved release E2E to 4100 and 42/42 passed",
+    "cycle 1: Hosted demo reset could overwrite the remote workspace; Hosted UI now hides it and provider reset is fail-closed",
+    "cycle 1: closed-beta landing advertised a public demo; Hosted copy now identifies invitation-only login",
+    "cycle 1: invited users lacked a guaranteed password-setup path; invite CLI and docs are being added",
+    "cycle 3: stale local deployment receipts could falsely prove current remote state; current DB/Auth readbacks and receipt freshness were added",
+    "cycle 4: adversarial audit found Vercel project identity, Supabase ref, Auth redirect allow-list, and shell-only PAT propagation were not fully bound",
+    "cycle 5: independent audit found email provider was disabled with self-signup, stale Vercel env/fingerprint gaps, excessive child secret inheritance, first-production ordering cycle, migration receipt without SQL digest, and no-Git evidence contradiction",
+    "cycle 5: final adversarial pass found mutable Supabase/Vercel linked-target races, env-file destructive ACK reuse, recovery target ambiguity, Preview/SMTP ordering cycle, and a repeatable long-lived Playwright browser disconnect; all were fixed before the final gate",
+    "post-pass continuation: external intake and policy publication audit added migration 006, exact manifest/DB binding, and a single fail-closed external-input inventory",
+    "post-pass continuation: independent deploy audit found deployed service-role current-state and start/end production identity gaps; health 503 binding, four-point fingerprint checks, and frozen seven-field external-beta identity comparison closed them"
+  ],
+  "started_at": "2026-08-17T00:05:00+09:00",
+  "session_id": "019ff5d1-94a7-7420-9f87-11a7ffa48d39",
+  "completed_at": "2026-08-17T06:08:44.4346853+09:00",
+  "result": "PASS_LOCAL: fingerprint 3c9135fb2527d3b2f7e4d1d843c9b4d3adab9b00a0ca40668de01d21176b8d73 stable before/after check:release exit 0; 62 files/295 unit tests, lint, typecheck, npm audit 0, local/hosted builds, and retry-0 E2E 42/42 passed. Fresh PostgreSQL 15 applied migrations 001-006 and independent audits report Critical 0/Major 0. External Supabase/Vercel/domain/SMTP/legal/backup evidence remains BLOCKED_EXTERNAL."
+}
