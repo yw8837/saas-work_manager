@@ -19,6 +19,9 @@ describe("Sites Worker entry", () => {
 
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toContain("일감체크");
+    expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    expect(response.headers.get("strict-transport-security")).toContain("max-age=31536000");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(assets.fetch).toHaveBeenCalledTimes(2);
     expect(new URL(assets.fetch.mock.calls[1]?.[0].url).pathname).toBe("/index.html");
   });

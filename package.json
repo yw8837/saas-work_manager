@@ -29,6 +29,7 @@
     "runtime:readback": "node scripts/runtime-contract-readback.mjs",
     "check:release": "node scripts/release-gate.mjs",
     "smoke:remote": "node scripts/remote-smoke.mjs",
+    "smoke:sites": "node scripts/sites-remote-smoke.mjs",
     "verify:hosted": "node scripts/verify-hosted-runtime.mjs",
     "beta:invite": "node scripts/beta-invite.mjs",
     "smtp:dns:verify": "node scripts/smtp-dns-verify.mjs",

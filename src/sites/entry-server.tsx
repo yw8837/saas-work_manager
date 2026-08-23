@@ -1,3 +1,5 @@
+import { buildBearerRouteHeaders, buildSecurityHeaders } from "@/lib/security/headers";
+
 export type SitesAssetBinding = {
   fetch(request: Request): Promise<Response>;
 };
@@ -24,18 +26,33 @@ function isHtmlNavigation(request: Request) {
   return request.method === "GET" && request.headers.get("accept")?.includes("text/html");
 }
 
+function withSecurityHeaders(response: Response, request: Request): Response {
+  const headers = new Headers(response.headers);
+  for (const { key, value } of buildSecurityHeaders(false)) headers.set(key, value);
+  if (/^\/r\/[^/]+$/.test(new URL(request.url).pathname)) {
+    for (const { key, value } of buildBearerRouteHeaders()) headers.set(key, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 async function serveStatic(request: Request, environment: SitesEnvironment): Promise<Response> {
   if (!environment.ASSETS) return unavailable();
   const response = await environment.ASSETS.fetch(request);
   const location = response.headers.get("location");
   const redirectsUnknownRouteToRoot = (response.status === 307 || response.status === 308)
     && location === "/";
-  if ((response.status !== 404 && !redirectsUnknownRouteToRoot) || !isHtmlNavigation(request)) return response;
+  if ((response.status !== 404 && !redirectsUnknownRouteToRoot) || !isHtmlNavigation(request)) {
+    return withSecurityHeaders(response, request);
+  }
 
   const appShellUrl = new URL(request.url);
   appShellUrl.pathname = redirectsUnknownRouteToRoot ? "/" : "/index.html";
   appShellUrl.search = "";
-  return environment.ASSETS.fetch(new Request(appShellUrl, request));
+  return withSecurityHeaders(await environment.ASSETS.fetch(new Request(appShellUrl, request)), request);
 }
 
 function health(environment: SitesEnvironment): Response {
