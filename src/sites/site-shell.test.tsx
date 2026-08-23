@@ -19,9 +19,9 @@ describe("Sites build boundary", () => {
     expect(config).toContain('startsWith("NEXT_PUBLIC_")');
   });
 
-  it("puts browser assets in the Sites public output directory", () => {
+  it("puts browser assets in the Sites client output directory", () => {
     const config = readFileSync(resolve(root, "vite.config.ts"), "utf8");
-    expect(config).toContain('outDir: "dist/public"');
+    expect(config).toContain('outDir: "dist/client"');
     expect(packageJson).toContain('scripts/clean-sites-output.mjs');
   });
 });

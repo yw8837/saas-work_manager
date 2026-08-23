@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
         },
       }
       : {
-        outDir: "dist/public",
+        outDir: "dist/client",
         emptyOutDir: true,
       },
   };

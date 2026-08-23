@@ -30,7 +30,7 @@ async function serveStatic(request: Request, environment: SitesEnvironment): Pro
   if (response.status !== 404 || !isHtmlNavigation(request)) return response;
 
   const appShellUrl = new URL(request.url);
-  appShellUrl.pathname = "/";
+  appShellUrl.pathname = "/index.html";
   appShellUrl.search = "";
   return environment.ASSETS.fetch(new Request(appShellUrl, request));
 }
