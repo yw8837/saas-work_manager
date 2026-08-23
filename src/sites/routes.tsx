@@ -49,10 +49,16 @@ function RevisionRoute() {
   return <PublicRevisionForm token={token} />;
 }
 
+function HomeRoute() {
+  const [params] = useSearchParams();
+  const revisionToken = params.get("revision");
+  return revisionToken ? <PublicRevisionForm token={revisionToken} /> : <MarketingHome />;
+}
+
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<MarketingHome />} />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/today" element={<WorkspaceRoute><TodayDashboard /></WorkspaceRoute>} />
       <Route path="/jobs" element={<WorkspaceRoute><JobsOverview /></WorkspaceRoute>} />
       <Route path="/jobs/new" element={<WorkspaceRoute><NewJobForm /></WorkspaceRoute>} />

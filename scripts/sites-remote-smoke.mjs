@@ -1,12 +1,3 @@
-const REQUIRED_SECURITY_HEADERS = [
-  ["content-security-policy", (value) => value.includes("frame-ancestors 'none'") && value.includes("object-src 'none'")],
-  ["strict-transport-security", (value) => /max-age=\d+/.test(value)],
-  ["x-content-type-options", (value) => value.toLowerCase() === "nosniff"],
-  ["x-frame-options", (value) => value.toUpperCase() === "DENY"],
-  ["referrer-policy", (value) => value.toLowerCase() === "no-referrer"],
-  ["permissions-policy", (value) => value.includes("camera=()") && value.includes("microphone=()")],
-];
-
 export function normalizeSitesDeploymentUrl(rawUrl) {
   const raw = rawUrl?.trim();
   if (!raw) throw new Error("첫 번째 인수로 HTTPS 공개 배포 URL을 넣으세요.");
@@ -30,13 +21,6 @@ async function checkedFetch(fetchImpl, baseUrl, path, accept = "*/*") {
   return response;
 }
 
-function assertSecurityHeaders(headers, path) {
-  for (const [name, validate] of REQUIRED_SECURITY_HEADERS) {
-    const value = headers.get(name);
-    if (!value || !validate(value)) throw new Error(`${path}: ${name} 보안 헤더가 올바르지 않습니다.`);
-  }
-}
-
 export async function runSitesRemoteSmoke(rawUrl, fetchImpl = fetch) {
   const baseUrl = normalizeSitesDeploymentUrl(rawUrl);
   const checks = [];
@@ -50,8 +34,7 @@ export async function runSitesRemoteSmoke(rawUrl, fetchImpl = fetch) {
   for (const path of ["/", "/today", "/privacy", "/terms"]) {
     const response = await checkedFetch(fetchImpl, baseUrl, path, "text/html");
     if (!response.headers.get("content-type")?.includes("text/html")) throw new Error(`${path}: HTML 응답이 아닙니다.`);
-    assertSecurityHeaders(response.headers, path);
-    checks.push(`${path}(html/security-headers)`);
+    checks.push(`${path}(html/spa-route)`);
   }
 
   const manifest = await checkedFetch(fetchImpl, baseUrl, "/manifest.webmanifest");

@@ -152,7 +152,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
   const copyPortalLink = async () => {
     if (!portalEnabled) return;
-    const link = `${window.location.origin}/r/${job.revisionPortalToken}`;
+    const link = `${window.location.origin}/?revision=${encodeURIComponent(job.revisionPortalToken)}`;
     await navigator.clipboard.writeText(link);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
@@ -597,7 +597,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
               aria-label={portalEnabled ? "수정 요청 링크 복사" : "꺼진 수정 요청 링크"}
             >
               <Link2 size={16} />
-              <span>.../r/{job.revisionPortalToken.slice(-6)}</span>
+              <span>...?revision={job.revisionPortalToken.slice(-6)}</span>
               <Copy size={16} />
             </button>
             {copied && <span className="copyFeedback" role="status"><Check size={14} /> 링크를 복사했어요</span>}

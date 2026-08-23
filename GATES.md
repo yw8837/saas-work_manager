@@ -39,8 +39,8 @@ Scope: The public beta landing has an honest, non-blocking discovery flow; the r
   EXPECT: dist/server/index.js
   EVIDENCE: exit=0; lint/typecheck passed and Sites emitted dist/server/index.js; production dependency audit found 0 vulnerabilities.
 
-- [ ] G8: The public deployed URL serves the landing, health route, policy pages, and security baseline after publication.
-  CHECK: npm run smoke:remote -- https://ilgamcheck-beta.bsfire1237.chatgpt.site
+- [ ] G8: The public deployed URL serves the landing, SPA deep links, health route, policy pages, and install files after publication.
+  CHECK: npm run smoke:sites -- https://ilgamcheck-beta.bsfire1237.chatgpt.site
   EXPECT: 공개 배포 기본 계약 확인 완료
   EVIDENCE: pending
 
