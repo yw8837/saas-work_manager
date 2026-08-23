@@ -373,21 +373,21 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .finalCta p { margin-bottom: 10px; color: #fbdccd; }
 .finalCta h2 { margin: 0; color: #fff; font-size: clamp(30px, 3.2vw, 40px); font-weight: 500; letter-spacing: -.02em; }
 
-/* Footer — light editorial */
-.marketingFooter { display: flex; flex-direction: column; gap: 22px; padding: 44px max(24px, calc((100vw - 1120px)/2)) 40px; color: var(--muted); background: var(--paper); border-top: 1px solid var(--line); }
+/* Footer — quiet, legally findable */
+.marketingFooter { display: flex; flex-direction: column; gap: 16px; padding: 30px max(24px, calc((100vw - 1120px)/2)); color: var(--muted); background: var(--paper); border-top: 1px solid var(--line); }
 .marketingFooterTop { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-.marketingFooterLegal { display: flex; flex-direction: column; gap: 10px; padding-top: 20px; border-top: 1px solid var(--line); }
-.legalInfo { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; }
-.legalInfo > div { display: inline-flex; align-items: baseline; gap: 5px; }
-.legalInfo dt { color: var(--muted); font-size: 11px; }
-.legalInfo dd { margin: 0; color: var(--ink-soft); font-size: 11px; }
-.legalPending { margin: 0; max-width: 78ch; color: var(--muted); font-size: 11px; line-height: 1.6; }
-.legalCopyright { color: var(--muted); font-size: 10px; }
-.marketingFooterCopy { display: grid; gap: 2px; text-align: center; }
-.marketingFooterCopy span { color: var(--ink-soft); font-size: 12px; }
-.marketingFooterCopy small { font-size: 10px; }
-.marketingFooter nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14px; font-size: 11px; }
-.marketingFooter a:hover { color: var(--ink); text-decoration: underline; }
+.marketingFooterIdentity { display: flex; align-items: center; gap: 14px; }
+.marketingFooterIdentity .brand { transform: scale(.9); transform-origin: left center; }
+.marketingFooterIdentity small { color: var(--muted); font-size: 11px; }
+.marketingFooter nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 16px; font-size: 12px; }
+.marketingFooter nav a { color: var(--ink-soft); text-underline-offset: 3px; }
+.marketingFooter a:hover, .marketingFooter a:focus-visible { color: var(--ink); text-decoration: underline; }
+.marketingFooterLegal { display: flex; flex-wrap: wrap; gap: 5px 14px; margin: 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.marketingFooterLegal > div { display: inline-flex; align-items: baseline; gap: 5px; }
+.marketingFooterLegal dt, .marketingFooterLegal dd { font-size: 11px; line-height: 1.55; }
+.marketingFooterLegal dt { color: var(--muted); }
+.marketingFooterLegal dd { margin: 0; color: var(--ink-soft); }
+.marketingFooterLegal dd a { color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -822,8 +822,8 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .revisionEntries article { padding-left: 36px; }
   .finalCta { padding: 62px 18px; flex-direction: column; align-items: flex-start; }
   .finalCta h2 { font-size: 31px; }
-  .marketingFooter { padding-inline: 18px; align-items: flex-start; flex-direction: column; gap: 14px; }
-  .marketingFooterCopy { text-align: left; }
+  .marketingFooter { padding: 24px 18px; align-items: flex-start; flex-direction: column; gap: 14px; }
+  .marketingFooterIdentity { flex-wrap: wrap; gap: 8px 12px; }
   .marketingFooter nav { justify-content: flex-start; }
   .policyHeader { min-height: 64px; align-items: flex-start; flex-direction: column; padding-block: 16px; }
   .policyHeader nav { justify-content: flex-start; }

@@ -15,9 +15,9 @@ const migration = readFileSync(resolve(
   process.cwd(),
   "supabase/migrations/202608160005_policy_acceptances.sql",
 ), "utf8");
-const publicationContractMigration = readFileSync(resolve(
+const beta2PublicationMigration = readFileSync(resolve(
   process.cwd(),
-  "supabase/migrations/202608170006_policy_publication_contract.sql",
+  "supabase/migrations/202608240009_policy_beta2_publication.sql",
 ), "utf8");
 
 describe("hosted policy acceptance contract", () => {
@@ -30,8 +30,8 @@ describe("hosted policy acceptance contract", () => {
   });
 
   it("records only the exact visible versions through a narrow authenticated RPC or signup trigger", () => {
-    expect(migration).toContain(`p_terms_version <> '${TERMS_VERSION}'`);
-    expect(migration).toContain(`p_privacy_version <> '${PRIVACY_VERSION}'`);
+    expect(beta2PublicationMigration).toContain(`p_terms_version <> '${TERMS_VERSION}'`);
+    expect(beta2PublicationMigration).toContain(`p_privacy_version <> '${PRIVACY_VERSION}'`);
     expect(migration).toContain("security definer");
     expect(migration).toContain("set search_path = ''");
     expect(migration).toContain("on_auth_user_record_policy_acceptance");
@@ -39,10 +39,10 @@ describe("hosted policy acceptance contract", () => {
     expect(migration).toContain("grant execute on function public.accept_current_policies(text, text) to authenticated");
     expect(migration).not.toContain("grant execute on function public.accept_current_policies(text, text) to anon");
     // 런타임 계약 버전은 이후 마이그레이션에서 올라간다. 그 검증은 runtime-contract.test.ts가 맡는다.
-    expect(publicationContractMigration).toContain(`'termsVersion', '${TERMS_VERSION}'`);
-    expect(publicationContractMigration).toContain(`'privacyVersion', '${PRIVACY_VERSION}'`);
-    expect(publicationContractMigration).toContain(`'bundleDigest', '${POLICY_PUBLICATION_MANIFEST.bundleDigest}'`);
-    expect(publicationContractMigration).toContain(`'finalized', ${POLICY_PUBLICATION_MANIFEST.finalized}`);
+    expect(beta2PublicationMigration).toContain(`'termsVersion', '${TERMS_VERSION}'`);
+    expect(beta2PublicationMigration).toContain(`'privacyVersion', '${PRIVACY_VERSION}'`);
+    expect(beta2PublicationMigration).toContain(`'bundleDigest', '${POLICY_PUBLICATION_MANIFEST.bundleDigest}'`);
+    expect(beta2PublicationMigration).toContain(`'finalized', ${POLICY_PUBLICATION_MANIFEST.finalized}`);
   });
 
   it("sends the current versions to the RPC", async () => {

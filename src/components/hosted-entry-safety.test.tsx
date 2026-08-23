@@ -58,4 +58,14 @@ describe("Hosted entry safety", () => {
     expect(screen.queryByText(/평균 30초/)).not.toBeInTheDocument();
     expect(screen.getByText(/Basic을 월 9,900원에 12개월 유지/)).toBeInTheDocument();
   });
+
+  it("keeps legal links quiet but findable in the public landing footer", () => {
+    render(<MarketingHome />);
+
+    expect(screen.getByRole("link", { name: "FAQ" })).toHaveAttribute("href", "#faq");
+    expect(screen.getByRole("link", { name: "이용약관" })).toHaveAttribute("href", "/terms");
+    expect(screen.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
+    expect(screen.queryByText(/사업자 정보\(.+등록 예정/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/초대 전용 폐쇄 베타/)).not.toBeInTheDocument();
+  });
 });

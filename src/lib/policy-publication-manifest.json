@@ -3,25 +3,25 @@
   "finalized": false,
   "effectiveDate": "2026-08-16",
   "effectiveDateLabel": "2026년 8월 16일",
-  "bundleDigest": "sha256:02f684b3febd9ec637dac82cf161212d788bd9ef130a083fd609363bf13e1349",
+  "bundleDigest": "sha256:008eb53debda8410ee4c262a0a188cfd859a23a9729700933782ab49f88f46be",
   "shared": {
-    "draftNoticeTitle": "운영자 공개 정보·정책 확정 전",
-    "draftNoticeBody": "이 페이지는 폐쇄 베타 준비본입니다. 외부 테스터를 초대하기 전에 운영자명과 문의 이메일을 배포 환경에 연결하고 개인정보 처리 내용을 확정해야 하며, 미설정 상태를 실제 운영자 정보처럼 표시하지 않습니다.",
+    "draftNoticeTitle": "베타 서비스 정책 안내",
+    "draftNoticeBody": "일감체크는 초대코드로 계정을 제공하는 베타 서비스입니다. 운영자 정보와 문의 채널은 서비스 화면에 표시하며, 유료 결제·정기결제·환불 정책은 실제 도입 전에 별도로 확정해 안내합니다.",
     "operatorHeading": "운영자 및 문의",
     "operatorLabel": "운영자",
     "supportLabel": "문의",
-    "missingPublicValue": "공개 전 설정 필요",
-    "footerLabel": "일감체크 폐쇄 베타"
+    "missingPublicValue": "서비스 화면의 운영 정보 참조",
+    "footerLabel": "일감체크 베타"
   },
   "documents": {
     "privacy": {
       "pathname": "/privacy",
       "eyebrow": "Privacy",
       "title": "개인정보처리방침",
-      "metadataDescription": "일감체크 폐쇄 베타의 개인정보 처리 기준",
-      "version": "2026-08-16-beta.1",
-      "contentDigest": "sha256:643ef9a3967c5a18e878e3f053fa724a4f02ee9be12751038595a1199d7875f1",
-      "lead": "일감체크는 1인 사업자의 일감 관리를 돕는 폐쇄 베타 서비스입니다. 아래 내용은 현재 구현된 인증·작업공간·고객 수정 링크 흐름을 기준으로 작성했으며, 결제 정보는 아직 수집하지 않습니다.",
+      "metadataDescription": "일감체크 베타의 개인정보 처리 기준",
+      "version": "2026-08-24-beta.2",
+      "contentDigest": "sha256:8f4defc55d3bec788aa229b6dcabebe6654ad8633d6f84e8aa22547a919ee996",
+      "lead": "일감체크는 1인 사업자의 일감 관리를 돕는 베타 서비스입니다. 아래 내용은 현재 구현된 인증·작업공간·고객 수정 링크 흐름을 기준으로 작성했으며, 결제 정보는 아직 수집하지 않습니다.",
       "sections": [
         {
           "heading": "1. 처리 목적과 항목",
@@ -72,12 +72,12 @@
               "headers": ["처리자", "업무", "처리 범위와 위치"],
               "rows": [
                 ["Supabase", "이메일 인증, 데이터베이스, 실시간 동기화", "계정·작업공간 데이터 / 주 데이터베이스는 서울(ap-northeast-2), 지원·백업 하위처리자는 국외 가능"],
-                ["Vercel", "웹 애플리케이션 호스팅, CDN, 보안·오류 로그", "요청·기술 로그 / 설정 리전 및 글로벌 전송망"]
+                ["OpenAI Sites", "웹 애플리케이션 호스팅, CDN, 접근 제어, 보안·오류 로그", "요청·기술 로그 / 글로벌 전송망"]
               ]
             },
             {
               "type": "note",
-              "text": "Supabase 주 데이터베이스는 서울 리전으로 생성하는 것을 배포 조건으로 삼습니다. 다만 Supabase와 Vercel의 지원·보안·전송망 및 하위처리자가 국외에서 일부 정보를 처리할 수 있습니다. 실제 이전 국가·시점·방법과 거부 절차는 실제 Supabase·Vercel 프로젝트와 운영 주체를 확정한 뒤 법률 검토를 거쳐 구체적으로 갱신합니다. 이 표와 운영자 정보가 확정되기 전에는 폐쇄베타를 포함해 외부 테스터를 초대하지 않습니다."
+              "text": "Supabase 주 데이터베이스는 서울 리전으로 생성하는 것을 배포 조건으로 삼습니다. 다만 Supabase와 OpenAI Sites의 지원·보안·전송망 및 하위처리자가 국외에서 일부 정보를 처리할 수 있습니다. 실제 이전 국가·시점·방법과 거부 절차는 서비스 제공자와 운영 주체의 최신 문서를 확인한 뒤 법률 검토를 거쳐 유료 출시 전에 구체적으로 갱신합니다."
             },
             {
               "type": "links",
@@ -85,7 +85,7 @@
               "items": [
                 { "label": "Supabase 리전 안내", "href": "https://supabase.com/docs/guides/platform/regions" },
                 { "label": "Supabase DPA", "href": "https://supabase.com/downloads/docs/Supabase%2BDPA%2B260601.pdf" },
-                { "label": "Vercel DPA", "href": "https://vercel.com/legal/dpa" }
+                { "label": "OpenAI 개인정보처리방침", "href": "https://openai.com/policies/privacy-policy/" }
               ]
             }
           ]
@@ -128,10 +128,10 @@
       "pathname": "/terms",
       "eyebrow": "Terms",
       "title": "이용약관",
-      "metadataDescription": "일감체크 폐쇄 베타 이용약관",
-      "version": "2026-08-16-beta.1",
-      "contentDigest": "sha256:65ea7ae1a7ae96787ca1cae8c58cabf77c428403fda94a63ab757fb931e87eee",
-      "lead": "이 약관은 일감체크 폐쇄 베타의 이용 조건을 정합니다. 현재 베타는 초대 계정에 무료로 제공되며, 유료 결제나 외부 플랫폼의 주문 중개 기능은 제공하지 않습니다.",
+      "metadataDescription": "일감체크 베타 이용약관",
+      "version": "2026-08-24-beta.2",
+      "contentDigest": "sha256:99c85a1fd651cceee10720b7f5465ff33baee73b92bd0b56f427800fdac17179",
+      "lead": "이 약관은 일감체크 베타의 이용 조건을 정합니다. 현재 베타는 초대 계정에 무료로 제공되며, 유료 결제나 외부 플랫폼의 주문 중개 기능은 제공하지 않습니다.",
       "sections": [
         {
           "heading": "1. 서비스 범위",
@@ -147,7 +147,7 @@
           ]
         },
         {
-          "heading": "2. 계정과 폐쇄 베타",
+          "heading": "2. 계정과 베타",
           "blocks": [
             {
               "type": "list",
@@ -196,11 +196,19 @@
           ]
         },
         {
-          "heading": "6. 장애와 책임 범위",
+          "heading": "6. 베타 서비스와 책임의 제한",
           "blocks": [
             {
               "type": "paragraph",
-              "text": "운영자는 합리적인 범위에서 서비스 안정성과 데이터 보호를 위해 노력합니다. 다만 베타 기능은 테스트 중이므로 사용자는 최종 납기, 계약 금액, 고객 연락처럼 중요한 정보를 원 계약·플랫폼 기록과 함께 확인해야 합니다."
+              "text": "일감체크는 일감 관리와 기록을 돕는 도구입니다. 사용자는 고객과의 계약·납품·고객 분쟁, 최종 납기, 계약 금액과 의사소통을 원 계약·플랫폼 기록과 함께 직접 확인해야 합니다."
+            },
+            {
+              "type": "paragraph",
+              "text": "운영자는 합리적인 범위에서 서비스 안정성과 데이터 보호·복구를 위해 노력합니다. 다만 베타 기능의 변경·점검, 통신 장애, 이용자 또는 제3자 서비스의 오류로 발생한 이용상 불편이나 간접 손해까지 보장하지는 않습니다."
+            },
+            {
+              "type": "note",
+              "text": "이 조항은 법령상 제한할 수 없는 책임이나 운영자의 고의 또는 중대한 과실로 인한 책임을 제한하지 않습니다. 필요한 데이터는 설정의 내보내기 기능으로 별도 보관할 수 있습니다."
             }
           ]
         },

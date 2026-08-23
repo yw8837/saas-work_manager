@@ -21,13 +21,13 @@ export function MarketingHome() {
   // 전자상거래법 사업자 정보 고지 — 배포 시 NEXT_PUBLIC_* 로 주입, 미설정이면 정직하게 등록 전 고지
   const legal = {
     businessName: process.env.NEXT_PUBLIC_BUSINESS_NAME?.trim() || null,
-    owner: process.env.NEXT_PUBLIC_BUSINESS_OWNER?.trim() || null,
+    owner: process.env.NEXT_PUBLIC_BUSINESS_OWNER?.trim() || service.operatorName,
     regNo: process.env.NEXT_PUBLIC_BUSINESS_NUMBER?.trim() || null,
     mailOrderNo: process.env.NEXT_PUBLIC_MAIL_ORDER_NUMBER?.trim() || null,
     address: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS?.trim() || null,
     phone: process.env.NEXT_PUBLIC_BUSINESS_PHONE?.trim() || null,
   };
-  const legalConfigured = Boolean(legal.businessName && legal.regNo);
+  const hasLegalInfo = Object.values(legal).some(Boolean);
 
   return (
     <div className="marketingPage">
@@ -180,35 +180,26 @@ export function MarketingHome() {
 
       <footer className="marketingFooter">
         <div className="marketingFooterTop">
-          <Brand />
-          <div className="marketingFooterCopy">
-            <span>1인 사업자의 본업을 지키는 일감 관리 도구</span>
-            <small>{service.operatorName ?? "운영자 정보 연결 전"} · 초대 전용 폐쇄 베타</small>
+          <div className="marketingFooterIdentity">
+            <Brand />
+            <small>© {new Date().getFullYear()} 일감체크. All rights reserved.</small>
           </div>
           <nav aria-label="정책 및 문의">
+            <a href="#faq">FAQ</a>
             <Link href="/terms">이용약관</Link>
             <Link href="/privacy">개인정보처리방침</Link>
             {service.supportEmail && <a href={`mailto:${service.supportEmail}`}>문의</a>}
           </nav>
         </div>
-        <div className="marketingFooterLegal">
-          {legalConfigured ? (
-            <dl className="legalInfo">
-              <div><dt>상호</dt><dd>{legal.businessName}</dd></div>
-              {legal.owner && <div><dt>대표</dt><dd>{legal.owner}</dd></div>}
-              <div><dt>사업자등록번호</dt><dd>{legal.regNo}</dd></div>
-              {legal.mailOrderNo && <div><dt>통신판매업신고</dt><dd>{legal.mailOrderNo}</dd></div>}
-              {legal.address && <div><dt>주소</dt><dd>{legal.address}</dd></div>}
-              {legal.phone && <div><dt>연락처</dt><dd>{legal.phone}</dd></div>}
-              {service.supportEmail && <div><dt>이메일</dt><dd>{service.supportEmail}</dd></div>}
-            </dl>
-          ) : (
-            <p className="legalPending">
-              사업자 정보(상호 · 대표자 · 사업자등록번호 · 통신판매업신고 · 주소 · 연락처)는 유료·공개 출시 전 등록 예정입니다. 현재는 초대 전용 폐쇄 베타로 운영됩니다.
-            </p>
-          )}
-          <small className="legalCopyright">© {new Date().getFullYear()} 일감체크</small>
-        </div>
+        {hasLegalInfo && <dl className="marketingFooterLegal" aria-label="운영 정보">
+          {legal.businessName && <div><dt>사업자</dt><dd>{legal.businessName}</dd></div>}
+          {legal.owner && <div><dt>운영</dt><dd>{legal.owner}</dd></div>}
+          {legal.regNo && <div><dt>사업자등록번호</dt><dd>{legal.regNo}</dd></div>}
+          {legal.mailOrderNo && <div><dt>통신판매업신고</dt><dd>{legal.mailOrderNo}</dd></div>}
+          {legal.address && <div><dt>주소</dt><dd>{legal.address}</dd></div>}
+          {legal.phone && <div><dt>연락처</dt><dd>{legal.phone}</dd></div>}
+          {service.supportEmail && <div><dt>문의</dt><dd><a href={`mailto:${service.supportEmail}`}>{service.supportEmail}</a></dd></div>}
+        </dl>}
       </footer>
     </div>
   );
