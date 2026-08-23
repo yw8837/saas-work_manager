@@ -39,9 +39,9 @@ Scope: The public beta landing has an honest, non-blocking discovery flow; the r
   EXPECT: dist/server/index.js
   EVIDENCE: exit=0; lint/typecheck passed and Sites emitted dist/server/index.js; production dependency audit found 0 vulnerabilities.
 
-- [ ] G8: The public deployed URL serves the landing, SPA deep links, health route, policy pages, and install files after publication.
+- [x] G8: The public deployed URL serves the landing, SPA deep links, health route, policy pages, and install files after publication.
   CHECK: npm run smoke:sites -- https://ilgamcheck-beta.bsfire1237.chatgpt.site
   EXPECT: 공개 배포 기본 계약 확인 완료
-  EVIDENCE: pending
+  EVIDENCE: exit=0; root, /today, /privacy, /terms, health, manifest, and service worker passed on the public Sites URL.
 
 RESOLVED: The earlier OpenNext artifact mismatch was removed by the supported Vite/Sites runtime migration, which emits dist/server/index.js directly. G4 replaces the obsolete private-only deployment wording because this beta is intentionally public.

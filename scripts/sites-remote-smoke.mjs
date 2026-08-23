@@ -14,10 +14,11 @@ async function checkedFetch(fetchImpl, baseUrl, path, accept = "*/*") {
   const response = await fetchImpl(new URL(path, baseUrl), {
     cache: "no-store",
     headers: { Accept: accept, "User-Agent": "ilgamcheck-sites-smoke/1.0" },
-    redirect: "manual",
+    redirect: "follow",
     signal: AbortSignal.timeout(15_000),
   });
   if (response.status !== 200) throw new Error(`${path}: HTTP ${response.status}`);
+  if (response.url && new URL(response.url).origin !== baseUrl.origin) throw new Error(`${path}: 다른 origin으로 이동했습니다.`);
   return response;
 }
 
