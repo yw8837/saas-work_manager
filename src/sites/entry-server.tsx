@@ -27,10 +27,13 @@ function isHtmlNavigation(request: Request) {
 async function serveStatic(request: Request, environment: SitesEnvironment): Promise<Response> {
   if (!environment.ASSETS) return unavailable();
   const response = await environment.ASSETS.fetch(request);
-  if (response.status !== 404 || !isHtmlNavigation(request)) return response;
+  const location = response.headers.get("location");
+  const redirectsUnknownRouteToRoot = (response.status === 307 || response.status === 308)
+    && location === "/";
+  if ((response.status !== 404 && !redirectsUnknownRouteToRoot) || !isHtmlNavigation(request)) return response;
 
   const appShellUrl = new URL(request.url);
-  appShellUrl.pathname = "/index.html";
+  appShellUrl.pathname = redirectsUnknownRouteToRoot ? "/" : "/index.html";
   appShellUrl.search = "";
   return environment.ASSETS.fetch(new Request(appShellUrl, request));
 }

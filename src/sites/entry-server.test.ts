@@ -23,6 +23,26 @@ describe("Sites Worker entry", () => {
     expect(new URL(assets.fetch.mock.calls[1]?.[0].url).pathname).toBe("/index.html");
   });
 
+  it("preserves a direct app route when the asset service redirects it to the root", async () => {
+    const assets = {
+      fetch: vi.fn(async (request: Request) => {
+        const path = new URL(request.url).pathname;
+        return path === "/"
+          ? new Response("<html>일감체크</html>", { status: 200 })
+          : new Response(null, { status: 307, headers: { Location: "/" } });
+      }),
+    };
+
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/jobs/new", { headers: { Accept: "text/html" } }),
+      { ASSETS: assets },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toContain("일감체크");
+    expect(new URL(assets.fetch.mock.calls[1]?.[0].url).pathname).toBe("/");
+  });
+
   it("fails closed when the health endpoint has no server configuration", async () => {
     const assets = { fetch: vi.fn() };
 
