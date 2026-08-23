@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:sites": "vite build --mode sites-client && vite build --mode sites-worker",
+    "build:sites": "node scripts/clean-sites-output.mjs && vite build --mode sites-client && vite build --mode sites-worker",
     "build:worker": "opennextjs-cloudflare build",
     "preview:worker": "opennextjs-cloudflare build && wrangler dev",
     "start": "next start",

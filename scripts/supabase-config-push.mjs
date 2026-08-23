@@ -15,7 +15,7 @@ import {
   renderHostedSupabaseConfig,
 } from "./supabase-config-push-policy.mjs";
 import { authConfigApplyAck, verifyLinkedSupabaseProject } from "./supabase-project-guard.mjs";
-import { verifyLinkedVercelDeployment } from "./vercel-project-guard.mjs";
+import { verifyHostedAuthOrigin } from "./sites-origin-guard.mjs";
 import { recordAuthConfigReceipt } from "./deployment-receipt.mjs";
 import { minimalChildEnvironment } from "./minimal-child-environment.mjs";
 
@@ -51,7 +51,7 @@ try {
 }
 const projectRef = linkedProject.projectRef;
 try {
-  verifyLinkedVercelDeployment({ authOrigin: siteUrl });
+  verifyHostedAuthOrigin({ authOrigin: siteUrl });
 } catch (error) {
   console.error(`[supabase-config] Auth origin 검증 실패: ${error.message}`);
   process.exit(1);
@@ -82,7 +82,10 @@ try {
   const command = configPushInvocation(projectRef, temporaryRoot);
   console.log(`[supabase-config] APPLY — ${siteUrl}, 전체 신규 가입 OFF·이메일 로그인 ON을 원격 프로젝트에 반영합니다.`);
   const result = spawnSync(command.executable, command.args, {
-    cwd: process.cwd(),
+    // Supabase prefers a config in the process CWD over --workdir in some CLI
+    // versions. Run from the isolated temporary root so only rendered hosted
+    // redirects are eligible for the remote write.
+    cwd: temporaryRoot,
     env: minimalChildEnvironment(process.env),
     stdio: "inherit",
     shell: false,

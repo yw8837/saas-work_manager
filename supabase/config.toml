@@ -27,10 +27,11 @@ enabled = true
 
 [auth]
 enabled = true
-site_url = "http://127.0.0.1:3000"
+site_url = "https://ilgamcheck-beta.bsfire1237.chatgpt.site"
 additional_redirect_urls = [
   "http://127.0.0.1:3000/auth/reset",
-  "http://localhost:3000/auth/reset"
+  "http://localhost:3000/auth/reset",
+  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/auth/reset"
 ]
 jwt_expiry = 3600
 enable_signup = false

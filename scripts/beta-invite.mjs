@@ -9,7 +9,7 @@ import {
   supabaseProjectUrlIssue,
 } from "./deploy-env-policy.mjs";
 import { verifyLinkedSupabaseProject } from "./supabase-project-guard.mjs";
-import { verifyLinkedVercelDeployment } from "./vercel-project-guard.mjs";
+import { verifyHostedAuthOrigin } from "./sites-origin-guard.mjs";
 
 export const BETA_INVITE_ACK = "I_CONFIRMED_POLICY_AND_SMTP_SEND_ONE_INVITE";
 
@@ -133,7 +133,7 @@ export async function verifyBetaInviteTarget({
   env,
   root = process.cwd(),
   verifySupabase = verifyLinkedSupabaseProject,
-  verifyVercel = verifyLinkedVercelDeployment,
+  verifyVercel = verifyHostedAuthOrigin,
 }) {
   const linked = verifySupabase({ root, env });
   const configuredRef = new URL(config.supabaseUrl).hostname.replace(/\.supabase\.co$/, "");
