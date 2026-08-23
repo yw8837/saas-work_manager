@@ -51,6 +51,20 @@ describe("Hosted entry safety", () => {
     expect(screen.getByText("초대 베타 로그인")).toBeInTheDocument();
   });
 
+  it("keeps discovery links on the public landing and limits workspace entry to explicit CTAs", () => {
+    process.env.NEXT_PUBLIC_STORAGE_MODE = "hosted";
+    render(<MarketingHome />);
+
+    expect(screen.getByRole("link", { name: "사용 방식" })).toHaveAttribute("href", "#workflow");
+    expect(screen.getByRole("link", { name: "수정 관리" })).toHaveAttribute("href", "#revision");
+    expect(screen.getByRole("link", { name: "자주 묻는 질문" })).toHaveAttribute("href", "#faq");
+    expect(screen.getByRole("link", { name: "어떻게 편해지나요?" })).toHaveAttribute("href", "#workflow");
+
+    const workspaceEntries = screen.getAllByRole("link", { name: /베타.*로그인|초대.*로그인/ });
+    expect(workspaceEntries).toHaveLength(3);
+    for (const entry of workspaceEntries) expect(entry).toHaveAttribute("href", "/today");
+  });
+
   it("keeps the landing-page pricing and speed copy factual for the beta", () => {
     render(<MarketingHome />);
 

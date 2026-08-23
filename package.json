@@ -7,6 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "build:sites": "node scripts/clean-sites-output.mjs && vite build --mode sites-client && vite build --mode sites-worker",
+    "mobile:sync": "npm run build:sites && npx cap sync",
+    "mobile:verify": "node scripts/mobile-verify.mjs",
     "build:worker": "opennextjs-cloudflare build",
     "preview:worker": "opennextjs-cloudflare build && wrangler dev",
     "start": "next start",
@@ -52,6 +54,9 @@
     "vercel:production": "node scripts/vercel-deploy.mjs --target production"
   },
   "dependencies": {
+    "@capacitor/android": "8.4.2",
+    "@capacitor/core": "8.4.2",
+    "@capacitor/ios": "8.4.2",
     "@next/env": "16.3.1",
     "@opennextjs/cloudflare": "^1.20.2",
     "@supabase/supabase-js": "2.112.3",
@@ -64,6 +69,8 @@
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.4.2",
+    "@openai/sites-vite-plugin": "^0.2.0",
     "@playwright/test": "1.62.1",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
@@ -71,7 +78,6 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",
-    "@openai/sites-vite-plugin": "^0.2.0",
     "esbuild": "^0.28.2",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.1",

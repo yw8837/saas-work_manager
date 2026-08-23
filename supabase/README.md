@@ -80,7 +80,7 @@ SQL 문자열 테스트나 로컬 PostgreSQL migration 성공만으로 운영 RL
 
 CLI 적용, A/B 테스트, 백업·복원과 도메인 연결의 정확한 순서는 [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md)에 있다.
 
-배포 후 `npm run smoke:remote -- https://YOUR_PREVIEW.vercel.app`은 `/api/health`의 감지 버전이 최신 `202608230008`인지, 배포 privacy/terms manifest와 DB policy contract의 버전·bundle digest가 exact 일치하는지, `/privacy`·`/terms`가 redirect 없이 200인지 검사한다. 필수 migration 중 하나가 빠졌거나 RPC가 호출되지 않으면 health가 503을 반환하고 smoke가 실패한다. 공개 정책 본문·버전·`finalized`를 바꾸면 적용된 006을 수정하지 말고 새 timestamp migration에서 policy·runtime contract를 함께 갱신한다.
+배포 후 `npm run smoke:remote -- https://YOUR_PREVIEW.vercel.app`은 `/api/health`의 감지 버전이 최신 `202608240009`인지, 배포 privacy/terms manifest와 DB policy contract의 버전·bundle digest가 exact 일치하는지, `/privacy`·`/terms`가 redirect 없이 200인지 검사한다. 필수 migration 중 하나가 빠졌거나 RPC가 호출되지 않으면 health가 503을 반환하고 smoke가 실패한다. 공개 정책 본문·버전·`finalized`를 바꾸면 이미 적용된 migration을 수정하지 말고 새 timestamp migration에서 policy·runtime contract를 함께 갱신한다.
 
 ## 이 migration이 해결하지 않는 것
 

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -24,7 +23,8 @@ import {
   Users,
 } from "lucide-react";
 
-const AUTO_MS = 2000;
+// Hero motion should support reading the scene, not compete with it.
+const AUTO_MS = 2300;
 
 function SceneSidebar({ active }: { active: "오늘" | "일감" | "패키지" }) {
   const items: Array<"오늘" | "일감" | "패키지"> = ["오늘", "일감", "패키지"];
@@ -377,15 +377,6 @@ const orderedSlides: Slide[] = SLIDE_ORDER.map(
   (key) => slides.find((slide) => slide.key === key) as Slide,
 );
 
-// 슬라이드 클릭 시 이동할 실제 화면
-const SLIDE_HREF: Record<string, string> = {
-  packages: "/packages",
-  compose: "/jobs/new",
-  today: "/today",
-  revision: "/today",
-  alerts: "/today",
-};
-
 export function ProductPreview() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -416,16 +407,13 @@ export function ProductPreview() {
       <div className="previewViewport" role="group" aria-label="일감체크 화면 미리보기">
         <div className="previewTrack" style={{ transform: `translateX(-${index * 100}%)` }}>
           {orderedSlides.map((slide, i) => (
-            <Link
+            <article
               key={slide.key}
-              href={SLIDE_HREF[slide.key] ?? "/today"}
               className="previewSlide"
               aria-hidden={i !== index}
-              tabIndex={i === index ? 0 : -1}
-              aria-label={`${slide.caption}. 이 화면으로 이동`}
             >
               {slide.render()}
-            </Link>
+            </article>
           ))}
         </div>
         <button

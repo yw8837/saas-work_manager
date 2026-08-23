@@ -25,7 +25,7 @@ const SHARED_KEYS = Object.freeze([
   "footerLabel",
 ]);
 const FORBIDDEN_MANIFEST_KEYS = /^(?:operatorName|supportEmail|emailAddress|password|secret|token|serviceRoleKey|accessToken)$/i;
-const FINALIZED_PLACEHOLDER_PATTERN = /(?:\b(?:YOUR|ACTUAL|PLACEHOLDER|TODO|TBD|CHANGEME)(?:_[A-Z0-9]+)*\b|공개 전 설정 필요|정책 확정 전|미확정|준비본)/i;
+const FINALIZED_PLACEHOLDER_PATTERN = /(?:\b(?:YOUR|ACTUAL|PLACEHOLDER|TODO|TBD|CHANGEME)(?:_[A-Z0-9]+)*\b|공개 전 설정 필요|정책 확정 전|미확정|준비본|베타 서비스 정책 안내)/i;
 const FORBIDDEN_HASHED_VALUE_PATTERN = /(?:\b[^\s@]+@[^\s@]+\.[^\s@]+\b|\bsb_(?:secret|publishable)_[A-Za-z0-9_-]{8,}\b|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.)/;
 
 function assertPlainObject(value, label) {

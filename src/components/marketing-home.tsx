@@ -48,11 +48,11 @@ export function MarketingHome() {
         <section className="heroSection">
           <div className="heroCopy">
             <h1>
-              1인 사업자는<br />
-              <span>1인분만 하세요.</span>
+              혼자 일해도,<br />
+              <span>혼자 다 관리하지 <br className="heroMobileBreak" />마세요.</span>
             </h1>
             <p className="heroLead">
-              패키지로 받은 주문을 고르면 할 일, 마감, 수정 횟수와 알림이 한 번에 준비돼요.
+              주문 뒤의 할 일, 마감, 수정 요청은 일감체크가 정리해요. 당신은 작업에만 집중하세요.
             </p>
             <div className="heroActions">
               <Link href="/today" className="primaryButton heroPrimary" data-testid="landing-demo">
@@ -168,8 +168,8 @@ export function MarketingHome() {
 
         <section className="finalCta">
           <div>
-            <p>직원을 뽑기엔 아직 이르고, 잡일은 이미 많다면</p>
-            <h2>오늘 할 일부터 가볍게 맡겨봐요.</h2>
+              <p>직원을 뽑기엔 아직 이르고, 잡일은 이미 많다면</p>
+            <h2>운영은 덜고, 작업에 더 집중하세요.</h2>
           </div>
           <Link href="/today" className="invertedButton">
             {hosted ? "베타 계정으로 로그인" : "지금 시작하기"}

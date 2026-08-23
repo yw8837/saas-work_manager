@@ -1,6 +1,7 @@
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
 
-export const ILGAMCHECK_RUNTIME_CONTRACT = "202608230008";
+// 정책 본문·동의 절차·DB publication contract를 함께 올린 가장 최근 migration.
+export const ILGAMCHECK_RUNTIME_CONTRACT = "202608240009";
 
 export type HostedContractProbe = {
   ok: boolean;

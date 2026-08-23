@@ -10,8 +10,8 @@ describe("public policy publication manifest", () => {
     const manifest = loadPolicyPublicationManifest();
     expect(validatePolicyPublicationManifest(manifest)).toMatchObject({
       finalized: false,
-      termsVersion: "2026-08-16-beta.1",
-      privacyVersion: "2026-08-16-beta.1",
+      termsVersion: "2026-08-24-beta.2",
+      privacyVersion: "2026-08-24-beta.2",
     });
   });
 
@@ -33,7 +33,7 @@ describe("public policy publication manifest", () => {
     finalizedWithPlaceholder.documents.terms.contentDigest = replacement.termsContentDigest;
     finalizedWithPlaceholder.bundleDigest = replacement.bundleDigest;
     expect(() => validatePolicyPublicationManifest(finalizedWithPlaceholder))
-      .toThrow(/placeholder·준비본/);
+      .toThrow(/placeholder·준비본|베타 서비스 정책 안내/);
 
     expect(() => validatePolicyPublicationManifest(manifest, { requireFinalized: true }))
       .toThrow(/finalized=true/);
