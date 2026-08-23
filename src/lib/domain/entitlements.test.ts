@@ -125,8 +125,8 @@ describe("entitlements — free plan cumulative wall", () => {
   });
 });
 
-describe("entitlements — solo plan", () => {
-  const plan: Plan = "solo";
+describe("entitlements — Basic plan", () => {
+  const plan: Plan = "basic";
 
   it("caps concurrent jobs at 5 but never on cumulative count", () => {
     expect(canCreateJob(plan, jobs("active", "active", "active", "active"), 500)).toBe(true);
@@ -135,7 +135,7 @@ describe("entitlements — solo plan", () => {
   });
 
   it("has unlimited packages, options, and cumulative jobs", () => {
-    expect(PLAN_LIMITS.solo.totalJobs).toBe(Infinity);
+    expect(PLAN_LIMITS.basic.totalJobs).toBe(Infinity);
     expect(canCreatePackage(plan, packages(50))).toBe(true);
     expect(canCreateOption(plan, options(50))).toBe(true);
   });
@@ -159,12 +159,19 @@ describe("entitlements — pro plan is unlimited", () => {
 });
 
 describe("entitlements — display prices", () => {
-  it("keeps the announced prices in one place", () => {
+  it("keeps the announced Basic and Pro prices in one place", () => {
     expect(PLAN_PRICES.free.monthlyWon).toBe(0);
-    expect(PLAN_PRICES.solo.monthlyWon).toBe(9_900);
+    expect(PLAN_PRICES.basic.monthlyWon).toBe(14_900);
     expect(PLAN_PRICES.pro.monthlyWon).toBe(24_900);
-    expect(PLAN_PRICES.solo.label).toBe("₩9,900/월");
+    expect(PLAN_PRICES.basic.label).toBe("₩14,900/월");
     expect(PLAN_PRICES.pro.label).toBe("₩24,900/월");
+  });
+});
+
+describe("entitlements — Basic plan", () => {
+  it("uses Basic, not a solo-only label, for the five-job paid tier", () => {
+    expect(PLAN_LIMITS.basic.activeJobs).toBe(5);
+    expect("solo" in PLAN_LIMITS).toBe(false);
   });
 });
 

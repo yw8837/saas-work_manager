@@ -127,7 +127,7 @@ describe("SettingsPanel 플랜 섹션", () => {
     expect(screen.getByTestId("current-plan")).toHaveTextContent("무료");
     const tiers = screen.getByTestId("plan-tiers");
     expect(tiers).toHaveTextContent(`무료 · ${PLAN_PRICES.free.label}`);
-    expect(tiers).toHaveTextContent(`Solo · ${PLAN_PRICES.solo.label}`);
+    expect(tiers).toHaveTextContent(`Basic · ${PLAN_PRICES.basic.label}`);
     expect(tiers).toHaveTextContent(`Pro · ${PLAN_PRICES.pro.label}`);
     expect(tiers).toHaveTextContent(
       `동시 ${PLAN_LIMITS.free.activeJobs}건 · 누적 ${PLAN_LIMITS.free.totalJobs}건`,

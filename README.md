@@ -16,10 +16,11 @@ npm run dev # http://localhost:3000
 | 플랜 | 가격 | 동시 진행 | 누적 생성 | 패키지 | 옵션 |
 |---|---|---|---|---|---|
 | Free | ₩0 | 2 | 10 | 5 | 10 |
-| Solo | ₩9,900/월 | 5 | 무제한 | 무제한 | 무제한 |
+| Basic | ₩14,900/월 | 5 | 무제한 | 무제한 | 무제한 |
 | Pro | ₩24,900/월 | 무제한 | 무제한 | 무제한 | 무제한 |
 
 첫 일감을 만들면 7일 Pro 체험이 자동 시작된다. 초대 코드(`KMONG2026`·`SOOMGO2026`·`BETA2026`)는 30일 Pro를 연다.
+베타 종료 뒤 계속 쓰는 참여자에게는 Basic을 월 ₩9,900으로 12개월 유지하는 파운더 혜택을 제안한다. 현재는 결제 기능이 없으므로 자동 청구나 플랜 변경은 일어나지 않는다.
 숫자의 단일 출처는 `src/lib/domain/entitlements.ts`와 DB의 `plan_limits` 두 곳이고, 화면 문구는 전부 여기서 읽어 쓴다. 앱 내 광고는 넣지 않는다.
 
 ### 출시 전 남은 일
@@ -29,9 +30,9 @@ npm run dev # http://localhost:3000
 1. **Supabase 프로젝트 생성 후 migration 적용** — 이걸 안 하면 서버 한도가 없는 상태라 배포 게이트가 막는다.
    `npm run supabase:login` → `supabase:link` → `supabase:push:dry` → `supabase:push`
    중간에 길을 잃으면 `npm run hosted:bootstrap`이 현재 단계와 다음 행동만 알려준다.
-2. **구글 폼 생성** — `NEXT_PUBLIC_FEEDBACK_FORM_URL`과 entry ID 4개. 없으면 `/feedback`에서 제출이 안 된다. 자유서술·이메일은 설계상 URL에 넣지 않으므로 entry ID도 받지 않는다.
+2. **구글 폼 생성** — `NEXT_PUBLIC_FEEDBACK_FORM_URL`과 객관식 entry ID 6개. 가격 적정성·파운더 혜택 의향까지 프리필한다. 자유서술·이메일은 설계상 URL에 넣지 않으므로 entry ID도 받지 않는다.
 3. **포트원 가입** — 결제 코드는 아직 없다. 가입하면 붙일 수 있는 상태까지만 되어 있다.
-   계약 전에 **빌링키(정기결제)도 영중소 우대수수료율이 적용되는지 서면 확인**할 것. 1.65% 대 3.23%면 ₩9,900에서 마진이 두 배 차이난다.
+   계약 전에 **빌링키(정기결제)도 영중소 우대수수료율이 적용되는지 서면 확인**할 것. Basic 정가와 베타 파운더 가격 모두를 기준으로 수수료와 부가세를 계산한다.
 4. **초대 코드 배포 전 확인** — 프로덕션 Supabase에 `enable_signup = false`가 실제로 적용됐는지. `supabase/config.toml`은 `npm run supabase:config:push`를 돌려야 원격에 반영된다.
 
 ### 알고 있어야 할 사실
@@ -49,7 +50,7 @@ npm run dev # http://localhost:3000
 | `hosted` 코드 | Supabase 이메일/비밀번호 Auth, 사용자별 JSON 작업공간, dirty 초안 복구·버전 충돌 선택, Realtime 갱신, 익명 고객 수정요청 RPC가 연결돼 있다. |
 | 실제 외부 운영 | 창업자 소유 Supabase 프로젝트에 migration을 적용하고 Vercel Preview에서 두 계정 RLS·공개 링크를 검증한 뒤 도메인을 연결해야 한다. 아직 이 저장소에는 실제 프로젝트·계정·도메인이 없다. |
 
-Hosted 모드에서 앱이 실제로 읽고 쓰는 기준 데이터는 `workspace_documents.state`다. `202608140001_initial.sql`의 정규화 테이블은 향후 리포트·서버 권한 기능을 위한 기반이고, 현재 UI 데이터를 두 모델에 동시에 쓰지 않는다. `202608160003_runtime_contract.sql`이 배포 health 계약을 도입했고, 후속 필수 migration이 값을 갱신해 현재 기대 버전은 `202608200007`이다. 006은 배포 privacy/terms manifest 버전·bundle digest와 DB의 일치를, 007은 서버측 요금제 한도와 초대 코드를 담당한다. runtime 계약과 service-role 계약은 같은 상수와 비교되므로 **둘을 함께 올려야 한다**(한쪽만 올리면 정상 배포가 `/api/health`에서 503을 받는다).
+Hosted 모드에서 앱이 실제로 읽고 쓰는 기준 데이터는 `workspace_documents.state`다. `202608140001_initial.sql`의 정규화 테이블은 향후 리포트·서버 권한 기능을 위한 기반이고, 현재 UI 데이터를 두 모델에 동시에 쓰지 않는다. `202608160003_runtime_contract.sql`이 배포 health 계약을 도입했고, 후속 필수 migration이 값을 갱신해 현재 기대 버전은 `202608230008`이다. 006은 배포 privacy/terms manifest 버전·bundle digest와 DB의 일치를, 007은 서버측 요금제 한도와 초대 코드를 담당하고, 008은 기존 Solo 데이터를 Basic으로 안전하게 옮긴다. runtime 계약과 service-role 계약은 같은 상수와 비교되므로 **둘을 함께 올려야 한다**(한쪽만 올리면 정상 배포가 `/api/health`에서 503을 받는다).
 
 ## 로컬 실행
 
@@ -77,7 +78,7 @@ npm run dev
 | `npm run check:external-inputs -- --json` | 도메인·SMTP·A/B·운영 evidence·현재 셸 ACK/PAT·Supabase/Vercel link 입력 위치를 값 노출 없이 한 번에 점검 |
 | `npm run status:domain-ready` | ref·Seoul·Vercel project/team·배포 소스 지문, 현재 `/api/health` DB 계약, Management API의 현재 Auth 설정을 재확인 |
 | `npm run supabase:auth:readback` | 현재 셸의 `auth_config_read` PAT로 Site URL·정확한 `/auth/reset` 1개·전체 신규 가입 OFF·이메일 로그인 ON을 읽기 전용 확인 |
-| `npm run runtime:readback -- URL` | 배포 `/api/health`가 DB runtime `202608200007`, policy manifest/DB contract, 현재 Vercel server key의 service-role 전용 contract를 exact 감지하는지 확인 |
+| `npm run runtime:readback -- URL` | 배포 `/api/health`가 DB runtime `202608230008`, policy manifest/DB contract, 현재 server key의 service-role 전용 contract를 exact 감지하는지 확인 |
 | `npm run smoke:remote -- URL` | Preview health·DB/policy contract·`/privacy`·`/terms`·보안 헤더·PWA 확인 |
 | `npm run verify:hosted` | 전용 A/B 계정의 RLS·공개 수정·token rotate·Realtime 실증 |
 | `npm run supabase:config:push` | Preview/운영 URL과 폐쇄 베타 가입 OFF를 원격 Auth에 적용 |
@@ -132,7 +133,7 @@ SUPABASE_SERVICE_ROLE_KEY=SERVER_ONLY_SECRET
 - Hosted 일감의 공개 링크 토큰은 브라우저에서 256-bit 난수로 만든다. 복사용 원문은 소유자만 읽을 수 있는 작업공간 JSON에 있고, 공개 포털 조회 테이블에는 SHA-256 hash만 저장된다.
 - 공개 조회·제출은 해시와 작업공간 JSON의 현재 토큰을 함께 대조해 재발급 전 토큰과 그 idempotent 재시도까지 차단한다.
 - 공개 RPC는 링크 소지자에게 작업 제목·패키지·수정 횟수만 보여주고, 본문 길이·중복 제출·호출 빈도를 제한한다. 폼은 같은 이름+본문의 응답 유실 재시도에 같은 요청 UUID를 유지한다. 링크 자체가 접근 권한이므로 메신저 공개방이나 검색 가능한 문서에 올리면 안 된다.
-- 금전과 연결되는 값은 작업공간 JSON을 신뢰하지 않는다. 요금제 한도·체험·초대 코드는 `202608200007`의 `subscriptions`/`plan_limits`/`workspace_job_ledger`가 근거이며, 저장 RPC가 프로필 잠금 안에서 한도를 검사한다. 일감 ID는 브라우저가 만들므로 원장이 은퇴한 ID의 재사용을 새 생성으로 세어 누적 한도 우회를 막는다.
+- 금전과 연결되는 값은 작업공간 JSON을 신뢰하지 않는다. 요금제 한도·체험·초대 코드는 `202608230008`까지의 `subscriptions`/`plan_limits`/`workspace_job_ledger`가 근거이며, 저장 RPC가 프로필 잠금 안에서 한도를 검사한다. 일감 ID는 브라우저가 만들므로 원장이 은퇴한 ID의 재사용을 새 생성으로 세어 누적 한도 우회를 막는다.
 - PG 결제와 서명 검증 webhook은 아직 없다. 결제를 붙일 때도 같은 원칙으로 서버에서만 권한을 갱신한다.
 - 폐쇄 베타는 UI 플래그와 원격 Supabase Auth의 **전체 신규 가입 OFF**를 함께 유지하되, 초대·기존 계정 로그인을 위해 이메일 로그인 제공자는 ON으로 둔다. Preview에서 custom SMTP·발신 DNS를 먼저 준비한 뒤 통제된 전용 A/B만 `npm run beta:invite -- --email ...`로 초대해 격리를 검증한다. Production/최종 Auth 전환 뒤에는 최종 origin의 외부 두 사서함 invite/reset·반송 evidence를 새로 만들고 `check:external-beta`까지 통과한 뒤에만 실제 베타 사용자를 초대한다.
 

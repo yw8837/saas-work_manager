@@ -1,6 +1,6 @@
 import type { Job, OptionTemplate, PackageTemplate } from "./types";
 
-export type Plan = "free" | "solo" | "pro";
+export type Plan = "free" | "basic" | "pro";
 
 export interface PlanLimits {
   /** 동시에 진행(active) 중일 수 있는 일감 수. 완료하면 다시 자리가 난다. */
@@ -19,7 +19,7 @@ export interface PlanLimits {
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   // 패키지 한도는 기본 제공 패키지 3개보다 커야 첫 방문에 바로 막히지 않는다.
   free: { activeJobs: 2, totalJobs: 10, packages: 5, options: 10 },
-  solo: { activeJobs: 5, totalJobs: Infinity, packages: Infinity, options: Infinity },
+  basic: { activeJobs: 5, totalJobs: Infinity, packages: Infinity, options: Infinity },
   pro: { activeJobs: Infinity, totalJobs: Infinity, packages: Infinity, options: Infinity },
 };
 
@@ -35,13 +35,13 @@ export interface PlanPrice {
  */
 export const PLAN_PRICES: Record<Plan, PlanPrice> = {
   free: { monthlyWon: 0, label: "무료" },
-  solo: { monthlyWon: 9_900, label: "₩9,900/월" },
+  basic: { monthlyWon: 14_900, label: "₩14,900/월" },
   pro: { monthlyWon: 24_900, label: "₩24,900/월" },
 };
 
 export const PLAN_NAMES: Record<Plan, string> = {
   free: "무료",
-  solo: "Solo",
+  basic: "Basic",
   pro: "Pro",
 };
 

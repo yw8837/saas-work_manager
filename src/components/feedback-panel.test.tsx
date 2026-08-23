@@ -33,6 +33,8 @@ function useForm() {
   vi.stubEnv("NEXT_PUBLIC_FEEDBACK_ENTRY_SCREEN", "222");
   vi.stubEnv("NEXT_PUBLIC_FEEDBACK_ENTRY_USAGE", "333");
   vi.stubEnv("NEXT_PUBLIC_FEEDBACK_ENTRY_SCALE", "444");
+  vi.stubEnv("NEXT_PUBLIC_FEEDBACK_ENTRY_PRICE", "555");
+  vi.stubEnv("NEXT_PUBLIC_FEEDBACK_ENTRY_FOUNDER", "666");
 }
 
 beforeEach(() => {
@@ -49,7 +51,7 @@ afterEach(() => {
 });
 
 describe("FeedbackPanel rendering", () => {
-  it("renders the six survey questions with the no-personal-info warning", () => {
+  it("renders the price questions with the no-personal-info warning", () => {
     render(<FeedbackPanel />);
 
     expect(screen.getByRole("heading", { level: 1, name: "쓰면서 느낀 점을 알려주세요" })).toBeInTheDocument();
@@ -57,6 +59,8 @@ describe("FeedbackPanel rendering", () => {
     expect(screen.getByLabelText(/어떤 화면인가요/)).toBeInTheDocument();
     expect(screen.getByLabelText(/자세한 내용/)).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /얼마나 쓰셨나요/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /가장 적절한 월 구독료/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /9,900원에 12개월/ })).toBeInTheDocument();
     expect(screen.getByLabelText(/연락받을 이메일/)).toBeInTheDocument();
     expect(screen.getByText("고객 이름이나 연락처 같은 개인정보는 적지 말아주세요.")).toBeInTheDocument();
   });
@@ -215,21 +219,23 @@ describe("feedback link and text builders", () => {
     email: "me@example.test",
     shareScale: false,
     scaleBucket: "6-20건",
+    priceFit: "",
+    founderIntent: "",
   };
 
   it("returns null when no form URL is configured", () => {
-    expect(buildFeedbackFormUrl("", { type: "1", screen: "2", usage: "3", scale: "4" }, base)).toBeNull();
-    expect(buildFeedbackFormUrl("   ", { type: "1", screen: "2", usage: "3", scale: "4" }, base)).toBeNull();
+    expect(buildFeedbackFormUrl("", { type: "1", screen: "2", usage: "3", scale: "4", price: "", founder: "" }, base)).toBeNull();
+    expect(buildFeedbackFormUrl("   ", { type: "1", screen: "2", usage: "3", scale: "4", price: "", founder: "" }, base)).toBeNull();
   });
 
   it("refuses non-https destinations", () => {
     expect(
-      buildFeedbackFormUrl("http://docs.google.com/forms/x", { type: "1", screen: "2", usage: "3", scale: "4" }, base),
+      buildFeedbackFormUrl("http://docs.google.com/forms/x", { type: "1", screen: "2", usage: "3", scale: "4", price: "", founder: "" }, base),
     ).toBeNull();
   });
 
   it("accepts entry ids written with or without the entry. prefix", () => {
-    const href = buildFeedbackFormUrl(FORM_URL, { type: "entry.111", screen: "222", usage: "", scale: "" }, base) ?? "";
+    const href = buildFeedbackFormUrl(FORM_URL, { type: "entry.111", screen: "222", usage: "", scale: "", price: "", founder: "" }, base) ?? "";
     const params = new URL(href).searchParams;
     expect(params.get("entry.111")).toBe("불편한 점");
     expect(params.get("entry.222")).toBe("일감");
@@ -250,5 +256,25 @@ describe("feedback link and text builders", () => {
     expect(text).not.toContain("회신 이메일:");
     expect(text).not.toContain("사용 규모");
     expect(text).toContain("자세한 내용: 정렬이 이상해요");
+  });
+
+  it("prefills price answers but keeps free text and email out of the link", () => {
+    const answers = {
+      ...base,
+      priceFit: "14,900원",
+      founderIntent: "계속 사용",
+    };
+    const href = buildFeedbackFormUrl(
+      FORM_URL,
+      { type: "1", screen: "2", usage: "3", scale: "4", price: "555", founder: "666" },
+      answers,
+    ) ?? "";
+    const params = new URL(href).searchParams;
+
+    expect(params.get("entry.555")).toBe("14,900원");
+    expect(params.get("entry.666")).toBe("계속 사용");
+    expect(href).not.toContain(encodeURIComponent(answers.detail));
+    expect(href).not.toContain(encodeURIComponent(answers.email));
+    expect(buildFeedbackPlainText(answers, "general")).toContain("가격 적정성: 14,900원");
   });
 });

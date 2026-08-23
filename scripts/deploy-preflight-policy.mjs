@@ -10,6 +10,7 @@ const REQUIRED_MIGRATIONS = [
   "202608160005_policy_acceptances.sql",
   "202608170006_policy_publication_contract.sql",
   "202608200007_plan_entitlements.sql",
+  "202608230008_basic_plan.sql",
 ];
 
 const REQUIRED_PUBLIC_BETA_SURFACE = [

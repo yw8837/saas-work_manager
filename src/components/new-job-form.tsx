@@ -41,16 +41,16 @@ function jobLimitCopy(hit: JobLimitKind | null, limits: PlanLimits, plan: Plan) 
   if (hit === "totalJobs") {
     return {
       title: `무료로 만들 수 있는 ${limits.totalJobs}건을 다 쓰셨어요`,
-      description: `누적 기준이라 완료하거나 지워도 다시 늘어나지 않아요. Solo(${PLAN_PRICES.solo.label})부터 누적 제한이 없어요.`,
-      ctaLabel: `${PLAN_NAMES.solo} 업그레이드`,
+      description: `누적 기준이라 완료하거나 지워도 다시 늘어나지 않아요. Basic(${PLAN_PRICES.basic.label})부터 누적 제한이 없어요.`,
+      ctaLabel: `${PLAN_NAMES.basic} 업그레이드`,
     };
   }
-  // 무료의 동시 한도는 Solo(5건)로 풀린다. Solo에서 막혔을 때만 Pro가 답이다.
+  // 무료의 동시 한도는 Basic(5건)으로 풀린다. Basic에서 막혔을 때만 Pro가 답이다.
   if (plan === "free") {
     return {
       title: `동시 진행 ${limits.activeJobs}건을 다 쓰셨어요`,
-      description: `진행 중인 일감을 완료하면 자리가 나요. Solo(${PLAN_PRICES.solo.label})는 동시 ${PLAN_LIMITS.solo.activeJobs}건까지 늘어나요.`,
-      ctaLabel: `${PLAN_NAMES.solo} 업그레이드`,
+      description: `진행 중인 일감을 완료하면 자리가 나요. Basic(${PLAN_PRICES.basic.label})는 동시 ${PLAN_LIMITS.basic.activeJobs}건까지 늘어나요.`,
+      ctaLabel: `${PLAN_NAMES.basic} 업그레이드`,
     };
   }
   return {

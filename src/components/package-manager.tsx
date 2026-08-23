@@ -191,7 +191,7 @@ export function PackageManager() {
             {!canCreatePackage && (
               <UpgradeNotice
                 title={`지금 플랜은 패키지 ${limits.packages}개까지예요`}
-                description={`기존 패키지를 편집하는 건 언제든 돼요. Solo(${PLAN_PRICES.solo.label})부터 패키지가 무제한이에요.`}
+                description={`기존 패키지를 편집하는 건 언제든 돼요. Basic(${PLAN_PRICES.basic.label})부터 패키지가 무제한이에요.`}
               />
             )}
           </aside>
@@ -221,7 +221,7 @@ export function PackageManager() {
             {!canCreateOption && (
               <UpgradeNotice
                 title={`지금 플랜은 옵션 ${limits.options}개까지예요`}
-                description={`기존 옵션을 편집하는 건 언제든 돼요. Solo(${PLAN_PRICES.solo.label})부터 옵션이 무제한이에요.`}
+                description={`기존 옵션을 편집하는 건 언제든 돼요. Basic(${PLAN_PRICES.basic.label})부터 옵션이 무제한이에요.`}
               />
             )}
           </aside>

@@ -39,7 +39,7 @@ export function MarketingHome() {
           <a href="#faq">자주 묻는 질문</a>
         </nav>
         <Link href="/today" className="headerDemoLink">
-          {hosted ? "베타 로그인" : "바로 시작"}
+          {hosted ? "초대 베타 로그인" : "바로 시작"}
           <ChevronRight size={16} />
         </Link>
       </header>
@@ -52,11 +52,7 @@ export function MarketingHome() {
               <span>1인분만 하세요.</span>
             </h1>
             <p className="heroLead">
-              고객, 시작일, 패키지, 옵션만 고르면 Todo·마감·수정 횟수·인앱 알림이 자동으로 준비돼요.
-            </p>
-            <p className="heroAudience">
-              디자인 · 영상 편집 · 홈페이지 제작 · SNS 운영 · 마케팅까지{" "}
-              <strong>패키지를 정해두고 의뢰를 받는 1인 사업자</strong>를 위해 만들었어요.
+              패키지로 받은 주문을 고르면 할 일, 마감, 수정 횟수와 알림이 한 번에 준비돼요.
             </p>
             <div className="heroActions">
               <Link href="/today" className="primaryButton heroPrimary" data-testid="landing-demo">
@@ -67,9 +63,6 @@ export function MarketingHome() {
                 어떻게 편해지나요?
               </a>
             </div>
-            <p className="heroFootnote">
-              {hosted ? "초대 전용 폐쇄 베타 · 초대받은 계정만 이용 가능" : "카드 등록 없이 · 설치 없이 · 지금 바로 시작"}
-            </p>
           </div>
 
           <ProductPreview />
@@ -113,7 +106,7 @@ export function MarketingHome() {
             </p>
             <ul>
               <li><CheckCircle2 size={18} /> 고객 링크 요청은 자동 카운트</li>
-              <li><CheckCircle2 size={18} /> 메신저 요청은 5초 수동 기록</li>
+              <li><CheckCircle2 size={18} /> 메신저 요청도 바로 수동 기록</li>
               <li><CheckCircle2 size={18} /> 초과 요청은 추가 작업으로 분리</li>
             </ul>
           </div>
@@ -142,7 +135,6 @@ export function MarketingHome() {
         <section className="faqSection" id="faq">
           <div className="faqInner">
             <div className="faqIntro">
-              <span className="sectionEyebrow">자주 묻는 질문</span>
               <h2>궁금한 걸 먼저 짚어봤어요.</h2>
             </div>
             <div className="faqList">
@@ -152,11 +144,11 @@ export function MarketingHome() {
               </details>
               <details className="faqItem">
                 <summary>새 의뢰 하나 넣는 데 얼마나 걸려요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
-                <p>패키지만 처음 한 번 등록해두면, 새 주문은 고객·시작일·패키지·옵션 네 가지만 골라 평균 30초면 끝나요. 금액·마감·할 일·수정 횟수는 저장하는 순간 자동으로 채워져요.</p>
+                <p>패키지만 처음 한 번 등록해두면 새 주문은 고객, 시작일, 패키지, 옵션 네 가지만 고르면 돼요. 저장하면 금액, 마감, 할 일, 수정 횟수가 함께 채워져요.</p>
               </details>
               <details className="faqItem">
                 <summary>수정 요청은 어떻게 관리돼요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
-                <p>고객이 링크로 보낸 요청은 자동으로 1회 차감되고, 카톡·DM으로 온 요청은 5초 만에 수동 기록해요. 어느 경로로 와도 같은 타임라인과 남은 횟수에 쌓이고, 초과 요청은 추가 작업으로 분리돼요.</p>
+                <p>고객이 링크로 보낸 요청은 자동으로 1회 차감되고, 카톡·DM으로 온 요청은 직접 기록해요. 어느 경로로 와도 같은 타임라인과 남은 횟수에 쌓이고, 초과 요청은 추가 작업으로 분리돼요.</p>
               </details>
               <details className="faqItem">
                 <summary>모바일에서도 되나요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
@@ -168,7 +160,7 @@ export function MarketingHome() {
               </details>
               <details className="faqItem">
                 <summary>요금은 어떻게 되나요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
-                <p>무료 플랜은 동시에 진행하는 의뢰 {PLAN_LIMITS.free.activeJobs}건, 지금까지 만든 의뢰 누적 {PLAN_LIMITS.free.totalJobs}건까지예요. 완료한 의뢰는 동시 진행 수에서는 빠지지만 누적 수에서는 빠지지 않아요. 더 필요하면 Solo({PLAN_PRICES.solo.label}) 또는 Pro({PLAN_PRICES.pro.label})로 넓히는 구조예요. 다만 결제는 아직 준비 중이라 지금은 무료 플랜과 베타 코드로만 쓸 수 있어요.</p>
+                <p>무료 플랜은 동시에 진행하는 의뢰 {PLAN_LIMITS.free.activeJobs}건, 지금까지 만든 의뢰 누적 {PLAN_LIMITS.free.totalJobs}건까지예요. 완료한 의뢰는 동시 진행 수에서는 빠지지만 누적 수에서는 빠지지 않아요. 더 필요하면 Basic({PLAN_PRICES.basic.label}) 또는 Pro({PLAN_PRICES.pro.label})로 넓히는 구조예요. 결제는 아직 준비 중이며, 베타 참여자에게는 종료 뒤 Basic을 월 9,900원에 12개월 유지하는 혜택을 제안할 예정이에요.</p>
               </details>
             </div>
           </div>

@@ -72,7 +72,7 @@ npm run smoke:remote -- https://YOUR_PREVIEW.vercel.app
 npm run verify:hosted
 ```
 
-자동 검사는 로그인, 최신 `202608200007` runtime contract, 배포 manifest와 DB의 privacy/terms 버전·bundle digest 일치, A 저장, B의 A 조회 0건, 직접 DML 거부, 익명 수정요청 idempotency 1건, 토큰 교체, Realtime UPDATE를 확인한다. 이메일 재설정 메일의 실제 전달·링크 사용은 여전히 사람이 확인한다.
+자동 검사는 로그인, 최신 `202608230008` runtime contract, 배포 manifest와 DB의 privacy/terms 버전·bundle digest 일치, A 저장, B의 A 조회 0건, 직접 DML 거부, 익명 수정요청 idempotency 1건, 토큰 교체, Realtime UPDATE를 확인한다. 이메일 재설정 메일의 실제 전달·링크 사용은 여전히 사람이 확인한다.
 
 ## 0. 배포 판정
 
@@ -153,7 +153,7 @@ Remove-Item Env:ILGAMCHECK_DB_PUSH_ACK
 npm run supabase:migrations
 ```
 
-wrapper는 linked ref, `NEXT_PUBLIC_SUPABASE_URL` ref, 현재 로그인 계정의 실제 프로젝트와 Seoul region이 모두 일치할 때만 진행한다. `--dry-run`에서 아래 일곱 파일만 순서대로 표시되는지 확인하고 출력된 ref 결합 확인값을 현재 셸에 넣은 뒤 실제 push를 실행한다. 성공 뒤 비밀값 없는 ref·runtime receipt를 Git 제외 경로 `supabase/.temp/ilgamcheck-deploy-state.json`에 원자 저장해 `hosted:bootstrap`이 재개 지점을 판정한다. migration receipt에는 적용 시점의 파일별 SHA-256 manifest가 포함된다. receipt에 기록된 migration은 수정·삭제하지 않고, DB 변경은 더 큰 timestamp의 새 migration 파일로만 추가한다. receipt는 schema·시각을 검사하는 30일 이내 로컬 실행 이력이지 원격 현재 상태 증명이 아니다. 첫 Preview 뒤 `status:domain-ready`가 같은 origin의 `/api/health`에서 DB contract `202608200007`과 배포 정책 manifest·DB policy contract의 exact 버전/bundle digest를 다시 감지해야 현재 migration PASS다. Auth config push는 placeholder origin에서 실행하지 않고 **첫 Vercel Preview가 READY가 된 뒤** 3.5 순서로만 실행한다.
+wrapper는 linked ref, `NEXT_PUBLIC_SUPABASE_URL` ref, 현재 로그인 계정의 실제 프로젝트와 Seoul region이 모두 일치할 때만 진행한다. `--dry-run`에서 아래 여덟 파일만 순서대로 표시되는지 확인하고 출력된 ref 결합 확인값을 현재 셸에 넣은 뒤 실제 push를 실행한다. 성공 뒤 비밀값 없는 ref·runtime receipt를 Git 제외 경로 `supabase/.temp/ilgamcheck-deploy-state.json`에 원자 저장해 `hosted:bootstrap`이 재개 지점을 판정한다. migration receipt에는 적용 시점의 파일별 SHA-256 manifest가 포함된다. receipt에 기록된 migration은 수정·삭제하지 않고, DB 변경은 더 큰 timestamp의 새 migration 파일로만 추가한다. receipt는 schema·시각을 검사하는 30일 이내 로컬 실행 이력이지 원격 현재 상태 증명이 아니다. 첫 Preview 뒤 `status:domain-ready`가 같은 origin의 `/api/health`에서 DB contract `202608230008`과 배포 정책 manifest·DB policy contract의 exact 버전/bundle digest를 다시 감지해야 현재 migration PASS다. Auth config push는 placeholder origin에서 실행하지 않고 **첫 Vercel Preview가 READY가 된 뒤** 3.5 순서로만 실행한다.
 
 1. `202608140001_initial.sql`
 2. `202608150002_workspace_documents.sql`
@@ -162,8 +162,9 @@ wrapper는 linked ref, `NEXT_PUBLIC_SUPABASE_URL` ref, 현재 로그인 계정�
 5. `202608160005_policy_acceptances.sql`
 6. `202608170006_policy_publication_contract.sql`
 7. `202608200007_plan_entitlements.sql`
+8. `202608230008_basic_plan.sql`
 
-`202608200007`은 서버측 요금제 한도(`plan_limits`·`subscriptions`·`workspace_job_ledger`)와 초대 코드를 도입하고 runtime·service-role 계약을 함께 올린다. 두 계약은 같은 상수와 비교되므로 반드시 한 단위로 올린다.
+`202608200007`은 서버측 요금제 한도(`plan_limits`·`subscriptions`·`workspace_job_ledger`)와 초대 코드를 도입하고 runtime·service-role 계약을 함께 올린다. `202608230008`은 기존 Solo 권한을 Basic으로 옮기고 두 계약을 함께 올린다. 두 계약은 같은 상수와 비교되므로 반드시 한 단위로 올린다.
 
 `202608170006`은 현재 앱 manifest의 privacy/terms 버전·bundle digest·`finalized=false`를 데이터 없는 공개 RPC로 고정한다. 실제 운영자·국외 이전 내용을 법률 검토해 privacy/terms 본문이나 버전, `finalized`를 바꾸면 다음을 한 단위로 반영한다.
 

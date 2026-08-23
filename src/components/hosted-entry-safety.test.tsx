@@ -48,6 +48,14 @@ describe("Hosted entry safety", () => {
     render(<MarketingHome />);
     expect(screen.getByTestId("landing-demo")).toHaveTextContent("초대받은 베타 참여자 로그인");
     expect(screen.queryByText("지금 바로 시작")).not.toBeInTheDocument();
-    expect(screen.getByText(/초대받은 계정만 이용 가능/)).toBeInTheDocument();
+    expect(screen.getByText("초대 베타 로그인")).toBeInTheDocument();
+  });
+
+  it("keeps the landing-page pricing and speed copy factual for the beta", () => {
+    render(<MarketingHome />);
+
+    expect(screen.getAllByText(/네 가지만 고르면/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/평균 30초/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Basic을 월 9,900원에 12개월 유지/)).toBeInTheDocument();
   });
 });

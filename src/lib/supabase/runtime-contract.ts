@@ -1,6 +1,6 @@
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
 
-export const ILGAMCHECK_RUNTIME_CONTRACT = "202608200007";
+export const ILGAMCHECK_RUNTIME_CONTRACT = "202608230008";
 
 export type HostedContractProbe = {
   ok: boolean;

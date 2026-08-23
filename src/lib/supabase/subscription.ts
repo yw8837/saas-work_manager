@@ -14,7 +14,9 @@ export type HostedSubscription = {
 };
 
 function asPlan(value: unknown): Plan {
-  return value === "solo" || value === "pro" ? value : "free";
+  // 008 migration 전후가 섞인 짧은 전환 구간에도 UI는 같은 Basic으로 보인다.
+  if (value === "basic" || value === "solo") return "basic";
+  return value === "pro" ? "pro" : "free";
 }
 
 function asIsoOrNull(value: unknown): string | null {

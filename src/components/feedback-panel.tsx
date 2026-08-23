@@ -14,6 +14,8 @@ export type FeedbackAnswers = {
   email: string;
   shareScale: boolean;
   scaleBucket: string;
+  priceFit: string;
+  founderIntent: string;
 };
 
 export type FeedbackEntryIds = {
@@ -21,6 +23,8 @@ export type FeedbackEntryIds = {
   screen: string;
   usage: string;
   scale: string;
+  price: string;
+  founder: string;
 };
 
 const MODE_COPY = {
@@ -46,6 +50,8 @@ const MODE_COPY = {
 
 const SCREEN_OPTIONS = ["오늘", "일감", "새 일감", "패키지·옵션", "설정", "고객 수정 링크", "기타"];
 const USAGE_OPTIONS = ["오늘 처음", "일주일 미만", "한 달 미만", "한 달 이상"];
+const PRICE_OPTIONS = ["무료만 사용", "4,900원 이하", "9,900원", "14,900원", "19,900원 이상", "기능을 더 보고 결정"];
+const FOUNDER_OPTIONS = ["계속 사용", "조금 더 써본 뒤 결정", "사용하지 않음"];
 
 export function jobCountBucket(count: number): string {
   if (count <= 0) return "0건";
@@ -85,6 +91,8 @@ export function buildFeedbackFormUrl(
     [entryIds.screen, answers.screen],
     [entryIds.usage, answers.usage],
     [entryIds.scale, answers.shareScale ? answers.scaleBucket : ""],
+    [entryIds.price, answers.priceFit],
+    [entryIds.founder, answers.founderIntent],
   ];
   for (const [rawId, value] of prefills) {
     const id = normalizeEntryId(rawId ?? "");
@@ -104,6 +112,8 @@ export function buildFeedbackPlainText(answers: FeedbackAnswers, mode: FeedbackM
   if (answers.screen) lines.push(`화면: ${answers.screen}`);
   lines.push(`자세한 내용: ${answers.detail.trim()}`);
   if (answers.usage) lines.push(`사용 기간: ${answers.usage}`);
+  if (answers.priceFit) lines.push(`가격 적정성: ${answers.priceFit}`);
+  if (answers.founderIntent) lines.push(`베타 파운더 9,900원 12개월: ${answers.founderIntent}`);
   if (answers.email.trim()) lines.push(`회신 이메일: ${answers.email.trim()}`);
   if (answers.shareScale && answers.scaleBucket) {
     lines.push(`사용 규모(일감 수 구간): ${answers.scaleBucket}`);
@@ -121,6 +131,8 @@ function feedbackEntryIds(): FeedbackEntryIds {
     screen: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_SCREEN ?? "",
     usage: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_USAGE ?? "",
     scale: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_SCALE ?? "",
+    price: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_PRICE ?? "",
+    founder: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_FOUNDER ?? "",
   };
 }
 
@@ -145,10 +157,14 @@ export function FeedbackPanel({ mode = "general" }: { mode?: FeedbackMode }) {
   const [usage, setUsage] = useState("");
   const [email, setEmail] = useState("");
   const [shareScale, setShareScale] = useState(false);
+  const [priceFit, setPriceFit] = useState("");
+  const [founderIntent, setFounderIntent] = useState("");
   const [status, setStatus] = useState<{ kind: "error" | "done"; message: string } | null>(null);
 
   const scaleBucket = jobCountBucket(jobs.length);
-  const answers: FeedbackAnswers = { type, screen, detail, usage, email, shareScale, scaleBucket };
+  const answers: FeedbackAnswers = {
+    type, screen, detail, usage, email, shareScale, scaleBucket, priceFit, founderIntent,
+  };
   const plainText = buildFeedbackPlainText(answers, mode);
   const formHref = buildFeedbackFormUrl(feedbackFormUrl(), feedbackEntryIds(), answers);
 
@@ -293,8 +309,54 @@ export function FeedbackPanel({ mode = "general" }: { mode?: FeedbackMode }) {
         </section>
 
         <section className="contentSection feedbackSection">
+          <fieldset>
+            <legend className="fieldLabel">
+              5. 이 기능이라면 가장 적절한 월 구독료는 얼마인가요? <em>선택</em>
+              <span>정답은 없어요. 다음 가격을 결정하는 데만 참고해요.</span>
+            </legend>
+            <div className="feedbackChoices">
+              {PRICE_OPTIONS.map((option) => (
+                <label className="feedbackChoice" key={option} data-selected={priceFit === option}>
+                  <input
+                    type="radio"
+                    name="feedbackPrice"
+                    value={option}
+                    checked={priceFit === option}
+                    onChange={() => setPriceFit(option)}
+                  />
+                  <span>{option}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </section>
+
+        <section className="contentSection feedbackSection">
+          <fieldset>
+            <legend className="fieldLabel">
+              6. 베타 종료 뒤 Basic을 월 9,900원에 12개월 유지할 수 있다면? <em>선택</em>
+              <span>지금 결제되는 항목이 아니며, 답하지 않아도 의견은 보낼 수 있어요.</span>
+            </legend>
+            <div className="feedbackChoices">
+              {FOUNDER_OPTIONS.map((option) => (
+                <label className="feedbackChoice" key={option} data-selected={founderIntent === option}>
+                  <input
+                    type="radio"
+                    name="feedbackFounder"
+                    value={option}
+                    checked={founderIntent === option}
+                    onChange={() => setFounderIntent(option)}
+                  />
+                  <span>{option}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </section>
+
+        <section className="contentSection feedbackSection">
           <label className="fieldLabel" htmlFor="feedback-email">
-            5. 연락받을 이메일 <em>선택</em>
+            7. 연락받을 이메일 <em>선택</em>
             <span>답변을 받고 싶으면 적어주세요. 안 적으셔도 접수돼요</span>
           </label>
           <input
@@ -338,7 +400,7 @@ export function FeedbackPanel({ mode = "general" }: { mode?: FeedbackMode }) {
         {formHref ? (
           <>
             <p className="feedbackTransmitNote">
-              링크에는 고르신 항목(제보 유형·화면·사용 기간{shareScale ? "·일감 수 구간" : ""})만 담겨요.
+              링크에는 고르신 항목(제보 유형·화면·사용 기간·가격 의견·베타 파운더 의향{shareScale ? "·일감 수 구간" : ""})만 담겨요.
               적으신 내용과 이메일은 링크에 넣지 않고 복사해 드릴 테니, 열린 폼에 붙여넣어 주세요.
             </p>
             <div className="feedbackActions">

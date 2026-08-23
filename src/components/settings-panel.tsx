@@ -169,7 +169,7 @@ export function SettingsPanel() {
     ? `${TRIAL_DAYS}일 무제한 체험 중 · ${planAccess.remainingDays}일 남음`
     : planAccess.source === "beta"
       ? `베타 이용 중 · ${planAccess.remainingDays}일 남음`
-      : `${PLAN_NAMES.solo} ${PLAN_PRICES.solo.label} · ${PLAN_NAMES.pro} ${PLAN_PRICES.pro.label}`;
+      : `${PLAN_NAMES.basic} ${PLAN_PRICES.basic.label} · ${PLAN_NAMES.pro} ${PLAN_PRICES.pro.label}`;
 
   // 승급이 끝났으면 조용히 사라지지 않고 왜 무료로 돌아왔는지 알려준다.
   const planExpiryNotice = planAccess.source !== "base"
@@ -211,7 +211,7 @@ export function SettingsPanel() {
         )}
 
         <ul className="planPerks" data-testid="plan-tiers">
-          {(["free", "solo", "pro"] as const).map((tier) => (
+          {(["free", "basic", "pro"] as const).map((tier) => (
             <li className="planTierRow" key={tier} data-current={tier === plan}>
               <Check size={16} />
               <span>
