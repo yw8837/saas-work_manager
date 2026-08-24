@@ -23,11 +23,11 @@ export function renderHostedSupabaseConfig(localConfig, rawSiteUrl) {
   const siteUrl = normalizeAuthSiteUrl(rawSiteUrl);
   const auth = tomlSection(localConfig, "auth");
   const email = tomlSection(localConfig, "auth.email");
-  if (!/^\s*enable_signup\s*=\s*false\s*$/m.test(auth)) {
-    throw new Error("[auth] enable_signup=false가 아니어서 원격 config push를 중단합니다.");
+  if (!/^\s*enable_signup\s*=\s*true\s*$/m.test(auth)) {
+    throw new Error("[auth] enable_signup=true가 아니어서 원격 config push를 중단합니다.");
   }
   if (!/^\s*enable_signup\s*=\s*true\s*$/m.test(email)) {
-    throw new Error("[auth.email] enable_signup=true가 아니어서 초대 계정의 이메일 로그인을 보장할 수 없습니다.");
+    throw new Error("[auth.email] enable_signup=true가 아니어서 이메일 가입과 로그인을 보장할 수 없습니다.");
   }
 
   let hosted = localConfig.replace(

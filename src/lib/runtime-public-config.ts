@@ -41,6 +41,6 @@ export function getRuntimePublicConfigState() {
   return {
     publicConfigDigest: runtimePublicConfigDigest(config),
     publicIdentityConfigured: config.publicIdentityConfigured,
-    closedBetaConfigured: config.betaSignupEnabled === false,
+    signupPolicyConfigured: config.betaSignupEnabled === true,
   };
 }

@@ -12,16 +12,12 @@ import { Brand } from "./brand";
 import { ProductPreview } from "./product-preview";
 import { getPublicServiceConfig } from "@/lib/policies";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
-import { requestedStorageMode } from "@/lib/supabase/mode";
 
 export function MarketingHome() {
   const service = getPublicServiceConfig();
-  const hosted = requestedStorageMode() === "hosted";
-
   // 전자상거래법 사업자 정보 고지 — 배포 시 NEXT_PUBLIC_* 로 주입, 미설정이면 정직하게 등록 전 고지
   const legal = {
     businessName: process.env.NEXT_PUBLIC_BUSINESS_NAME?.trim() || null,
-    owner: process.env.NEXT_PUBLIC_BUSINESS_OWNER?.trim() || service.operatorName,
     regNo: process.env.NEXT_PUBLIC_BUSINESS_NUMBER?.trim() || null,
     mailOrderNo: process.env.NEXT_PUBLIC_MAIL_ORDER_NUMBER?.trim() || null,
     address: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS?.trim() || null,
@@ -39,7 +35,7 @@ export function MarketingHome() {
           <a href="#faq">자주 묻는 질문</a>
         </nav>
         <Link href="/today" className="headerDemoLink">
-          {hosted ? "초대 베타 로그인" : "바로 시작"}
+          로그인
           <ChevronRight size={16} />
         </Link>
       </header>
@@ -48,15 +44,16 @@ export function MarketingHome() {
         <section className="heroSection">
           <div className="heroCopy">
             <h1>
-              혼자 일해도,<br />
-              <span>혼자 다 관리하지 <br className="heroMobileBreak" />마세요.</span>
+              <span className="heroLine">혼자 일해도,</span>
+              <span className="heroLine heroAccent">운영까지 혼자 할</span>
+              <span className="heroLine heroAccent">필요는 없어요.</span>
             </h1>
             <p className="heroLead">
-              주문 뒤의 할 일, 마감, 수정 요청은 일감체크가 정리해요. 당신은 작업에만 집중하세요.
+              주문이 들어오면 할 일, 마감, 수정 요청을 한 번에 정리해요. 당신은 작업에 집중하세요.
             </p>
             <div className="heroActions">
               <Link href="/today" className="primaryButton heroPrimary" data-testid="landing-demo">
-                {hosted ? "초대받은 베타 참여자 로그인" : "지금 바로 시작"}
+                무료로 시작하기
                 <ArrowRight size={18} />
               </Link>
               <a href="#workflow" className="secondaryButton">
@@ -78,7 +75,7 @@ export function MarketingHome() {
           <div className="workflowInner">
             <div className="workflowIntro">
               <h2>처음 한 번만 정리하면,<br />다음 주문부터는 고르기만.</h2>
-              <p>받은 주문을 다시 관리하는 플랫폼이 아니에요. 수주 후 반복되는 잡일만 자동으로 펼쳐줘요.</p>
+              <p>패키지를 한 번 저장해두면, 주문마다 반복되던 할 일과 마감이 바로 펼쳐져요.</p>
             </div>
             <ol className="workflowRail">
               <li>
@@ -101,8 +98,8 @@ export function MarketingHome() {
           <div className="revisionCopy">
             <h2>수정 요청은 말이 아니라<br />기록과 횟수로 남겨요.</h2>
             <p>
-              고객은 링크로 요청하고, 카톡으로 온 급한 수정은 작업자가 직접 기록해요.
-              어느 경로로 와도 같은 타임라인과 남은 횟수에 쌓여요.
+              고객 링크 요청은 자동으로 세고, 메신저·이메일·전화로 온 요청은 바로 기록해요.
+              어디서 온 요청이든 같은 타임라인에 남아요.
             </p>
             <ul>
               <li><CheckCircle2 size={18} /> 고객 링크 요청은 자동 카운트</li>
@@ -148,7 +145,7 @@ export function MarketingHome() {
               </details>
               <details className="faqItem">
                 <summary>수정 요청은 어떻게 관리돼요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
-                <p>고객이 링크로 보낸 요청은 자동으로 1회 차감되고, 카톡·DM으로 온 요청은 직접 기록해요. 어느 경로로 와도 같은 타임라인과 남은 횟수에 쌓이고, 초과 요청은 추가 작업으로 분리돼요.</p>
+                <p>고객이 링크로 보낸 요청은 자동으로 1회 차감되고, 메신저·이메일·전화로 온 요청은 직접 기록해요. 어느 경로로 와도 같은 타임라인과 남은 횟수에 쌓이고, 초과 요청은 추가 작업으로 분리돼요.</p>
               </details>
               <details className="faqItem">
                 <summary>모바일에서도 되나요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
@@ -160,7 +157,7 @@ export function MarketingHome() {
               </details>
               <details className="faqItem">
                 <summary>요금은 어떻게 되나요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
-                <p>무료 플랜은 동시에 진행하는 의뢰 {PLAN_LIMITS.free.activeJobs}건, 지금까지 만든 의뢰 누적 {PLAN_LIMITS.free.totalJobs}건까지예요. 완료한 의뢰는 동시 진행 수에서는 빠지지만 누적 수에서는 빠지지 않아요. 더 필요하면 Basic({PLAN_PRICES.basic.label}) 또는 Pro({PLAN_PRICES.pro.label})로 넓히는 구조예요. 결제는 아직 준비 중이며, 베타 참여자에게는 종료 뒤 Basic을 월 9,900원에 12개월 유지하는 혜택을 제안할 예정이에요.</p>
+                <p>무료 플랜은 동시에 진행하는 의뢰 {PLAN_LIMITS.free.activeJobs}건, 지금까지 만든 의뢰 누적 {PLAN_LIMITS.free.totalJobs}건까지예요. 완료한 의뢰는 동시 진행 수에서는 빠지지만 누적 수에서는 빠지지 않아요. 더 필요하면 Basic({PLAN_PRICES.basic.label}) 또는 Pro({PLAN_PRICES.pro.label})로 넓힐 수 있어요. 결제는 아직 준비 중입니다. 30일 Pro 이용 코드를 적용한 계정은 결제 오픈 후 Basic 정가 월 14,900원을 월 9,900원에 12개월 이용할 수 있어요.</p>
               </details>
             </div>
           </div>
@@ -172,7 +169,7 @@ export function MarketingHome() {
             <h2>운영은 덜고, 작업에 더 집중하세요.</h2>
           </div>
           <Link href="/today" className="invertedButton">
-            {hosted ? "베타 계정으로 로그인" : "지금 시작하기"}
+            무료로 시작하기
             <ArrowRight size={18} />
           </Link>
         </section>
@@ -191,9 +188,8 @@ export function MarketingHome() {
             {service.supportEmail && <a href={`mailto:${service.supportEmail}`}>문의</a>}
           </nav>
         </div>
-        {hasLegalInfo && <dl className="marketingFooterLegal" aria-label="운영 정보">
+        {hasLegalInfo && <dl className="marketingFooterLegal" role="group" aria-label="사업자 정보">
           {legal.businessName && <div><dt>사업자</dt><dd>{legal.businessName}</dd></div>}
-          {legal.owner && <div><dt>운영</dt><dd>{legal.owner}</dd></div>}
           {legal.regNo && <div><dt>사업자등록번호</dt><dd>{legal.regNo}</dd></div>}
           {legal.mailOrderNo && <div><dt>통신판매업신고</dt><dd>{legal.mailOrderNo}</dd></div>}
           {legal.address && <div><dt>주소</dt><dd>{legal.address}</dd></div>}

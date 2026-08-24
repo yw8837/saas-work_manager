@@ -139,20 +139,21 @@ describe("SettingsPanel 플랜 섹션", () => {
     expect(screen.getByTestId("upgrade-cta")).toBeDisabled();
   });
 
-  it("입력한 초대 코드를 그대로 넘기고 결과 문구를 보여준다", async () => {
+  it("입력한 베타 이용 코드를 그대로 넘기고 30일 Pro와 파운더 혜택을 설명한다", async () => {
     render(<SettingsPanel />);
-    fireEvent.change(screen.getByLabelText("베타 초대 코드"), { target: { value: " beta2026 " } });
+    fireEvent.change(screen.getByLabelText("베타 이용 코드"), { target: { value: " beta2026 " } });
     fireEvent.click(screen.getByTestId("redeem-invite"));
 
     expect(activateInviteCode).toHaveBeenCalledWith(" beta2026 ");
     // 서버 확인을 기다리므로 문구도 응답 뒤에 나타난다.
     expect(await screen.findByText(/30일 동안 Pro를 무제한으로 써요./)).toBeInTheDocument();
+    expect(screen.getByText(/Basic 정가 월 14,900원을 월 9,900원에 12개월/)).toBeInTheDocument();
   });
 
   it("틀린 코드는 실패 문구를 보여준다", async () => {
     activateInviteCode.mockResolvedValue({ ok: false, message: "확인되지 않는 코드예요. 받은 코드를 다시 확인해주세요." });
     render(<SettingsPanel />);
-    fireEvent.change(screen.getByLabelText("베타 초대 코드"), { target: { value: "NOPE" } });
+    fireEvent.change(screen.getByLabelText("베타 이용 코드"), { target: { value: "NOPE" } });
     fireEvent.click(screen.getByTestId("redeem-invite"));
 
     expect(await screen.findByText(/확인되지 않는 코드예요./)).toBeInTheDocument();
@@ -179,6 +180,6 @@ describe("SettingsPanel 플랜 섹션", () => {
     } as unknown as ReturnType<typeof useWorkspace>);
 
     render(<SettingsPanel />);
-    expect(screen.getByTestId("plan-expiry-notice")).toHaveTextContent("베타 코드 기간이 끝나 무료 플랜으로 돌아왔어요.");
+    expect(screen.getByTestId("plan-expiry-notice")).toHaveTextContent("베타 이용 기간이 끝나 무료 플랜으로 돌아왔어요.");
   });
 });

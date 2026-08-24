@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "./route";
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
+import { runtimePublicConfigDigest } from "@/lib/runtime-public-config";
 import {
   ILGAMCHECK_POLICY_PUBLICATION_CONTRACT,
   ILGAMCHECK_RUNTIME_CONTRACT,
@@ -85,7 +86,7 @@ describe("GET /api/health", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_example";
     process.env.NEXT_PUBLIC_OPERATOR_NAME = "일감체크 운영자";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "support@example.com";
-    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false";
+    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true";
     stubHostedContractProbes();
 
     const response = await GET();
@@ -98,9 +99,13 @@ describe("GET /api/health", () => {
       hostedConfigured: true,
       supabaseProjectRefConfigured: projectRef,
       hostedAdapterReady: true,
-      publicConfigDigest: "sha256:6dacc2a160375286aa21320f168a1cad5f2395259d0683425f4c669183ec81d1",
+      publicConfigDigest: runtimePublicConfigDigest({
+        operatorName: "일감체크 운영자",
+        supportEmail: "support@example.com",
+        betaSignupEnabled: true,
+      }),
       publicIdentityConfigured: true,
-      closedBetaConfigured: true,
+      signupPolicyConfigured: true,
       databaseContractDetected: ILGAMCHECK_RUNTIME_CONTRACT,
       serviceRoleContractCurrent: true,
       policyPublication: {
@@ -122,7 +127,7 @@ describe("GET /api/health", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_example";
     process.env.NEXT_PUBLIC_OPERATOR_NAME = "일감체크 운영자";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "support@example.com";
-    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false";
+    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true";
     stubHostedContractProbes({ runtimeContract: "older" });
 
     const response = await GET();
@@ -135,14 +140,14 @@ describe("GET /api/health", () => {
     });
   });
 
-  it("fails closed when a hosted deployment enables public beta signup", async () => {
+  it("fails closed when a hosted deployment disables ordinary signup", async () => {
     process.env.NEXT_PUBLIC_STORAGE_MODE = "hosted";
     process.env.NEXT_PUBLIC_SUPABASE_URL = `https://${projectRef}.supabase.co`;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_example";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_example";
     process.env.NEXT_PUBLIC_OPERATOR_NAME = "일감체크 운영자";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "support@example.com";
-    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true";
+    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false";
     stubHostedContractProbes();
 
     const response = await GET();
@@ -151,7 +156,7 @@ describe("GET /api/health", () => {
       status: "misconfigured",
       ready: false,
       publicIdentityConfigured: true,
-      closedBetaConfigured: false,
+      signupPolicyConfigured: false,
     });
   });
 
@@ -162,7 +167,7 @@ describe("GET /api/health", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_example";
     process.env.NEXT_PUBLIC_OPERATOR_NAME = "일감체크 운영자";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "support@example.com";
-    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false";
+    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true";
     stubHostedContractProbes({
       policyContract: { ...ILGAMCHECK_POLICY_PUBLICATION_CONTRACT, privacyVersion: "stale" },
     });
@@ -186,7 +191,7 @@ describe("GET /api/health", () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     process.env.NEXT_PUBLIC_OPERATOR_NAME = "일감체크 운영자";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "support@example.com";
-    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false";
+    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true";
     stubHostedContractProbes();
 
     const response = await GET();
@@ -206,7 +211,7 @@ describe("GET /api/health", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = sentinel;
     process.env.NEXT_PUBLIC_OPERATOR_NAME = "일감체크 운영자";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "support@example.com";
-    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false";
+    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true";
     stubHostedContractProbes({
       serviceRoleStatus: 401,
       serviceRoleBody: `${sentinel} private upstream error`,
@@ -232,7 +237,7 @@ describe("GET /api/health", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_timeout_test";
     process.env.NEXT_PUBLIC_OPERATOR_NAME = "일감체크 운영자";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "support@example.com";
-    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false";
+    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true";
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
       if (url.includes("service_role_contract")) return new Promise<Response>(() => undefined);
       const body = url.includes("policy_publication")
@@ -260,7 +265,7 @@ describe("GET /api/health", () => {
     process.env.NEXT_PUBLIC_STORAGE_MODE = "local";
     process.env.NEXT_PUBLIC_OPERATOR_NAME = "노출되면 안 되는 운영자";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "private-looking@example.com";
-    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false";
+    process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "server-only-service-role-sentinel";
 
     const response = await GET();

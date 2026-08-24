@@ -122,7 +122,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           <span className="authIcon"><ShieldCheck size={23} /></span>
           <div className="authHeading">
             <h1>첫 사용 전 동의가 필요해요</h1>
-            <p>초대로 만든 계정도 현재 정책을 직접 확인한 뒤 작업공간을 열 수 있어요.</p>
+            <p>현재 정책을 확인하고 동의하면 작업공간을 바로 열 수 있어요.</p>
           </div>
           <form className="authForm" onSubmit={(event) => {
             event.preventDefault();
@@ -162,7 +162,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
         await signIn(email, password);
       } else {
         if (!service.betaSignupEnabled) {
-          throw new Error("현재는 초대받은 베타 계정만 사용할 수 있어요.");
+          throw new Error("현재 신규 계정 만들기를 잠시 이용할 수 없어요.");
         }
         if (!policiesAccepted) {
           throw new Error("이용약관과 개인정보처리방침에 동의해주세요.");
@@ -204,7 +204,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
         <Brand />
         <span className="authIcon"><ShieldCheck size={23} /></span>
         <div className="authHeading">
-          <h1>{authMode === "signup" ? "베타 계정 만들기" : "내 일감으로 이어서 시작"}</h1>
+          <h1>{authMode === "signup" ? "일감체크 시작하기" : "내 일감 이어서 관리하기"}</h1>
           <p>{authMode === "signup" ? "가입 전 데이터 처리 기준을 확인해주세요." : "계정마다 고객·금액·수정 기록을 분리해 저장해요."}</p>
         </div>
         <form className="authForm" onSubmit={(event: FormEvent<HTMLFormElement>) => {
@@ -236,7 +236,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           <button className="primaryButton authPrimary" type="submit" disabled={pending !== null}>
             {pending === authMode
               ? (authMode === "signup" ? "가입 중…" : "로그인 중…")
-              : (authMode === "signup" ? "동의하고 베타 가입" : "로그인")}
+              : (authMode === "signup" ? "동의하고 계정 만들기" : "로그인")}
             <ArrowRight size={17} />
           </button>
           {service.betaSignupEnabled && (
@@ -249,7 +249,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
                 setFeedback(null);
               }}
             >
-              {authMode === "signup" ? "기존 계정으로 로그인" : "베타 계정 만들기"}
+              {authMode === "signup" ? "기존 계정으로 로그인" : "계정 만들기"}
             </button>
           )}
           {authMode === "login" && (
@@ -260,9 +260,9 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
         </form>
         {!service.betaSignupEnabled && (
           <aside className="closedBetaNotice">
-            <strong>지금은 초대형 폐쇄 베타예요</strong>
-            <p>운영자가 초대한 계정은 그대로 로그인할 수 있어요.</p>
-            {service.supportEmail && <a href={`mailto:${service.supportEmail}`}>베타 문의</a>}
+            <strong>신규 계정 만들기를 잠시 닫아두었어요</strong>
+            <p>기존 계정은 그대로 로그인할 수 있어요.</p>
+            {service.supportEmail && <a href={`mailto:${service.supportEmail}`}>가입 문의</a>}
           </aside>
         )}
         {(feedback || authError) && <p className="authFeedback" role="status">{feedback ?? authError}</p>}

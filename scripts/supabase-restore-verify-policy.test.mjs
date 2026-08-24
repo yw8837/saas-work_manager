@@ -14,7 +14,7 @@ const validEnv = {
   SUPABASE_SERVICE_ROLE_KEY: "sb_secret_example",
   NEXT_PUBLIC_OPERATOR_NAME: "테스트 운영자",
   NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.com",
-  NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false",
+  NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
   ILGAMCHECK_TEST_A_EMAIL: "recovery-a@example.com",
   ILGAMCHECK_TEST_A_PASSWORD: "password-a",
   ILGAMCHECK_TEST_B_EMAIL: "recovery-b@example.com",

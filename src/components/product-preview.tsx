@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 // Hero motion should support reading the scene, not compete with it.
-const AUTO_MS = 2300;
+const AUTO_MS = 2800;
 
 function SceneSidebar({ active }: { active: "오늘" | "일감" | "패키지" }) {
   const items: Array<"오늘" | "일감" | "패키지"> = ["오늘", "일감", "패키지"];
@@ -219,7 +219,7 @@ const slides: Slide[] = [
   },
   {
     key: "revision",
-    caption: "링크로 오든 카톡으로 오든 한 타임라인에 쌓여요",
+    caption: "링크든 메신저든 모든 수정 요청이 한 타임라인에 쌓여요",
     render: () => (
       <Scene title="수정 요청 기록" live="자동 카운트" active="일감">
         <div className="sceneHeading">

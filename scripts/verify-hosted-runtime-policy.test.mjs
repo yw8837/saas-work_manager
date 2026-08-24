@@ -11,7 +11,7 @@ const validEnv = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_example",
   NEXT_PUBLIC_OPERATOR_NAME: "일감체크 테스트 운영자",
   NEXT_PUBLIC_SUPPORT_EMAIL: "support@ilgamcheck.test",
-  NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false",
+  NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
   SUPABASE_SERVICE_ROLE_KEY: "sb_secret_example",
   ILGAMCHECK_TEST_A_EMAIL: "a@example.com",
   ILGAMCHECK_TEST_A_PASSWORD: "password-a",

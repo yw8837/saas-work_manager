@@ -22,12 +22,12 @@ describe("ProductPreview", () => {
     expect(screen.getByRole("group", { name: "일감체크 화면 미리보기" })).toBeInTheDocument();
   });
 
-  it("advances after a calmer 2.3-second interval", () => {
+  it("advances after a calmer 2.8-second interval", () => {
     vi.useFakeTimers();
     render(<ProductPreview />);
 
     expect(caption("한 번 저장해두면 다음 주문부터는 고르기만 하면 돼요")).toBeInTheDocument();
-    act(() => vi.advanceTimersByTime(2_000));
+    act(() => vi.advanceTimersByTime(2_500));
     expect(caption("한 번 저장해두면 다음 주문부터는 고르기만 하면 돼요")).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(300));
     expect(caption("네 가지만 고르면 금액과 마감, 체크리스트가 만들어져요")).toBeInTheDocument();

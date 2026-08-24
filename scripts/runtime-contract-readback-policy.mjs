@@ -8,7 +8,6 @@ import { HOSTED_RUNTIME_CONTRACT } from "./verify-hosted-runtime-policy.mjs";
 // 같은 값을 두 번 적어두면 한쪽만 올라간다. 실제로 그렇게 어긋났었다.
 export const RUNTIME_CONTRACT_EXPECTED = HOSTED_RUNTIME_CONTRACT;
 export const RUNTIME_HEALTH_PAYLOAD_KEYS = Object.freeze([
-  "closedBetaConfigured",
   "databaseContractDetected",
   "databaseContractExpected",
   "hostedAdapterReady",
@@ -21,6 +20,7 @@ export const RUNTIME_HEALTH_PAYLOAD_KEYS = Object.freeze([
   "runtimeRequested",
   "service",
   "serviceRoleContractCurrent",
+  "signupPolicyConfigured",
   "status",
   "supabaseProjectRefConfigured",
   "version",
@@ -193,8 +193,8 @@ export function validateRuntimeHealthPayload(
       `/api/health: 배포 Supabase project ref가 연결 ref ${expectedProjectRef}와 일치하지 않습니다.`,
     );
   }
-  if (payload.publicIdentityConfigured !== true || payload.closedBetaConfigured !== true) {
-    throw new Error("/api/health: 공개 운영자 정보 또는 폐쇄 베타 설정이 준비되지 않았습니다.");
+  if (payload.publicIdentityConfigured !== true || payload.signupPolicyConfigured !== true) {
+    throw new Error("/api/health: 공개 운영자 정보 또는 신규 가입 설정이 준비되지 않았습니다.");
   }
   if (payload.publicConfigDigest !== expectedPublicConfigDigest) {
     throw new Error("/api/health: 배포 public config가 현재 로컬 환경값과 일치하지 않습니다.");

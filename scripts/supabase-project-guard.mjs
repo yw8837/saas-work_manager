@@ -12,7 +12,7 @@ export function migrationApplyAck(projectRef) {
 }
 
 export function authConfigApplyAck(projectRef) {
-  return `PUSH_CLOSED_BETA_AUTH_CONFIG_TO_${projectRef}`;
+  return `PUSH_PUBLIC_SIGNUP_AUTH_CONFIG_TO_${projectRef}`;
 }
 
 export function parseSupabaseProjects(rawJson) {

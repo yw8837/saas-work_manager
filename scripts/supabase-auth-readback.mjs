@@ -47,7 +47,7 @@ async function main() {
     console.error(`[supabase-auth-readback] BLOCKED ${issue}`);
     process.exitCode = 1;
   } else {
-    console.log("[supabase-auth-readback] PASS 원격 site_url과 폐쇄 베타 가입 차단 설정이 현재값과 일치합니다.");
+    console.log("[supabase-auth-readback] PASS 원격 site_url과 공개 이메일 가입 설정이 현재값과 일치합니다.");
   }
 }
 

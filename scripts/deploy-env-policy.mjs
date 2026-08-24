@@ -152,8 +152,8 @@ export function collectDeployEnvIssues(env, { requireServiceRole = true } = {}) 
     if (issue) issues.push(`NEXT_PUBLIC_SUPPORT_EMAIL: ${issue}`);
   }
 
-  if (env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED?.trim() && env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED !== "false") {
-    issues.push("NEXT_PUBLIC_BETA_SIGNUP_ENABLED=false 가 폐쇄 베타 출시에 필요합니다.");
+  if (env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED?.trim() && env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED !== "true") {
+    issues.push("NEXT_PUBLIC_BETA_SIGNUP_ENABLED=true 가 정식 서비스형 신규 가입에 필요합니다.");
   }
 
   for (const [name, rawValue] of Object.entries(env)) {

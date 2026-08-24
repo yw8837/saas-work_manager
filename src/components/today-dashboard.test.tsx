@@ -47,7 +47,7 @@ describe("TodayDashboard 전체 초기화 확인 문구", () => {
     expect(asked).toContain("수정 기록");
     expect(asked).toContain("직접 만든 패키지와 옵션");
     // 초기화해도 남는 것까지 말해야 "왜 아직 한도에 걸리지?"가 안 생긴다.
-    expect(asked).toContain("만든 일감 수와 체험·초대 코드 기간은 그대로 남아요");
+    expect(asked).toContain("만든 일감 수와 체험·베타 이용 기간은 그대로 남아요");
     expect(asked).toContain("되돌릴 수 없어요");
     expect(resetDemoSpy).not.toHaveBeenCalled();
   });

@@ -47,7 +47,7 @@ describe("browserSafeSupabaseKeyIssue", () => {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_example",
       NEXT_PUBLIC_OPERATOR_NAME: "일감체크 테스트 운영자",
       NEXT_PUBLIC_SUPPORT_EMAIL: "support@ilgamcheck.test",
-      NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false",
+      NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
       SUPABASE_SERVICE_ROLE_KEY: "sb_secret_example",
     };
     expect(collectDeployEnvIssues(valid)).toEqual([]);
@@ -61,8 +61,8 @@ describe("browserSafeSupabaseKeyIssue", () => {
       .toEqual(expect.arrayContaining([expect.stringContaining("NEXT_PUBLIC_OPERATOR_NAME")]));
     expect(collectDeployEnvIssues({ ...valid, NEXT_PUBLIC_SUPPORT_EMAIL: "not-an-email" }))
       .toEqual(expect.arrayContaining([expect.stringContaining("지원 이메일")]));
-    expect(collectDeployEnvIssues({ ...valid, NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true" }))
-      .toEqual(expect.arrayContaining([expect.stringContaining("폐쇄 베타")]));
+    expect(collectDeployEnvIssues({ ...valid, NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false" }))
+      .toEqual(expect.arrayContaining([expect.stringContaining("신규 가입")]));
   });
 
   it("rejects public operator/support placeholders", () => {

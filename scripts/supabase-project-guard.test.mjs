@@ -43,7 +43,7 @@ describe("Supabase remote target guard", () => {
 
   it("binds destructive acknowledgements to the exact project ref", () => {
     expect(migrationApplyAck(ref)).toBe(`APPLY_MIGRATIONS_TO_${ref}`);
-    expect(authConfigApplyAck(ref)).toBe(`PUSH_CLOSED_BETA_AUTH_CONFIG_TO_${ref}`);
+    expect(authConfigApplyAck(ref)).toBe(`PUSH_PUBLIC_SIGNUP_AUTH_CONFIG_TO_${ref}`);
     expect(migrationApplyAck(ref)).not.toContain("secret");
   });
 

@@ -109,7 +109,7 @@ type WorkspaceContextValue = AppState & {
   jobLimitHit: JobLimitKind | null;
   canCreatePackage: boolean;
   canCreateOption: boolean;
-  /** 베타 초대 코드를 적용한다. 성공/실패와 화면에 그대로 쓸 문구를 돌려준다. */
+  /** 베타 이용 코드를 적용한다. 성공/실패와 화면에 그대로 쓸 문구를 돌려준다. */
   activateInviteCode: (code: string) => Promise<{ ok: boolean; message: string }>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, acceptance: PolicyAcceptance) => Promise<string>;
@@ -347,7 +347,7 @@ export function clearHostedDraft(ownerId: string, storage: Storage = window.loca
 function saveFailureMessage(error: unknown, fallback: string): string {
   const message = error instanceof Error ? error.message : fallback;
   if (error instanceof Error && error.name === "HostedPlanLimitError") {
-    return `${message} 이 기기의 편집은 그대로 남아 있어요. 초대 코드가 있다면 설정에서 넣어주세요.`;
+    return `${message} 이 기기의 편집은 그대로 남아 있어요. 베타 이용 코드가 있다면 설정에서 넣어주세요.`;
   }
   return `${message} 이 기기의 편집은 보존됐고 새로고침하면 자동 재시도해요.`;
 }
@@ -1394,13 +1394,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [commitState]);
 
   /**
-   * 베타 초대 코드를 적용한다.
+   * 베타 이용 코드를 적용한다.
    * ⚠️ 검증이 브라우저 안에서만 이뤄져 저장소를 직접 고치면 우회할 수 있다.
    * 결제를 붙일 때 서버 검증으로 교체해야 한다.
    */
   const activateInviteCode = useCallback(async (rawCode: string) => {
     const code = normalizeInviteCode(rawCode);
-    if (!code) return { ok: false, message: "초대 코드를 입력해주세요." };
+    if (!code) return { ok: false, message: "베타 이용 코드를 입력해주세요." };
 
     // hosted에서는 서버가 코드를 검증하고 기간을 적는다.
     // 브라우저 판정만으로 Pro를 주면 화면과 서버가 어긋나 저장이 거부된다.

@@ -103,10 +103,10 @@ const DAY_MS = 86_400_000;
 
 /** 첫 일감을 만든 순간 시작되는 무제한 체험 기간(일). */
 export const TRIAL_DAYS = 7;
-/** 베타 초대 코드가 열어주는 Pro 기간(일). */
+/** 베타 이용 코드가 열어주는 Pro 기간(일). */
 export const BETA_GRANT_DAYS = 30;
 
-/** 베타 초대 코드로 받은 Pro 권한. 클라이언트 저장분이라 위조 가능하다. */
+/** 베타 이용 코드로 받은 Pro 권한. 로컬 모드 저장분은 클라이언트 상태다. */
 export interface BetaAccess {
   code: string;
   grantedAt: string;

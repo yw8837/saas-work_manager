@@ -78,7 +78,7 @@ export async function redeemHostedInviteCode(
   const { data, error } = await client.rpc("redeem_invite_code", { p_code: code });
 
   if (error) {
-    throw new Error(`초대 코드를 확인하지 못했어요: ${error.message}`);
+    throw new Error(`베타 이용 코드를 확인하지 못했어요: ${error.message}`);
   }
 
   const row = Array.isArray(data) ? data[0] : data;

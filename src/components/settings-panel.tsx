@@ -175,7 +175,7 @@ export function SettingsPanel() {
   const planExpiryNotice = planAccess.source !== "base"
     ? null
     : planAccess.betaExpired
-      ? "베타 코드 기간이 끝나 무료 플랜으로 돌아왔어요. 새 코드가 있으면 아래에 넣어주세요."
+      ? "베타 이용 기간이 끝나 무료 플랜으로 돌아왔어요. 새 코드가 있으면 아래에 넣어주세요."
       : planAccess.trialExpired
         ? `${TRIAL_DAYS}일 무제한 체험이 끝나 무료 플랜으로 돌아왔어요.`
         : null;
@@ -229,7 +229,7 @@ export function SettingsPanel() {
           onSubmit={(event) => { event.preventDefault(); redeemInviteCode(); }}
         >
           <label htmlFor="beta-invite-code">
-            <span>베타 초대 코드</span>
+            <span>베타 이용 코드</span>
             <input
               id="beta-invite-code"
               name="betaInviteCode"
@@ -255,7 +255,9 @@ export function SettingsPanel() {
           </p>
         )}
         <p className="planPrice">
-          초대 코드는 이 브라우저에 저장하는 베타용 임시 장치예요. 서버에서 확인하지 않아 마음먹으면 우회할 수 있고, 결제를 열 때 서버 확인으로 바꿀 예정이에요.
+          {runtimeMode === "hosted"
+            ? "코드는 계정에 한 번 적용되며, 적용일부터 30일 동안 Pro를 이용할 수 있어요. 30일 Pro 이용 코드를 적용한 계정은 결제 오픈 후 Basic 정가 월 14,900원을 월 9,900원에 12개월 이용할 수 있어요."
+            : "로컬 미리보기에서는 코드가 이 브라우저에만 저장돼요. 실제 서비스에서는 서버가 계정별로 확인합니다."}
         </p>
 
         <div className="browserTestActions">
@@ -263,7 +265,7 @@ export function SettingsPanel() {
             <Sparkles size={16} /> {PLAN_NAMES.pro} 업그레이드 준비 중
           </button>
         </div>
-        <p className="planPrice">아직 결제를 받지 않아요. 지금은 무료 플랜과 체험·베타 코드로만 쓸 수 있고, 결제가 열리면 이 자리에서 바로 업그레이드할 수 있어요.</p>
+        <p className="planPrice">아직 결제를 받지 않아요. 지금은 무료 플랜과 체험·베타 이용 코드로 쓸 수 있고, 결제가 열리면 이 자리에서 바로 업그레이드할 수 있어요.</p>
       </section>
 
       <InstallAppCard />

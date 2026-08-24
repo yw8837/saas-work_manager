@@ -33,8 +33,8 @@ function latestReturnedContract(fn: string): string | undefined {
  * 실제로 그렇게 어긋난 적이 있어서 여기서 강제한다.
  */
 describe("런타임 계약 버전은 한 값이어야 한다", () => {
-  it("정책 베타 2차 게시 뒤의 현재 계약은 202608240009이다", () => {
-    expect(ILGAMCHECK_RUNTIME_CONTRACT).toBe("202608240009");
+  it("공개 가입 정책 게시 뒤의 현재 계약은 202608240010이다", () => {
+    expect(ILGAMCHECK_RUNTIME_CONTRACT).toBe("202608240010");
   });
 
   it("앱 상수와 배포 스크립트 상수가 같다", () => {

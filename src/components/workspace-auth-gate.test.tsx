@@ -32,7 +32,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import { WorkspaceAuthGate } from "./workspace-auth-gate";
 
-describe("WorkspaceAuthGate beta signup", () => {
+describe("WorkspaceAuthGate public signup", () => {
   beforeEach(() => {
     auth.authStatus = "signed_out";
     auth.signIn.mockReset();
@@ -42,35 +42,35 @@ describe("WorkspaceAuthGate beta signup", () => {
     auth.recordAcceptance.mockReset().mockResolvedValue(undefined);
     vi.stubEnv("NEXT_PUBLIC_OPERATOR_NAME", "테스트 운영자");
     vi.stubEnv("NEXT_PUBLIC_SUPPORT_EMAIL", "support@example.com");
-    vi.stubEnv("NEXT_PUBLIC_BETA_SIGNUP_ENABLED", "false");
+    vi.stubEnv("NEXT_PUBLIC_BETA_SIGNUP_ENABLED", "true");
   });
 
   afterEach(() => vi.unstubAllEnvs());
 
-  it("keeps hosted signup closed unless the deployment explicitly enables it", () => {
+  it("offers ordinary login and account creation without invited-beta framing", () => {
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
 
-    expect(screen.getByText("지금은 초대형 폐쇄 베타예요")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "베타 계정 만들기" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "내 일감 이어서 관리하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "계정 만들기" })).toBeInTheDocument();
+    expect(screen.queryByText(/초대형|폐쇄 베타|베타 계정/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "이용약관" })).toHaveAttribute("href", "/terms");
     expect(screen.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
   });
 
   it("requires one explicit checkbox and passes the displayed versions to signup", async () => {
-    vi.stubEnv("NEXT_PUBLIC_BETA_SIGNUP_ENABLED", "true");
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
 
     fireEvent.change(screen.getByLabelText("이메일"), { target: { value: "beta@example.com" } });
     fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "long-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "베타 계정 만들기" }));
+    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
 
     const consent = screen.getByRole("checkbox");
     expect(consent).toBeRequired();
-    fireEvent.click(screen.getByRole("button", { name: "동의하고 베타 가입" }));
+    fireEvent.click(screen.getByRole("button", { name: "동의하고 계정 만들기" }));
     expect(auth.signUp).not.toHaveBeenCalled();
 
     fireEvent.click(consent);
-    fireEvent.click(screen.getByRole("button", { name: "동의하고 베타 가입" }));
+    fireEvent.click(screen.getByRole("button", { name: "동의하고 계정 만들기" }));
 
     await waitFor(() => expect(auth.signUp).toHaveBeenCalledWith(
       "beta@example.com",
@@ -79,7 +79,7 @@ describe("WorkspaceAuthGate beta signup", () => {
     ));
   });
 
-  it("blocks an invited signed-in account until the current policies are recorded", async () => {
+  it("blocks a signed-in account until the current policies are recorded", async () => {
     auth.authStatus = "signed_in";
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
 

@@ -27,7 +27,7 @@ describe("release gate", () => {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_ci_contract_only",
       NEXT_PUBLIC_OPERATOR_NAME: "CI contract operator",
       NEXT_PUBLIC_SUPPORT_EMAIL: "release-contract@ilgamcheck.test",
-      NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false",
+      NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
       SUPABASE_SERVICE_ROLE_KEY: "sb_secret_ci_contract_only",
     });
   });

@@ -8,8 +8,10 @@
 - iOS 프로젝트: `ios/`
 - 앱 식별자: `com.yeolmaestudio.ilgamcheck`
 - 앱 이름: `일감체크`
-- 모바일 메타데이터: 설치용 manifest, Apple 터치 아이콘, 노치 안전 영역(`viewport-fit=cover`)
+- 모바일 메타데이터: 설치용 manifest, Apple 터치 아이콘, 노치·홈 인디케이터 안전 영역(`viewport-fit=cover` + CSS safe-area)
 - 모바일 웹 UX: 하단 내비게이션, 새 일감 고정 행동 버튼, 한 열 폼, 고객 수정 요청 공개 링크
+- Android: 키보드 `adjustResize`, 평문 통신 차단, 앱 데이터 자동 백업 차단
+- iOS/iPadOS: 세로·가로 회전 선언, Safe Area 대응, 공통 웹 번들 동기화
 - 배포 전 번들을 Android/iOS에 동기화하는 `npm run mobile:sync`
 
 ## 모바일 MVP에서 바로 되는 일
@@ -28,9 +30,9 @@
 $env:NEXT_PUBLIC_STORAGE_MODE = "hosted"
 $env:NEXT_PUBLIC_SUPABASE_URL = "https://<project-ref>.supabase.co"
 $env:NEXT_PUBLIC_SUPABASE_ANON_KEY = "<publishable-key>"
-$env:NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "false"
+$env:NEXT_PUBLIC_BETA_SIGNUP_ENABLED = "true"
 $env:NEXT_PUBLIC_BUSINESS_NAME = "열매스튜디오"
-$env:NEXT_PUBLIC_OPERATOR_NAME = "SudioYeolmae"
+$env:NEXT_PUBLIC_OPERATOR_NAME = "열매스튜디오"
 $env:NEXT_PUBLIC_SUPPORT_EMAIL = "bsfire1234@mail.com"
 npm run mobile:sync
 npm run mobile:verify
@@ -46,4 +48,4 @@ npm run mobile:verify
 - FCM/APNs 자격 증명과 실제 기기 푸시 검증
 - 결제 도입 시 PortOne 웹훅 검증과 환불·구독 정책 확정
 
-위 항목은 계정 권한과 실제 기기 증명이 필요한 외부 작업이다. 현재 MVP에는 네이티브 Google/Kakao 로그인과 예약 푸시를 구현했다고 표시하지 않는다.
+위 항목은 계정 권한과 실제 기기 증명이 필요한 외부 작업이다. 현재 Windows 환경에서는 Android/iOS 프로젝트 구조·번들 동기화·설정만 검증한다. Android 실제 APK/AAB와 단말 검증에는 Android SDK·에뮬레이터 또는 실기기가, iOS 빌드·서명·실기기 검증에는 macOS/Xcode가 필요하다. 현재 MVP에는 네이티브 Google/Kakao 로그인과 예약 푸시를 구현했다고 표시하지 않는다.

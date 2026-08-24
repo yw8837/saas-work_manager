@@ -8,13 +8,13 @@ describe("standalone runtime readback environment", () => {
       SUPABASE_AUTH_SITE_URL: "https://preview.example.com",
       NEXT_PUBLIC_OPERATOR_NAME: "일감체크 운영자",
       NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.com",
-      NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false",
+      NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
       SUPABASE_SERVICE_ROLE_KEY: "must-not-affect-public-digest",
     }));
 
     expect(loadRuntimeReadbackEnvironment({ root: "C:\\workspace", env, loadEnv })).toEqual({
       target: "https://preview.example.com",
-      expectedPublicConfigDigest: "sha256:6dacc2a160375286aa21320f168a1cad5f2395259d0683425f4c669183ec81d1",
+      expectedPublicConfigDigest: "sha256:4217bc661d627657555f10e9d97757663be5cc5f5edf641c6e52b62e0bc6ea1c",
     });
     expect(loadEnv).toHaveBeenCalledWith("C:\\workspace");
   });
@@ -28,7 +28,7 @@ describe("standalone runtime readback environment", () => {
         SUPABASE_AUTH_SITE_URL: "https://env.example.com",
         NEXT_PUBLIC_OPERATOR_NAME: "일감체크 운영자",
         NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.com",
-        NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false",
+        NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
       }),
     });
     expect(result.target).toBe("https://explicit.example.com");

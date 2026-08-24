@@ -13,12 +13,12 @@ import {
 
 const PROJECT_REF = "abcdefghijklmnopqrst";
 const WRONG_PROJECT_REF = "12345678901234567890";
-const EXPECTED_PUBLIC_CONFIG_DIGEST = "sha256:6dacc2a160375286aa21320f168a1cad5f2395259d0683425f4c669183ec81d1";
+const EXPECTED_PUBLIC_CONFIG_DIGEST = "sha256:4217bc661d627657555f10e9d97757663be5cc5f5edf641c6e52b62e0bc6ea1c";
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_OPERATOR_NAME", "일감체크 운영자");
   vi.stubEnv("NEXT_PUBLIC_SUPPORT_EMAIL", "support@example.com");
-  vi.stubEnv("NEXT_PUBLIC_BETA_SIGNUP_ENABLED", "false");
+  vi.stubEnv("NEXT_PUBLIC_BETA_SIGNUP_ENABLED", "true");
 });
 
 afterEach(() => vi.unstubAllEnvs());
@@ -42,7 +42,7 @@ function validPayload(overrides = {}) {
     supabaseProjectRefConfigured: PROJECT_REF,
     publicConfigDigest: EXPECTED_PUBLIC_CONFIG_DIGEST,
     publicIdentityConfigured: true,
-    closedBetaConfigured: true,
+    signupPolicyConfigured: true,
     databaseContractExpected: RUNTIME_CONTRACT_EXPECTED,
     databaseContractDetected: RUNTIME_CONTRACT_EXPECTED,
     serviceRoleContractCurrent: true,
@@ -92,7 +92,7 @@ describe("runtime contract readback policy", () => {
     expect(runtimePublicConfigDigest({
       operatorName: " 일감체크 운영자 ",
       supportEmail: "support@example.com",
-      betaSignupEnabled: false,
+      betaSignupEnabled: true,
     })).toBe(EXPECTED_PUBLIC_CONFIG_DIGEST);
     expect(runtimePublicConfigDigestFromEnv(process.env)).toBe(EXPECTED_PUBLIC_CONFIG_DIGEST);
     expect(normalizeExpectedPublicConfigDigest(EXPECTED_PUBLIC_CONFIG_DIGEST))
@@ -177,7 +177,7 @@ describe("runtime contract readback policy", () => {
       { hostedConfigured: false },
       { hostedAdapterReady: false },
       { publicIdentityConfigured: false },
-      { closedBetaConfigured: false },
+      { signupPolicyConfigured: false },
       { publicConfigDigest: `sha256:${"0".repeat(64)}` },
       { operatorName: "should-not-be-returned" },
       { supportEmail: "should-not-be-returned@example.com" },

@@ -9,7 +9,7 @@ const validEnv = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_browser_key",
   NEXT_PUBLIC_OPERATOR_NAME: "일감체크 운영자",
   NEXT_PUBLIC_SUPPORT_EMAIL: "support@ilgamcheck.kr",
-  NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "false",
+  NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
   SUPABASE_SERVICE_ROLE_KEY: "sb_secret_server_key",
   SUPABASE_AUTH_SITE_URL: "https://app.ilgamcheck.kr",
   ILGAMCHECK_FINAL_ORIGIN: "https://app.ilgamcheck.kr",

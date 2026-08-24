@@ -13,7 +13,7 @@ const accessToken = "sbp_private-test-token";
 function authResponse(overrides = {}, options = {}) {
   return Response.json({
     site_url: `${expectedOrigin}/`,
-    disable_signup: true,
+    disable_signup: false,
     external_email_enabled: true,
     uri_allow_list: `${expectedOrigin}/auth/reset`,
     ...overrides,
@@ -21,7 +21,7 @@ function authResponse(overrides = {}, options = {}) {
 }
 
 describe("Supabase Auth Management API readback policy", () => {
-  it("uses only the fixed GET endpoint and validates the closed-beta config", async () => {
+  it("uses only the fixed GET endpoint and validates public email signup", async () => {
     const fetchImpl = vi.fn(async (url, options) => {
       expect(url).toBeInstanceOf(URL);
       expect(url.href).toBe(`${SUPABASE_MANAGEMENT_ORIGIN}/v1/projects/${projectRef}/config/auth`);
@@ -41,48 +41,48 @@ describe("Supabase Auth Management API readback policy", () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
-  it("requires an exact normalized site URL, global signup block, and enabled email login", () => {
+  it("requires an exact normalized site URL, public signup, and enabled email login", () => {
     expect(supabaseAuthConfigIssue({
       site_url: "https://other.example.com",
-      disable_signup: true,
+      disable_signup: false,
       external_email_enabled: true,
       uri_allow_list: `${expectedOrigin}/auth/reset`,
     }, expectedOrigin)).toMatch(/site_url/);
 
     expect(supabaseAuthConfigIssue({
       site_url: expectedOrigin,
-      disable_signup: false,
+      disable_signup: true,
       external_email_enabled: true,
       uri_allow_list: `${expectedOrigin}/auth/reset`,
     }, expectedOrigin)).toMatch(/disable_signup/);
 
     expect(supabaseAuthConfigIssue({
       site_url: expectedOrigin,
-      disable_signup: true,
+      disable_signup: false,
       external_email_enabled: false,
       uri_allow_list: `${expectedOrigin}/auth/reset`,
     }, expectedOrigin)).toMatch(/external_email_enabled/);
 
     expect(supabaseAuthConfigIssue({
       site_url: expectedOrigin,
-      disable_signup: true,
+      disable_signup: false,
     }, expectedOrigin)).toMatch(/external_email_enabled/);
   });
 
   it("accepts only the one literal reset URL in string or array form", () => {
-    const closedConfig = {
+    const publicConfig = {
       site_url: expectedOrigin,
-      disable_signup: true,
+      disable_signup: false,
       external_email_enabled: true,
     };
     const resetUrl = `${expectedOrigin}/auth/reset`;
 
     expect(supabaseAuthConfigIssue({
-      ...closedConfig,
+      ...publicConfig,
       uri_allow_list: resetUrl,
     }, expectedOrigin)).toBeNull();
     expect(supabaseAuthConfigIssue({
-      ...closedConfig,
+      ...publicConfig,
       uri_allow_list: [resetUrl],
     }, expectedOrigin)).toBeNull();
 
@@ -106,13 +106,13 @@ describe("Supabase Auth Management API readback policy", () => {
 
     for (const uriAllowList of rejectedAllowLists) {
       expect(supabaseAuthConfigIssue({
-        ...closedConfig,
+        ...publicConfig,
         uri_allow_list: uriAllowList,
       }, expectedOrigin)).toMatch(/uri_allow_list/);
     }
   });
 
-  it("rejects a malicious remote allow-list even when all other auth fields are closed", async () => {
+  it("rejects a malicious remote allow-list even when all other auth fields are valid", async () => {
     const maliciousAllowLists = [
       `${expectedOrigin}/auth/reset,https://evil.example/auth/reset`,
       `${expectedOrigin}/*`,

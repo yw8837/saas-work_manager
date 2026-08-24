@@ -24,4 +24,19 @@ describe("mobile shell", () => {
     const packageJson = JSON.parse(readFileSync(fromRoot("package.json"), "utf8"));
     expect(packageJson.scripts["mobile:verify"]).toBeDefined();
   });
+
+  it("handles notches, home indicators, and the Android keyboard explicitly", () => {
+    const styles = readFileSync(fromRoot("src/styles/theme.css"), "utf8");
+    const manifest = readFileSync(fromRoot("android/app/src/main/AndroidManifest.xml"), "utf8");
+    const infoPlist = readFileSync(fromRoot("ios/App/App/Info.plist"), "utf8");
+
+    expect(styles).toContain("safe-area-inset-top");
+    expect(styles).toContain("safe-area-inset-bottom");
+    expect(styles).toContain("100svh");
+    expect(manifest).toContain('android:windowSoftInputMode="adjustResize"');
+    expect(manifest).toContain('android:allowBackup="false"');
+    expect(manifest).toContain('android:usesCleartextTraffic="false"');
+    expect(infoPlist).toContain("UISupportedInterfaceOrientations");
+    expect(infoPlist).toContain("UIInterfaceOrientationLandscapeLeft");
+  });
 });

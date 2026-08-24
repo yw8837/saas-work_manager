@@ -34,7 +34,8 @@ export async function GET() {
       && serviceRoleContractCurrent
     );
   const identityReady = boundary.requestedMode === "local" || publicConfig.publicIdentityConfigured;
-  const ready = runtimeReady && identityReady && publicConfig.closedBetaConfigured;
+  const signupReady = boundary.requestedMode === "local" || publicConfig.signupPolicyConfigured;
+  const ready = runtimeReady && identityReady && signupReady;
 
   return Response.json(
     {
@@ -49,7 +50,7 @@ export async function GET() {
       hostedAdapterReady: boundary.adapterReady,
       publicConfigDigest: publicConfig.publicConfigDigest,
       publicIdentityConfigured: publicConfig.publicIdentityConfigured,
-      closedBetaConfigured: publicConfig.closedBetaConfigured,
+      signupPolicyConfigured: publicConfig.signupPolicyConfigured,
       databaseContractExpected: ILGAMCHECK_RUNTIME_CONTRACT,
       databaseContractDetected: probe.contractVersion,
       serviceRoleContractCurrent,

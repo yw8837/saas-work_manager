@@ -38,7 +38,7 @@ function successfulFetch(url) {
       supabaseProjectRefConfigured: projectRef,
       publicConfigDigest: `sha256:${"1".repeat(64)}`,
       publicIdentityConfigured: true,
-      closedBetaConfigured: true,
+      signupPolicyConfigured: true,
       databaseContractExpected: HOSTED_RUNTIME_CONTRACT,
       databaseContractDetected: HOSTED_RUNTIME_CONTRACT,
       serviceRoleContractCurrent: true,

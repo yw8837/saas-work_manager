@@ -5,14 +5,14 @@ import {
   renderHostedSupabaseConfig,
 } from "./supabase-config-push-policy.mjs";
 
-const closedBetaConfig = `project_id = "ilgamcheck"
+const publicSignupConfig = `project_id = "ilgamcheck"
 [auth]
 site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = [
   "http://127.0.0.1:3000/auth/reset",
   "http://localhost:3000/auth/reset"
 ]
-enable_signup = false
+enable_signup = true
 [auth.email]
 enable_signup = true
 `;
@@ -25,14 +25,14 @@ describe("Supabase remote Auth config push", () => {
     expect(() => normalizeAuthSiteUrl("https://preview.example.com:8443")).toThrow(/포트/);
   });
 
-  it("renders closed beta URLs without changing the checked-in local config", () => {
-    const rendered = renderHostedSupabaseConfig(closedBetaConfig, "https://preview.example.com");
+  it("renders public signup URLs without changing the checked-in local config", () => {
+    const rendered = renderHostedSupabaseConfig(publicSignupConfig, "https://preview.example.com");
     expect(rendered).toContain('site_url = "https://preview.example.com"');
     expect(rendered).toContain('"https://preview.example.com/auth/reset"');
     expect(rendered).not.toContain("http://127.0.0.1:3000/auth/reset");
-    expect(() => renderHostedSupabaseConfig(closedBetaConfig.replace("enable_signup = false", "enable_signup = true"), "https://preview.example.com"))
-      .toThrow(/\[auth\] enable_signup=false/);
-    expect(() => renderHostedSupabaseConfig(closedBetaConfig.replace("[auth.email]\nenable_signup = true", "[auth.email]\nenable_signup = false"), "https://preview.example.com"))
+    expect(() => renderHostedSupabaseConfig(publicSignupConfig.replace("enable_signup = true", "enable_signup = false"), "https://preview.example.com"))
+      .toThrow(/\[auth\] enable_signup=true/);
+    expect(() => renderHostedSupabaseConfig(publicSignupConfig.replace("[auth.email]\nenable_signup = true", "[auth.email]\nenable_signup = false"), "https://preview.example.com"))
       .toThrow(/\[auth\.email\] enable_signup=true/);
   });
 

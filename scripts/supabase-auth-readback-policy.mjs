@@ -98,12 +98,12 @@ export function supabaseAuthConfigIssue(config, expectedOrigin) {
     return "Supabase Auth config의 site_url이 현재 배포 origin과 다릅니다.";
   }
 
-  if (config.disable_signup !== true) {
-    return "Supabase Auth config의 전체 신규 가입(disable_signup)이 차단되지 않았습니다.";
+  if (config.disable_signup !== false) {
+    return "Supabase Auth config의 전체 신규 가입(disable_signup)이 열려 있지 않습니다.";
   }
 
-  // Global disable_signup blocks new self-signups. The email provider itself
-  // must stay enabled so invited/existing users can sign in with a password.
+  // Global signup and the email provider must both stay enabled so ordinary
+  // users can create an account and sign in with a password.
   if (config.external_email_enabled !== true) {
     return "Supabase Auth config의 이메일 로그인 제공자(external_email_enabled)가 활성화되지 않았습니다.";
   }

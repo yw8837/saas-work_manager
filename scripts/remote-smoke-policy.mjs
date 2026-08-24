@@ -157,7 +157,7 @@ export async function runRemoteSmoke(
     || typeof body.publicConfigDigest !== "string"
     || !/^sha256:[a-f0-9]{64}$/.test(body.publicConfigDigest)
     || body.publicIdentityConfigured !== true
-    || body.closedBetaConfigured !== true
+    || body.signupPolicyConfigured !== true
   ) {
     throw new Error("/api/health: 배포 public runtime 설정이 준비되지 않았습니다.");
   }

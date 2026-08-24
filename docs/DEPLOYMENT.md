@@ -1,5 +1,7 @@
 # 일감체크 배포·운영 인계서
 
+> **2026-08-24 현재 정책:** 일감체크는 초대 계정 전용이 아니라 공개 이메일 가입을 사용한다. `NEXT_PUBLIC_BETA_SIGNUP_ENABLED=true`, Supabase `[auth] enable_signup=true`, 이메일 provider ON이 현재 계약이다. 베타 이용 코드는 가입 후 30일 Pro 권한만 연다. 아래에 남은 폐쇄베타 초대 절차는 과거 운영 기록이며 현재 공개 배포에는 사용하지 않는다.
+
 이 문서는 창업자가 소유한 Supabase·Vercel 값을 연결해 Preview를 만들고, 검증한 뒤 운영으로 전환하는 절차다. 외부 계정 없이 코드만으로 Hosted 성공을 주장하지 않는다.
 
 ## 빠른 Preview 경로
