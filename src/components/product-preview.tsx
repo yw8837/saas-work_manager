@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 // Hero motion should support reading the scene, not compete with it.
-const AUTO_MS = 2800;
+const AUTO_MS = 4500;
 
 function SceneSidebar({ active }: { active: "오늘" | "일감" | "패키지" }) {
   const items: Array<"오늘" | "일감" | "패키지"> = ["오늘", "일감", "패키지"];
