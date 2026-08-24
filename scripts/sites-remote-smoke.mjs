@@ -48,8 +48,12 @@ export async function runSitesRemoteSmoke(rawUrl, fetchImpl = fetch) {
   for (const path of ["/", "/today", "/privacy", "/terms"]) {
     const response = await checkedFetch(fetchImpl, baseUrl, path, "text/html");
     if (!response.headers.get("content-type")?.includes("text/html")) throw new Error(`${path}: HTML 응답이 아닙니다.`);
-    if (path === "/today" && !response.headers.get("content-security-policy")?.includes("frame-ancestors 'none'")) {
-      throw new Error("/today: Worker 보안 헤더가 없습니다.");
+    const html = await response.text();
+    if (!html.includes('http-equiv="Content-Security-Policy"') || !html.includes("object-src 'none'")) {
+      throw new Error(`${path}: 정적 문서 보안 정책이 없습니다.`);
+    }
+    if (path === "/today" && !html.includes('window.location.replace("about:blank")')) {
+      throw new Error("/today: 프레임 차단 보호가 없습니다.");
     }
     checks.push(`${path}(html/spa-route)`);
   }

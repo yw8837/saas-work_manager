@@ -20,10 +20,7 @@ describe("Sites remote smoke", () => {
         NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
         NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_test",
       } }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
-      if (["/", "/today", "/privacy", "/terms"].includes(path)) return new Response("<html>일감체크</html>", { headers: {
-        ...htmlHeaders,
-        ...(path === "/today" ? { "content-security-policy": "frame-ancestors 'none'" } : {}),
-      } });
+      if (["/", "/today", "/privacy", "/terms"].includes(path)) return new Response('<html><meta http-equiv="Content-Security-Policy" content="object-src \'none\'"><script>window.location.replace("about:blank")</script>일감체크</html>', { headers: htmlHeaders });
       if (path === "/manifest.webmanifest") return new Response(JSON.stringify({ name: "일감체크" }), { headers: { "content-type": "application/manifest+json" } });
       if (path === "/sw.js") return new Response("self.addEventListener('fetch', () => {})", { headers: { "content-type": "text/javascript" } });
       return new Response("missing", { status: 404 });

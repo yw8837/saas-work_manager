@@ -8,6 +8,7 @@ describe("static Sites shell security", () => {
     expect(html).toContain('http-equiv="Content-Security-Policy"');
     expect(html).toContain("object-src 'none'");
     expect(html).toContain("connect-src 'self' https://*.supabase.co wss://*.supabase.co");
+    expect(html).toContain('window.location.replace("about:blank")');
     expect(html).not.toContain("unsafe-eval");
   });
 });
