@@ -19,6 +19,30 @@ for (const width of [320, 375, 390]) {
   });
 }
 
+test("737px 랜딩 헤더와 히어로는 태블릿 폭을 낭비하지 않는다", async ({ page }) => {
+  await page.setViewportSize({ width: 737, height: 865 });
+  await page.goto("/");
+
+  const header = page.locator(".marketingHeader");
+  const login = page.locator(".headerDemoLink");
+  const heroCopy = page.locator(".heroCopy");
+  const heroTitle = page.locator(".heroCopy h1");
+
+  const [headerBox, loginBox, copyBox, titleBox] = await Promise.all([
+    header.boundingBox(),
+    login.boundingBox(),
+    heroCopy.boundingBox(),
+    heroTitle.boundingBox(),
+  ]);
+
+  expect(headerBox).not.toBeNull();
+  expect(loginBox).not.toBeNull();
+  expect(copyBox).not.toBeNull();
+  expect(titleBox).not.toBeNull();
+  expect(headerBox!.x + headerBox!.width - (loginBox!.x + loginBox!.width)).toBeLessThanOrEqual(24);
+  expect(titleBox!.width).toBeGreaterThanOrEqual(copyBox!.width * 0.75);
+});
+
 test("모바일 새 일감 CTA는 하단 내비 위에서 눌린다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/jobs/new");

@@ -19,7 +19,9 @@ describe("marketing typography policy", () => {
 
   it("keeps the mobile hero restrained instead of using oversized AI-style type", () => {
     const styles = readFileSync(resolve(root, "src/styles/theme.css"), "utf8");
-    const mobileHero = styles.match(/@media \(max-width: 760px\)[\s\S]*?\.heroCopy h1\s*{([^}]*)}/)?.[1] ?? "";
+    const mobileHero = styles.match(
+      /@media \(max-width: 760px\)\s*{[\s\S]*?\.marketingHeader\s*{[^}]*}[\s\S]*?\.heroCopy h1\s*{([^}]*)}/,
+    )?.[1] ?? "";
 
     expect(mobileHero).toContain("font-size: clamp(38px, 10.8vw, 46px)");
     expect(mobileHero).toContain("line-height: 1.14");

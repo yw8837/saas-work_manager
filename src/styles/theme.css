@@ -817,17 +817,20 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 @media (max-width: 880px) {
   .heroSection { grid-template-columns: 1fr; padding-top: 64px; }
   .heroCopy { max-width: 700px; }
+  .heroCopy h1 { max-width: 100%; }
+  .heroLine { display: inline; }
+  .heroLine:not(:last-child)::after { content: " "; }
   .productScene { width: min(820px, 100%); }
   .previewCarousel { width: min(820px, 100%); margin: 0 auto; }
 }
 
 @media (max-width: 760px) {
   body { font-size: 14px; }
-  .marketingHeader { height: calc(62px + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 18px 0; }
+  .marketingHeader { height: calc(62px + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 18px 0; grid-template-columns: 1fr auto; }
   .marketingNav { display: none; }
   .headerDemoLink { font-size: 13px; }
   .heroSection { padding: 56px 18px 64px; gap: 42px; }
-  .heroCopy h1 { max-width: 11.5ch; font-size: clamp(38px, 10.8vw, 46px); line-height: 1.14; letter-spacing: -.018em; }
+  .heroCopy h1 { max-width: 100%; font-size: clamp(38px, 10.8vw, 46px); line-height: 1.14; letter-spacing: -.018em; }
   .heroLead { font-size: 16px; }
   .heroActions { flex-direction: column; align-items: stretch; }
   .heroActions > * { width: 100%; }
