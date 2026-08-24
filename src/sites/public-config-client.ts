@@ -7,6 +7,11 @@ import {
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 const publicKeySet = new Set<string>(ILGAMCHECK_PUBLIC_ENV_KEYS);
+const DEPLOYED_PUBLIC_CONFIG_URL = "https://ilgamcheck-beta.bsfire1237.chatgpt.site/api/public-config";
+
+export function publicConfigEndpoint(locationLike: { hostname: string } = globalThis.location): string {
+  return locationLike.hostname === "localhost" ? DEPLOYED_PUBLIC_CONFIG_URL : "/api/public-config";
+}
 
 function parsePublicEnvironment(payload: unknown): IlgamcheckPublicEnvironment {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -35,7 +40,7 @@ function parsePublicEnvironment(payload: unknown): IlgamcheckPublicEnvironment {
 }
 
 export async function loadSitesPublicEnvironment(request: FetchLike = fetch): Promise<void> {
-  const response = await request("/api/public-config", {
+  const response = await request(publicConfigEndpoint(), {
     cache: "no-store",
     headers: { Accept: "application/json" },
   });

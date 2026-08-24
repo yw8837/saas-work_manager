@@ -109,6 +109,25 @@ describe("Sites Worker entry", () => {
     expect(body).not.toContain("sb_secret_never_in_json");
   });
 
+  it("allows only the native app origins to read public bootstrap values", async () => {
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/api/public-config", {
+        headers: { Origin: "capacitor://localhost" },
+      }),
+      { NEXT_PUBLIC_STORAGE_MODE: "hosted" },
+    );
+    const rejected = await worker.fetch(
+      new Request("https://beta.example.test/api/public-config", {
+        headers: { Origin: "https://attacker.example" },
+      }),
+      { NEXT_PUBLIC_STORAGE_MODE: "hosted" },
+    );
+
+    expect(response.headers.get("access-control-allow-origin")).toBe("capacitor://localhost");
+    expect(response.headers.get("vary")).toContain("Origin");
+    expect(rejected.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
   it("fails closed when the health endpoint has no server configuration", async () => {
     const assets = { fetch: vi.fn() };
 

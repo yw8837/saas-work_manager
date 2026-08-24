@@ -21,6 +21,7 @@ export type SitesEnvironment = {
 } & IlgamcheckPublicEnvironment;
 
 const unavailable = () => new Response("일감체크 정적 파일을 불러오지 못했습니다.", { status: 503 });
+const NATIVE_PUBLIC_CONFIG_ORIGINS = new Set(["capacitor://localhost", "https://localhost"]);
 
 function json(body: unknown, status: number, environment?: SitesEnvironment) {
   const headers = new Headers({
@@ -32,6 +33,19 @@ function json(body: unknown, status: number, environment?: SitesEnvironment) {
   }
   return new Response(JSON.stringify(body), {
     status,
+    headers,
+  });
+}
+
+function withNativePublicConfigCors(response: Response, request: Request): Response {
+  const origin = request.headers.get("origin");
+  if (!origin || !NATIVE_PUBLIC_CONFIG_ORIGINS.has(origin)) return response;
+  const headers = new Headers(response.headers);
+  headers.set("Access-Control-Allow-Origin", origin);
+  headers.set("Vary", "Origin");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
     headers,
   });
 }
@@ -226,7 +240,10 @@ const siteWorker = {
   async fetch(request: Request, environment: SitesEnvironment): Promise<Response> {
     const { pathname } = new URL(request.url);
     if (pathname === "/api/public-config") {
-      return json({ config: publicEnvironment(environment) }, 200, environment);
+      return withNativePublicConfigCors(
+        json({ config: publicEnvironment(environment) }, 200, environment),
+        request,
+      );
     }
     if (pathname === "/api/health") return health(environment);
     if (pathname === "/api/account/delete" && request.method === "POST") {
