@@ -267,7 +267,30 @@ describe("workspace plan — 체험과 베타 코드", () => {
     });
 
     expect(result!.ok).toBe(false);
-    expect(result!.message).toContain("이미 사용한 코드");
+    expect(result!.message).toContain("계정당 한 번");
+    expect(screen.getByTestId("plan")).toHaveTextContent("free");
+  });
+
+  it("이미 다른 베타 코드를 쓴 계정도 두 번째 30일을 받을 수 없다", async () => {
+    await mountWith({
+      jobsCreatedTotal: 4,
+      trialStartedAt: EXPIRED_TRIAL,
+      betaAccess: {
+        code: "KMONG2026",
+        grantedAt: new Date(Date.now() - 40 * DAY_MS).toISOString(),
+        expiresAt: new Date(Date.now() - DAY_MS).toISOString(),
+      },
+      redeemedInviteCodes: ["KMONG2026"],
+    });
+
+    let result: { ok: boolean; message: string } | null = null;
+    await act(async () => {
+      result = await workspace!.activateInviteCode("SOOMGO2026");
+    });
+
+    expect(result!.ok).toBe(false);
+    expect(result!.message).toContain("계정당 한 번");
+    expect(workspace!.redeemedInviteCodes).toEqual(["KMONG2026"]);
     expect(screen.getByTestId("plan")).toHaveTextContent("free");
   });
 

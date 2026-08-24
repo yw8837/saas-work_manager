@@ -16,8 +16,11 @@ function configuredSupabaseSources(value = process.env.NEXT_PUBLIC_SUPABASE_URL)
   }
 }
 
-export function buildContentSecurityPolicy(isDevelopment = process.env.NODE_ENV === "development"): string {
-  const connectSources = ["'self'", ...configuredSupabaseSources()];
+export function buildContentSecurityPolicy(
+  isDevelopment = process.env.NODE_ENV === "development",
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): string {
+  const connectSources = ["'self'", ...configuredSupabaseSources(supabaseUrl)];
   const directives = [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
@@ -37,9 +40,12 @@ export function buildContentSecurityPolicy(isDevelopment = process.env.NODE_ENV 
   return directives.join("; ");
 }
 
-export function buildSecurityHeaders(isDevelopment = process.env.NODE_ENV === "development"): SecurityHeader[] {
+export function buildSecurityHeaders(
+  isDevelopment = process.env.NODE_ENV === "development",
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): SecurityHeader[] {
   const headers = [
-    { key: "Content-Security-Policy", value: buildContentSecurityPolicy(isDevelopment) },
+    { key: "Content-Security-Policy", value: buildContentSecurityPolicy(isDevelopment, supabaseUrl) },
     { key: "Referrer-Policy", value: "no-referrer" },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "X-Frame-Options", value: "DENY" },

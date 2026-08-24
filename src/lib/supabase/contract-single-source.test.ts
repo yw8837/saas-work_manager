@@ -10,6 +10,11 @@ import { RUNTIME_CONTRACT_EXPECTED } from "../../../scripts/runtime-contract-rea
 
 const MIGRATIONS = resolve(process.cwd(), "supabase/migrations");
 
+function latestMigrationBody(): string {
+  const file = readdirSync(MIGRATIONS).filter((name) => name.endsWith(".sql")).sort().at(-1);
+  return file ? readFileSync(resolve(MIGRATIONS, file), "utf8") : "";
+}
+
 /** 그 함수를 마지막으로 정의한 migration이 현재 계약이다. 파일 이름을 박아두면 계약을 올릴 때마다 낡는다. */
 function latestReturnedContract(fn: string): string | undefined {
   const marker = `create or replace function public.${fn}()`;
@@ -33,8 +38,8 @@ function latestReturnedContract(fn: string): string | undefined {
  * 실제로 그렇게 어긋난 적이 있어서 여기서 강제한다.
  */
 describe("런타임 계약 버전은 한 값이어야 한다", () => {
-  it("공개 가입 정책 게시 뒤의 현재 계약은 202608240010이다", () => {
-    expect(ILGAMCHECK_RUNTIME_CONTRACT).toBe("202608240010");
+  it("계정당 단일 베타 권한 뒤의 현재 계약은 202608250011이다", () => {
+    expect(ILGAMCHECK_RUNTIME_CONTRACT).toBe("202608250011");
   });
 
   it("앱 상수와 배포 스크립트 상수가 같다", () => {
@@ -45,5 +50,15 @@ describe("런타임 계약 버전은 한 값이어야 한다", () => {
   it("DB의 두 계약 함수도 같은 값을 돌려준다", () => {
     expect(latestReturnedContract("get_ilgamcheck_runtime_contract")).toBe(ILGAMCHECK_RUNTIME_CONTRACT);
     expect(latestReturnedContract("get_ilgamcheck_service_role_contract")).toBe(ILGAMCHECK_RUNTIME_CONTRACT);
+  });
+
+  it("최신 RPC는 코드 종류와 무관하게 계정의 기존 사용 이력을 먼저 막는다", () => {
+    const sql = latestMigrationBody();
+    expect(sql).toContain("create or replace function public.redeem_invite_code");
+    expect(sql).toMatch(
+      /if exists \(\s*select 1 from public\.invite_redemptions\s*where owner_id = v_owner\s*\) then/,
+    );
+    expect(sql).not.toContain("where code = v_code.code and owner_id = v_owner");
+    expect(sql).toContain("select '202608250011'::text");
   });
 });

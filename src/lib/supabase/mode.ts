@@ -1,3 +1,5 @@
+import { getPublicEnvironmentValue } from "@/lib/public-environment";
+
 export type StorageMode = "local" | "hosted";
 
 export type HostedRuntimeBoundary = {
@@ -13,11 +15,11 @@ export type HostedRuntimeBoundary = {
 const SUPABASE_PROJECT_REF_PATTERN = /^[a-z0-9]{20}$/;
 
 export function requestedStorageMode(): StorageMode {
-  return process.env.NEXT_PUBLIC_STORAGE_MODE === "hosted" ? "hosted" : "local";
+  return getPublicEnvironmentValue("NEXT_PUBLIC_STORAGE_MODE") === "hosted" ? "hosted" : "local";
 }
 
 export function configuredSupabaseProjectRef(
-  rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
+  rawUrl = getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_URL"),
 ): string | null {
   if (typeof rawUrl !== "string" || !rawUrl.trim()) return null;
 
@@ -46,7 +48,7 @@ export function configuredSupabaseProjectRef(
 export function hasSupabasePublicConfiguration(): boolean {
   return Boolean(
     configuredSupabaseProjectRef() &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_ANON_KEY")
   );
 }
 

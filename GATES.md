@@ -1,47 +1,43 @@
-# Gates: public beta UX, mobile MVP, and release readiness
+# Gates: 일감체크 가입·베타 권한·배포 보안
 
-OWNS: src/**, scripts/**, android/**, ios/**, capacitor.config.*, public/**, docs/**, README.md, package.json, package-lock.json, .gitignore
+Scope: 공개 가입 뒤 코드 또는 무료 시작이 가능하고, 계정당 1회 30일 Pro와 검증 가능한 Supabase 연결을 배포본까지 증명한다.
 
-Scope: The public beta landing has an honest, non-blocking discovery flow; the responsive app is packaged as an Android/iOS-ready MVP; release verification proves the deployed experience.
+- [ ] G1: 가입 후 베타 안내와 권한 UI 회귀 테스트가 통과한다
+  CHECK: npm test -- src/components/beta-activation-gate.test.tsx src/components/settings-panel.test.tsx src/components/workspace-auth-gate.test.tsx src/components/workspace-provider-plan.test.tsx
+  EXPECT: Test Files  4 passed
+  EVIDENCE: pending
 
-- [x] G1: Basic limits, beta survey fields, landing safety, and runtime-contract tests pass together.
-  CHECK: npm test -- src/components/feedback-panel.test.tsx src/components/hosted-entry-safety.test.tsx src/lib/domain/entitlements.test.ts src/lib/domain/plan-limits-contract.test.ts src/lib/supabase/contract-single-source.test.ts scripts/deploy-preflight-policy.test.mjs
+- [ ] G2: Supabase 권한·마이그레이션·Sites health 계약 테스트가 통과한다
+  CHECK: npm test -- src/lib/supabase/migration-contract.test.ts src/lib/supabase/contract-single-source.test.ts src/sites/entry-server.test.ts scripts/sites-remote-smoke.test.mjs
+  EXPECT: Test Files  4 passed
+  EVIDENCE: pending
+
+- [ ] G3: 전체 정적 검사와 단위 테스트가 통과한다
+  CHECK: npm test && npm run typecheck && npm run lint
   EXPECT: Test Files
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=C:\Users\최용우\Desktop\SaaS\01_일감체크\app; path=90f2b2637df1/51 entries; output=(node:29604) Warning: `--localstorage-file` was provided without a valid path | (Use `node --trace-warnings ...` to show where the warning was created)
+  EVIDENCE: pending
 
-- [x] G2: App source has no lint or TypeScript errors after adding project-local skills.
-  CHECK: npm run lint && npm run typecheck
-  EXPECT: tsc --noEmit
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=C:\Users\최용우\Desktop\SaaS\01_일감체크\app; path=90f2b2637df1/51 entries; output=> ilgamcheck@0.1.0 typecheck | > tsc --noEmit
+- [ ] G4: Sites 배포 산출물이 생성되고 Worker 계약 검증이 통과한다
+  CHECK: npm run build:sites && node scripts/verify-sites-output.mjs
+  EXPECT: Sites output verified
+  EVIDENCE: pending
 
-- [x] G3: The current dynamic Next application produces a Cloudflare Worker-compatible OpenNext build.
-  CHECK: node scripts/verify-worker-output.mjs
-  EXPECT: worker output verified
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=C:\Users\최용우\Desktop\SaaS\01_일감체크\app; path=90f2b2637df1/51 entries; output=worker output verified
+- [ ] G5: 운영 의존성 취약점 감사가 통과한다
+  CHECK: npm audit --omit=dev
+  EXPECT: found 0 vulnerabilities
+  EVIDENCE: pending
 
-- [x] G4: Public landing links keep discovery actions public and reserve login for explicit beta-entry calls to action.
-  CHECK: npm test -- src/components/product-preview.test.tsx src/components/hosted-entry-safety.test.tsx
-  EXPECT: Test Files
-  EVIDENCE: exit=0; 2 files / 8 tests passed; product preview has no workspace route links and hosted landing discovery links stay on-page.
-
-- [x] G5: The landing and core workspace render safely at mobile width, including the preview, touch controls, and no horizontal overflow.
-  CHECK: $env:NEXT_PUBLIC_STORAGE_MODE='local'; npm run build; npx playwright test e2e/responsive-ui.spec.ts --project=mobile --workers=1 --reporter=list
-  EXPECT: 7 passed
-  EVIDENCE: exit=0; 7 passed at 320px, 375px, and 390px; touch CTA, revision panel, focus, and WCAG contrast verified.
-
-- [x] G6: The Capacitor mobile shell has a valid Android and iOS configuration and packages the current production web build.
-  CHECK: npm run mobile:verify
-  EXPECT: [mobile-verify] PASS
-  EVIDENCE: exit=0; Android/iOS shells synced from the current hosted Sites build.
-
-- [x] G7: Source quality and the Sites production artifact both pass after the UX and mobile changes.
-  CHECK: npm run lint && npm run typecheck && npm run build:sites
-  EXPECT: dist/server/index.js
-  EVIDENCE: exit=0; lint/typecheck passed and Sites emitted dist/server/index.js; production dependency audit found 0 vulnerabilities.
-
-- [x] G8: The public deployed URL serves the landing, SPA deep links, health route, policy pages, and install files after publication.
+- [ ] G6: 공개 배포의 health와 주요 경로가 통과한다
   CHECK: npm run smoke:sites -- https://ilgamcheck-beta.bsfire1237.chatgpt.site
   EXPECT: 공개 배포 기본 계약 확인 완료
-  EVIDENCE: exit=0; root, /today, /privacy, /terms, health, manifest, and service worker passed on the public Sites URL.
+  EVIDENCE: pending
 
-RESOLVED: The earlier OpenNext artifact mismatch was removed by the supported Vite/Sites runtime migration, which emits dist/server/index.js directly. G4 replaces the obsolete private-only deployment wording because this beta is intentionally public.
+- [ ] G7: 공개 배포가 연결된 Supabase와 현재 런타임 계약을 증명한다
+  CHECK: npm run runtime:readback -- https://ilgamcheck-beta.bsfire1237.chatgpt.site
+  EXPECT: runtime 202608250011 service-role current
+  EVIDENCE: pending
+
+- [ ] G8: 두 전용 계정으로 계정 간 데이터 격리와 공개 수정 요청을 검증한다
+  CHECK: npm run verify:hosted:ephemeral
+  EXPECT: HOSTED_VERIFY PASS
+  EVIDENCE: pending

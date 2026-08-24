@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { getHostedRuntimeBoundary } from "./mode";
+import { getPublicEnvironmentValue } from "@/lib/public-environment";
 
 let browserClient: SupabaseClient | null = null;
 
@@ -13,8 +14,8 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (boundary.effectiveMode !== "hosted") return null;
   if (browserClient) return browserClient;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_URL");
+  const anonKey = getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!url || !anonKey) return null;
 
   browserClient = createClient(url, anonKey, {

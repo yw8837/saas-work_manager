@@ -8,6 +8,7 @@ const originalEnv = { ...process.env };
 
 afterEach(() => {
   process.env = { ...originalEnv };
+  delete (globalThis as typeof globalThis & { __ILGAMCHECK_PUBLIC_ENV__?: unknown }).__ILGAMCHECK_PUBLIC_ENV__;
 });
 
 describe("hosted runtime boundary", () => {
@@ -34,6 +35,25 @@ describe("hosted runtime boundary", () => {
       adapterReady: true,
       effectiveMode: "hosted",
       blockedExternal: false,
+      supabaseProjectRefConfigured: projectRef,
+    });
+  });
+
+  it("uses the Sites-injected public environment before empty build-time values", () => {
+    delete process.env.NEXT_PUBLIC_STORAGE_MODE;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    (globalThis as typeof globalThis & { __ILGAMCHECK_PUBLIC_ENV__?: Record<string, string> })
+      .__ILGAMCHECK_PUBLIC_ENV__ = {
+        NEXT_PUBLIC_STORAGE_MODE: "hosted",
+        NEXT_PUBLIC_SUPABASE_URL: `https://${projectRef}.supabase.co`,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "sites-public-key",
+      };
+
+    expect(getHostedRuntimeBoundary()).toMatchObject({
+      requestedMode: "hosted",
+      effectiveMode: "hosted",
+      configured: true,
       supabaseProjectRefConfigured: projectRef,
     });
   });

@@ -1,6 +1,7 @@
 import { Route, Routes, useParams, useSearchParams } from "react-router-dom";
 
 import { AppShell } from "@/components/app-shell";
+import { BetaActivationGate } from "@/components/beta-activation-gate";
 import { FeedbackPanel } from "@/components/feedback-panel";
 import { JobDetail } from "@/components/job-detail";
 import { JobsOverview } from "@/components/jobs-overview";
@@ -31,7 +32,11 @@ export const SITE_ROUTE_PATHS = [
 ] as const;
 
 function WorkspaceRoute({ children }: { children: React.ReactNode }) {
-  return <WorkspaceAuthGate><AppShell>{children}</AppShell></WorkspaceAuthGate>;
+  return (
+    <WorkspaceAuthGate>
+      <BetaActivationGate><AppShell>{children}</AppShell></BetaActivationGate>
+    </WorkspaceAuthGate>
+  );
 }
 
 function JobDetailRoute() {

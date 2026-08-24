@@ -215,6 +215,16 @@ try {
   process.exitCode = 1;
 } finally {
   clearTimeout(realtimeTimer);
-  if (realtimeChannel) await clientA.removeChannel(realtimeChannel);
-  await Promise.allSettled([clientA.auth.signOut(), clientB.auth.signOut(), anonymous.auth.signOut()]);
+  clientA.realtime.disconnect();
+  clientB.realtime.disconnect();
+  anonymous.realtime.disconnect();
+  const cleanup = Promise.allSettled([
+    realtimeChannel ? clientA.removeChannel(realtimeChannel) : Promise.resolve(),
+    clientA.auth.signOut(),
+    clientB.auth.signOut(),
+    anonymous.auth.signOut(),
+  ]);
+  await Promise.race([cleanup, new Promise((resolve) => setTimeout(resolve, 5_000))]);
 }
+
+process.exit(process.exitCode ?? 0);

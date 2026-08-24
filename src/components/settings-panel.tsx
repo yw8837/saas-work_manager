@@ -175,7 +175,7 @@ export function SettingsPanel() {
   const planExpiryNotice = planAccess.source !== "base"
     ? null
     : planAccess.betaExpired
-      ? "베타 이용 기간이 끝나 무료 플랜으로 돌아왔어요. 새 코드가 있으면 아래에 넣어주세요."
+      ? "베타 이용 기간이 끝나 무료 플랜으로 돌아왔어요."
       : planAccess.trialExpired
         ? `${TRIAL_DAYS}일 무제한 체험이 끝나 무료 플랜으로 돌아왔어요.`
         : null;
@@ -240,8 +240,8 @@ export function SettingsPanel() {
               onChange={(event) => setInviteCode(event.target.value)}
             />
           </label>
-          <button type="submit" className="quietButton" data-testid="redeem-invite">
-            <Sparkles size={16} /> 코드 적용
+          <button type="submit" className="quietButton" data-testid="redeem-invite" disabled={redeeming}>
+            <Sparkles size={16} /> {redeeming ? "적용 중…" : "코드 적용"}
           </button>
         </form>
         {inviteFeedback && (
@@ -249,9 +249,9 @@ export function SettingsPanel() {
             <Check size={15} /> {inviteFeedback.message}
           </p>
         )}
-        {betaAccess && (
+        {planAccess.source === "beta" && planAccess.expiresAt && (
           <p className="planPrice" data-testid="beta-code-applied">
-            적용한 코드: {betaAccess.code} · {new Date(betaAccess.expiresAt).toLocaleDateString("ko-KR")}까지
+            베타 Pro 적용됨 · {new Date(planAccess.expiresAt).toLocaleDateString("ko-KR")}까지
           </p>
         )}
         <p className="planPrice">

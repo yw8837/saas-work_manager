@@ -15,7 +15,6 @@ import {
   activeJobCount as countActiveJobs,
   getRevisionSummary,
   addRedeemedCode,
-  hasRedeemedCode,
   isValidInviteCode,
   jobLimitReached,
   normalizeInviteCode,
@@ -1393,11 +1392,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     commitState((current) => ({ ...current, settings: { ...current.settings, ...updates } }));
   }, [commitState]);
 
-  /**
-   * 베타 이용 코드를 적용한다.
-   * ⚠️ 검증이 브라우저 안에서만 이뤄져 저장소를 직접 고치면 우회할 수 있다.
-   * 결제를 붙일 때 서버 검증으로 교체해야 한다.
-   */
+  /** Hosted는 서버 RPC, 로컬 데모는 저장 상태로 계정당 한 번만 적용한다. */
   const activateInviteCode = useCallback(async (rawCode: string) => {
     const code = normalizeInviteCode(rawCode);
     if (!code) return { ok: false, message: "베타 이용 코드를 입력해주세요." };
@@ -1413,7 +1408,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       try {
         const result = await redeemHostedInviteCode(client, code);
         if (result.status === "already_redeemed") {
-          return { ok: false, message: "이미 사용한 코드예요. 새 코드가 필요해요." };
+          return { ok: false, message: "베타 Pro는 계정당 한 번만 사용할 수 있어요." };
         }
         if (result.status === "rate_limited") {
           return { ok: false, message: "코드를 여러 번 잘못 넣었어요. 한 시간 뒤에 다시 시도해주세요." };
@@ -1440,9 +1435,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (alreadyActive) {
       return { ok: false, message: "이미 적용된 코드예요." };
     }
-    // 만료된 코드를 다시 넣어 30일을 무한히 연장하지 못하게 막는다.
-    if (hasRedeemedCode(current.redeemedInviteCodes, code)) {
-      return { ok: false, message: "이미 사용한 코드예요. 새 코드가 필요해요." };
+    // 코드 종류를 바꿔도 계정당 한 번만 허용한다.
+    if (current.redeemedInviteCodes.length > 0) {
+      return { ok: false, message: "베타 Pro는 계정당 한 번만 사용할 수 있어요." };
     }
 
     const grantedAt = new Date().toISOString();

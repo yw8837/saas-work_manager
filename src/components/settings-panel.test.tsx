@@ -159,6 +159,41 @@ describe("SettingsPanel 플랜 섹션", () => {
     expect(await screen.findByText(/확인되지 않는 코드예요./)).toBeInTheDocument();
   });
 
+  it("서버 내부 표식은 숨기고 베타 Pro 적용 상태와 만료일만 보여준다", () => {
+    vi.mocked(useWorkspace).mockReturnValue({
+      ...hostedWorkspace,
+      betaAccess: { code: "server", grantedAt: "2026-08-25T00:00:00.000Z", expiresAt: "2026-09-24T00:00:00.000Z" },
+      plan: "pro",
+      limits: PLAN_LIMITS.pro,
+      planAccess: {
+        ...hostedWorkspace.planAccess,
+        plan: "pro",
+        source: "beta",
+        expiresAt: "2026-09-24T00:00:00.000Z",
+        remainingDays: 30,
+      },
+    } as unknown as ReturnType<typeof useWorkspace>);
+
+    render(<SettingsPanel />);
+    const applied = screen.getByTestId("beta-code-applied");
+    expect(applied).toHaveTextContent("베타 Pro 적용됨");
+    expect(applied).toHaveTextContent("2026. 9. 24.");
+    expect(applied).not.toHaveTextContent("server");
+    expect(applied).not.toHaveTextContent("적용한 코드");
+  });
+
+  it("코드 확인 중에는 적용 버튼을 비활성화해 중복 요청을 막는다", async () => {
+    activateInviteCode.mockReturnValue(new Promise(() => undefined));
+    render(<SettingsPanel />);
+    fireEvent.change(screen.getByLabelText("베타 이용 코드"), { target: { value: "BETA2026" } });
+    fireEvent.click(screen.getByTestId("redeem-invite"));
+
+    await waitFor(() => expect(screen.getByTestId("redeem-invite")).toBeDisabled());
+    expect(screen.getByTestId("redeem-invite")).toHaveTextContent("적용 중");
+    fireEvent.click(screen.getByTestId("redeem-invite"));
+    expect(activateInviteCode).toHaveBeenCalledTimes(1);
+  });
+
   it("체험 중이면 남은 일수를 보여준다", () => {
     vi.mocked(useWorkspace).mockReturnValue({
       ...hostedWorkspace,

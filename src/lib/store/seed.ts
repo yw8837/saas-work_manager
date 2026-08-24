@@ -134,6 +134,8 @@ export interface AppSettings {
   revisionAlertsEnabled: boolean;
   revisionAlertTime: string;
   privateNotificationDetails: boolean;
+  /** 첫 로그인에서 베타 코드 안내를 적용하거나 건너뛴 시각. */
+  betaCodeOnboardingCompletedAt?: string;
 }
 
 export interface AppState {

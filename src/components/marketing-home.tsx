@@ -12,16 +12,17 @@ import { Brand } from "./brand";
 import { ProductPreview } from "./product-preview";
 import { getPublicServiceConfig } from "@/lib/policies";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
+import { getPublicEnvironmentValue } from "@/lib/public-environment";
 
 export function MarketingHome() {
   const service = getPublicServiceConfig();
   // 전자상거래법 사업자 정보 고지 — 배포 시 NEXT_PUBLIC_* 로 주입, 미설정이면 정직하게 등록 전 고지
   const legal = {
-    businessName: process.env.NEXT_PUBLIC_BUSINESS_NAME?.trim() || null,
-    regNo: process.env.NEXT_PUBLIC_BUSINESS_NUMBER?.trim() || null,
-    mailOrderNo: process.env.NEXT_PUBLIC_MAIL_ORDER_NUMBER?.trim() || null,
-    address: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS?.trim() || null,
-    phone: process.env.NEXT_PUBLIC_BUSINESS_PHONE?.trim() || null,
+    businessName: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NAME")?.trim() || null,
+    regNo: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NUMBER")?.trim() || null,
+    mailOrderNo: getPublicEnvironmentValue("NEXT_PUBLIC_MAIL_ORDER_NUMBER")?.trim() || null,
+    address: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_ADDRESS")?.trim() || null,
+    phone: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_PHONE")?.trim() || null,
   };
   const hasLegalInfo = Object.values(legal).some(Boolean);
 

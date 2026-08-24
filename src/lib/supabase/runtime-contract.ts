@@ -1,7 +1,8 @@
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
+import { getPublicEnvironmentValue } from "@/lib/public-environment";
 
 // 정책 본문·동의 절차·DB publication contract를 함께 올린 가장 최근 migration.
-export const ILGAMCHECK_RUNTIME_CONTRACT = "202608240010";
+export const ILGAMCHECK_RUNTIME_CONTRACT = "202608250011";
 
 export type HostedContractProbe = {
   ok: boolean;
@@ -50,8 +51,8 @@ function policyPublicationContractMatchesExpected(contract: HostedPolicyPublicat
 }
 
 export async function probeHostedRuntimeContract(
-  url = process.env.NEXT_PUBLIC_SUPABASE_URL,
-  anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  url = getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_URL"),
+  anonKey = getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
 ): Promise<HostedContractProbe> {
   if (!url || !anonKey) return { ok: false, contractVersion: null };
 
@@ -80,8 +81,8 @@ export async function probeHostedRuntimeContract(
 }
 
 export async function probeHostedPolicyPublicationContract(
-  url = process.env.NEXT_PUBLIC_SUPABASE_URL,
-  anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  url = getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_URL"),
+  anonKey = getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
 ): Promise<HostedPolicyPublicationProbe> {
   if (!url || !anonKey) return { ok: false, contract: null };
 

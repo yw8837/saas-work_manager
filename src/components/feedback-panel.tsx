@@ -3,6 +3,7 @@
 import { ClipboardCopy, ExternalLink, ShieldCheck } from "lucide-react";
 import { useState, type MouseEvent } from "react";
 import { useWorkspace } from "./workspace-provider";
+import { getPublicEnvironmentValue } from "@/lib/public-environment";
 
 export type FeedbackMode = "general" | "exit";
 
@@ -122,17 +123,17 @@ export function buildFeedbackPlainText(answers: FeedbackAnswers, mode: FeedbackM
 }
 
 function feedbackFormUrl(): string {
-  return process.env.NEXT_PUBLIC_FEEDBACK_FORM_URL ?? "";
+  return getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_FORM_URL") ?? "";
 }
 
 function feedbackEntryIds(): FeedbackEntryIds {
   return {
-    type: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_TYPE ?? "",
-    screen: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_SCREEN ?? "",
-    usage: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_USAGE ?? "",
-    scale: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_SCALE ?? "",
-    price: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_PRICE ?? "",
-    founder: process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_FOUNDER ?? "",
+    type: getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_ENTRY_TYPE") ?? "",
+    screen: getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_ENTRY_SCREEN") ?? "",
+    usage: getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_ENTRY_USAGE") ?? "",
+    scale: getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_ENTRY_SCALE") ?? "",
+    price: getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_ENTRY_PRICE") ?? "",
+    founder: getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_ENTRY_FOUNDER") ?? "",
   };
 }
 

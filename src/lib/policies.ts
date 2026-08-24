@@ -1,4 +1,5 @@
 import policyPublicationManifest from "./policy-publication-manifest.json";
+import { getPublicEnvironmentValue } from "./public-environment";
 
 export type PolicyLink = {
   label: string;
@@ -75,13 +76,13 @@ function validEmailOrNull(value: string | undefined): string | null {
 }
 
 export function getPublicServiceConfig(): PublicServiceConfig {
-  const operatorName = trimmedOrNull(process.env.NEXT_PUBLIC_OPERATOR_NAME);
-  const supportEmail = validEmailOrNull(process.env.NEXT_PUBLIC_SUPPORT_EMAIL);
+  const operatorName = trimmedOrNull(getPublicEnvironmentValue("NEXT_PUBLIC_OPERATOR_NAME"));
+  const supportEmail = validEmailOrNull(getPublicEnvironmentValue("NEXT_PUBLIC_SUPPORT_EMAIL"));
 
   return {
     operatorName,
     supportEmail,
-    betaSignupEnabled: process.env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED === "true",
+    betaSignupEnabled: getPublicEnvironmentValue("NEXT_PUBLIC_BETA_SIGNUP_ENABLED") === "true",
     publicIdentityConfigured: Boolean(operatorName && supportEmail),
   };
 }
