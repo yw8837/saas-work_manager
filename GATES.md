@@ -30,12 +30,12 @@ Scope: 공개 가입 뒤 코드 또는 무료 시작이 가능하고, 계정당 
 - [x] G6: 공개 배포의 health와 주요 경로가 통과한다
   CHECK: npm run smoke:sites -- https://ilgamcheck-beta.bsfire1237.chatgpt.site
   EXPECT: 공개 배포 기본 계약 확인 완료
-  EVIDENCE: Sites v16에서 통과, 이번 배포 후 재검증 예정
+  EVIDENCE: Sites v18에서 health, 공개 설정, SPA 경로, manifest, service worker, favicon 통과(2026-08-25)
 
 - [x] G7: 공개 배포가 연결된 Supabase와 현재 런타임 계약을 증명한다
   CHECK: npm run runtime:readback -- https://ilgamcheck-beta.bsfire1237.chatgpt.site
   EXPECT: runtime 202608250011 service-role current
-  EVIDENCE: Sites v16에서 runtime 202608250011 및 service-role current 확인, 이번 배포 후 재검증 예정
+  EVIDENCE: Sites v18에서 Supabase runtime 202608250011 및 service-role current 확인(2026-08-25)
 
 - [x] G8: 두 전용 계정으로 계정 간 데이터 격리와 공개 수정 요청을 검증한다
   CHECK: npm run verify:hosted:ephemeral
