@@ -23,12 +23,13 @@ describe("Sites remote smoke", () => {
       if (["/", "/today", "/privacy", "/terms"].includes(path)) return new Response('<html><meta http-equiv="Content-Security-Policy" content="object-src \'none\'"><script>window.location.replace("about:blank")</script>일감체크</html>', { headers: htmlHeaders });
       if (path === "/manifest.webmanifest") return new Response(JSON.stringify({ name: "일감체크" }), { headers: { "content-type": "application/manifest+json" } });
       if (path === "/sw.js") return new Response("self.addEventListener('fetch', () => {})", { headers: { "content-type": "text/javascript" } });
+      if (path === "/icons/app-icon.svg") return new Response("<svg />", { headers: { "content-type": "image/svg+xml" } });
       return new Response("missing", { status: 404 });
     };
 
     await expect(runSitesRemoteSmoke("https://beta.example.test", fetchImpl)).resolves.toMatchObject({
       baseUrl: "https://beta.example.test",
-      checks: expect.arrayContaining(["public-config(hosted/no-secret/no-store)", "/today(html/spa-route)", "manifest", "service-worker"]),
+      checks: expect.arrayContaining(["public-config(hosted/no-secret/no-store)", "/today(html/spa-route)", "manifest", "service-worker", "favicon"]),
     });
   });
 

@@ -69,6 +69,10 @@ export async function runSitesRemoteSmoke(rawUrl, fetchImpl = fetch) {
   const serviceWorker = await checkedFetch(fetchImpl, baseUrl, "/sw.js");
   if (!serviceWorker.headers.get("content-type")?.includes("javascript")) throw new Error("/sw.js: JavaScript 응답이 아닙니다.");
   checks.push("service-worker");
+
+  const favicon = await checkedFetch(fetchImpl, baseUrl, "/icons/app-icon.svg", "image/svg+xml,image/*");
+  if (!favicon.headers.get("content-type")?.includes("image/svg+xml")) throw new Error("/icons/app-icon.svg: SVG 아이콘 응답이 아닙니다.");
+  checks.push("favicon");
   return { baseUrl: baseUrl.origin, checks };
 }
 
