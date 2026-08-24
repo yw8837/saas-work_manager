@@ -48,6 +48,9 @@ export async function runSitesRemoteSmoke(rawUrl, fetchImpl = fetch) {
   for (const path of ["/", "/today", "/privacy", "/terms"]) {
     const response = await checkedFetch(fetchImpl, baseUrl, path, "text/html");
     if (!response.headers.get("content-type")?.includes("text/html")) throw new Error(`${path}: HTML 응답이 아닙니다.`);
+    if (response.url && new URL(response.url).pathname.replace(/\/$/, "") !== path.replace(/\/$/, "")) {
+      throw new Error(`${path}: 다른 화면으로 이동했습니다.`);
+    }
     const html = await response.text();
     if (!html.includes('http-equiv="Content-Security-Policy"') || !html.includes("object-src 'none'")) {
       throw new Error(`${path}: 정적 문서 보안 정책이 없습니다.`);

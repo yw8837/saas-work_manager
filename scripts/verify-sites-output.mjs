@@ -21,8 +21,8 @@ if (!worker.includes("__ILGAMCHECK_PUBLIC_ENV__") || !worker.includes("/api/heal
   process.exit(1);
 }
 
-if (existsSync(resolve(root, "dist/client/today/index.html"))) {
-  console.error("[verify-sites-output] protected SPA routes must pass through the Worker");
+if (!existsSync(resolve(root, "dist/client/today/index.html"))) {
+  console.error("[verify-sites-output] static SPA deep links are missing");
   process.exit(1);
 }
 

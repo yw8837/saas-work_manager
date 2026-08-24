@@ -31,4 +31,21 @@ describe("Sites remote smoke", () => {
       checks: expect.arrayContaining(["public-config(hosted/no-secret/no-store)", "/today(html/spa-route)", "manifest", "service-worker"]),
     });
   });
+
+  it("rejects a deep link that silently redirects to the landing page", async () => {
+    const fetchImpl = async (request) => {
+      const path = new URL(request).pathname;
+      if (path === "/api/health") return new Response(JSON.stringify({ status: "ok", ready: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+      if (path === "/api/public-config") return new Response(JSON.stringify({ config: {
+        NEXT_PUBLIC_STORAGE_MODE: "hosted",
+        NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_test",
+      } }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+      const response = new Response('<html><meta http-equiv="Content-Security-Policy" content="object-src \'none\'"><script>window.location.replace("about:blank")</script></html>', { headers: htmlHeaders });
+      Object.defineProperty(response, "url", { value: "https://beta.example.test/" });
+      return response;
+    };
+
+    await expect(runSitesRemoteSmoke("https://beta.example.test", fetchImpl)).rejects.toThrow("/today: 다른 화면");
+  });
 });
