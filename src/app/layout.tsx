@@ -38,6 +38,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ko" data-scroll-behavior="smooth">
+      <head>
+        <link rel="preload" href="/fonts/paperlogy/Paperlogy-5Medium.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      </head>
       <body>
         <WorkspaceProvider>{children}</WorkspaceProvider>
       </body>

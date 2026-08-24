@@ -15,9 +15,11 @@
 
 ## 타이포
 
-- 시스템 한글 산세리프(Pretendard/SUIT/Noto Sans KR fallback)
-- 페이지 제목은 굵고 촘촘하게, 설명은 회색과 넉넉한 행간
+- 마케팅 페이지의 주요 제목은 Paperlogy Medium을 자체 호스팅해 사용한다.
+- 본문, 버튼, 실제 작업 화면은 Pretendard Variable을 유지해 익숙한 가독성을 지킨다.
+- 제목은 과도하게 크거나 촘촘하게 만들지 않고, 한글 호흡에 맞춰 1.14-1.25 행간을 사용한다.
 - 숫자와 상태는 짧고 굵게 표현한다.
+- Paperlogy는 SIL Open Font License 1.1이며 원문은 `public/fonts/paperlogy/OFL.txt`에 보관한다.
 
 ## 핵심 컴포넌트
 

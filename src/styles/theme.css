@@ -1,4 +1,14 @@
+@font-face {
+  font-family: "Paperlogy Display";
+  src: url("/fonts/paperlogy/Paperlogy-5Medium.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
 :root {
+  --font-body: "Pretendard Variable", Pretendard, SUIT, "Noto Sans KR", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Paperlogy Display", "Pretendard Variable", Pretendard, SUIT, "Noto Sans KR", sans-serif;
   /* Text roles — ink is the near-black primary (design.md) */
   --ink: #181d26;          /* h1/h2 display + primary surface + primary CTA */
   --ink-soft: #333840;     /* running body copy */
@@ -67,7 +77,7 @@ body {
   padding-right: env(safe-area-inset-right, 0px);
   color: var(--ink);
   background: var(--canvas);
-  font-family: "Pretendard Variable", Pretendard, SUIT, "Noto Sans KR", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.55;
   text-rendering: optimizeLegibility;
@@ -178,10 +188,19 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   display: grid; grid-template-columns: minmax(340px, .84fr) minmax(0, 1.16fr); gap: 56px; align-items: center;
 }
 .heroCopy { min-width: 0; }
-.heroCopy h1 { max-width: 620px; margin: 0 0 24px; font-size: clamp(44px, 4.2vw, 60px); font-weight: 500; line-height: 1.1; letter-spacing: -.03em; text-wrap: balance; }
+.heroCopy h1 {
+  max-width: 620px;
+  margin: 0 0 24px;
+  font-family: var(--font-display);
+  font-size: clamp(42px, 3.8vw, 56px);
+  font-weight: 500;
+  line-height: 1.14;
+  letter-spacing: -.022em;
+  text-wrap: balance;
+}
 .heroLine { display: block; }
 .heroAccent { color: var(--coral); }
-.heroLead { max-width: 34ch; margin-bottom: 0; color: var(--ink-soft); font-size: 18px; line-height: 1.7; word-break: keep-all; }
+.heroLead { max-width: 36ch; margin-bottom: 0; color: var(--ink-soft); font-size: 17px; line-height: 1.72; word-break: keep-all; }
 .heroActions { display: flex; gap: 10px; margin: 32px 0 16px; }
 .heroPrimary { min-height: 50px; padding-inline: 22px; }
 
@@ -319,7 +338,14 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 /* Workflow — cream signature callout band */
 .workflowSection { background: var(--cream); }
 .workflowInner { max-width: 1120px; margin: 0 auto; padding: 96px 40px; display: grid; grid-template-columns: .85fr 1.15fr; gap: 80px; }
-.workflowIntro h2, .revisionCopy h2 { margin-bottom: 20px; font-size: clamp(32px, 3.4vw, 44px); font-weight: 500; letter-spacing: -.025em; line-height: 1.18; }
+.workflowIntro h2, .revisionCopy h2 {
+  margin-bottom: 20px;
+  font-family: var(--font-display);
+  font-size: clamp(31px, 3vw, 41px);
+  font-weight: 500;
+  letter-spacing: -.018em;
+  line-height: 1.22;
+}
 .workflowIntro p, .revisionCopy > p { max-width: 32ch; color: #4a4433; font-size: 16px; line-height: 1.7; word-break: keep-all; }
 .workflowRail { margin: 0; padding: 0; list-style: none; }
 .workflowRail li { display: grid; grid-template-columns: 106px minmax(0,1fr); gap: 16px; padding: 22px; background: rgba(255,255,255,.66); border: 1px solid rgba(24,29,38,.08); border-radius: var(--radius); }
@@ -359,7 +385,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .faqSection { padding: 96px max(24px, calc((100vw - 1120px)/2)); background: var(--canvas); }
 .faqInner { max-width: 760px; margin: 0 auto; }
 .faqIntro { margin-bottom: 32px; text-align: center; }
-.faqIntro h2 { margin: 0; color: var(--ink); font-size: clamp(26px, 2.8vw, 34px); font-weight: 500; letter-spacing: -.02em; }
+.faqIntro h2 { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: clamp(26px, 2.6vw, 33px); font-weight: 500; letter-spacing: -.015em; line-height: 1.25; }
 .faqList { display: grid; gap: 10px; }
 .faqItem { border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: var(--shadow-sm); overflow: hidden; transition: border-color .16s ease; }
 .faqItem[open] { border-color: var(--line-strong); }
@@ -373,7 +399,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 
 .finalCta { padding: 88px max(40px, calc((100vw - 1120px)/2)); display: flex; align-items: center; justify-content: space-between; gap: 32px; color: #fdece2; background: var(--coral); }
 .finalCta p { margin-bottom: 10px; color: #fbdccd; }
-.finalCta h2 { margin: 0; color: #fff; font-size: clamp(30px, 3.2vw, 40px); font-weight: 500; letter-spacing: -.02em; }
+.finalCta h2 { margin: 0; color: #fff; font-family: var(--font-display); font-size: clamp(29px, 3vw, 38px); font-weight: 500; letter-spacing: -.015em; line-height: 1.24; }
 
 /* Footer — quiet, legally findable */
 .marketingFooter { display: flex; flex-direction: column; gap: 16px; padding: 30px max(24px, calc((100vw - 1120px)/2)); color: var(--muted); background: var(--paper); border-top: 1px solid var(--line); }
@@ -801,7 +827,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .marketingNav { display: none; }
   .headerDemoLink { font-size: 13px; }
   .heroSection { padding: 56px 18px 64px; gap: 42px; }
-  .heroCopy h1 { max-width: 12ch; font-size: clamp(40px, 12vw, 52px); }
+  .heroCopy h1 { max-width: 11.5ch; font-size: clamp(38px, 10.8vw, 46px); line-height: 1.14; letter-spacing: -.018em; }
   .heroLead { font-size: 16px; }
   .heroActions { flex-direction: column; align-items: stretch; }
   .heroActions > * { width: 100%; }
