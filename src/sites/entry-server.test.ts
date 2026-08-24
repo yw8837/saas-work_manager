@@ -82,6 +82,33 @@ describe("Sites Worker entry", () => {
     expect(html).not.toContain("sb_secret_never_in_html");
   });
 
+  it("serves only allowlisted public runtime values from the bootstrap endpoint", async () => {
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/api/public-config"),
+      {
+        NEXT_PUBLIC_STORAGE_MODE: "hosted",
+        NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_public_test",
+        NEXT_PUBLIC_OPERATOR_NAME: "일감체크 운영자",
+        NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.com",
+        NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
+        SUPABASE_SERVICE_ROLE_KEY: "sb_secret_never_in_json",
+      },
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(JSON.parse(body)).toMatchObject({
+      config: {
+        NEXT_PUBLIC_STORAGE_MODE: "hosted",
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_public_test",
+      },
+    });
+    expect(body).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(body).not.toContain("sb_secret_never_in_json");
+  });
+
   it("fails closed when the health endpoint has no server configuration", async () => {
     const assets = { fetch: vi.fn() };
 

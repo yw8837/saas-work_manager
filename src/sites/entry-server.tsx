@@ -225,6 +225,9 @@ async function health(environment: SitesEnvironment): Promise<Response> {
 const siteWorker = {
   async fetch(request: Request, environment: SitesEnvironment): Promise<Response> {
     const { pathname } = new URL(request.url);
+    if (pathname === "/api/public-config") {
+      return json({ config: publicEnvironment(environment) }, 200, environment);
+    }
     if (pathname === "/api/health") return health(environment);
     if (pathname === "/api/account/delete" && request.method === "POST") {
       return handleAccountDeletion(request, environment);

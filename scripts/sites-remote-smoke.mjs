@@ -32,9 +32,25 @@ export async function runSitesRemoteSmoke(rawUrl, fetchImpl = fetch) {
   }
   checks.push("health(ready/no-store)");
 
+  const publicConfig = await checkedFetch(fetchImpl, baseUrl, "/api/public-config");
+  const publicConfigBody = await publicConfig.json();
+  if (
+    publicConfigBody?.config?.NEXT_PUBLIC_STORAGE_MODE !== "hosted"
+    || !publicConfigBody?.config?.NEXT_PUBLIC_SUPABASE_URL
+    || !publicConfigBody?.config?.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    || JSON.stringify(publicConfigBody).includes("SUPABASE_SERVICE_ROLE_KEY")
+    || !publicConfig.headers.get("cache-control")?.includes("no-store")
+  ) {
+    throw new Error("/api/public-config: 브라우저 런타임 설정이 올바르지 않습니다.");
+  }
+  checks.push("public-config(hosted/no-secret/no-store)");
+
   for (const path of ["/", "/today", "/privacy", "/terms"]) {
     const response = await checkedFetch(fetchImpl, baseUrl, path, "text/html");
     if (!response.headers.get("content-type")?.includes("text/html")) throw new Error(`${path}: HTML 응답이 아닙니다.`);
+    if (path === "/today" && !response.headers.get("content-security-policy")?.includes("frame-ancestors 'none'")) {
+      throw new Error("/today: Worker 보안 헤더가 없습니다.");
+    }
     checks.push(`${path}(html/spa-route)`);
   }
 

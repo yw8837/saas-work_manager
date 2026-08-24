@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:sites": "node scripts/clean-sites-output.mjs && vite build --mode sites-client && node scripts/prepare-sites-spa-routes.mjs && vite build --mode sites-worker",
+    "build:sites": "node scripts/clean-sites-output.mjs && vite build --mode sites-client && vite build --mode sites-worker",
     "mobile:sync": "npm run build:sites && npx cap sync",
     "mobile:verify": "node scripts/mobile-verify.mjs",
     "build:worker": "opennextjs-cloudflare build",

@@ -1317,3 +1317,27 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .feedbackPrivacySection { grid-template-columns: 1fr; }
   .feedbackActions .primaryButton, .feedbackActions .quietButton { width: 100%; }
 }
+
+.runtimeUnavailable {
+  display: grid;
+  place-content: center;
+  min-height: 100dvh;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: #181d26;
+  background: #f7f6f2;
+}
+.runtimeUnavailable strong { font-size: 24px; }
+.runtimeUnavailable p { margin: 0; color: #626976; }
+.runtimeUnavailable button {
+  justify-self: center;
+  margin-top: 8px;
+  padding: 10px 18px;
+  border: 1px solid #181d26;
+  border-radius: 10px;
+  background: #181d26;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
