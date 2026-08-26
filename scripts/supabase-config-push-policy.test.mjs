@@ -9,12 +9,14 @@ const publicSignupConfig = `project_id = "ilgamcheck"
 [auth]
 site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = [
-  "http://127.0.0.1:3000/auth/reset",
-  "http://localhost:3000/auth/reset"
+  "http://127.0.0.1:3000/today",
+  "http://localhost:3000/today"
 ]
 enable_signup = true
 [auth.email]
-enable_signup = true
+enable_signup = false
+[auth.external.google]
+enabled = true
 `;
 
 describe("Supabase remote Auth config push", () => {
@@ -28,12 +30,12 @@ describe("Supabase remote Auth config push", () => {
   it("renders public signup URLs without changing the checked-in local config", () => {
     const rendered = renderHostedSupabaseConfig(publicSignupConfig, "https://preview.example.com");
     expect(rendered).toContain('site_url = "https://preview.example.com"');
-    expect(rendered).toContain('"https://preview.example.com/auth/reset"');
-    expect(rendered).not.toContain("http://127.0.0.1:3000/auth/reset");
+    expect(rendered).toContain('"https://preview.example.com/today"');
+    expect(rendered).not.toContain("http://127.0.0.1:3000/today");
     expect(() => renderHostedSupabaseConfig(publicSignupConfig.replace("enable_signup = true", "enable_signup = false"), "https://preview.example.com"))
       .toThrow(/\[auth\] enable_signup=true/);
-    expect(() => renderHostedSupabaseConfig(publicSignupConfig.replace("[auth.email]\nenable_signup = true", "[auth.email]\nenable_signup = false"), "https://preview.example.com"))
-      .toThrow(/\[auth\.email\] enable_signup=true/);
+    expect(() => renderHostedSupabaseConfig(publicSignupConfig.replace("[auth.external.google]\nenabled = true", "[auth.external.google]\nenabled = false"), "https://preview.example.com"))
+      .toThrow(/Google/);
   });
 
   it("uses the pinned CLI with an isolated workdir and explicit project ref", () => {

@@ -10,8 +10,12 @@ import { RUNTIME_CONTRACT_EXPECTED } from "../../../scripts/runtime-contract-rea
 
 const MIGRATIONS = resolve(process.cwd(), "supabase/migrations");
 
-function latestMigrationBody(): string {
-  const file = readdirSync(MIGRATIONS).filter((name) => name.endsWith(".sql")).sort().at(-1);
+function latestMigrationBodyContaining(marker: string): string {
+  const file = readdirSync(MIGRATIONS)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .filter((name) => readFileSync(resolve(MIGRATIONS, name), "utf8").includes(marker))
+    .at(-1);
   return file ? readFileSync(resolve(MIGRATIONS, file), "utf8") : "";
 }
 
@@ -53,7 +57,7 @@ describe("런타임 계약 버전은 한 값이어야 한다", () => {
   });
 
   it("최신 RPC는 코드 종류와 무관하게 계정의 기존 사용 이력을 먼저 막는다", () => {
-    const sql = latestMigrationBody();
+    const sql = latestMigrationBodyContaining("create or replace function public.redeem_invite_code");
     expect(sql).toContain("create or replace function public.redeem_invite_code");
     expect(sql).toMatch(
       /if exists \(\s*select 1 from public\.invite_redemptions\s*where owner_id = v_owner\s*\) then/,

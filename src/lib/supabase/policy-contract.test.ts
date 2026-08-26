@@ -15,9 +15,13 @@ const migration = readFileSync(resolve(
   process.cwd(),
   "supabase/migrations/202608160005_policy_acceptances.sql",
 ), "utf8");
-const currentPublicationMigration = readFileSync(resolve(
+const currentAcceptanceMigration = readFileSync(resolve(
   process.cwd(),
   "supabase/migrations/202608240010_public_signup_policy.sql",
+), "utf8");
+const currentPublicationMigration = readFileSync(resolve(
+  process.cwd(),
+  "supabase/migrations/202608260012_google_oauth_policy.sql",
 ), "utf8");
 
 describe("hosted policy acceptance contract", () => {
@@ -30,8 +34,8 @@ describe("hosted policy acceptance contract", () => {
   });
 
   it("records only the exact visible versions through a narrow authenticated RPC or signup trigger", () => {
-    expect(currentPublicationMigration).toContain(`p_terms_version <> '${TERMS_VERSION}'`);
-    expect(currentPublicationMigration).toContain(`p_privacy_version <> '${PRIVACY_VERSION}'`);
+    expect(currentAcceptanceMigration).toContain(`p_terms_version <> '${TERMS_VERSION}'`);
+    expect(currentAcceptanceMigration).toContain(`p_privacy_version <> '${PRIVACY_VERSION}'`);
     expect(migration).toContain("security definer");
     expect(migration).toContain("set search_path = ''");
     expect(migration).toContain("on_auth_user_record_policy_acceptance");

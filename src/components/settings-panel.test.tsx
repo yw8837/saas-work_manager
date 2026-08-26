@@ -14,6 +14,7 @@ vi.mock("@/lib/notifications", () => ({
 }));
 
 const deleteAccount = vi.fn();
+const signInWithGoogle = vi.fn();
 const signOut = vi.fn();
 const activateInviteCode = vi.fn();
 const seed = createSeedState("2026-08-16");
@@ -23,6 +24,7 @@ const hostedWorkspace = {
   userEmail: "owner@example.test",
   updateSettings: vi.fn(),
   signOut,
+  signInWithGoogle,
   deleteAccount,
   saveStatus: "saved",
   saveError: null,
@@ -54,6 +56,7 @@ describe("SettingsPanel account deletion", () => {
     deleteAccount.mockReset();
     deleteAccount.mockResolvedValue(undefined);
     signOut.mockReset().mockResolvedValue(undefined);
+    signInWithGoogle.mockReset().mockResolvedValue(undefined);
     activateInviteCode.mockReset().mockResolvedValue({ ok: true, message: "코드를 확인했어요." });
     vi.mocked(useWorkspace).mockReturnValue(hostedWorkspace);
   });
@@ -70,15 +73,16 @@ describe("SettingsPanel account deletion", () => {
     expect(screen.getByRole("button", { name: "계정 삭제 검토" })).toBeDisabled();
   });
 
-  it("requires password reauthentication and the exact destructive phrase", async () => {
+  it("requires Google reauthentication and the exact destructive phrase", async () => {
     render(<SettingsPanel />);
     fireEvent.click(screen.getByRole("button", { name: "계정 삭제 검토" }));
 
     expect(screen.getByText(/먼저 JSON 백업을 내려받아/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Google로 본인 확인" }));
+    await waitFor(() => expect(signInWithGoogle).toHaveBeenCalledWith("/settings?accountDelete=1"));
     const finalButton = screen.getByRole("button", { name: "계정과 모든 데이터 영구 삭제" });
     expect(finalButton).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText("현재 비밀번호"), { target: { value: "correct-password" } });
     fireEvent.change(screen.getByLabelText(/확인 문구/), { target: { value: "삭제" } });
     expect(finalButton).toBeDisabled();
 
@@ -86,18 +90,17 @@ describe("SettingsPanel account deletion", () => {
     expect(finalButton).toBeEnabled();
     fireEvent.click(finalButton);
 
-    await waitFor(() => expect(deleteAccount).toHaveBeenCalledWith("correct-password"));
+    await waitFor(() => expect(deleteAccount).toHaveBeenCalledWith());
   });
 
   it("shows a reauthentication failure without closing the confirmation", async () => {
-    deleteAccount.mockRejectedValueOnce(new Error("비밀번호가 맞지 않아요."));
+    deleteAccount.mockRejectedValueOnce(new Error("Google로 다시 본인 확인한 뒤 시도해주세요."));
     render(<SettingsPanel />);
     fireEvent.click(screen.getByRole("button", { name: "계정 삭제 검토" }));
-    fireEvent.change(screen.getByLabelText("현재 비밀번호"), { target: { value: "wrong" } });
     fireEvent.change(screen.getByLabelText(/확인 문구/), { target: { value: "계정 삭제" } });
     fireEvent.click(screen.getByRole("button", { name: "계정과 모든 데이터 영구 삭제" }));
 
-    expect(await screen.findByText("비밀번호가 맞지 않아요.")).toBeInTheDocument();
+    expect(await screen.findByText("Google로 다시 본인 확인한 뒤 시도해주세요.")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "정말 영구 삭제할까요?" })).toBeInTheDocument();
   });
 

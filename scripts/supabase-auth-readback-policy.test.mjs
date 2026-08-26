@@ -14,14 +14,15 @@ function authResponse(overrides = {}, options = {}) {
   return Response.json({
     site_url: `${expectedOrigin}/`,
     disable_signup: false,
-    external_email_enabled: true,
-    uri_allow_list: `${expectedOrigin}/auth/reset`,
+    external_email_enabled: false,
+    external_google_enabled: true,
+    uri_allow_list: `${expectedOrigin}/today`,
     ...overrides,
   }, options);
 }
 
 describe("Supabase Auth Management API readback policy", () => {
-  it("uses only the fixed GET endpoint and validates public email signup", async () => {
+  it("uses only the fixed GET endpoint and validates public Google signup", async () => {
     const fetchImpl = vi.fn(async (url, options) => {
       expect(url).toBeInstanceOf(URL);
       expect(url.href).toBe(`${SUPABASE_MANAGEMENT_ORIGIN}/v1/projects/${projectRef}/config/auth`);
@@ -41,41 +42,48 @@ describe("Supabase Auth Management API readback policy", () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
-  it("requires an exact normalized site URL, public signup, and enabled email login", () => {
+  it("requires an exact normalized site URL, public signup, Google enabled, and email disabled", () => {
     expect(supabaseAuthConfigIssue({
       site_url: "https://other.example.com",
       disable_signup: false,
-      external_email_enabled: true,
-      uri_allow_list: `${expectedOrigin}/auth/reset`,
+      external_email_enabled: false,
+      external_google_enabled: true,
+      uri_allow_list: `${expectedOrigin}/today`,
     }, expectedOrigin)).toMatch(/site_url/);
 
     expect(supabaseAuthConfigIssue({
       site_url: expectedOrigin,
       disable_signup: true,
-      external_email_enabled: true,
-      uri_allow_list: `${expectedOrigin}/auth/reset`,
+      external_email_enabled: false,
+      external_google_enabled: true,
+      uri_allow_list: `${expectedOrigin}/today`,
     }, expectedOrigin)).toMatch(/disable_signup/);
 
     expect(supabaseAuthConfigIssue({
       site_url: expectedOrigin,
       disable_signup: false,
       external_email_enabled: false,
-      uri_allow_list: `${expectedOrigin}/auth/reset`,
-    }, expectedOrigin)).toMatch(/external_email_enabled/);
+      external_google_enabled: false,
+      uri_allow_list: `${expectedOrigin}/today`,
+    }, expectedOrigin)).toMatch(/external_google_enabled/);
 
     expect(supabaseAuthConfigIssue({
       site_url: expectedOrigin,
       disable_signup: false,
+      external_email_enabled: true,
+      external_google_enabled: true,
+      uri_allow_list: `${expectedOrigin}/today`,
     }, expectedOrigin)).toMatch(/external_email_enabled/);
   });
 
-  it("accepts only the one literal reset URL in string or array form", () => {
+  it("accepts only the one literal OAuth return URL in string or array form", () => {
     const publicConfig = {
       site_url: expectedOrigin,
       disable_signup: false,
-      external_email_enabled: true,
+      external_email_enabled: false,
+      external_google_enabled: true,
     };
-    const resetUrl = `${expectedOrigin}/auth/reset`;
+    const resetUrl = `${expectedOrigin}/today`;
 
     expect(supabaseAuthConfigIssue({
       ...publicConfig,
@@ -90,17 +98,17 @@ describe("Supabase Auth Management API readback policy", () => {
       undefined,
       "",
       [],
-      `${resetUrl},https://evil.example/auth/reset`,
-      [resetUrl, "https://evil.example/auth/reset"],
+      `${resetUrl},https://evil.example/today`,
+      [resetUrl, "https://evil.example/today"],
       [resetUrl, resetUrl],
       `${expectedOrigin}/*`,
-      "https://old-preview.example.com/auth/reset",
-      `https://user:pass@preview.example.com/auth/reset`,
+      "https://old-preview.example.com/today",
+      `https://user:pass@preview.example.com/today`,
       `${resetUrl}?next=evil`,
       `${resetUrl}#evil`,
       `${resetUrl}/`,
-      "https://PREVIEW.example.com/auth/reset",
-      `${expectedOrigin}/auth/%72eset`,
+      "https://PREVIEW.example.com/today",
+      `${expectedOrigin}/%74oday`,
       ` ${resetUrl}`,
     ];
 
@@ -114,11 +122,11 @@ describe("Supabase Auth Management API readback policy", () => {
 
   it("rejects a malicious remote allow-list even when all other auth fields are valid", async () => {
     const maliciousAllowLists = [
-      `${expectedOrigin}/auth/reset,https://evil.example/auth/reset`,
+      `${expectedOrigin}/today,https://evil.example/today`,
       `${expectedOrigin}/*`,
       [
-        `${expectedOrigin}/auth/reset`,
-        "https://old-preview.example.com/auth/reset",
+        `${expectedOrigin}/today`,
+        "https://old-preview.example.com/today",
       ],
     ];
 

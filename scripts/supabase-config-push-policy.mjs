@@ -23,11 +23,15 @@ export function renderHostedSupabaseConfig(localConfig, rawSiteUrl) {
   const siteUrl = normalizeAuthSiteUrl(rawSiteUrl);
   const auth = tomlSection(localConfig, "auth");
   const email = tomlSection(localConfig, "auth.email");
+  const google = tomlSection(localConfig, "auth.external.google");
   if (!/^\s*enable_signup\s*=\s*true\s*$/m.test(auth)) {
     throw new Error("[auth] enable_signup=true가 아니어서 원격 config push를 중단합니다.");
   }
-  if (!/^\s*enable_signup\s*=\s*true\s*$/m.test(email)) {
-    throw new Error("[auth.email] enable_signup=true가 아니어서 이메일 가입과 로그인을 보장할 수 없습니다.");
+  if (!/^\s*enable_signup\s*=\s*false\s*$/m.test(email)) {
+    throw new Error("[auth.email] enable_signup=false가 아니어서 이메일 가입을 차단할 수 없습니다.");
+  }
+  if (!/^\s*enabled\s*=\s*true\s*$/m.test(google)) {
+    throw new Error("[auth.external.google] enabled=true가 아니어서 Google 로그인을 보장할 수 없습니다.");
   }
 
   let hosted = localConfig.replace(
@@ -36,9 +40,9 @@ export function renderHostedSupabaseConfig(localConfig, rawSiteUrl) {
   );
   hosted = hosted.replace(
     /^additional_redirect_urls\s*=\s*\[[\s\S]*?^\]/m,
-    `additional_redirect_urls = [\n  "${siteUrl}/auth/reset"\n]`,
+    `additional_redirect_urls = [\n  "${siteUrl}/today"\n]`,
   );
-  if (!hosted.includes(`site_url = "${siteUrl}"`) || !hosted.includes(`"${siteUrl}/auth/reset"`)) {
+  if (!hosted.includes(`site_url = "${siteUrl}"`) || !hosted.includes(`"${siteUrl}/today"`)) {
     throw new Error("config.toml의 Auth URL 블록을 안전하게 바꾸지 못했습니다.");
   }
   return hosted;

@@ -169,7 +169,7 @@ export async function runRemoteSmoke(
     `health(hosted/configured/ref:${body.supabaseProjectRefConfigured}/db:${body.databaseContractDetected}/service-role:current/policy:${policy.bundleDigest}/no-store)`,
   );
 
-  for (const path of ["/", "/today", "/auth/reset", "/privacy", "/terms"]) {
+  for (const path of ["/", "/today", "/privacy", "/terms"]) {
     const response = await checkedFetch(fetchImpl, baseUrl, path);
     if (!contentTypeIncludes(response, "text/html")) throw new Error(`${path}: HTML 응답이 아닙니다.`);
     const headerIssues = securityHeaderIssues(response.headers);

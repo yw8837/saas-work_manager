@@ -5,8 +5,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/policies";
 
 const auth = vi.hoisted(() => ({
   authStatus: "signed_out" as "signed_out" | "signed_in",
-  signIn: vi.fn(),
-  signUp: vi.fn(),
+  signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
   hasAcceptance: vi.fn(),
   recordAcceptance: vi.fn(),
@@ -18,8 +17,7 @@ vi.mock("./workspace-provider", () => ({
     runtimeMode: "hosted",
     authStatus: auth.authStatus,
     authError: null,
-    signIn: auth.signIn,
-    signUp: auth.signUp,
+    signInWithGoogle: auth.signInWithGoogle,
     signOut: auth.signOut,
   }),
 }));
@@ -32,11 +30,10 @@ vi.mock("@/lib/supabase", () => ({
 
 import { WorkspaceAuthGate } from "./workspace-auth-gate";
 
-describe("WorkspaceAuthGate public signup", () => {
+describe("WorkspaceAuthGate Google login", () => {
   beforeEach(() => {
     auth.authStatus = "signed_out";
-    auth.signIn.mockReset();
-    auth.signUp.mockReset().mockResolvedValue("확인 메일을 보냈어요.");
+    auth.signInWithGoogle.mockReset().mockResolvedValue(undefined);
     auth.signOut.mockReset().mockResolvedValue(undefined);
     auth.hasAcceptance.mockReset().mockResolvedValue(false);
     auth.recordAcceptance.mockReset().mockResolvedValue(undefined);
@@ -47,36 +44,23 @@ describe("WorkspaceAuthGate public signup", () => {
 
   afterEach(() => vi.unstubAllEnvs());
 
-  it("offers ordinary login and account creation without invited-beta framing", () => {
+  it("offers one Google login action without email or password fields", () => {
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
 
-    expect(screen.getByRole("heading", { name: "내 일감 이어서 관리하기" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "계정 만들기" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Google 계정으로 시작하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Google로 계속하기" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("이메일")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("비밀번호")).not.toBeInTheDocument();
     expect(screen.queryByText(/초대형|폐쇄 베타|베타 계정/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "이용약관" })).toHaveAttribute("href", "/terms");
     expect(screen.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
   });
 
-  it("requires one explicit checkbox and passes the displayed versions to signup", async () => {
+  it("starts Google OAuth from the only login action", async () => {
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
 
-    fireEvent.change(screen.getByLabelText("이메일"), { target: { value: "beta@example.com" } });
-    fireEvent.change(screen.getByLabelText("비밀번호"), { target: { value: "long-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
-
-    const consent = screen.getByRole("checkbox");
-    expect(consent).toBeRequired();
-    fireEvent.click(screen.getByRole("button", { name: "동의하고 계정 만들기" }));
-    expect(auth.signUp).not.toHaveBeenCalled();
-
-    fireEvent.click(consent);
-    fireEvent.click(screen.getByRole("button", { name: "동의하고 계정 만들기" }));
-
-    await waitFor(() => expect(auth.signUp).toHaveBeenCalledWith(
-      "beta@example.com",
-      "long-password",
-      { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION },
-    ));
+    fireEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
+    await waitFor(() => expect(auth.signInWithGoogle).toHaveBeenCalledWith());
   });
 
   it("blocks a signed-in account until the current policies are recorded", async () => {

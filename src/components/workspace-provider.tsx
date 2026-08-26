@@ -62,12 +62,10 @@ import {
   redeemHostedInviteCode,
   type HostedSubscription,
   prepareStateForHosted,
-  recordCurrentPolicyAcceptance,
   saveHostedWorkspace,
   syncHostedRevisionPortals,
   type StorageMode,
 } from "@/lib/supabase";
-import { policySignupMetadata, type PolicyAcceptance } from "@/lib/policies";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import {
   createContext,
@@ -112,10 +110,9 @@ type WorkspaceContextValue = AppState & {
   canCreateOption: boolean;
   /** 베타 이용 코드를 적용한다. 성공/실패와 화면에 그대로 쓸 문구를 돌려준다. */
   activateInviteCode: (code: string) => Promise<{ ok: boolean; message: string }>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, acceptance: PolicyAcceptance) => Promise<string>;
+  signInWithGoogle: (redirectPath?: string) => Promise<void>;
   signOut: (options?: { discardUnsaved?: boolean }) => Promise<void>;
-  deleteAccount: (password: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
   createJob: (input: CreateJobInput) => string;
   toggleTask: (jobId: string, taskId: string) => void;
   toggleJobWaiting: (jobId: string) => void;
@@ -928,48 +925,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, [boundary.configured, hostedRequested, persistHostedState, setCurrentState]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signInWithGoogle = useCallback(async (redirectPath = "/today") => {
     const client = hostedClientRef.current;
     if (!client) throw new Error("Hosted 로그인이 설정되지 않았어요.");
+    const safePath = redirectPath.startsWith("/") && !redirectPath.startsWith("//")
+      ? redirectPath
+      : "/today";
     setAuthError(null);
-    const { error } = await client.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) {
-      setAuthError(error.message);
-      throw new Error(error.message);
-    }
-  }, []);
-
-  const signUp = useCallback(async (
-    email: string,
-    password: string,
-    acceptance: PolicyAcceptance,
-  ) => {
-    const client = hostedClientRef.current;
-    if (!client) throw new Error("Hosted 회원가입이 설정되지 않았어요.");
-    setAuthError(null);
-    const { data, error } = await client.auth.signUp({
-      email: email.trim(),
-      password,
-      options: { data: policySignupMetadata() },
+    const { error } = await client.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: new URL(safePath, window.location.origin).toString() },
     });
     if (error) {
       setAuthError(error.message);
       throw new Error(error.message);
     }
-    if (data.session) {
-      try {
-        await recordCurrentPolicyAcceptance(client, acceptance);
-      } catch (policyError) {
-        const message = policyError instanceof Error
-          ? policyError.message
-          : "정책 동의 기록을 저장하지 못했어요.";
-        setAuthError(message);
-        throw new Error(message);
-      }
-    }
-    return data.session
-      ? "가입과 로그인이 완료됐어요."
-      : "확인 메일을 보냈어요. 메일 인증 뒤 로그인해주세요.";
   }, []);
 
   const signOut = useCallback(async ({ discardUnsaved = false }: { discardUnsaved?: boolean } = {}) => {
@@ -999,7 +969,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const deleteAccount = useCallback(async (password: string) => {
+  const deleteAccount = useCallback(async () => {
     if (!hostedRequested) throw new Error("이 기기에 저장하는 모드라 지울 서버 계정이 없어요.");
     const client = hostedClientRef.current;
     const ownerId = hostedOwnerRef.current;
@@ -1007,27 +977,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     await saveChainRef.current.catch(() => undefined);
     const { data: currentSession } = await client.auth.getSession();
-    const email = currentSession.session?.user.email;
-    if (!email || currentSession.session?.user.id !== ownerId) {
+    const session = currentSession.session;
+    if (!session || session.user.id !== ownerId) {
       throw new Error("현재 계정 정보를 확인하지 못했어요. 다시 로그인해주세요.");
-    }
-
-    const { data: reauthenticated, error: reauthenticationError } = await client.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (reauthenticationError || !reauthenticated.session) {
-      throw new Error("비밀번호가 맞지 않아요.");
-    }
-    if (reauthenticated.user?.id !== ownerId) {
-      throw new Error("다른 계정으로 인증되어 삭제를 중단했어요.");
     }
 
     const response = await fetch("/api/account/delete", {
       method: "POST",
       credentials: "same-origin",
       headers: {
-        Authorization: `Bearer ${reauthenticated.session.access_token}`,
+        Authorization: `Bearer ${session.access_token}`,
         "Content-Type": "application/json",
         "X-Ilgamcheck-Delete-Confirm": "DELETE_ACCOUNT",
       },
@@ -1508,8 +1467,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       canCreatePackage,
       canCreateOption,
       activateInviteCode,
-      signIn,
-      signUp,
+      signInWithGoogle,
       signOut,
       deleteAccount,
       createJob,
@@ -1533,7 +1491,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signIn, signUp, signOut, deleteAccount, createJob, toggleTask, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (

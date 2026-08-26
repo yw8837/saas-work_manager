@@ -62,7 +62,7 @@ function permissionLabel(permission: BrowserNotificationState) {
 }
 
 export function SettingsPanel() {
-  const { packages, options, jobs, settings, activityDates, updateSettings, runtimeMode, userEmail, signOut, deleteAccount, saveStatus, saveError, realtimeStatus, realtimeError, plan, planAccess, limits, activeJobCount, jobsCreatedTotal, trialStartedAt, betaAccess, activateInviteCode } = useWorkspace();
+  const { packages, options, jobs, settings, activityDates, updateSettings, runtimeMode, userEmail, signInWithGoogle, signOut, deleteAccount, saveStatus, saveError, realtimeStatus, realtimeError, plan, planAccess, limits, activeJobCount, jobsCreatedTotal, trialStartedAt, betaAccess, activateInviteCode } = useWorkspace();
   const isPro = plan === "pro";
   const [inviteCode, setInviteCode] = useState("");
   const [inviteFeedback, setInviteFeedback] = useState<{ ok: boolean; message: string } | null>(null);
@@ -72,7 +72,6 @@ export function SettingsPanel() {
   const [signingOut, setSigningOut] = useState(false);
   const [forceSignOutAvailable, setForceSignOutAvailable] = useState(false);
   const [deletionOpen, setDeletionOpen] = useState(false);
-  const [deletionPassword, setDeletionPassword] = useState("");
   const [deletionPhrase, setDeletionPhrase] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
 
@@ -150,13 +149,12 @@ export function SettingsPanel() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deletionPhrase !== "계정 삭제" || !deletionPassword) return;
+    if (deletionPhrase !== "계정 삭제") return;
     setDeletingAccount(true);
     setAccountFeedback("");
     try {
-      await deleteAccount(deletionPassword);
+      await deleteAccount();
       setAccountFeedback("계정과 서버 데이터를 삭제했어요.");
-      setDeletionPassword("");
       setDeletionPhrase("");
       setDeletionOpen(false);
     } catch (error) {
@@ -350,20 +348,18 @@ export function SettingsPanel() {
             <div className="accountDeletionConfirmHead">
               <div>
                 <strong id="account-delete-confirm-title">정말 영구 삭제할까요?</strong>
-                <small>본인 확인을 위해 비밀번호와 아래 문구가 모두 필요해요.</small>
+                <small>Google 본인 확인 뒤 아래 문구를 입력해야 삭제할 수 있어요.</small>
               </div>
               <button type="button" className="iconButton" aria-label="계정 삭제 닫기" onClick={() => setDeletionOpen(false)}><X size={17} /></button>
             </div>
-            <label>
-              <span>현재 비밀번호</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={deletionPassword}
-                onChange={(event) => setDeletionPassword(event.target.value)}
-                disabled={deletingAccount}
-              />
-            </label>
+            <button
+              type="button"
+              className="quietButton"
+              disabled={deletingAccount}
+              onClick={() => void signInWithGoogle("/settings?accountDelete=1")}
+            >
+              <LockKeyhole size={16} /> Google로 본인 확인
+            </button>
             <label>
               <span>확인 문구 <strong>계정 삭제</strong> 입력</span>
               <input
@@ -377,7 +373,7 @@ export function SettingsPanel() {
             <button
               type="button"
               className="dangerButton accountDeleteFinal"
-              disabled={deletingAccount || !deletionPassword || deletionPhrase !== "계정 삭제"}
+              disabled={deletingAccount || deletionPhrase !== "계정 삭제"}
               onClick={() => void handleDeleteAccount()}
             >
               <Trash2 size={16} /> {deletingAccount ? "영구 삭제 중…" : "계정과 모든 데이터 영구 삭제"}

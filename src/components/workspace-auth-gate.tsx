@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
 import { Brand } from "./brand";
 import { useWorkspace } from "./workspace-provider";
@@ -11,16 +11,12 @@ import {
   hasCurrentPolicyAcceptance,
   recordCurrentPolicyAcceptance,
 } from "@/lib/supabase";
-import { currentPolicyAcceptance, getPublicServiceConfig } from "@/lib/policies";
+import { currentPolicyAcceptance } from "@/lib/policies";
 
 export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
-  const { runtimeMode, authStatus, authError, signIn, signUp, signOut } = useWorkspace();
-  const service = getPublicServiceConfig();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const { runtimeMode, authStatus, authError, signInWithGoogle, signOut } = useWorkspace();
   const [policiesAccepted, setPoliciesAccepted] = useState(false);
-  const [pending, setPending] = useState<"login" | "signup" | "reset" | "policy" | null>(null);
+  const [pending, setPending] = useState<"google" | "policy" | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [policyGateStatus, setPolicyGateStatus] = useState<"idle" | "checking" | "required" | "accepted" | "error">("idle");
   const [policyGateError, setPolicyGateError] = useState<string | null>(null);
@@ -154,48 +150,17 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  async function performAuth(mode: "login" | "signup") {
-    setPending(mode);
+  async function performGoogleLogin() {
+    setPending("google");
     setFeedback(null);
     try {
-      if (mode === "login") {
-        await signIn(email, password);
-      } else {
-        if (!service.betaSignupEnabled) {
-          throw new Error("현재 신규 계정 만들기를 잠시 이용할 수 없어요.");
-        }
-        if (!policiesAccepted) {
-          throw new Error("이용약관과 개인정보처리방침에 동의해주세요.");
-        }
-        setFeedback(await signUp(email, password, currentPolicyAcceptance()));
-      }
+      await signInWithGoogle();
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "요청을 처리하지 못했어요.");
-    } finally {
       setPending(null);
+    } finally {
+      // 성공하면 OAuth 페이지로 이동하므로 이 화면에서 pending을 풀 필요가 없다.
     }
-  }
-
-  async function requestPasswordReset() {
-    const normalizedEmail = email.trim();
-    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
-      setFeedback("재설정 메일을 받을 이메일을 먼저 입력해주세요.");
-      return;
-    }
-    const client = getSupabaseBrowserClient();
-    if (!client) {
-      setFeedback("Hosted 로그인이 설정되지 않았어요.");
-      return;
-    }
-    setPending("reset");
-    setFeedback(null);
-    await client.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${window.location.origin}/auth/reset`,
-    });
-    setPending(null);
-    // 성공·실패를 구분해 보여주면 그 주소로 가입했는지 알려주는 셈이 된다.
-    // 어느 쪽이든 같은 문구를 준다.
-    setFeedback("가입된 주소라면 비밀번호 재설정 메일을 보냈어요. 받은편지함을 확인해주세요.");
   }
 
   return (
@@ -204,70 +169,21 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
         <Brand />
         <span className="authIcon"><ShieldCheck size={23} /></span>
         <div className="authHeading">
-          <h1>{authMode === "signup" ? "일감체크 시작하기" : "내 일감 이어서 관리하기"}</h1>
-          <p>{authMode === "signup" ? "가입 전 데이터 처리 기준을 확인해주세요." : "계정마다 고객·금액·수정 기록을 분리해 저장해요."}</p>
+          <h1>Google 계정으로 시작하기</h1>
+          <p>한 번 로그인하면 내 고객·금액·수정 기록만 따로 저장돼요.</p>
         </div>
-        <form className="authForm" onSubmit={(event: FormEvent<HTMLFormElement>) => {
+        <form className="authForm" onSubmit={(event) => {
           event.preventDefault();
-          void performAuth(authMode);
+          void performGoogleLogin();
         }}>
-          <label>
-            <span>이메일</span>
-            <span className="authInput"><Mail size={17} /><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" /></span>
-          </label>
-          <label>
-            <span>비밀번호</span>
-            <span className="authInput"><LockKeyhole size={17} /><input required minLength={8} type="password" autoComplete={authMode === "signup" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="8자 이상" /></span>
-          </label>
-          {authMode === "signup" && (
-            <label className="authPolicyConsent">
-              <input
-                required
-                type="checkbox"
-                checked={policiesAccepted}
-                onChange={(event) => setPoliciesAccepted(event.target.checked)}
-              />
-              <span>
-                <Link href="/terms">이용약관</Link>과 <Link href="/privacy">개인정보처리방침</Link>을 읽었으며
-                두 문서에 모두 동의합니다. (필수)
-              </span>
-            </label>
-          )}
           <button className="primaryButton authPrimary" type="submit" disabled={pending !== null}>
-            {pending === authMode
-              ? (authMode === "signup" ? "가입 중…" : "로그인 중…")
-              : (authMode === "signup" ? "동의하고 계정 만들기" : "로그인")}
+            {pending === "google" ? "Google로 이동 중…" : "Google로 계속하기"}
             <ArrowRight size={17} />
           </button>
-          {service.betaSignupEnabled && (
-            <button
-              className="secondaryButton authSecondary"
-              type="button"
-              disabled={pending !== null}
-              onClick={() => {
-                setAuthMode((current) => current === "login" ? "signup" : "login");
-                setFeedback(null);
-              }}
-            >
-              {authMode === "signup" ? "기존 계정으로 로그인" : "계정 만들기"}
-            </button>
-          )}
-          {authMode === "login" && (
-            <button className="authTextButton" type="button" disabled={pending !== null} onClick={() => void requestPasswordReset()}>
-              {pending === "reset" ? "재설정 메일 보내는 중…" : "비밀번호를 잊었어요"}
-            </button>
-          )}
         </form>
-        {!service.betaSignupEnabled && (
-          <aside className="closedBetaNotice">
-            <strong>신규 계정 만들기를 잠시 닫아두었어요</strong>
-            <p>기존 계정은 그대로 로그인할 수 있어요.</p>
-            {service.supportEmail && <a href={`mailto:${service.supportEmail}`}>가입 문의</a>}
-          </aside>
-        )}
         {(feedback || authError) && <p className="authFeedback" role="status">{feedback ?? authError}</p>}
         <small>
-          비밀번호와 세션은 Supabase Auth가 처리하며 앱 DB에는 저장하지 않아요.
+          Google 인증은 Supabase Auth가 처리하며 Google 비밀번호는 일감체크에 저장되지 않아요.
           {' '}<Link href="/terms">이용약관</Link> · <Link href="/privacy">개인정보처리방침</Link>
         </small>
       </section>

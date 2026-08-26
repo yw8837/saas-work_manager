@@ -33,7 +33,6 @@
     "smoke:sites": "node scripts/sites-remote-smoke.mjs",
     "verify:hosted": "node scripts/verify-hosted-runtime.mjs",
     "verify:hosted:ephemeral": "node scripts/verify-hosted-runtime-ephemeral.mjs",
-    "beta:invite": "node scripts/beta-invite.mjs",
     "smtp:dns:verify": "node scripts/smtp-dns-verify.mjs",
     "smtp:evidence:verify": "node scripts/smtp-evidence-verify.mjs",
     "policy:manifest:verify": "node scripts/policy-publication-manifest.mjs",

@@ -32,7 +32,7 @@ function isSameOriginBrowserRequest(request: Request): boolean {
   }
 }
 
-function hasRecentPasswordAuthentication(
+function hasRecentGoogleAuthentication(
   accessToken: string,
   verifiedUserId: string,
   nowSeconds = Math.floor(Date.now() / 1_000),
@@ -53,20 +53,20 @@ function hasRecentPasswordAuthentication(
     return false;
   }
 
-  let mostRecentPasswordTimestamp: number | null = null;
+  let mostRecentGoogleTimestamp: number | null = null;
   for (const rawEntry of payload.amr) {
     if (!rawEntry || typeof rawEntry !== "object" || Array.isArray(rawEntry)) continue;
     const entry = rawEntry as { method?: unknown; timestamp?: unknown };
-    if (entry.method !== "password") continue;
+    if (entry.method !== "oauth") continue;
     if (!Number.isInteger(entry.timestamp) || (entry.timestamp as number) <= 0) return false;
 
     const timestamp = entry.timestamp as number;
     if (timestamp > nowSeconds) return false;
-    mostRecentPasswordTimestamp = Math.max(mostRecentPasswordTimestamp ?? timestamp, timestamp);
+    mostRecentGoogleTimestamp = Math.max(mostRecentGoogleTimestamp ?? timestamp, timestamp);
   }
 
-  return mostRecentPasswordTimestamp !== null
-    && nowSeconds - mostRecentPasswordTimestamp <= REAUTHENTICATION_WINDOW_SECONDS;
+  return mostRecentGoogleTimestamp !== null
+    && nowSeconds - mostRecentGoogleTimestamp <= REAUTHENTICATION_WINDOW_SECONDS;
 }
 
 export async function POST(request: Request) {
@@ -124,10 +124,10 @@ export async function POST(request: Request) {
     return jsonError("로그인 세션이 만료됐어요. 다시 로그인해주세요.", 401);
   }
 
-  // getUser가 같은 토큰을 검증한 뒤에만 JWT의 AMR을 신뢰한다. refresh로 새로
-  // 발급된 토큰만으로는 부족하고, 최근 비밀번호 인증이 기록된 토큰이어야 한다.
-  if (!hasRecentPasswordAuthentication(accessToken, verified.user.id)) {
-    return jsonError("계정 보호를 위해 현재 비밀번호를 다시 확인해주세요.", 401);
+  // getUser가 같은 토큰을 검증한 뒤에만 JWT의 AMR을 신뢰한다. refresh만으로는
+  // 부족하고, 최근 Google OAuth 인증이 기록된 토큰이어야 한다.
+  if (!hasRecentGoogleAuthentication(accessToken, verified.user.id)) {
+    return jsonError("Google로 다시 본인 확인한 뒤 시도해주세요.", 401);
   }
 
   // 요청 본문에서 삭제 대상을 받지 않는다. 검증된 토큰 소유자만 삭제할 수 있다.

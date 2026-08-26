@@ -6,7 +6,7 @@ export const DEFAULT_AUTH_READBACK_TIMEOUT_MS = 10_000;
 export const DEFAULT_AUTH_READBACK_MAX_BYTES = 64 * 1024;
 
 function authRedirectAllowListIssue(rawAllowList, expectedOrigin) {
-  const expectedResetUrl = `${expectedOrigin}/auth/reset`;
+  const expectedResetUrl = `${expectedOrigin}/today`;
   let entries;
 
   // Supabase CLI 2.114.0 serializes additional_redirect_urls with join(","),
@@ -24,7 +24,7 @@ function authRedirectAllowListIssue(rawAllowList, expectedOrigin) {
   // credentials, query strings, fragments, wildcards, and duplicate entries
   // must never become equivalent to the one literal callback we configured.
   if (entries.length !== 1 || typeof entries[0] !== "string" || entries[0] !== expectedResetUrl) {
-    return "Supabase Auth config의 uri_allow_list는 현재 배포 origin의 /auth/reset 한 개만 허용해야 합니다.";
+    return "Supabase Auth config의 uri_allow_list는 현재 배포 origin의 /today 한 개만 허용해야 합니다.";
   }
 
   return null;
@@ -102,10 +102,11 @@ export function supabaseAuthConfigIssue(config, expectedOrigin) {
     return "Supabase Auth config의 전체 신규 가입(disable_signup)이 열려 있지 않습니다.";
   }
 
-  // Global signup and the email provider must both stay enabled so ordinary
-  // users can create an account and sign in with a password.
-  if (config.external_email_enabled !== true) {
-    return "Supabase Auth config의 이메일 로그인 제공자(external_email_enabled)가 활성화되지 않았습니다.";
+  if (config.external_google_enabled !== true) {
+    return "Supabase Auth config의 Google 로그인 제공자(external_google_enabled)가 활성화되지 않았습니다.";
+  }
+  if (config.external_email_enabled !== false) {
+    return "Supabase Auth config의 이메일 로그인 제공자(external_email_enabled)를 꺼야 합니다.";
   }
 
   const redirectIssue = authRedirectAllowListIssue(config.uri_allow_list, expected);

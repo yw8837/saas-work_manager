@@ -29,12 +29,12 @@ enabled = true
 enabled = true
 site_url = "https://ilgamcheck-beta.bsfire1237.chatgpt.site"
 additional_redirect_urls = [
-  "http://127.0.0.1:3000/auth/reset",
-  "http://localhost:3000/auth/reset",
-  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/auth/reset"
+  "http://127.0.0.1:3000/today",
+  "http://localhost:3000/today",
+  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/today"
 ]
 jwt_expiry = 3600
-enable_signup = true
+enable_signup = false
 enable_anonymous_sign_ins = false
 minimum_password_length = 8
 
@@ -43,3 +43,9 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = true
 secure_password_change = true
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+skip_nonce_check = false

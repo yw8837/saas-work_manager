@@ -25,6 +25,7 @@ const hosted = vi.hoisted(() => {
     realtimeCallback: null as (() => void) | null,
     realtimeStatusCallback: null as RealtimeStatusCallback | null,
     getSession: vi.fn(),
+    signInWithOAuth: vi.fn(),
     load: vi.fn<(client: unknown, ownerId: string) => Promise<HostedDocument | null>>(),
     save: vi.fn(),
     sync: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock("@/lib/supabase", async () => {
   const client = {
     auth: {
       getSession: hosted.getSession,
+      signInWithOAuth: hosted.signInWithOAuth,
       onAuthStateChange: vi.fn((callback: AuthCallback) => {
         hosted.authCallback = callback;
         return { data: { subscription: { unsubscribe: vi.fn() } } };
@@ -102,7 +104,7 @@ function deferred<T>() {
 }
 
 function Probe() {
-  const { jobs, saveStatus, realtimeStatus, realtimeError, updateSettings } = useWorkspace();
+  const { jobs, saveStatus, realtimeStatus, realtimeError, updateSettings, signInWithGoogle } = useWorkspace();
   return (
     <div>
       <span data-testid="workspace-owner">{jobs[0]?.clientLabel}</span>
@@ -110,6 +112,7 @@ function Probe() {
       <span data-testid="realtime-status">{realtimeStatus}</span>
       <span data-testid="realtime-error">{realtimeError}</span>
       <button type="button" onClick={() => updateSettings({ morningDigestEnabled: false })}>edit workspace</button>
+      <button type="button" onClick={() => void signInWithGoogle()}>google login</button>
     </div>
   );
 }
@@ -121,6 +124,7 @@ describe("hosted auth activation", () => {
     hosted.realtimeCallback = null;
     hosted.realtimeStatusCallback = null;
     hosted.getSession.mockReset();
+    hosted.signInWithOAuth.mockReset().mockResolvedValue({ data: { url: "https://accounts.google.com" }, error: null });
     hosted.load.mockReset();
     hosted.save.mockReset();
     hosted.sync.mockReset();
@@ -135,6 +139,16 @@ describe("hosted auth activation", () => {
       hosted.realtimeStatusCallback = callback ?? null;
       return hosted.channel;
     });
+  });
+
+  it("starts Google OAuth with the current origin and today redirect", async () => {
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "google login" }));
+
+    await waitFor(() => expect(hosted.signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/today` },
+    }));
   });
 
   it("uses INITIAL_SESSION as the single first-session entry without getSession double activation", async () => {

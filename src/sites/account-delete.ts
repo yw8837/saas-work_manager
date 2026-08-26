@@ -43,24 +43,24 @@ function decodeAccessTokenPayload(accessToken: string): Record<string, unknown> 
   }
 }
 
-function hasRecentPasswordAuthentication(accessToken: string, verifiedUserId: string, nowSeconds: number): boolean {
+function hasRecentGoogleAuthentication(accessToken: string, verifiedUserId: string, nowSeconds: number): boolean {
   const payload = decodeAccessTokenPayload(accessToken);
   if (!payload || payload.sub !== verifiedUserId || payload.role !== "authenticated" || !Array.isArray(payload.amr)) {
     return false;
   }
 
-  let newestPasswordAuthentication: number | null = null;
+  let newestGoogleAuthentication: number | null = null;
   for (const rawEntry of payload.amr) {
     if (!rawEntry || typeof rawEntry !== "object" || Array.isArray(rawEntry)) continue;
     const entry = rawEntry as { method?: unknown; timestamp?: unknown };
-    if (entry.method !== "password" || !Number.isInteger(entry.timestamp)) continue;
+    if (entry.method !== "oauth" || !Number.isInteger(entry.timestamp)) continue;
     const timestamp = entry.timestamp as number;
     if (timestamp <= 0 || timestamp > nowSeconds) return false;
-    newestPasswordAuthentication = Math.max(newestPasswordAuthentication ?? timestamp, timestamp);
+    newestGoogleAuthentication = Math.max(newestGoogleAuthentication ?? timestamp, timestamp);
   }
 
-  return newestPasswordAuthentication !== null
-    && nowSeconds - newestPasswordAuthentication <= REAUTHENTICATION_WINDOW_SECONDS;
+  return newestGoogleAuthentication !== null
+    && nowSeconds - newestGoogleAuthentication <= REAUTHENTICATION_WINDOW_SECONDS;
 }
 
 function configuredEnvironment(environment: AccountDeletionEnvironment) {
@@ -135,8 +135,8 @@ export async function handleAccountDeletion(
   } catch {
     return jsonError("로그인 세션을 다시 확인해주세요.", 401);
   }
-  if (!verifiedUserId || !hasRecentPasswordAuthentication(token, verifiedUserId, nowSeconds)) {
-    return jsonError("계정 보호를 위해 현재 비밀번호를 다시 확인해주세요.", 401);
+  if (!verifiedUserId || !hasRecentGoogleAuthentication(token, verifiedUserId, nowSeconds)) {
+    return jsonError("Google로 다시 본인 확인한 뒤 시도해주세요.", 401);
   }
 
   try {

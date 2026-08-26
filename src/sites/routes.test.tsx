@@ -12,7 +12,6 @@ describe("Sites route contract", () => {
       "/packages",
       "/settings",
       "/feedback",
-      "/auth/reset",
       "/r/:token",
       "/privacy",
       "/terms",

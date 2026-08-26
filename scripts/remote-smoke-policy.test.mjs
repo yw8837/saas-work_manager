@@ -50,7 +50,7 @@ function successfulFetch(url) {
       },
     }, { headers: { "cache-control": "no-store" } }));
   }
-  if (["/", "/today", "/auth/reset", "/privacy", "/terms"].includes(path)) {
+  if (["/", "/today", "/privacy", "/terms"].includes(path)) {
     return Promise.resolve(new Response("<!doctype html>", {
       headers: { "content-type": "text/html; charset=utf-8", ...secureHeaders },
     }));

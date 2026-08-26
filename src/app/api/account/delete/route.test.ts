@@ -20,7 +20,7 @@ function accessToken(payload: Record<string, unknown> = {}) {
   return `${encode({ alg: "ES256", typ: "JWT" })}.${encode({
     sub: "owner-a",
     role: "authenticated",
-    amr: [{ method: "password", timestamp: NOW_SECONDS - 30 }],
+    amr: [{ method: "oauth", timestamp: NOW_SECONDS - 30 }],
     ...payload,
   })}.test-signature`;
 }
@@ -130,8 +130,9 @@ describe("POST /api/account/delete", () => {
   it.each([
     ["missing AMR", { amr: undefined }],
     ["refresh-only AMR", { amr: [{ method: "refresh_token", timestamp: NOW_SECONDS - 5 }] }],
-    ["old password AMR", { amr: [{ method: "password", timestamp: NOW_SECONDS - 301 }] }],
-    ["future password AMR", { amr: [{ method: "password", timestamp: NOW_SECONDS + 1 }] }],
+    ["password AMR", { amr: [{ method: "password", timestamp: NOW_SECONDS - 5 }] }],
+    ["old OAuth AMR", { amr: [{ method: "oauth", timestamp: NOW_SECONDS - 301 }] }],
+    ["future OAuth AMR", { amr: [{ method: "oauth", timestamp: NOW_SECONDS + 1 }] }],
     ["wrong subject", { sub: "owner-b" }],
   ])("rejects %s after server-side token verification", async (_label, payload) => {
     const token = accessToken(payload);
@@ -149,11 +150,11 @@ describe("POST /api/account/delete", () => {
     expect(mocked.deleteUser).not.toHaveBeenCalled();
   });
 
-  it("accepts a recent password AMR and derives the only deletion target from the verified token", async () => {
+  it("accepts a recent Google OAuth AMR and derives the only deletion target from the verified token", async () => {
     const token = accessToken({
       amr: [
-        { method: "password", timestamp: NOW_SECONDS - 300 },
-        { method: "password", timestamp: NOW_SECONDS - 2 },
+        { method: "oauth", timestamp: NOW_SECONDS - 300 },
+        { method: "oauth", timestamp: NOW_SECONDS - 2 },
       ],
     });
     const response = await POST(deleteRequest({ token }));

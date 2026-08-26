@@ -61,11 +61,11 @@
 ## Auth 설정 원칙
 
 - migration을 먼저 적용하고 그 뒤 테스트 사용자를 만든다. 그래야 회원 생성 trigger가 `profiles`를 함께 만든다.
-- 폐쇄 베타는 `config.toml`의 전역 `[auth] enable_signup=false`로 셀프가입을 막고, `[auth.email] enable_signup=true`로 초대·기존 계정의 이메일 로그인을 유지한다. `npm run supabase:config:push`로 원격에 반영한 뒤 Dashboard와 Management API readback에서도 `disable_signup=true`, `external_email_enabled=true`를 교차 확인한다. wrapper는 linked ref=앱 URL ref=로그인 계정의 Seoul 프로젝트, Auth origin=linked Vercel project의 READY deployment/alias를 먼저 확인하고 `PUSH_CLOSED_BETA_AUTH_CONFIG_TO_<ref>` 승인값을 요구한다. 테스트 사용자는 `npm run beta:invite -- --email ...`로 한 명씩 초대해 `/auth/reset`에서 비밀번호를 설정한다.
+- 베타 로그인은 Google OAuth만 사용한다. 전역 `[auth] enable_signup=true`, `[auth.email] enable_signup=false`, `[auth.external.google] enabled=true`를 유지하고, 원격 Dashboard와 Management API readback에서도 `disable_signup=false`, `external_google_enabled=true`, `external_email_enabled=false`를 교차 확인한다. 30일 Pro 권한은 로그인 방식이 아니라 설정 화면의 베타 이용 코드로 적용한다.
 - 앱 UI는 이메일/비밀번호 가입·로그인·로그아웃과 재설정 메일 요청·새 비밀번호 저장을 제공한다.
 - 이메일 확인을 켜면 Supabase의 Site URL과 허용 Redirect URL을 실제 Preview/운영 URL로 지정한다.
 - 조직 Team 밖 외부 테스터를 처음 초대하기 전에 창업자 소유 custom SMTP를 연결하고 전달·반송을 실제 확인한다. Supabase 기본 SMTP는 폐쇄베타 외부 주소의 운영 발송 수단으로 쓰지 않는다.
-- Redirect URL에는 실제 origin의 `/auth/reset`을 정확히 허용하고 만료·재사용 링크를 시험한다.
+- Redirect allow list에는 실제 origin의 `/today`만 정확히 허용한다. Google Cloud OAuth 클라이언트에는 앱 origin을 JavaScript origin으로, Supabase 프로젝트의 `/auth/v1/callback`을 승인된 리디렉션 URI로 등록한다.
 
 ## 출시 전 필수 실증
 

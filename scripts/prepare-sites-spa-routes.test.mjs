@@ -16,7 +16,7 @@ describe("Sites static SPA routes", () => {
     await expect(access(join(directory, "index.html"))).rejects.toMatchObject({ code: "ENOENT" });
     await expect(access(join(directory, "today", "index.html"))).rejects.toMatchObject({ code: "ENOENT" });
     await expect(access(join(directory, "privacy", "index.html"))).rejects.toMatchObject({ code: "ENOENT" });
-    expect(SITES_STATIC_SPA_ROUTES).toContain("auth/reset");
+    expect(SITES_STATIC_SPA_ROUTES).not.toContain("auth/reset");
   });
 
   it("writes security headers for static HTML responses that bypass the Worker", async () => {

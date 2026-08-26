@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 // Sites serves matching static HTML before the Worker. Keep the shell under a
 // non-route asset name so every navigation reaches the Worker first.
 export const SITES_STATIC_SPA_ROUTES = [
-  "today", "jobs", "jobs/new", "packages", "settings", "feedback", "auth/reset", "privacy", "terms",
+  "today", "jobs", "jobs/new", "packages", "settings", "feedback", "privacy", "terms",
 ];
 
 export const SITES_STATIC_SECURITY_HEADERS = `/*

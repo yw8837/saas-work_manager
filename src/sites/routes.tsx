@@ -8,7 +8,6 @@ import { JobsOverview } from "@/components/jobs-overview";
 import { MarketingHome } from "@/components/marketing-home";
 import { NewJobForm } from "@/components/new-job-form";
 import { PackageManager } from "@/components/package-manager";
-import { PasswordResetForm } from "@/components/password-reset-form";
 import { PolicyPage } from "@/components/policy-page";
 import { PublicRevisionForm } from "@/components/public-revision-form";
 import { SettingsPanel } from "@/components/settings-panel";
@@ -25,7 +24,6 @@ export const SITE_ROUTE_PATHS = [
   "/packages",
   "/settings",
   "/feedback",
-  "/auth/reset",
   "/r/:token",
   "/privacy",
   "/terms",
@@ -71,7 +69,6 @@ export function AppRoutes() {
       <Route path="/packages" element={<WorkspaceRoute><PackageManager /></WorkspaceRoute>} />
       <Route path="/settings" element={<WorkspaceRoute><SettingsPanel /></WorkspaceRoute>} />
       <Route path="/feedback" element={<FeedbackRoute />} />
-      <Route path="/auth/reset" element={<PasswordResetForm />} />
       <Route path="/r/:token" element={<RevisionRoute />} />
       <Route path="/privacy" element={<PolicyPage document={POLICY_PUBLICATION_MANIFEST.documents.privacy} />} />
       <Route path="/terms" element={<PolicyPage document={POLICY_PUBLICATION_MANIFEST.documents.terms} />} />

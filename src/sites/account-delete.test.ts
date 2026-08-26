@@ -8,7 +8,7 @@ function accessToken(payload: Record<string, unknown> = {}) {
   return `${encode({ alg: "ES256", typ: "JWT" })}.${encode({
     sub: "owner-a",
     role: "authenticated",
-    amr: [{ method: "password", timestamp: now - 30 }],
+    amr: [{ method: "oauth", timestamp: now - 30 }],
     ...payload,
   })}.signature`;
 }
@@ -56,7 +56,7 @@ describe("Sites account deletion", () => {
     expect(requestFn).not.toHaveBeenCalled();
   });
 
-  it("deletes only the user verified from the recent-password access token", async () => {
+  it("deletes only the user verified from a recent Google OAuth access token", async () => {
     const requestFn = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ id: "owner-a" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -68,5 +68,18 @@ describe("Sites account deletion", () => {
     expect(requestFn.mock.calls[0]?.[0]).toBe(`${environment.SUPABASE_URL}/auth/v1/user`);
     expect(requestFn.mock.calls[1]?.[0]).toBe(`${environment.SUPABASE_URL}/auth/v1/admin/users/owner-a`);
     expect(requestFn.mock.calls[1]?.[1]).toMatchObject({ method: "DELETE" });
+  });
+
+  it("rejects a password token because the service uses Google-only login", async () => {
+    const requestFn = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "owner-a" }), { status: 200 }));
+    const response = await handleAccountDeletion(request({
+      token: accessToken({ amr: [{ method: "password", timestamp: now - 30 }] }),
+    }), environment, requestFn, now);
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Google로 다시 본인 확인한 뒤 시도해주세요.",
+    });
   });
 });

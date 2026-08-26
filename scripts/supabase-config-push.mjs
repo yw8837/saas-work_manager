@@ -22,7 +22,7 @@ import { minimalChildEnvironment } from "./minimal-child-environment.mjs";
 if (process.argv.includes("--help")) {
   console.log("사용법: SUPABASE_AUTH_SITE_URL=https://PREVIEW_OR_DOMAIN npm run supabase:config:push");
   console.log("검증된 연결 project ref가 들어간 ILGAMCHECK_AUTH_CONFIG_PUSH_ACK 확인값도 필요합니다.");
-  console.log("이메일 신규 가입·로그인 ON과 해당 origin의 /auth/reset 1개를 원격 Auth 설정에 반영합니다.");
+  console.log("Google 로그인 ON·이메일 로그인 OFF와 해당 origin의 /today 1개를 원격 Auth 설정에 반영합니다.");
   process.exit(0);
 }
 
