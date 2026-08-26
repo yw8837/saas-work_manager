@@ -56,6 +56,33 @@ describe("Sites Worker entry", () => {
     expect(new URL(assets.fetch.mock.calls[1]?.[0].url).pathname).toBe("/app-shell.payload");
   });
 
+  it("preserves a bodyless 304 response when the browser revalidates a cached asset", async () => {
+    const assets = {
+      fetch: vi.fn(async () => new Response(null, {
+        status: 304,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          ETag: '"cached-shell"',
+        },
+      })),
+    };
+
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/", {
+        headers: {
+          Accept: "text/html",
+          "If-None-Match": '"cached-shell"',
+        },
+      }),
+      { ASSETS: assets },
+    );
+
+    expect(response.status).toBe(304);
+    expect(response.body).toBeNull();
+    expect(response.headers.get("etag")).toBe('"cached-shell"');
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
   it("injects only allowlisted public runtime values into HTML before the client module", async () => {
     const assets = {
       fetch: vi.fn(async () => new Response(

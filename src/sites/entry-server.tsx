@@ -22,6 +22,11 @@ export type SitesEnvironment = {
 
 const unavailable = () => new Response("일감체크 정적 파일을 불러오지 못했습니다.", { status: 503 });
 const NATIVE_PUBLIC_CONFIG_ORIGINS = new Set(["capacitor://localhost", "https://localhost"]);
+const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
+
+function responseBody(response: Response): ReadableStream<Uint8Array> | null {
+  return NULL_BODY_STATUSES.has(response.status) ? null : response.body;
+}
 
 function json(body: unknown, status: number, environment?: SitesEnvironment) {
   const headers = new Headers({
@@ -43,7 +48,7 @@ function withNativePublicConfigCors(response: Response, request: Request): Respo
   const headers = new Headers(response.headers);
   headers.set("Access-Control-Allow-Origin", origin);
   headers.set("Vary", "Origin");
-  return new Response(response.body, {
+  return new Response(responseBody(response), {
     status: response.status,
     statusText: response.statusText,
     headers,
@@ -66,7 +71,7 @@ function withSecurityHeaders(
   if (/^\/r\/[^/]+$/.test(new URL(request.url).pathname)) {
     for (const { key, value } of buildBearerRouteHeaders()) headers.set(key, value);
   }
-  return new Response(response.body, {
+  return new Response(responseBody(response), {
     status: response.status,
     statusText: response.statusText,
     headers,
@@ -95,6 +100,7 @@ async function finalizeStaticResponse(
   environment: SitesEnvironment,
 ): Promise<Response> {
   const secured = withSecurityHeaders(response, request, environment);
+  if (NULL_BODY_STATUSES.has(secured.status)) return secured;
   if (!isHtmlNavigation(request) || !secured.headers.get("content-type")?.includes("text/html")) {
     return secured;
   }
