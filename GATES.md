@@ -41,3 +41,29 @@ Scope: 공개 가입 뒤 코드 또는 무료 시작이 가능하고, 계정당 
   CHECK: npm run verify:hosted:ephemeral
   EXPECT: HOSTED_VERIFY PASS
   EVIDENCE: HOSTED_VERIFY PASS — RLS 격리, 직접 DML 차단, 수정요청·Realtime·토큰 회전·계정당 베타 1회 검증(2026-08-25)
+
+## 2026-08-26 외부 베타 완성도 하드닝
+
+- [x] G9: 사용자 작업물·백업 폴더가 있어도 공식 릴리스 검사가 제품 테스트만 실행한다
+  CHECK: npm run check:release
+  EXPECT: 제품 테스트, typecheck, lint, build, audit가 모두 통과한다
+
+- [x] G10: 베타 사용 기간과 실제 작업 사용량을 기준으로 30일 설문을 놓치지 않게 안내한다
+  CHECK: 관련 단위 테스트와 데스크톱·모바일 E2E
+  EXPECT: 베타 만료 전에는 설문을 재촉하지 않고, 만료 시 설정 가능한 공개 설문 링크를 보여준다
+
+- [x] G11: Sites 정적 HTML 경로도 클릭재킹·MIME 스니핑·리퍼러 노출 방지 정책을 배포 산출물에 포함한다
+  CHECK: Sites 산출물 계약 테스트와 공개 URL 헤더 검사
+  EXPECT: /, /today, /privacy, /terms가 동일한 보안 정책으로 제공된다
+
+- [ ] G12: 계정 삭제·정책 게시·백업 복구의 운영 증거가 최신 상태로 검증된다
+  CHECK: npm run policy:manifest:verify && npm run operational:evidence:verify
+  EXPECT: 게시 정책과 30일 이내 운영 증거 검증 통과
+
+- [ ] G13: 프로젝트 팀원이 아닌 외부 이메일이 가입 인증 메일을 받고 로그인한다
+  CHECK: Supabase Auth readback, SMTP DNS/evidence, 외부 주소 가입 실험
+  EXPECT: 커스텀 SMTP가 활성화되고 외부 가입·인증·로그인 통과
+
+- [ ] G14: 최종 Sites 배포본이 모바일웹·Android·iOS 셸·DB 계약·베타 코드·설문 링크를 함께 검증한다
+  CHECK: build:sites, mobile:verify, test:e2e:release, smoke:sites, runtime readback
+  EXPECT: 모든 자동 검증과 공개 배포 확인 통과

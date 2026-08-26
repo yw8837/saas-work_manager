@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSeedState, createStarterState, saveState, type AppState } from "@/lib/store";
+import { createSeedState, createStarterState, localToday, saveState, type AppState } from "@/lib/store";
 import { PLAN_LIMITS, TRIAL_DAYS } from "@/lib/domain";
 
 vi.mock("@/lib/notifications", async () => {
@@ -92,6 +92,12 @@ beforeEach(() => {
 });
 
 describe("workspace plan — 누적 일감 카운터는 단조 증가한다", () => {
+  it("작업공간을 연 날짜를 저장해 14일 재방문을 확인할 수 있게 한다", async () => {
+    await mountWith({ activityDates: [] });
+
+    await waitFor(() => expect(workspace!.activityDates).toContain(localToday()));
+  });
+
   it("완료해도 줄지 않는다", async () => {
     const base = twoActiveJobs();
     await mountWith({ jobsCreatedTotal: 5, trialStartedAt: EXPIRED_TRIAL }, base);

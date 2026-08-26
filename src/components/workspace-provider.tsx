@@ -40,8 +40,10 @@ import {
 import {
   createSeedState,
   loadState,
+  localToday,
   mutateStoredState,
   normalizeAppState,
+  recordActivityDate,
   resetState,
   saveState,
   STORAGE_KEY,
@@ -1144,6 +1146,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     persistHostedState(next);
     return next;
   }, [authStatus, hostedRequested, persistHostedState, setCurrentState]);
+
+  useEffect(() => {
+    if (!hydrated || (hostedRequested && authStatus !== "signed_in")) return;
+    const date = localToday();
+    if (stateRef.current.activityDates.includes(date)) return;
+    commitState((current) => recordActivityDate(current, date));
+  }, [authStatus, commitState, hostedRequested, hydrated]);
 
   const updateJob = useCallback((jobId: string, updater: (job: Job) => Job) => {
     commitState((previous) => ({

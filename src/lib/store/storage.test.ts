@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSeedState, LEGACY_STORAGE_KEY, loadState, mutateStoredState, resetState, saveState, STORAGE_KEY, storageKeyForUser } from ".";
+import { createSeedState, LEGACY_STORAGE_KEY, loadState, mutateStoredState, recordActivityDate, resetState, saveState, STORAGE_KEY, storageKeyForUser } from ".";
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -24,6 +24,22 @@ class MemoryStorage implements Storage {
 }
 
 describe("localStorage repository", () => {
+  it("접속 날짜는 하루에 한 번만 남기고 최근 90일만 보관한다", () => {
+    const state = createSeedState("2026-08-14");
+    state.activityDates = Array.from({ length: 90 }, (_, index) => {
+      const date = new Date(Date.UTC(2026, 4, 28 + index));
+      return date.toISOString().slice(0, 10);
+    });
+
+    const recorded = recordActivityDate(state, "2026-08-26");
+    const duplicate = recordActivityDate(recorded, "2026-08-26");
+
+    expect(recorded.activityDates).toHaveLength(90);
+    expect(recorded.activityDates.at(-1)).toBe("2026-08-26");
+    expect(new Set(recorded.activityDates).size).toBe(recorded.activityDates.length);
+    expect(duplicate).toBe(recorded);
+  });
+
   it("저장한 상태를 새로고침 후 그대로 복원한다", () => {
     const storage = new MemoryStorage();
     const state = createSeedState("2026-08-14");

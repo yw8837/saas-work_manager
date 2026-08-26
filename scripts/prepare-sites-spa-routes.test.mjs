@@ -16,4 +16,19 @@ describe("Sites static SPA routes", () => {
     await expect(readFile(join(directory, "privacy", "index.html"), "utf8")).resolves.toContain("일감체크");
     expect(SITES_STATIC_SPA_ROUTES).toContain("auth/reset");
   });
+
+  it("writes security headers for static HTML responses that bypass the Worker", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "ilgamcheck-sites-headers-"));
+    await writeFile(join(directory, "index.html"), "<html>일감체크</html>", "utf8");
+
+    await prepareSitesSpaRoutes(directory);
+
+    const headers = await readFile(join(directory, "_headers"), "utf8");
+    expect(headers).toContain("/*");
+    expect(headers).toContain("Content-Security-Policy: default-src 'self'");
+    expect(headers).toContain("frame-ancestors 'none'");
+    expect(headers).toContain("X-Frame-Options: DENY");
+    expect(headers).toContain("X-Content-Type-Options: nosniff");
+    expect(headers).toContain("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+  });
 });

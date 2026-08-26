@@ -62,7 +62,7 @@ function permissionLabel(permission: BrowserNotificationState) {
 }
 
 export function SettingsPanel() {
-  const { packages, options, jobs, settings, updateSettings, runtimeMode, userEmail, signOut, deleteAccount, saveStatus, saveError, realtimeStatus, realtimeError, plan, planAccess, limits, activeJobCount, jobsCreatedTotal, trialStartedAt, betaAccess, activateInviteCode } = useWorkspace();
+  const { packages, options, jobs, settings, activityDates, updateSettings, runtimeMode, userEmail, signOut, deleteAccount, saveStatus, saveError, realtimeStatus, realtimeError, plan, planAccess, limits, activeJobCount, jobsCreatedTotal, trialStartedAt, betaAccess, activateInviteCode } = useWorkspace();
   const isPro = plan === "pro";
   const [inviteCode, setInviteCode] = useState("");
   const [inviteFeedback, setInviteFeedback] = useState<{ ok: boolean; message: string } | null>(null);
@@ -117,6 +117,7 @@ export function SettingsPanel() {
         options,
         jobs,
         settings,
+        activityDates,
         jobsCreatedTotal,
         trialStartedAt,
         betaAccess,

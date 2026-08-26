@@ -154,6 +154,8 @@ export interface AppState {
   trialStartedAt: string | null;
   /** 베타 초대 코드로 받은 Pro 권한. 클라이언트 저장분이라 위조 가능하다. */
   betaAccess: BetaAccess | null;
+  /** 작업공간을 연 날짜. 14일 재방문 확인용이며 최근 90일만 저장한다. */
+  activityDates: string[];
   /**
    * 이미 사용한 베타 초대 코드. 만료돼도 같은 코드를 다시 쓰지 못하게 막는다.
    * 전체 초기화로도 지워지지 않는다.
@@ -235,6 +237,7 @@ export function createSeedState(referenceDate = localToday()): AppState {
     jobsCreatedTotal: 2,
     trialStartedAt: null,
     betaAccess: null,
+    activityDates: [],
     redeemedInviteCodes: [],
     settings: {
       morningDigestEnabled: true,

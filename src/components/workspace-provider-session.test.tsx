@@ -184,7 +184,15 @@ describe("hosted auth activation", () => {
     await act(async () => { resolveOwnerA?.(null); });
     await waitFor(() => expect(hosted.load).toHaveBeenCalledTimes(2));
 
-    expect(hosted.save).not.toHaveBeenCalled();
+    // 로그인 완료 뒤 오늘 활동일을 기존 owner B 문서(version 11)에 기록할 수는 있다.
+    // 이 검사의 핵심은 stale owner A의 `remote=null` 응답이 신규 문서(version 0)를
+    // 만들지 못하게 하는 것이다.
+    expect(hosted.save).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), 0);
+    expect(hosted.save).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ activityDates: [expect.any(String)] }),
+      11,
+    );
   });
 
   it("never writes owner B state into owner A cache when A's pending save rejects", async () => {

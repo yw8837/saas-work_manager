@@ -11,4 +11,13 @@ describe("mobile document metadata", () => {
     expect(document).toContain('rel="apple-touch-icon" href="/icons/apple-touch-icon.png"');
     expect(document).toContain('name="apple-mobile-web-app-capable" content="yes"');
   });
+
+  it("ships complete social sharing metadata", () => {
+    const document = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
+
+    expect(document).toContain('property="og:type" content="website"');
+    expect(document).toContain('property="og:title" content="일감체크 · 운영은 덜고 작업에 집중하세요"');
+    expect(document).toContain('property="og:image" content="https://ilgamcheck-beta.bsfire1237.chatgpt.site/og/ilgamcheck-social.png"');
+    expect(document).toContain('name="twitter:card" content="summary_large_image"');
+  });
 });

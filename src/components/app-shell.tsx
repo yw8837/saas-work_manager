@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { InAppAlertKind } from "@/lib/domain";
+import { getPublicEnvironmentValue } from "@/lib/public-environment";
 import { Brand } from "./brand";
 import { useWorkspace } from "./workspace-provider";
 
@@ -50,12 +51,13 @@ function pageContext(pathname: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { jobs, alerts, runtimeMode, userEmail, saveStatus, saveError, realtimeStatus, realtimeError } = useWorkspace();
+  const { jobs, alerts, runtimeMode, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, planAccess } = useWorkspace();
   const [alertOpen, setAlertOpen] = useState(false);
   const alertButtonRef = useRef<HTMLButtonElement>(null);
   const alertPopoverRef = useRef<HTMLElement>(null);
   const activeJobs = jobs.filter((job) => job.status === "active").length;
   const [currentPage, currentPageDescription] = pageContext(pathname);
+  const feedbackFormUrl = getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_FORM_URL")?.trim();
 
   useEffect(() => {
     if (!alertOpen) return;
@@ -203,6 +205,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <Link href="/settings">연결 확인</Link>
           </div>
+        )}
+
+        {planAccess.betaExpired && feedbackFormUrl && (
+          <aside className="betaSurveyBanner" aria-labelledby="beta-survey-title">
+            <div>
+              <strong id="beta-survey-title">30일 사용은 어떠셨나요?</strong>
+              <span>아쉬웠던 점과 가격 의견을 짧게 남겨주세요.</span>
+            </div>
+            <a href={feedbackFormUrl} target="_blank" rel="noopener noreferrer">설문 작성하기</a>
+          </aside>
         )}
 
         <main className="workspaceMain">{children}</main>

@@ -3,6 +3,8 @@ import { createSeedState, createStarterState, type AppState } from "./seed";
 
 export const STORAGE_KEY = "ilgamcheck:mvp:v2";
 export const LEGACY_STORAGE_KEY = "ilgamcheck:mvp:v1";
+const ACTIVITY_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const ACTIVITY_DATE_LIMIT = 90;
 
 export function storageKeyForUser(userId: string): string {
   return `${STORAGE_KEY}:user:${userId}`;
@@ -50,7 +52,25 @@ export function normalizeAppState(state: AppState): AppState {
     jobsCreatedTotal: Math.max(stored, state.jobs.length, 0),
     trialStartedAt: state.trialStartedAt ?? null,
     betaAccess: state.betaAccess ?? null,
+    activityDates: normalizeActivityDates((state as Partial<AppState>).activityDates),
     redeemedInviteCodes: normalizeRedeemedCodes(state.redeemedInviteCodes),
+  };
+}
+
+function normalizeActivityDates(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => (
+    typeof item === "string" && ACTIVITY_DATE_PATTERN.test(item)
+  )))].sort().slice(-ACTIVITY_DATE_LIMIT);
+}
+
+export function recordActivityDate(state: AppState, date: string): AppState {
+  if (!ACTIVITY_DATE_PATTERN.test(date)) return state;
+  const current = normalizeActivityDates(state.activityDates);
+  if (current.includes(date) && current.length === state.activityDates.length) return state;
+  return {
+    ...state,
+    activityDates: normalizeActivityDates([...current, date]),
   };
 }
 
@@ -71,6 +91,7 @@ function migrateLegacyState(value: unknown): AppState | null {
     jobsCreatedTotal: candidate.jobsCreatedTotal ?? 0,
     trialStartedAt: candidate.trialStartedAt ?? null,
     betaAccess: candidate.betaAccess ?? null,
+    activityDates: normalizeActivityDates(candidate.activityDates),
     redeemedInviteCodes: normalizeRedeemedCodes(candidate.redeemedInviteCodes),
   } as AppState);
 }
