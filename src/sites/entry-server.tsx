@@ -124,10 +124,17 @@ async function serveStatic(request: Request, environment: SitesEnvironment): Pro
   }
 
   const appShellUrl = new URL(request.url);
-  appShellUrl.pathname = "/app-shell.html";
+  appShellUrl.pathname = "/app-shell.payload";
   appShellUrl.search = "";
+  const appShell = await environment.ASSETS.fetch(new Request(appShellUrl, request));
+  const appShellHeaders = new Headers(appShell.headers);
+  appShellHeaders.set("Content-Type", "text/html; charset=utf-8");
   return finalizeStaticResponse(
-    await environment.ASSETS.fetch(new Request(appShellUrl, request)),
+    new Response(appShell.body, {
+      status: appShell.status,
+      statusText: appShell.statusText,
+      headers: appShellHeaders,
+    }),
     request,
     environment,
   );

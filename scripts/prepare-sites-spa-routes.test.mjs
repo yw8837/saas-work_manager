@@ -12,7 +12,7 @@ describe("Sites static SPA routes", () => {
 
     await prepareSitesSpaRoutes(directory);
 
-    await expect(readFile(join(directory, "app-shell.html"), "utf8")).resolves.toContain("일감체크");
+    await expect(readFile(join(directory, "app-shell.payload"), "utf8")).resolves.toContain("일감체크");
     await expect(access(join(directory, "index.html"))).rejects.toMatchObject({ code: "ENOENT" });
     await expect(access(join(directory, "today", "index.html"))).rejects.toMatchObject({ code: "ENOENT" });
     await expect(access(join(directory, "privacy", "index.html"))).rejects.toMatchObject({ code: "ENOENT" });

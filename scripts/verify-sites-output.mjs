@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const required = [
   "dist/server/index.js",
-  "dist/client/app-shell.html",
+  "dist/client/app-shell.payload",
   "dist/.openai/hosting.json",
 ];
 

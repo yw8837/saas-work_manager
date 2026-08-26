@@ -20,7 +20,7 @@ export const SITES_STATIC_SECURITY_HEADERS = `/*
 export async function prepareSitesSpaRoutes(clientDirectory) {
   const directory = resolve(clientDirectory);
   const shell = resolve(directory, "index.html");
-  await rename(shell, resolve(directory, "app-shell.html"));
+  await rename(shell, resolve(directory, "app-shell.payload"));
   await writeFile(resolve(directory, "_headers"), SITES_STATIC_SECURITY_HEADERS, "utf8");
 }
 
