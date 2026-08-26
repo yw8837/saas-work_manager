@@ -54,7 +54,7 @@ describe("AppShell runtime status", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("shows the 30-day survey link after beta Pro expires", () => {
+  it("keeps the 14-day survey link visible after beta Pro expires", () => {
     const formUrl = "https://docs.google.com/forms/d/e/TEST/viewform";
     vi.stubEnv("NEXT_PUBLIC_FEEDBACK_FORM_URL", formUrl);
     vi.mocked(useWorkspace).mockReturnValue({
@@ -67,11 +67,11 @@ describe("AppShell runtime status", () => {
 
     render(<AppShell><p>workspace</p></AppShell>);
 
-    expect(screen.getByText("30일 사용은 어떠셨나요?")).toBeInTheDocument();
+    expect(screen.getByText("14일 동안 써보니 어떠셨나요?")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "설문 작성하기" })).toHaveAttribute("href", formUrl);
   });
 
-  it("does not ask for the 30-day survey while beta Pro is active", () => {
+  it("shows the survey after 14 days while beta Pro remains active", () => {
     vi.stubEnv("NEXT_PUBLIC_FEEDBACK_FORM_URL", "https://docs.google.com/forms/d/e/TEST/viewform");
     vi.mocked(useWorkspace).mockReturnValue({
       ...baseWorkspace,
@@ -79,13 +79,31 @@ describe("AppShell runtime status", () => {
         ...baseWorkspace.planAccess,
         source: "beta",
         plan: "pro",
-        remainingDays: 12,
-        expiresAt: "2026-09-07T00:00:00.000Z",
+        remainingDays: 16,
+        expiresAt: "2026-09-11T00:00:00.000Z",
       },
     });
 
     render(<AppShell><p>workspace</p></AppShell>);
 
-    expect(screen.queryByText("30일 사용은 어떠셨나요?")).not.toBeInTheDocument();
+    expect(screen.getByText("14일 동안 써보니 어떠셨나요?")).toBeInTheDocument();
+  });
+
+  it("does not ask for the survey before 14 days of beta use", () => {
+    vi.stubEnv("NEXT_PUBLIC_FEEDBACK_FORM_URL", "https://docs.google.com/forms/d/e/TEST/viewform");
+    vi.mocked(useWorkspace).mockReturnValue({
+      ...baseWorkspace,
+      planAccess: {
+        ...baseWorkspace.planAccess,
+        source: "beta",
+        plan: "pro",
+        remainingDays: 17,
+        expiresAt: "2026-09-12T00:00:00.000Z",
+      },
+    });
+
+    render(<AppShell><p>workspace</p></AppShell>);
+
+    expect(screen.queryByText("14일 동안 써보니 어떠셨나요?")).not.toBeInTheDocument();
   });
 });

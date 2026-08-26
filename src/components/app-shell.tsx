@@ -13,7 +13,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { InAppAlertKind } from "@/lib/domain";
+import { BETA_GRANT_DAYS, type InAppAlertKind } from "@/lib/domain";
 import { getPublicEnvironmentValue } from "@/lib/public-environment";
 import { Brand } from "./brand";
 import { useWorkspace } from "./workspace-provider";
@@ -26,6 +26,7 @@ const primaryNavigation = [
 ];
 
 const supportNavigation = [{ href: "/feedback", label: "의견 보내기", icon: MessageSquareText }];
+const BETA_SURVEY_START_DAY = 14;
 
 function isCurrent(pathname: string, href: string) {
   if (href === "/today") return pathname === href;
@@ -58,6 +59,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const activeJobs = jobs.filter((job) => job.status === "active").length;
   const [currentPage, currentPageDescription] = pageContext(pathname);
   const feedbackFormUrl = getPublicEnvironmentValue("NEXT_PUBLIC_FEEDBACK_FORM_URL")?.trim();
+  const betaSurveyDue = planAccess.betaExpired || (
+    planAccess.source === "beta"
+    && planAccess.remainingDays <= BETA_GRANT_DAYS - BETA_SURVEY_START_DAY
+  );
 
   useEffect(() => {
     if (!alertOpen) return;
@@ -207,10 +212,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {planAccess.betaExpired && feedbackFormUrl && (
+        {betaSurveyDue && feedbackFormUrl && (
           <aside className="betaSurveyBanner" aria-labelledby="beta-survey-title">
             <div>
-              <strong id="beta-survey-title">30일 사용은 어떠셨나요?</strong>
+              <strong id="beta-survey-title">14일 동안 써보니 어떠셨나요?</strong>
               <span>아쉬웠던 점과 가격 의견을 짧게 남겨주세요.</span>
             </div>
             <a href={feedbackFormUrl} target="_blank" rel="noopener noreferrer">설문 작성하기</a>
