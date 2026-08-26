@@ -12,7 +12,7 @@ describe("Sites Worker entry", () => {
     const assets = {
       fetch: vi.fn(async (request: Request) => {
         const path = new URL(request.url).pathname;
-        return path === "/index.html"
+        return path === "/app-shell.html"
           ? new Response("<html>일감체크</html>", { status: 200 })
           : new Response("not found", { status: 404 });
       }),
@@ -29,14 +29,14 @@ describe("Sites Worker entry", () => {
     expect(response.headers.get("strict-transport-security")).toContain("max-age=31536000");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(assets.fetch).toHaveBeenCalledTimes(2);
-    expect(new URL(assets.fetch.mock.calls[1]?.[0].url).pathname).toBe("/index.html");
+    expect(new URL(assets.fetch.mock.calls[1]?.[0].url).pathname).toBe("/app-shell.html");
   });
 
   it("preserves a direct app route when the asset service redirects it to the root", async () => {
     const assets = {
       fetch: vi.fn(async (request: Request) => {
         const path = new URL(request.url).pathname;
-        return path === "/"
+        return path === "/app-shell.html"
           ? new Response("<html>일감체크</html>", { status: 200 })
           : new Response(null, { status: 307, headers: { Location: "/" } });
       }),
@@ -49,7 +49,7 @@ describe("Sites Worker entry", () => {
 
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toContain("일감체크");
-    expect(new URL(assets.fetch.mock.calls[1]?.[0].url).pathname).toBe("/");
+    expect(new URL(assets.fetch.mock.calls[1]?.[0].url).pathname).toBe("/app-shell.html");
   });
 
   it("injects only allowlisted public runtime values into HTML before the client module", async () => {

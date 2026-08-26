@@ -1,9 +1,9 @@
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Sites serves a static artifact before the Worker sees a route miss. Materialize
-// the finite app routes so direct bookmarks preserve their original URL.
+// Sites serves matching static HTML before the Worker. Keep the shell under a
+// non-route asset name so every navigation reaches the Worker first.
 export const SITES_STATIC_SPA_ROUTES = [
   "today", "jobs", "jobs/new", "packages", "settings", "feedback", "auth/reset", "privacy", "terms",
 ];
@@ -20,11 +20,7 @@ export const SITES_STATIC_SECURITY_HEADERS = `/*
 export async function prepareSitesSpaRoutes(clientDirectory) {
   const directory = resolve(clientDirectory);
   const shell = resolve(directory, "index.html");
-  for (const route of SITES_STATIC_SPA_ROUTES) {
-    const destinationDirectory = resolve(directory, route);
-    await mkdir(destinationDirectory, { recursive: true });
-    await copyFile(shell, resolve(destinationDirectory, "index.html"));
-  }
+  await rename(shell, resolve(directory, "app-shell.html"));
   await writeFile(resolve(directory, "_headers"), SITES_STATIC_SECURITY_HEADERS, "utf8");
 }
 

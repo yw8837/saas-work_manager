@@ -22,6 +22,8 @@ describe("mobile shell", () => {
     expect(existsSync(fromRoot("ios/App"))).toBe(true);
 
     const packageJson = JSON.parse(readFileSync(fromRoot("package.json"), "utf8"));
+    expect(packageJson.scripts["build:mobile"]).toBeDefined();
+    expect(packageJson.scripts["mobile:sync"]).toContain("npm run build:mobile");
     expect(packageJson.scripts["mobile:verify"]).toBeDefined();
   });
 

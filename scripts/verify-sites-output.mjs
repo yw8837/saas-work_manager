@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const required = [
   "dist/server/index.js",
-  "dist/client/index.html",
+  "dist/client/app-shell.html",
   "dist/.openai/hosting.json",
 ];
 
@@ -21,8 +21,9 @@ if (!worker.includes("__ILGAMCHECK_PUBLIC_ENV__") || !worker.includes("/api/heal
   process.exit(1);
 }
 
-if (!existsSync(resolve(root, "dist/client/today/index.html"))) {
-  console.error("[verify-sites-output] static SPA deep links are missing");
+if (existsSync(resolve(root, "dist/client/index.html"))
+  || existsSync(resolve(root, "dist/client/today/index.html"))) {
+  console.error("[verify-sites-output] HTML navigation can bypass the Worker security boundary");
   process.exit(1);
 }
 

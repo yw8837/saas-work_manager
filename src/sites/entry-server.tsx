@@ -124,7 +124,7 @@ async function serveStatic(request: Request, environment: SitesEnvironment): Pro
   }
 
   const appShellUrl = new URL(request.url);
-  appShellUrl.pathname = redirectsUnknownRouteToRoot ? "/" : "/index.html";
+  appShellUrl.pathname = "/app-shell.html";
   appShellUrl.search = "";
   return finalizeStaticResponse(
     await environment.ASSETS.fetch(new Request(appShellUrl, request)),
