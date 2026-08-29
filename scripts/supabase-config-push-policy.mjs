@@ -1,4 +1,14 @@
 import { supabaseNpxInvocation } from "./supabase-cli-policy.mjs";
+import { minimalChildEnvironment } from "./minimal-child-environment.mjs";
+
+export const GOOGLE_AUTH_CONFIG_ENV_NAMES = Object.freeze([
+  "SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID",
+  "SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET",
+]);
+
+export function googleAuthConfigChildEnvironment(env) {
+  return minimalChildEnvironment(env, GOOGLE_AUTH_CONFIG_ENV_NAMES);
+}
 
 export function normalizeAuthSiteUrl(rawUrl) {
   const value = rawUrl?.trim();

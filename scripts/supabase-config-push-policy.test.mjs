@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   configPushInvocation,
+  googleAuthConfigChildEnvironment,
   normalizeAuthSiteUrl,
   renderHostedSupabaseConfig,
 } from "./supabase-config-push-policy.mjs";
@@ -22,6 +23,24 @@ enabled = true
 `;
 
 describe("Supabase remote Auth config push", () => {
+  it("passes only the two Google OAuth credentials needed by config push", () => {
+    const child = googleAuthConfigChildEnvironment({
+      PATH: "C:\\bin",
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: "google-client-id",
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: "google-client-secret",
+      SUPABASE_SERVICE_ROLE_KEY: "must-not-leak",
+      UNRELATED_SECRET: "must-not-leak",
+    });
+
+    expect(child).toMatchObject({
+      PATH: "C:\\bin",
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: "google-client-id",
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: "google-client-secret",
+    });
+    expect(child).not.toHaveProperty("SUPABASE_SERVICE_ROLE_KEY");
+    expect(child).not.toHaveProperty("UNRELATED_SECRET");
+  });
+
   it("keeps the checked-in config deployable for Google-only signup", () => {
     const checkedInConfig = readFileSync(resolve(process.cwd(), "supabase/config.toml"), "utf8");
     const rendered = renderHostedSupabaseConfig(checkedInConfig, "https://preview.example.com");

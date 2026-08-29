@@ -11,13 +11,13 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import {
   configPushInvocation,
+  googleAuthConfigChildEnvironment,
   normalizeAuthSiteUrl,
   renderHostedSupabaseConfig,
 } from "./supabase-config-push-policy.mjs";
 import { authConfigApplyAck, verifyLinkedSupabaseProject } from "./supabase-project-guard.mjs";
 import { verifyHostedAuthOrigin } from "./sites-origin-guard.mjs";
 import { recordAuthConfigReceipt } from "./deployment-receipt.mjs";
-import { minimalChildEnvironment } from "./minimal-child-environment.mjs";
 
 if (process.argv.includes("--help")) {
   console.log("사용법: SUPABASE_AUTH_SITE_URL=https://PREVIEW_OR_DOMAIN npm run supabase:config:push");
@@ -86,7 +86,7 @@ try {
     // versions. Run from the isolated temporary root so only rendered hosted
     // redirects are eligible for the remote write.
     cwd: temporaryRoot,
-    env: minimalChildEnvironment(process.env),
+    env: googleAuthConfigChildEnvironment(process.env),
     stdio: "inherit",
     shell: false,
   });
