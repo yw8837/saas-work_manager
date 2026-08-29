@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   configPushInvocation,
@@ -20,6 +22,12 @@ enabled = true
 `;
 
 describe("Supabase remote Auth config push", () => {
+  it("keeps the checked-in config deployable for Google-only signup", () => {
+    const checkedInConfig = readFileSync(resolve(process.cwd(), "supabase/config.toml"), "utf8");
+    const rendered = renderHostedSupabaseConfig(checkedInConfig, "https://preview.example.com");
+    expect(rendered).toContain('"https://preview.example.com/settings"');
+  });
+
   it("accepts only an HTTPS deployment origin", () => {
     expect(normalizeAuthSiteUrl("https://preview.example.com/")).toBe("https://preview.example.com");
     expect(() => normalizeAuthSiteUrl("http://preview.example.com")).toThrow(/HTTPS/);
@@ -31,6 +39,7 @@ describe("Supabase remote Auth config push", () => {
     const rendered = renderHostedSupabaseConfig(publicSignupConfig, "https://preview.example.com");
     expect(rendered).toContain('site_url = "https://preview.example.com"');
     expect(rendered).toContain('"https://preview.example.com/today"');
+    expect(rendered).toContain('"https://preview.example.com/settings"');
     expect(rendered).not.toContain("http://127.0.0.1:3000/today");
     expect(() => renderHostedSupabaseConfig(publicSignupConfig.replace("enable_signup = true", "enable_signup = false"), "https://preview.example.com"))
       .toThrow(/\[auth\] enable_signup=true/);

@@ -65,6 +65,21 @@ beforeEach(() => {
   confirmAddonSpy.mockReset();
 });
 
+describe("JobDetail 고객 수정 링크", () => {
+  it("bearer token을 검색어가 아니라 보호된 /r 경로로 복사한다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    renderDetail();
+
+    fireEvent.click(screen.getByTestId("copy-revision-portal"));
+
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/r/token_detail`);
+  });
+});
+
 describe("JobDetail 원가·마진 노출", () => {
   it("계약 금액 옆에 예상 원가와 예상 마진·마진율을 그대로 보여준다", () => {
     renderDetail();

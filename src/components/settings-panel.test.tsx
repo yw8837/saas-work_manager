@@ -79,7 +79,7 @@ describe("SettingsPanel account deletion", () => {
 
     expect(screen.getByText(/먼저 JSON 백업을 내려받아/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Google로 본인 확인" }));
-    await waitFor(() => expect(signInWithGoogle).toHaveBeenCalledWith("/settings?accountDelete=1"));
+    await waitFor(() => expect(signInWithGoogle).toHaveBeenCalledWith("/settings"));
     const finalButton = screen.getByRole("button", { name: "계정과 모든 데이터 영구 삭제" });
     expect(finalButton).toBeDisabled();
 

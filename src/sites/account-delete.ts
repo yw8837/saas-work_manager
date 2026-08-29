@@ -1,3 +1,6 @@
+import { hasRecentGoogleAuthentication } from "@/lib/supabase/recent-google-authentication";
+import { configuredSupabaseProjectRef } from "@/lib/supabase/mode";
+
 type AccountDeletionEnvironment = {
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
@@ -8,7 +11,6 @@ type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respo
 const CONFIRMATION = "DELETE_ACCOUNT";
 const MAX_BODY_BYTES = 1_024;
 const MAX_TOKEN_LENGTH = 4_096;
-const REAUTHENTICATION_WINDOW_SECONDS = 5 * 60;
 
 function jsonError(message: string, status: number) {
   return new Response(JSON.stringify({ ok: false, message }), {
@@ -27,46 +29,12 @@ function sameOriginBrowserRequest(request: Request): boolean {
   }
 }
 
-function decodeAccessTokenPayload(accessToken: string): Record<string, unknown> | null {
-  const parts = accessToken.split(".");
-  if (parts.length !== 3 || !parts[1]) return null;
-  try {
-    const encoded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=");
-    const bytes = Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
-    const decoded = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
-    return decoded && typeof decoded === "object" && !Array.isArray(decoded)
-      ? decoded as Record<string, unknown>
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function hasRecentGoogleAuthentication(accessToken: string, verifiedUserId: string, nowSeconds: number): boolean {
-  const payload = decodeAccessTokenPayload(accessToken);
-  if (!payload || payload.sub !== verifiedUserId || payload.role !== "authenticated" || !Array.isArray(payload.amr)) {
-    return false;
-  }
-
-  let newestGoogleAuthentication: number | null = null;
-  for (const rawEntry of payload.amr) {
-    if (!rawEntry || typeof rawEntry !== "object" || Array.isArray(rawEntry)) continue;
-    const entry = rawEntry as { method?: unknown; timestamp?: unknown };
-    if (entry.method !== "oauth" || !Number.isInteger(entry.timestamp)) continue;
-    const timestamp = entry.timestamp as number;
-    if (timestamp <= 0 || timestamp > nowSeconds) return false;
-    newestGoogleAuthentication = Math.max(newestGoogleAuthentication ?? timestamp, timestamp);
-  }
-
-  return newestGoogleAuthentication !== null
-    && nowSeconds - newestGoogleAuthentication <= REAUTHENTICATION_WINDOW_SECONDS;
-}
-
 function configuredEnvironment(environment: AccountDeletionEnvironment) {
-  const url = environment.SUPABASE_URL?.trim().replace(/\/$/, "");
+  const projectRef = configuredSupabaseProjectRef(environment.SUPABASE_URL);
   const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  return url?.startsWith("https://") && serviceRoleKey ? { url, serviceRoleKey } : null;
+  return projectRef && serviceRoleKey
+    ? { url: `https://${projectRef}.supabase.co`, serviceRoleKey }
+    : null;
 }
 
 export async function handleAccountDeletion(

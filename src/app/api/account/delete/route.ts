@@ -1,17 +1,11 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server-admin";
+import { hasRecentGoogleAuthentication } from "@/lib/supabase/recent-google-authentication";
 
 export const dynamic = "force-dynamic";
 
 const CONFIRMATION = "DELETE_ACCOUNT";
 const MAX_BODY_BYTES = 1_024;
 const MAX_TOKEN_LENGTH = 4_096;
-const REAUTHENTICATION_WINDOW_SECONDS = 5 * 60;
-
-type AccessTokenPayload = {
-  sub?: unknown;
-  role?: unknown;
-  amr?: unknown;
-};
 
 function jsonError(message: string, status: number) {
   return Response.json(
@@ -30,43 +24,6 @@ function isSameOriginBrowserRequest(request: Request): boolean {
   } catch {
     return false;
   }
-}
-
-function hasRecentGoogleAuthentication(
-  accessToken: string,
-  verifiedUserId: string,
-  nowSeconds = Math.floor(Date.now() / 1_000),
-): boolean {
-  const parts = accessToken.split(".");
-  if (parts.length !== 3 || !parts[1]) return false;
-
-  let payload: AccessTokenPayload;
-  try {
-    const decoded = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as unknown;
-    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return false;
-    payload = decoded as AccessTokenPayload;
-  } catch {
-    return false;
-  }
-
-  if (payload.sub !== verifiedUserId || payload.role !== "authenticated" || !Array.isArray(payload.amr)) {
-    return false;
-  }
-
-  let mostRecentGoogleTimestamp: number | null = null;
-  for (const rawEntry of payload.amr) {
-    if (!rawEntry || typeof rawEntry !== "object" || Array.isArray(rawEntry)) continue;
-    const entry = rawEntry as { method?: unknown; timestamp?: unknown };
-    if (entry.method !== "oauth") continue;
-    if (!Number.isInteger(entry.timestamp) || (entry.timestamp as number) <= 0) return false;
-
-    const timestamp = entry.timestamp as number;
-    if (timestamp > nowSeconds) return false;
-    mostRecentGoogleTimestamp = Math.max(mostRecentGoogleTimestamp ?? timestamp, timestamp);
-  }
-
-  return mostRecentGoogleTimestamp !== null
-    && nowSeconds - mostRecentGoogleTimestamp <= REAUTHENTICATION_WINDOW_SECONDS;
 }
 
 export async function POST(request: Request) {

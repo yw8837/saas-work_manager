@@ -356,7 +356,7 @@ export function SettingsPanel() {
               type="button"
               className="quietButton"
               disabled={deletingAccount}
-              onClick={() => void signInWithGoogle("/settings?accountDelete=1")}
+              onClick={() => void signInWithGoogle("/settings")}
             >
               <LockKeyhole size={16} /> Google로 본인 확인
             </button>

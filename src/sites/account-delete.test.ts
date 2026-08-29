@@ -56,6 +56,22 @@ describe("Sites account deletion", () => {
     expect(requestFn).not.toHaveBeenCalled();
   });
 
+  it("never sends the service-role key to a non-Supabase URL", async () => {
+    const requestFn = vi.fn();
+    const response = await handleAccountDeletion(
+      request(),
+      {
+        ...environment,
+        SUPABASE_URL: "https://attacker.example.test",
+      },
+      requestFn,
+      now,
+    );
+
+    expect(response.status).toBe(503);
+    expect(requestFn).not.toHaveBeenCalled();
+  });
+
   it("deletes only the user verified from a recent Google OAuth access token", async () => {
     const requestFn = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ id: "owner-a" }), { status: 200 }))
@@ -81,5 +97,21 @@ describe("Sites account deletion", () => {
     await expect(response.json()).resolves.toMatchObject({
       message: "Google로 다시 본인 확인한 뒤 시도해주세요.",
     });
+  });
+
+  it("fails closed when any Google AMR entry has a malformed timestamp", async () => {
+    const requestFn = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "owner-a" }), { status: 200 }));
+    const response = await handleAccountDeletion(request({
+      token: accessToken({
+        amr: [
+          { method: "oauth", timestamp: "not-a-number" },
+          { method: "oauth", timestamp: now - 30 },
+        ],
+      }),
+    }), environment, requestFn, now);
+
+    expect(response.status).toBe(401);
+    expect(requestFn).toHaveBeenCalledTimes(1);
   });
 });

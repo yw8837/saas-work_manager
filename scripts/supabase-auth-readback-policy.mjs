@@ -6,7 +6,7 @@ export const DEFAULT_AUTH_READBACK_TIMEOUT_MS = 10_000;
 export const DEFAULT_AUTH_READBACK_MAX_BYTES = 64 * 1024;
 
 function authRedirectAllowListIssue(rawAllowList, expectedOrigin) {
-  const expectedResetUrl = `${expectedOrigin}/today`;
+  const expectedUrls = [`${expectedOrigin}/today`, `${expectedOrigin}/settings`];
   let entries;
 
   // Supabase CLI 2.114.0 serializes additional_redirect_urls with join(","),
@@ -22,9 +22,12 @@ function authRedirectAllowListIssue(rawAllowList, expectedOrigin) {
 
   // Do not URL-normalize remote entries: encoded/case/trailing-path variants,
   // credentials, query strings, fragments, wildcards, and duplicate entries
-  // must never become equivalent to the one literal callback we configured.
-  if (entries.length !== 1 || typeof entries[0] !== "string" || entries[0] !== expectedResetUrl) {
-    return "Supabase Auth config의 uri_allow_list는 현재 배포 origin의 /today 한 개만 허용해야 합니다.";
+  // must never become equivalent to the two literal callbacks we configured.
+  if (
+    entries.length !== expectedUrls.length
+    || entries.some((entry, index) => typeof entry !== "string" || entry !== expectedUrls[index])
+  ) {
+    return "Supabase Auth config의 uri_allow_list는 현재 배포 origin의 /today와 /settings만 허용해야 합니다.";
   }
 
   return null;

@@ -9,6 +9,7 @@ import {
   ILGAMCHECK_RUNTIME_CONTRACT,
 } from "@/lib/supabase/runtime-contract";
 import { probeHostedServiceRoleContract } from "@/lib/supabase/server-runtime-contract";
+import { configuredSupabaseProjectRef } from "@/lib/supabase/mode";
 
 export type SitesAssetBinding = {
   fetch(request: Request): Promise<Response>;
@@ -146,19 +147,6 @@ async function serveStatic(request: Request, environment: SitesEnvironment): Pro
   );
 }
 
-function configuredProjectRef(rawUrl: unknown): string | null {
-  if (typeof rawUrl !== "string") return null;
-  try {
-    const url = new URL(rawUrl.trim());
-    const match = url.hostname.match(/^([a-z0-9]{20})\.supabase\.co$/);
-    return url.protocol === "https:" && match && ["", "/"].includes(url.pathname)
-      ? match[1]
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return `sha256:${[...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
@@ -193,8 +181,8 @@ async function publicConfigState(environment: SitesEnvironment) {
 }
 
 async function health(environment: SitesEnvironment): Promise<Response> {
-  const projectRef = configuredProjectRef(environment.SUPABASE_URL);
-  const publicProjectRef = configuredProjectRef(environment.NEXT_PUBLIC_SUPABASE_URL);
+  const projectRef = configuredSupabaseProjectRef(environment.SUPABASE_URL);
+  const publicProjectRef = configuredSupabaseProjectRef(environment.NEXT_PUBLIC_SUPABASE_URL);
   const hostedConfigured = Boolean(
     environment.NEXT_PUBLIC_STORAGE_MODE === "hosted"
     && projectRef

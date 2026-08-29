@@ -22,7 +22,7 @@ import { minimalChildEnvironment } from "./minimal-child-environment.mjs";
 if (process.argv.includes("--help")) {
   console.log("사용법: SUPABASE_AUTH_SITE_URL=https://PREVIEW_OR_DOMAIN npm run supabase:config:push");
   console.log("검증된 연결 project ref가 들어간 ILGAMCHECK_AUTH_CONFIG_PUSH_ACK 확인값도 필요합니다.");
-  console.log("Google 로그인 ON·이메일 로그인 OFF와 해당 origin의 /today 1개를 원격 Auth 설정에 반영합니다.");
+  console.log("Google 로그인 ON·이메일 로그인 OFF와 해당 origin의 /today·/settings를 원격 Auth 설정에 반영합니다.");
   process.exit(0);
 }
 
@@ -80,7 +80,7 @@ try {
   writeFileSync(join(supabaseDirectory, "config.toml"), hostedConfig, { encoding: "utf8", flag: "wx" });
 
   const command = configPushInvocation(projectRef, temporaryRoot);
-  console.log(`[supabase-config] APPLY — ${siteUrl}, 이메일 신규 가입·로그인 ON을 원격 프로젝트에 반영합니다.`);
+  console.log(`[supabase-config] APPLY — ${siteUrl}, Google 로그인 ON·이메일 로그인 OFF를 원격 프로젝트에 반영합니다.`);
   const result = spawnSync(command.executable, command.args, {
     // Supabase prefers a config in the process CWD over --workdir in some CLI
     // versions. Run from the isolated temporary root so only rendered hosted
@@ -97,7 +97,7 @@ try {
     process.exitCode = result.status ?? 1;
   } else {
     recordAuthConfigReceipt({ projectRef, origin: siteUrl });
-    console.log("[supabase-config] 원격 Auth config push 완료. Dashboard에서도 이메일 신규 가입·로그인 ON·URL을 교차 확인하세요.");
+    console.log("[supabase-config] 원격 Auth config push 완료. Dashboard에서도 Google 로그인 ON·이메일 로그인 OFF·redirect 2개를 교차 확인하세요.");
   }
 } finally {
   const resolvedTemp = resolve(temporaryRoot);

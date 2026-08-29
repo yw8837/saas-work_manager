@@ -26,6 +26,7 @@ const hosted = vi.hoisted(() => {
     realtimeStatusCallback: null as RealtimeStatusCallback | null,
     getSession: vi.fn(),
     signInWithOAuth: vi.fn(),
+    signOut: vi.fn(),
     load: vi.fn<(client: unknown, ownerId: string) => Promise<HostedDocument | null>>(),
     save: vi.fn(),
     sync: vi.fn(),
@@ -45,6 +46,7 @@ vi.mock("@/lib/supabase", async () => {
     auth: {
       getSession: hosted.getSession,
       signInWithOAuth: hosted.signInWithOAuth,
+      signOut: hosted.signOut,
       onAuthStateChange: vi.fn((callback: AuthCallback) => {
         hosted.authCallback = callback;
         return { data: { subscription: { unsubscribe: vi.fn() } } };
@@ -113,6 +115,7 @@ function Probe() {
       <span data-testid="realtime-error">{realtimeError}</span>
       <button type="button" onClick={() => updateSettings({ morningDigestEnabled: false })}>edit workspace</button>
       <button type="button" onClick={() => void signInWithGoogle()}>google login</button>
+      <button type="button" onClick={() => void signInWithGoogle("/settings")}>google reauth</button>
     </div>
   );
 }
@@ -120,11 +123,13 @@ function Probe() {
 describe("hosted auth activation", () => {
   beforeEach(() => {
     Object.defineProperty(window, "localStorage", { configurable: true, value: new MemoryStorage() });
+    Object.defineProperty(window, "sessionStorage", { configurable: true, value: new MemoryStorage() });
     hosted.authCallback = null;
     hosted.realtimeCallback = null;
     hosted.realtimeStatusCallback = null;
     hosted.getSession.mockReset();
     hosted.signInWithOAuth.mockReset().mockResolvedValue({ data: { url: "https://accounts.google.com" }, error: null });
+    hosted.signOut.mockReset().mockResolvedValue({ error: null });
     hosted.load.mockReset();
     hosted.save.mockReset();
     hosted.sync.mockReset();
@@ -149,6 +154,37 @@ describe("hosted auth activation", () => {
       provider: "google",
       options: { redirectTo: `${window.location.origin}/today` },
     }));
+  });
+
+  it("binds settings reauthentication to the current owner and asks Google to select an account", async () => {
+    hosted.load.mockResolvedValue(remote());
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await waitFor(() => expect(hosted.authCallback).not.toBeNull());
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(hosted.load).toHaveBeenCalledWith(expect.anything(), "owner-a"));
+
+    fireEvent.click(screen.getByRole("button", { name: "google reauth" }));
+
+    await waitFor(() => expect(hosted.signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/settings`,
+        queryParams: { prompt: "select_account" },
+      },
+    }));
+    expect(window.sessionStorage.getItem("ilgamcheck:google-reauth-owner")).toBe("owner-a");
+  });
+
+  it("signs out instead of activating a different account after Google reauthentication", async () => {
+    window.sessionStorage.setItem("ilgamcheck:google-reauth-owner", "owner-a");
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await waitFor(() => expect(hosted.authCallback).not.toBeNull());
+
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-b")));
+
+    await waitFor(() => expect(hosted.signOut).toHaveBeenCalledWith({ scope: "local" }));
+    expect(hosted.load).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem("ilgamcheck:google-reauth-owner")).toBeNull();
   });
 
   it("uses INITIAL_SESSION as the single first-session entry without getSession double activation", async () => {

@@ -30,16 +30,19 @@ enabled = true
 site_url = "https://ilgamcheck-beta.bsfire1237.chatgpt.site"
 additional_redirect_urls = [
   "http://127.0.0.1:3000/today",
+  "http://127.0.0.1:3000/settings",
   "http://localhost:3000/today",
-  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/today"
+  "http://localhost:3000/settings",
+  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/today",
+  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/settings"
 ]
 jwt_expiry = 3600
-enable_signup = false
+enable_signup = true
 enable_anonymous_sign_ins = false
 minimum_password_length = 8
 
 [auth.email]
-enable_signup = true
+enable_signup = false
 double_confirm_changes = true
 enable_confirmations = true
 secure_password_change = true

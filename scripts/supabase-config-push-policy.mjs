@@ -40,9 +40,13 @@ export function renderHostedSupabaseConfig(localConfig, rawSiteUrl) {
   );
   hosted = hosted.replace(
     /^additional_redirect_urls\s*=\s*\[[\s\S]*?^\]/m,
-    `additional_redirect_urls = [\n  "${siteUrl}/today"\n]`,
+    `additional_redirect_urls = [\n  "${siteUrl}/today",\n  "${siteUrl}/settings"\n]`,
   );
-  if (!hosted.includes(`site_url = "${siteUrl}"`) || !hosted.includes(`"${siteUrl}/today"`)) {
+  if (
+    !hosted.includes(`site_url = "${siteUrl}"`)
+    || !hosted.includes(`"${siteUrl}/today"`)
+    || !hosted.includes(`"${siteUrl}/settings"`)
+  ) {
     throw new Error("config.toml의 Auth URL 블록을 안전하게 바꾸지 못했습니다.");
   }
   return hosted;

@@ -169,6 +169,8 @@ function stateWithoutRevisionEvidence(state: AppState): string {
 
 const HOSTED_DRAFT_SCHEMA_VERSION = 1;
 const HOSTED_DRAFT_SUFFIX = ":hosted-draft";
+const GOOGLE_REAUTH_OWNER_SESSION_KEY = "ilgamcheck:google-reauth-owner";
+const GOOGLE_REAUTH_REDIRECT_PATH = "/settings";
 
 export type HostedDraftRecord = {
   schemaVersion: typeof HOSTED_DRAFT_SCHEMA_VERSION;
@@ -894,6 +896,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       };
 
       const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
+        const pendingReauthenticationOwner = window.sessionStorage.getItem(GOOGLE_REAUTH_OWNER_SESSION_KEY);
+        if (pendingReauthenticationOwner && session?.user) {
+          window.sessionStorage.removeItem(GOOGLE_REAUTH_OWNER_SESSION_KEY);
+          if (session.user.id !== pendingReauthenticationOwner) {
+            activeSessionIdentity = null;
+            queueMicrotask(async () => {
+              await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+              if (cancelled) return;
+              setAuthStatus("signed_out");
+              setAuthError("본인 확인에 사용한 Google 계정이 기존 계정과 달라 로그아웃했어요. 기존 계정으로 다시 로그인해주세요.");
+              setHydrated(true);
+            });
+            return;
+          }
+        }
         const identity = session?.user.id ?? null;
         if (event !== "INITIAL_SESSION" && identity === activeSessionIdentity) {
           if (session?.user.email) setUserEmail(session.user.email);
@@ -931,12 +948,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const safePath = redirectPath.startsWith("/") && !redirectPath.startsWith("//")
       ? redirectPath
       : "/today";
+    const reauthenticating = safePath === GOOGLE_REAUTH_REDIRECT_PATH;
+    if (reauthenticating) {
+      const ownerId = hostedOwnerRef.current;
+      if (!ownerId) throw new Error("본인 확인할 기존 계정을 찾지 못했어요. 다시 로그인해주세요.");
+      window.sessionStorage.setItem(GOOGLE_REAUTH_OWNER_SESSION_KEY, ownerId);
+    }
     setAuthError(null);
     const { error } = await client.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: new URL(safePath, window.location.origin).toString() },
+      options: {
+        redirectTo: new URL(safePath, window.location.origin).toString(),
+        ...(reauthenticating ? { queryParams: { prompt: "select_account" } } : {}),
+      },
     });
     if (error) {
+      if (reauthenticating) window.sessionStorage.removeItem(GOOGLE_REAUTH_OWNER_SESSION_KEY);
       setAuthError(error.message);
       throw new Error(error.message);
     }

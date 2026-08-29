@@ -14,9 +14,9 @@
 
 1. Sites 프로젝트를 한 번만 만들고 `.openai/hosting.json`에는 project ID만 기록한다.
 2. Supabase URL, publishable browser key, secret server key와 운영자 정보를 Sites 환경변수로 설정한다. 비밀값은 Git에 넣지 않는다.
-3. 비공개 접근으로 먼저 배포한다.
-4. 배포 URL에서 `/api/health`, 로그인, 비밀번호 재설정, A/B RLS, 고객 수정 링크를 검사한다.
-5. 도메인을 연결한 뒤에만 Supabase Auth의 Site URL과 허용 redirect를 최종 도메인의 `/auth/reset` 한 개로 교체한다.
+3. 검증할 버전을 저장하고 배포한다.
+4. 배포 URL에서 `/api/health`, Google 로그인, A/B RLS, 고객 수정 링크와 계정 삭제 재인증을 검사한다.
+5. Supabase Auth의 Site URL을 최종 origin으로 두고 허용 redirect는 정확한 `/today`와 `/settings` 두 개만 둔다.
 6. 다시 원격 검증을 통과한 뒤 외부 베타 초대를 시작한다.
 
 PortOne 결제와 실제 요금제 부여는 이 단계 뒤에도 별도 구현·검증 항목이다.

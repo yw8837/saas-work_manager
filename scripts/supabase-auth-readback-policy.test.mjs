@@ -9,6 +9,7 @@ import {
 const projectRef = "abcdefghijklmnopqrst";
 const expectedOrigin = "https://preview.example.com";
 const accessToken = "sbp_private-test-token";
+const expectedRedirects = `${expectedOrigin}/today,${expectedOrigin}/settings`;
 
 function authResponse(overrides = {}, options = {}) {
   return Response.json({
@@ -16,7 +17,7 @@ function authResponse(overrides = {}, options = {}) {
     disable_signup: false,
     external_email_enabled: false,
     external_google_enabled: true,
-    uri_allow_list: `${expectedOrigin}/today`,
+    uri_allow_list: expectedRedirects,
     ...overrides,
   }, options);
 }
@@ -48,7 +49,7 @@ describe("Supabase Auth Management API readback policy", () => {
       disable_signup: false,
       external_email_enabled: false,
       external_google_enabled: true,
-      uri_allow_list: `${expectedOrigin}/today`,
+      uri_allow_list: expectedRedirects,
     }, expectedOrigin)).toMatch(/site_url/);
 
     expect(supabaseAuthConfigIssue({
@@ -56,7 +57,7 @@ describe("Supabase Auth Management API readback policy", () => {
       disable_signup: true,
       external_email_enabled: false,
       external_google_enabled: true,
-      uri_allow_list: `${expectedOrigin}/today`,
+      uri_allow_list: expectedRedirects,
     }, expectedOrigin)).toMatch(/disable_signup/);
 
     expect(supabaseAuthConfigIssue({
@@ -64,7 +65,7 @@ describe("Supabase Auth Management API readback policy", () => {
       disable_signup: false,
       external_email_enabled: false,
       external_google_enabled: false,
-      uri_allow_list: `${expectedOrigin}/today`,
+      uri_allow_list: expectedRedirects,
     }, expectedOrigin)).toMatch(/external_google_enabled/);
 
     expect(supabaseAuthConfigIssue({
@@ -72,44 +73,48 @@ describe("Supabase Auth Management API readback policy", () => {
       disable_signup: false,
       external_email_enabled: true,
       external_google_enabled: true,
-      uri_allow_list: `${expectedOrigin}/today`,
+      uri_allow_list: expectedRedirects,
     }, expectedOrigin)).toMatch(/external_email_enabled/);
   });
 
-  it("accepts only the one literal OAuth return URL in string or array form", () => {
+  it("accepts only the two literal OAuth return URLs in string or array form", () => {
     const publicConfig = {
       site_url: expectedOrigin,
       disable_signup: false,
       external_email_enabled: false,
       external_google_enabled: true,
     };
-    const resetUrl = `${expectedOrigin}/today`;
+    const todayUrl = `${expectedOrigin}/today`;
+    const settingsUrl = `${expectedOrigin}/settings`;
 
     expect(supabaseAuthConfigIssue({
       ...publicConfig,
-      uri_allow_list: resetUrl,
+      uri_allow_list: `${todayUrl},${settingsUrl}`,
     }, expectedOrigin)).toBeNull();
     expect(supabaseAuthConfigIssue({
       ...publicConfig,
-      uri_allow_list: [resetUrl],
+      uri_allow_list: [todayUrl, settingsUrl],
     }, expectedOrigin)).toBeNull();
 
     const rejectedAllowLists = [
       undefined,
       "",
       [],
-      `${resetUrl},https://evil.example/today`,
-      [resetUrl, "https://evil.example/today"],
-      [resetUrl, resetUrl],
+      todayUrl,
+      settingsUrl,
+      `${todayUrl},https://evil.example/today`,
+      [todayUrl, "https://evil.example/today"],
+      [todayUrl, todayUrl],
+      [settingsUrl, todayUrl],
       `${expectedOrigin}/*`,
       "https://old-preview.example.com/today",
       `https://user:pass@preview.example.com/today`,
-      `${resetUrl}?next=evil`,
-      `${resetUrl}#evil`,
-      `${resetUrl}/`,
+      `${todayUrl}?next=evil,${settingsUrl}`,
+      `${todayUrl}#evil,${settingsUrl}`,
+      `${todayUrl}/,${settingsUrl}`,
       "https://PREVIEW.example.com/today",
       `${expectedOrigin}/%74oday`,
-      ` ${resetUrl}`,
+      ` ${todayUrl},${settingsUrl}`,
     ];
 
     for (const uriAllowList of rejectedAllowLists) {
@@ -122,10 +127,11 @@ describe("Supabase Auth Management API readback policy", () => {
 
   it("rejects a malicious remote allow-list even when all other auth fields are valid", async () => {
     const maliciousAllowLists = [
-      `${expectedOrigin}/today,https://evil.example/today`,
+      `${expectedOrigin}/today,${expectedOrigin}/settings,https://evil.example/today`,
       `${expectedOrigin}/*`,
       [
         `${expectedOrigin}/today`,
+        `${expectedOrigin}/settings`,
         "https://old-preview.example.com/today",
       ],
     ];

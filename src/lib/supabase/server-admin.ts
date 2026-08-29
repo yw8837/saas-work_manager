@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { configuredSupabaseProjectRef } from "./mode";
 
 let adminClient: SupabaseClient | null = null;
 
@@ -22,12 +23,12 @@ function isServerAdminKey(value: string): boolean {
 export function getSupabaseAdminClient(): SupabaseClient | null {
   if (process.env.NEXT_PUBLIC_STORAGE_MODE !== "hosted") return null;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const projectRef = configuredSupabaseProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !key || !isServerAdminKey(key)) return null;
+  if (!projectRef || !key || !isServerAdminKey(key)) return null;
   if (adminClient) return adminClient;
 
-  adminClient = createClient(url, key, {
+  adminClient = createClient(`https://${projectRef}.supabase.co`, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
