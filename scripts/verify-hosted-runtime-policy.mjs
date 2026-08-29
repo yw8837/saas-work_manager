@@ -7,22 +7,42 @@ export const HOSTED_VERIFY_ACK = "OVERWRITE_DEDICATED_TEST_DATA";
 // src/lib/supabase/contract-single-source.test.ts가 앱 상수·이 상수·migration 세 값의 일치를 강제한다.
 export const HOSTED_RUNTIME_CONTRACT = "202608250011";
 
+export function hostedVerificationCredential(env, label) {
+  const prefix = `ILGAMCHECK_TEST_${label}`;
+  const accessToken = env[`${prefix}_ACCESS_TOKEN`]?.trim();
+  const refreshToken = env[`${prefix}_REFRESH_TOKEN`]?.trim();
+  if (accessToken && refreshToken) {
+    return { mode: "session", accessToken, refreshToken };
+  }
+  if (accessToken || refreshToken) return null;
+
+  const email = env[`${prefix}_EMAIL`]?.trim();
+  const password = env[`${prefix}_PASSWORD`]?.trim();
+  if (email && password) return { mode: "password", email, password };
+  return null;
+}
+
+export function assertVerificationCleanupResults(results) {
+  const failures = results.filter((result) => result.error);
+  if (!failures.length) return;
+  const details = failures
+    .map(({ label, error }) => `${label}: ${error?.message ?? String(error)}`)
+    .join("; ");
+  throw new Error(`임시 검증 데이터 정리 실패 — ${details}`);
+}
+
 export function collectHostedVerificationEnvIssues(env) {
   const issues = collectDeployEnvIssues(env, { requireServiceRole: false });
-  const required = [
-    "ILGAMCHECK_TEST_A_EMAIL",
-    "ILGAMCHECK_TEST_A_PASSWORD",
-    "ILGAMCHECK_TEST_B_EMAIL",
-    "ILGAMCHECK_TEST_B_PASSWORD",
-  ];
-  for (const name of required) {
-    if (!env[name]?.trim()) issues.push(`${name} 값이 없습니다.`);
+  for (const label of ["A", "B"]) {
+    if (!hostedVerificationCredential(env, label)) {
+      issues.push(`ILGAMCHECK_TEST_${label}는 이메일/비밀번호 또는 access/refresh token 한 쌍이 필요합니다.`);
+    }
   }
   if (env.ILGAMCHECK_HOSTED_VERIFY_ACK !== HOSTED_VERIFY_ACK) {
     issues.push(`ILGAMCHECK_HOSTED_VERIFY_ACK=${HOSTED_VERIFY_ACK} 명시 동의가 필요합니다.`);
   }
-  const emailA = env.ILGAMCHECK_TEST_A_EMAIL?.trim().toLowerCase();
-  const emailB = env.ILGAMCHECK_TEST_B_EMAIL?.trim().toLowerCase();
+  const emailA = hostedVerificationCredential(env, "A")?.email?.toLowerCase();
+  const emailB = hostedVerificationCredential(env, "B")?.email?.toLowerCase();
   if (emailA && emailB && emailA === emailB) {
     issues.push("A/B 테스트 이메일은 서로 달라야 합니다.");
   }

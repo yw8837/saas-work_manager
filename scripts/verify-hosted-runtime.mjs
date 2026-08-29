@@ -4,12 +4,13 @@ import { createClient } from "@supabase/supabase-js";
 import {
   collectHostedVerificationEnvIssues,
   createHostedVerificationState,
+  hostedVerificationCredential,
   HOSTED_RUNTIME_CONTRACT,
   HOSTED_VERIFY_ACK,
 } from "./verify-hosted-runtime-policy.mjs";
 
 if (process.argv.includes("--help")) {
-  console.log("전용 A/B 계정을 준비하고 .env.local에 ILGAMCHECK_TEST_A/B_EMAIL/PASSWORD를 넣으세요.");
+  console.log("전용 A/B 계정을 준비하고 이메일/비밀번호 또는 access/refresh token 한 쌍을 넣으세요.");
   console.log(`실행 전 ILGAMCHECK_HOSTED_VERIFY_ACK=${HOSTED_VERIFY_ACK} 동의가 필요합니다.`);
   console.log("주의: A 테스트 계정의 기존 작업공간을 검증 데이터로 덮어씁니다.");
   process.exit(0);
@@ -62,8 +63,16 @@ async function waitForSubscription(channel) {
   });
 }
 
-async function signIn(client, email, password, label) {
-  const { data, error } = await client.auth.signInWithPassword({ email, password });
+async function signIn(client, credential, label) {
+  const { data, error } = credential.mode === "session"
+    ? await client.auth.setSession({
+        access_token: credential.accessToken,
+        refresh_token: credential.refreshToken,
+      })
+    : await client.auth.signInWithPassword({
+        email: credential.email,
+        password: credential.password,
+      });
   if (error || !data.user) throw new Error(`${label} 로그인 실패: ${error?.message ?? "user 없음"}`);
   console.log(`[hosted-verify] PASS ${label} 로그인`);
   return data.user;
@@ -73,8 +82,8 @@ try {
   console.log("[hosted-verify] 경고: 명시 동의 확인됨. A 전용 테스트 계정 작업공간을 덮어씁니다.");
   const [{ data: contract, error: contractError }, userA, userB] = await Promise.all([
     anonymous.rpc("get_ilgamcheck_runtime_contract"),
-    signIn(clientA, process.env.ILGAMCHECK_TEST_A_EMAIL, process.env.ILGAMCHECK_TEST_A_PASSWORD, "계정 A"),
-    signIn(clientB, process.env.ILGAMCHECK_TEST_B_EMAIL, process.env.ILGAMCHECK_TEST_B_PASSWORD, "계정 B"),
+    signIn(clientA, hostedVerificationCredential(process.env, "A"), "계정 A"),
+    signIn(clientB, hostedVerificationCredential(process.env, "B"), "계정 B"),
   ]);
   if (contractError) throw new Error(`runtime contract RPC 실패: ${contractError.message}`);
   assert(contract === HOSTED_RUNTIME_CONTRACT, `runtime contract 불일치: ${String(contract)}`);

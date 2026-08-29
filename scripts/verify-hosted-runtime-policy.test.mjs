@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
+import * as verificationPolicy from "./verify-hosted-runtime-policy.mjs";
+
+const {
   collectHostedVerificationEnvIssues,
   createHostedVerificationState,
+  hostedVerificationCredential,
   HOSTED_VERIFY_ACK,
-} from "./verify-hosted-runtime-policy.mjs";
+} = verificationPolicy;
 
 const validEnv = {
   NEXT_PUBLIC_STORAGE_MODE: "hosted",
@@ -31,6 +34,55 @@ describe("Hosted runtime verification safety", () => {
     expect(collectHostedVerificationEnvIssues({ ...validEnv, ILGAMCHECK_TEST_B_EMAIL: "A@example.com" })[0])
       .toContain("서로 달라야");
     expect(collectHostedVerificationEnvIssues({}).some((issue) => issue.includes("서로 달라야"))).toBe(false);
+  });
+
+  it("accepts complete A/B sessions when password login is disabled", () => {
+    const sessionEnv = { ...validEnv };
+    for (const name of [
+      "ILGAMCHECK_TEST_A_EMAIL",
+      "ILGAMCHECK_TEST_A_PASSWORD",
+      "ILGAMCHECK_TEST_B_EMAIL",
+      "ILGAMCHECK_TEST_B_PASSWORD",
+    ]) delete sessionEnv[name];
+    Object.assign(sessionEnv, {
+      ILGAMCHECK_TEST_A_ACCESS_TOKEN: "access-a",
+      ILGAMCHECK_TEST_A_REFRESH_TOKEN: "refresh-a",
+      ILGAMCHECK_TEST_B_ACCESS_TOKEN: "access-b",
+      ILGAMCHECK_TEST_B_REFRESH_TOKEN: "refresh-b",
+    });
+
+    expect(collectHostedVerificationEnvIssues(sessionEnv)).toEqual([]);
+    expect(hostedVerificationCredential(sessionEnv, "A")).toEqual({
+      mode: "session",
+      accessToken: "access-a",
+      refreshToken: "refresh-a",
+    });
+  });
+
+  it("rejects an incomplete session instead of silently falling back", () => {
+    const incomplete = { ...validEnv };
+    delete incomplete.ILGAMCHECK_TEST_A_EMAIL;
+    delete incomplete.ILGAMCHECK_TEST_A_PASSWORD;
+    incomplete.ILGAMCHECK_TEST_A_ACCESS_TOKEN = "access-a";
+
+    expect(collectHostedVerificationEnvIssues(incomplete)).toContain(
+      "ILGAMCHECK_TEST_A는 이메일/비밀번호 또는 access/refresh token 한 쌍이 필요합니다.",
+    );
+
+    const refreshOnly = { ...validEnv };
+    delete refreshOnly.ILGAMCHECK_TEST_A_EMAIL;
+    delete refreshOnly.ILGAMCHECK_TEST_A_PASSWORD;
+    refreshOnly.ILGAMCHECK_TEST_A_REFRESH_TOKEN = "refresh-a";
+    expect(collectHostedVerificationEnvIssues(refreshOnly)).toContain(
+      "ILGAMCHECK_TEST_A는 이메일/비밀번호 또는 access/refresh token 한 쌍이 필요합니다.",
+    );
+  });
+
+  it("fails closed when any temporary cleanup operation fails", () => {
+    expect(() => verificationPolicy.assertVerificationCleanupResults([
+      { label: "VERIFYA 코드 삭제", error: null },
+      { label: "임시 사용자 삭제", error: { message: "permission denied" } },
+    ])).toThrow("임시 사용자 삭제: permission denied");
   });
 
   it("creates a valid unique 256-bit portal fixture", () => {
