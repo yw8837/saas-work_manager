@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSeedState } from "@/lib/store";
+import { createSeedState, serializeWorkspaceExport } from "@/lib/store";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
 import { SettingsPanel } from "./settings-panel";
 import { useWorkspace } from "./workspace-provider";
@@ -219,5 +219,66 @@ describe("SettingsPanel 플랜 섹션", () => {
 
     render(<SettingsPanel />);
     expect(screen.getByTestId("plan-expiry-notice")).toHaveTextContent("베타 이용 기간이 끝나 무료 플랜으로 돌아왔어요.");
+  });
+});
+
+describe("SettingsPanel 백업 불러오기", () => {
+  const restoreWorkspace = vi.fn();
+  const localWorkspace = {
+    ...hostedWorkspace,
+    runtimeMode: "local",
+    userEmail: null,
+    restoreWorkspace,
+  } as unknown as ReturnType<typeof useWorkspace>;
+
+  const backupFile = () => new File(
+    [serializeWorkspaceExport(seed, null, "2026-09-20T10:00:00.000Z")],
+    "ilgamcheck-export-2026-09-20.json",
+    { type: "application/json" },
+  );
+
+  beforeEach(() => {
+    restoreWorkspace.mockReset().mockReturnValue(true);
+    vi.mocked(useWorkspace).mockReturnValue(localWorkspace);
+  });
+
+  it("로컬 모드에서 확인을 받은 뒤 백업을 복원한다", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockClear().mockReturnValue(true);
+    render(<SettingsPanel />);
+
+    fireEvent.change(screen.getByTestId("import-workspace-input"), { target: { files: [backupFile()] } });
+
+    await waitFor(() => expect(restoreWorkspace).toHaveBeenCalledTimes(1));
+    expect(confirmSpy.mock.lastCall?.[0]).toContain(`일감 ${seed.jobs.length}개`);
+    expect(restoreWorkspace.mock.calls[0][0].jobs).toHaveLength(seed.jobs.length);
+    expect(await screen.findByText(/백업을 불러왔어요/)).toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it("확인을 취소하면 아무것도 바꾸지 않는다", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockClear().mockReturnValue(false);
+    render(<SettingsPanel />);
+
+    fireEvent.change(screen.getByTestId("import-workspace-input"), { target: { files: [backupFile()] } });
+
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
+    expect(restoreWorkspace).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it("일감체크 백업이 아니면 이유를 알려 주고 복원하지 않는다", async () => {
+    render(<SettingsPanel />);
+    const wrong = new File(["{\"hello\":1}"], "other.json", { type: "application/json" });
+
+    fireEvent.change(screen.getByTestId("import-workspace-input"), { target: { files: [wrong] } });
+
+    expect(await screen.findByText(/일감체크 백업 파일이 아니에요/)).toBeInTheDocument();
+    expect(restoreWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("로그인 저장 모드에서는 불러오기 버튼을 보여 주지 않는다", () => {
+    vi.mocked(useWorkspace).mockReturnValue(hostedWorkspace);
+    render(<SettingsPanel />);
+    expect(screen.queryByTestId("import-workspace")).not.toBeInTheDocument();
   });
 });

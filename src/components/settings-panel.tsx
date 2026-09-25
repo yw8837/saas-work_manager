@@ -16,10 +16,12 @@ import {
   Sparkles,
   Trash2,
   TriangleAlert,
+  Upload,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { serializeWorkspaceExport } from "@/lib/store";
+import { parseWorkspaceImport } from "@/lib/store/import";
 import {
   getNotificationCapability,
   requestBrowserNotificationPermission,
@@ -62,7 +64,7 @@ function permissionLabel(permission: BrowserNotificationState) {
 }
 
 export function SettingsPanel() {
-  const { packages, options, jobs, settings, activityDates, updateSettings, runtimeMode, userEmail, signInWithGoogle, signOut, deleteAccount, saveStatus, saveError, realtimeStatus, realtimeError, plan, planAccess, limits, activeJobCount, jobsCreatedTotal, trialStartedAt, betaAccess, activateInviteCode } = useWorkspace();
+  const { packages, options, jobs, settings, activityDates, updateSettings, runtimeMode, userEmail, signInWithGoogle, signOut, deleteAccount, saveStatus, saveError, realtimeStatus, realtimeError, plan, planAccess, limits, activeJobCount, jobsCreatedTotal, trialStartedAt, betaAccess, activateInviteCode, restoreWorkspace } = useWorkspace();
   const isPro = plan === "pro";
   const [inviteCode, setInviteCode] = useState("");
   const [inviteFeedback, setInviteFeedback] = useState<{ ok: boolean; message: string } | null>(null);
@@ -133,6 +135,26 @@ export function SettingsPanel() {
     anchor.click();
     URL.revokeObjectURL(url);
     setAccountFeedback("작업공간 JSON을 내려받았어요. 공개 수정링크의 비밀 토큰은 제외했어요.");
+  };
+
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const importWorkspace = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const result = parseWorkspaceImport(await file.text());
+    if (!result.ok) {
+      setAccountFeedback(result.message);
+      return;
+    }
+    const when = result.exportedAt ? `(${result.exportedAt.slice(0, 10)})` : "";
+    const confirmed = window.confirm(
+      `이 브라우저의 지금 자료를 백업 파일${when}의 일감 ${result.jobCount}개로 바꿀까요?\n지금 자료는 사라지니, 필요하면 먼저 '데이터 내보내기'로 받아 두세요.\n고객에게 보냈던 수정링크는 새로 만들어져서 예전 링크는 더 이상 열리지 않아요.`,
+    );
+    if (!confirmed) return;
+    setAccountFeedback(restoreWorkspace(result.workspace)
+      ? `백업을 불러왔어요. 일감 ${result.jobCount}개를 복원했어요. 수정링크는 새로 만들어졌어요.`
+      : "로그인 저장 모드에서는 백업 불러오기를 지원하지 않아요.");
   };
 
   const [redeeming, setRedeeming] = useState(false);
@@ -310,10 +332,16 @@ export function SettingsPanel() {
         <div>
           <span className="sectionMiniLabel">데이터 저장</span>
           <h2>{runtimeMode === "hosted" ? "Supabase 계정 저장" : "이 브라우저 로컬 저장"}</h2>
-          <p>{runtimeMode === "hosted" ? `${userEmail ?? "현재 계정"} · ${saveStatus === "error" ? saveError ?? "저장 실패" : saveStatus === "saving" ? "변경사항 저장 중" : "최신 상태 저장됨"} · ${realtimeStatus === "connected" ? "실시간 연결됨" : realtimeStatus === "error" ? realtimeError ?? "실시간 연결 오류" : "실시간 연결 중"}` : "내 자료는 이 브라우저에만 남아요. 다른 기기에서는 보이지 않아요."}</p>
+          <p>{runtimeMode === "hosted" ? `${userEmail ?? "현재 계정"} · ${saveStatus === "error" ? saveError ?? "저장 실패" : saveStatus === "saving" ? "변경사항 저장 중" : "최신 상태 저장됨"} · ${realtimeStatus === "connected" ? "실시간 연결됨" : realtimeStatus === "error" ? realtimeError ?? "실시간 연결 오류" : "실시간 연결 중"}` : "내 자료는 이 브라우저에만 남아요. 다른 기기에서는 보이지 않고, 브라우저 기록을 지우면 사라질 수 있어요. 가끔 '데이터 내보내기'로 백업해 두세요."}</p>
         </div>
         <div className="browserTestActions">
           <button type="button" className="quietButton" onClick={downloadWorkspace} data-testid="export-workspace"><Download size={16} /> 데이터 내보내기</button>
+          {runtimeMode !== "hosted" && (
+            <>
+              <button type="button" className="quietButton" onClick={() => importInputRef.current?.click()} data-testid="import-workspace"><Upload size={16} /> 백업 불러오기</button>
+              <input ref={importInputRef} type="file" accept="application/json,.json" hidden onChange={(event) => void importWorkspace(event)} data-testid="import-workspace-input" />
+            </>
+          )}
           {runtimeMode === "hosted" && <button type="button" className="quietButton" disabled={signingOut} onClick={() => void handleSignOut()}><LogOut size={16} /> {signingOut ? "로그아웃 중…" : "로그아웃"}</button>}
           {runtimeMode === "hosted" && forceSignOutAvailable && <button type="button" className="dangerButton" disabled={signingOut} onClick={() => void handleSignOut(true)}>미저장 변경 버리고 로그아웃</button>}
         </div>
