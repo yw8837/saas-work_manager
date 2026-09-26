@@ -41,6 +41,14 @@ UI에서 일감을 삭제하면 문서 JSON에서는 사라지고 공개 링크�
 
 ## 미완료 운영 조건 — 통과로 꾸미지 않음
 
+## 빈 일감 화면의 마지막 정렬 보완
+
+- 운영 테스트 자료를 정리한 뒤 아이콘·제목·설명·버튼이 한 줄에 붙는 기존 UI 결함을 발견했다. `.jobEmpty`에 세로 flex 정렬과 8px 간격만 추가했고 문구·라우트·저장 로직은 바꾸지 않았다.
+- `e2e/responsive-ui.spec.ts`: 320/1440px 각각 초기 빈 목록과 검색 결과 없음에서 요소의 세로 순서·뷰포트 내 위치·가로 넘침·첫 일감 생성 페이지 이동을 검사한다. local build에서 수정 전 요소 순서 assertion RED, 수정 후 4/4 PASS. 최초 테스트는 이전 hosted build여서 실행 준비 오류가 있었으며 local rebuild 뒤 실제 결함을 재현했다.
+- 최종 PR CI 및 배포 영수증은 HANDOFF.md 최신 절에 기록한다.
+
+## 미완료 운영 조건 — 통과로 꾸미지 않음
+
 - policyPublication.finalized=false. --require-finalized 검사 FAIL. 법률 검토와 정책 확정의 증거가 없으므로 true로 바꾸지 않았다.
 - operational:evidence:verify는 저장소 밖 운영 증거 경로가 없어 FAIL. 실제 계정 탈퇴/cascade와 별도 복구 환경에서의 백업 복원 증거를 만들지 않았다. 운영 DB를 복원 실험 대상으로 쓰지 않는다.
 - 기존 check:external-beta는 Vercel/SMTP 및 recentPasswordAmrVerified를 전제로 한다. 현재 Sites/Google-only/최근 OAuth 재인증과 맞지 않아 외부 출시 승인 명령으로 그대로 사용하면 안 된다. 이 불일치는 약관·복구 증거를 생략할 이유가 아니다.
