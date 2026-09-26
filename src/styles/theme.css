@@ -247,11 +247,12 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .previewArrow.prev { left: -10px; }
 .previewArrow.next { right: -10px; }
 @media (max-width: 760px) { .previewArrow.prev { left: 6px; } .previewArrow.next { right: 6px; } }
-.previewControls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; padding: 0 2px; }
+.previewControls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; padding: 0 2px; }
 .previewCaption { min-width: 0; margin: 0; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.4; word-break: keep-all; }
 .previewCaption b { color: var(--ink-soft); font-weight: 600; }
-.previewDots { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
-.previewDot { display: grid; place-items: center; width: 20px; height: 8px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.previewDots { flex: 0 0 auto; display: flex; align-items: center; gap: 0; }
+.previewDot { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.previewPlayback { display: grid; place-items: center; width: 44px; height: 44px; margin-right: 4px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
 .previewDot::after { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); content: ""; transition: background .2s ease, transform .2s ease; }
 .previewDot[data-active="true"]::after { border-radius: 5px; background: var(--ink); transform: scaleX(2.5); }
 .previewDot:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
