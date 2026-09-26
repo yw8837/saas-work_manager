@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Session } from "@supabase/supabase-js";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type {} from "vitest/jsdom";
 
 import { createSeedState } from "@/lib/store";
 
@@ -121,6 +122,15 @@ function Probe() {
 }
 
 describe("hosted auth activation", () => {
+  const originalUrl = window.location.href;
+  const deploymentOrigins = [
+    "https://ilgamcheck-beta.bsfire1237.chatgpt.site",
+    "https://ilgam.studioyeolmae.com",
+  ];
+  afterEach(() => {
+    jsdom.reconfigure({ url: originalUrl });
+    vi.unstubAllEnvs();
+  });
   beforeEach(() => {
     Object.defineProperty(window, "localStorage", { configurable: true, value: new MemoryStorage() });
     Object.defineProperty(window, "sessionStorage", { configurable: true, value: new MemoryStorage() });
@@ -146,17 +156,21 @@ describe("hosted auth activation", () => {
     });
   });
 
-  it("starts Google OAuth with the current origin and today redirect", async () => {
+  it.each(deploymentOrigins)("starts Google OAuth on the visited origin %s", async (origin) => {
+    jsdom.reconfigure({ url: origin });
+    vi.stubEnv("NEXT_PUBLIC_SITE_ORIGIN", "https://ilgam.studioyeolmae.com");
     render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
     fireEvent.click(screen.getByRole("button", { name: "google login" }));
 
     await waitFor(() => expect(hosted.signInWithOAuth).toHaveBeenCalledWith({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/today` },
+      options: { redirectTo: `${origin}/today` },
     }));
   });
 
-  it("binds settings reauthentication to the current owner and asks Google to select an account", async () => {
+  it.each(deploymentOrigins)("binds settings reauthentication to the current owner at %s", async (origin) => {
+    jsdom.reconfigure({ url: origin });
+    vi.stubEnv("NEXT_PUBLIC_SITE_ORIGIN", "https://ilgam.studioyeolmae.com");
     hosted.load.mockResolvedValue(remote());
     render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
     await waitFor(() => expect(hosted.authCallback).not.toBeNull());
@@ -168,7 +182,7 @@ describe("hosted auth activation", () => {
     await waitFor(() => expect(hosted.signInWithOAuth).toHaveBeenCalledWith({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/settings`,
+        redirectTo: `${origin}/settings`,
         queryParams: { prompt: "select_account" },
       },
     }));

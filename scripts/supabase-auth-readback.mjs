@@ -14,9 +14,10 @@ export function loadSupabaseAuthReadbackEnvironment({
   const shellAccessToken = env.SUPABASE_ACCESS_TOKEN;
   loadEnv(root);
   const expectedOrigin = env.SUPABASE_AUTH_SITE_URL;
+  const legacyOrigin = env.SUPABASE_AUTH_LEGACY_ORIGIN;
   delete env.SUPABASE_ACCESS_TOKEN;
 
-  return { shellAccessToken, expectedOrigin };
+  return { shellAccessToken, expectedOrigin, ...(legacyOrigin ? { legacyOrigin } : {}) };
 }
 
 async function main() {
@@ -27,7 +28,7 @@ async function main() {
     return;
   }
 
-  const { shellAccessToken, expectedOrigin } = loadSupabaseAuthReadbackEnvironment();
+  const { shellAccessToken, expectedOrigin, legacyOrigin } = loadSupabaseAuthReadbackEnvironment();
   let projectRef = "";
   try {
     projectRef = readFileSync(join(process.cwd(), "supabase", ".temp", "project-ref"), "utf8").trim();
@@ -40,6 +41,7 @@ async function main() {
   const issue = await supabaseAuthReadbackIssue({
     projectRef,
     expectedOrigin,
+    legacyOrigin,
     accessToken: shellAccessToken,
   });
 

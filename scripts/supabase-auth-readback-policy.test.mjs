@@ -23,6 +23,30 @@ function authResponse(overrides = {}, options = {}) {
 }
 
 describe("Supabase Auth Management API readback policy", () => {
+  it("accepts the same exact callback set when Dashboard appends the new domain last", async () => {
+    const legacyOrigin = "https://old.example.com";
+    const callbacks = [`${legacyOrigin}/today`, `${legacyOrigin}/settings`, `${expectedOrigin}/today`, `${expectedOrigin}/settings`];
+    const config = await authResponse({ uri_allow_list: callbacks }).json();
+    expect(supabaseAuthConfigIssue(config, expectedOrigin, legacyOrigin)).toBeNull();
+    expect(supabaseAuthConfigIssue({ ...config, uri_allow_list: [callbacks[0], callbacks[0], callbacks[2], callbacks[3]] }, expectedOrigin, legacyOrigin)).toMatch(/uri_allow_list/);
+  });
+  it("rejects wildcard legacy configuration before contacting Management API", async () => {
+    const fetchImpl = vi.fn();
+    expect(await supabaseAuthReadbackIssue({ projectRef, expectedOrigin, legacyOrigin: "https://%2A.example.com", accessToken, fetchImpl })).not.toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("accepts only explicit old/new callbacks during migration, with no wildcard or extra origins", async () => {
+    const legacyOrigin = "https://old.example.com";
+    const callbacks = `${expectedRedirects},https://old.example.com/today,https://old.example.com/settings`;
+    const config = await authResponse({ uri_allow_list: callbacks }).json();
+    expect(supabaseAuthConfigIssue(config, expectedOrigin, legacyOrigin)).toBeNull();
+    expect(supabaseAuthConfigIssue(config, expectedOrigin)).toMatch(/uri_allow_list/);
+    expect(supabaseAuthConfigIssue({ ...config, uri_allow_list: `${callbacks},https://evil.example/today` }, expectedOrigin, legacyOrigin)).toMatch(/uri_allow_list/);
+    expect(supabaseAuthConfigIssue(config, expectedOrigin, "https://old.example.com/*")).not.toBeNull();
+    await expect(supabaseAuthReadbackIssue({ projectRef, expectedOrigin, legacyOrigin, accessToken, fetchImpl: async () => authResponse({ uri_allow_list: callbacks }) })).resolves.toBeNull();
+  });
+
   it("uses only the fixed GET endpoint and validates public Google signup", async () => {
     const fetchImpl = vi.fn(async (url, options) => {
       expect(url).toBeInstanceOf(URL);
@@ -95,6 +119,10 @@ describe("Supabase Auth Management API readback policy", () => {
       ...publicConfig,
       uri_allow_list: [todayUrl, settingsUrl],
     }, expectedOrigin)).toBeNull();
+    expect(supabaseAuthConfigIssue({
+      ...publicConfig,
+      uri_allow_list: [settingsUrl, todayUrl],
+    }, expectedOrigin)).toBeNull();
 
     const rejectedAllowLists = [
       undefined,
@@ -105,7 +133,6 @@ describe("Supabase Auth Management API readback policy", () => {
       `${todayUrl},https://evil.example/today`,
       [todayUrl, "https://evil.example/today"],
       [todayUrl, todayUrl],
-      [settingsUrl, todayUrl],
       `${expectedOrigin}/*`,
       "https://old-preview.example.com/today",
       `https://user:pass@preview.example.com/today`,

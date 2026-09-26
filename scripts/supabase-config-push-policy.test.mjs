@@ -23,6 +23,21 @@ enabled = true
 `;
 
 describe("Supabase remote Auth config push", () => {
+  it.each(["https://*.example.com", "https://**.example.com", "https://%2A.example.com", "https://[ab].example.com", "https://a{b}.example.com"])("rejects wildcard hosts for both current and legacy origins: %s", (origin) => {
+    expect(() => normalizeAuthSiteUrl(origin)).toThrow();
+    expect(() => renderHostedSupabaseConfig(publicSignupConfig, "https://safe.example.com", origin)).toThrow();
+  });
+
+  it("retains the explicitly supplied legacy callbacks during a domain transition", () => {
+    const rendered = renderHostedSupabaseConfig(publicSignupConfig, "https://ilgam.studioyeolmae.com", "https://ilgamcheck-beta.bsfire1237.chatgpt.site");
+    expect(rendered).toContain('site_url = "https://ilgam.studioyeolmae.com"');
+    expect(rendered).toContain('"https://ilgam.studioyeolmae.com/today"');
+    expect(rendered).toContain('"https://ilgam.studioyeolmae.com/settings"');
+    expect(rendered).toContain('"https://ilgamcheck-beta.bsfire1237.chatgpt.site/today"');
+    expect(rendered).toContain('"https://ilgamcheck-beta.bsfire1237.chatgpt.site/settings"');
+    expect(() => renderHostedSupabaseConfig(publicSignupConfig, "https://ilgam.studioyeolmae.com", "https://old.example.com/*")).toThrow();
+  });
+
   it("passes only the two Google OAuth credentials needed by config push", () => {
     const child = googleAuthConfigChildEnvironment({
       PATH: "C:\\bin",

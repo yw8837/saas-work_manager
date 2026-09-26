@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type {} from "vitest/jsdom";
 
 import { DomainValidationError, composeJob, createAddon, confirmAddon, recordRevision, revertRevision, type PackageTemplate } from "@/lib/domain";
 import { JobDetail } from "./job-detail";
@@ -66,7 +67,17 @@ beforeEach(() => {
 });
 
 describe("JobDetail 고객 수정 링크", () => {
-  it("bearer token을 검색어가 아니라 보호된 /r 경로로 복사한다", async () => {
+  const originalUrl = window.location.href;
+  afterEach(() => {
+    jsdom.reconfigure({ url: originalUrl });
+    vi.unstubAllEnvs();
+  });
+  it.each([
+    "https://ilgamcheck-beta.bsfire1237.chatgpt.site",
+    "https://ilgam.studioyeolmae.com",
+  ])("접속 주소 %s의 보호된 /r 경로로 bearer token을 복사한다", async (origin) => {
+    jsdom.reconfigure({ url: origin });
+    vi.stubEnv("NEXT_PUBLIC_SITE_ORIGIN", "https://ilgam.studioyeolmae.com");
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -76,7 +87,7 @@ describe("JobDetail 고객 수정 링크", () => {
 
     fireEvent.click(screen.getByTestId("copy-revision-portal"));
 
-    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/r/token_detail`);
+    expect(writeText).toHaveBeenCalledWith(`${origin}/r/token_detail`);
   });
 });
 

@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { sites } from "@openai/sites-vite-plugin";
 import { defineConfig, loadEnv } from "vite";
+import { deploymentOrigin, renderDeploymentHtml } from "./src/lib/deployment-origin";
 
 export default defineConfig(({ mode }) => {
   const isWorkerBuild = mode === "sites-worker";
@@ -10,9 +11,13 @@ export default defineConfig(({ mode }) => {
     Object.entries({ ...loadedEnvironment, ...process.env })
       .filter(([name]) => name.startsWith("NEXT_PUBLIC_")),
   );
+  const siteOrigin = deploymentOrigin(publicEnvironment.NEXT_PUBLIC_SITE_ORIGIN);
 
   return {
-    plugins: [react(), sites()],
+    plugins: [react(), sites(), {
+      name: "ilgamcheck-deployment-origin",
+      transformIndexHtml: (html) => renderDeploymentHtml(html, siteOrigin),
+    }],
     // The old application reads public configuration through process.env.
     // Vite has no Node process object in the browser, so freeze only explicitly
     // public values into the client bundle. Server secrets never enter this map.

@@ -3,14 +3,14 @@ import {
   type IlgamcheckPublicEnvironment,
   type IlgamcheckPublicEnvironmentKey,
 } from "@/lib/public-environment";
+import { deploymentOrigin } from "@/lib/deployment-origin";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 const publicKeySet = new Set<string>(ILGAMCHECK_PUBLIC_ENV_KEYS);
-const DEPLOYED_PUBLIC_CONFIG_URL = "https://ilgamcheck-beta.bsfire1237.chatgpt.site/api/public-config";
 
 export function publicConfigEndpoint(locationLike: { hostname: string } = globalThis.location): string {
-  return locationLike.hostname === "localhost" ? DEPLOYED_PUBLIC_CONFIG_URL : "/api/public-config";
+  return locationLike.hostname === "localhost" ? `${deploymentOrigin()}/api/public-config` : "/api/public-config";
 }
 
 function parsePublicEnvironment(payload: unknown): IlgamcheckPublicEnvironment {
