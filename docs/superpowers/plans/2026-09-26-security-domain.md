@@ -55,3 +55,6 @@ Files: origin configuration helper, actual origin consumers, corresponding tests
 - Final check:release: exit 0, 91 test files/516 tests, 44 E2E cases, lint/typecheck/audit/local+hosted builds pass. Full audit 0 vulnerabilities. Sites default and custom-origin builds validated; default build restored.
 - Ruling: use repository-mandated PR workflow (finishing-a-development-branch option 2); do not merge shared main without authorization. Preserve user's dirty assets.
 - User authorized agent DNS setup and approved provider's SLA/traffic-limitation notice. Exact three DNS records registered successfully; authoritative/public propagation and TLS verification follow.
+- DNS and TLS active; new-origin smoke and both-origin runtime readback pass. User completed Google login; new Today and old session both show saved/realtime connected for the same account, with 0 jobs. No customer data mutated.
+- User explicitly approved merging and deploying PRs #2/#3 after CI, excluding existing PR #1. #2 CI green and merged. #3 now targets main.
+- Dashboard appends new URLs after old URLs. Added red regression for exact URL set with different order; green preserves strict membership and duplicate rejection. Final full gate re-run: 517 tests and 44 E2E pass.

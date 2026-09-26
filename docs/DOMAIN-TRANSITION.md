@@ -45,7 +45,7 @@ ILGAMCHECK_SITES_ORIGIN=https://ilgam.studioyeolmae.com
 NEXT_PUBLIC_SITE_ORIGIN=https://ilgam.studioyeolmae.com
 ```
 
-Redirect URLs는 아래 4개를 이 순서로 명시한다. 와일드카드는 사용하지 않는다.
+Redirect URLs는 아래 4개를 정확히 명시한다. 관리화면에서 추가한 순서는 달라도 되지만 중복·추가 주소·와일드카드는 허용하지 않는다.
 
 1. https://ilgam.studioyeolmae.com/today
 2. https://ilgam.studioyeolmae.com/settings

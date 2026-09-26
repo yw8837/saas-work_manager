@@ -37,15 +37,20 @@
 | 기본 origin으로 다시 빌드 | PASS, pending 주소가 실수로 기본 빌드에 남지 않음 |
 | git diff --check | PASS, CRLF 안내만 출력 |
 
+실제 대시보드가 새 redirect를 기존 목록 뒤에 추가하는 것을 확인했다. 순서만 다른 정확한 URL 집합을 실패시키는 진단 오탐을 추가 재현(1 failure)한 뒤, 순서는 무시하되 중복·추가 URL·인코딩 변형·와일드카드는 계속 거부하도록 수정했다. 최종 재실행은 **91개 파일/517 tests, E2E 44개 및 모든 release gate PASS, exit 0**.
+
 비차단 경고: 기존 큰 client chunk, Node 25 localStorage 경고, Vite 차기 major native config의 import 확장자 안내. 현재 빌드/테스트 실패는 아님.
 
 ## 외부 상태와 미완료 항목
 
 - 기존 운영 주소의 원격 smoke: 9개 검사 PASS (변경 전 운영 버전에 대한 상태 확인).
-- Sites에 ilgam.studioyeolmae.com 등록. DNS/TLS 활성화는 별도 확인 필요.
+- Sites에 ilgam.studioyeolmae.com 등록. provider/domain/TLS 모두 active 확인.
 - 예스닉에 CNAME 1개, 소유권 확인 TXT 2개 등록 완료. 사용자에게 SLA/트래픽 제한 확인사항 동의를 받은 뒤 신청했으며 결과 3개 모두 등록완료. 다른 서비스 레코드는 수정하지 않음. Google DNS에서 CNAME, Cloudflare DNS에서 소유권 TXT 확인.
-- Supabase 대시보드에서 Site URL=기존 주소, 정확한 기존 today/settings URL 2개를 확인. 아직 운영 Auth 설정 변경 없음.
-- 새 주소 DNS/TLS, 새 주소 런타임 readback, 실제 Google 로그인 및 실제 고객 링크 조회/제출, 배포 후 양쪽 주소 smoke는 미검증.
+- Supabase Site URL을 새 주소로 저장하고 대시보드 reload 후 재확인. 기존/새 주소 today/settings 4개를 유지. Google callback은 기존 Supabase callback 그대로이며 Google Cloud 클라이언트 수정 없음.
+- 새 주소 smoke 9개와 양쪽 주소 runtime readback PASS. 동일 Supabase ref/runtime 202608250011/public config digest/current service-role contract 확인. policyPublication.finalized=false는 기존 베타 정책 상태이며 임의 변경하지 않음.
+- 사용자 Google 로그인 후 새 Today 진입/저장됨/실시간 연결됨 확인. 기존 주소도 동일 계정으로 정상 세션 유지. 양쪽 일감 0건. 운영 고객 데이터를 새로 생성·수정·삭제하지 않음.
+- Supabase Management API 전용 토큰은 제공되지 않아 CLI auth readback 명령 자체는 실행하지 않음. 대신 대시보드 reload 확인과 실제 Google OAuth 복귀를 검증했으며 해당 CLI가 통과했다고 주장하지 않음.
+- 실제 기존 고객 bearer-token 조회/제출과 최종 코드 배포 후 양쪽 주소 smoke는 별도 남음.
 - 알려진 의존성 취약점 0건과 자동 테스트 통과는 제로데이가 없다는 보증이 아님.
 
 도메인 레코드와 전환 순서: ../DOMAIN-TRANSITION.md.

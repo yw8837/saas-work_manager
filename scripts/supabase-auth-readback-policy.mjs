@@ -25,7 +25,8 @@ function authRedirectAllowListIssue(rawAllowList, expectedOrigin, legacyOrigin) 
   // must never become equivalent to the literal callbacks we configured.
   if (
     entries.length !== expectedUrls.length
-    || entries.some((entry, index) => typeof entry !== "string" || entry !== expectedUrls[index])
+    || new Set(entries).size !== entries.length
+    || entries.some((entry) => typeof entry !== "string" || !expectedUrls.includes(entry))
   ) {
     return "Supabase Auth config의 uri_allow_list는 명시한 현재·이전 origin의 /today와 /settings만 허용해야 합니다.";
   }
