@@ -78,7 +78,7 @@ body {
   color: var(--ink);
   background: var(--canvas);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.55;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -247,11 +247,12 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .previewArrow.prev { left: -10px; }
 .previewArrow.next { right: -10px; }
 @media (max-width: 760px) { .previewArrow.prev { left: 6px; } .previewArrow.next { right: 6px; } }
-.previewControls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; padding: 0 2px; }
+.previewControls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; padding: 0 2px; }
 .previewCaption { min-width: 0; margin: 0; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.4; word-break: keep-all; }
 .previewCaption b { color: var(--ink-soft); font-weight: 600; }
-.previewDots { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
-.previewDot { display: grid; place-items: center; width: 20px; height: 8px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.previewDots { flex: 0 0 auto; display: flex; align-items: center; gap: 0; }
+.previewDot { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.previewPlayback { display: grid; place-items: center; width: 44px; height: 44px; margin-right: 4px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
 .previewDot::after { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); content: ""; transition: background .2s ease, transform .2s ease; }
 .previewDot[data-active="true"]::after { border-radius: 5px; background: var(--ink); transform: scaleX(2.5); }
 .previewDot:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
@@ -554,6 +555,14 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .briefStats div { display: flex; flex-direction: column-reverse; align-items: center; justify-content: center; border-left: 1px solid rgba(255,255,255,.09); }
 .briefStats dt { color: #9eabc0; font-size: 10px; }
 .briefStats dd { margin: 0; font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.firstJobGuide { max-width: 760px; padding: clamp(24px, 4vw, 48px); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); }
+.firstJobGuide > svg { color: var(--blue); margin-bottom: 20px; }
+.firstJobGuide h2 { margin: 0; font-size: clamp(22px, 3vw, 28px); line-height: 1.4; letter-spacing: -.04em; }
+.firstJobGuide > p { margin: 12px 0 24px; color: var(--muted); font-size: 16px; line-height: 1.8; word-break: keep-all; overflow-wrap: anywhere; }
+.firstJobSetup { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.firstJobSetup strong { font-size: 14px; }
+.firstJobSetup p { margin: 6px 0 8px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.firstJobSetup .inlineLink { min-height: 44px; font-size: 14px; }
 .dashboardGrid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .72fr); gap: 18px; }
 .dashboardPrimary, .dashboardAside { display: grid; align-content: start; gap: 18px; }
 .contentSection, .sideSection, .quickGuide { background: var(--paper); border: 1px solid var(--line); }
@@ -825,7 +834,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 }
 
 @media (max-width: 760px) {
-  body { font-size: 14px; }
+  body { font-size: 16px; }
   .marketingHeader { height: calc(62px + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 18px 0; grid-template-columns: 1fr auto; }
   .marketingNav { display: none; }
   .headerDemoLink { font-size: 13px; }
@@ -967,31 +976,34 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   justify-content: space-between;
   gap: 18px;
   margin: 18px 30px 0;
-  padding: 15px 18px;
+  padding: 10px 16px;
   color: var(--ink);
-  background: var(--amber-soft);
-  border: 1px solid #edd09d;
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 .betaSurveyBanner div { display: grid; gap: 3px; }
 .betaSurveyBanner strong { font-size: 14px; }
-.betaSurveyBanner span { color: var(--ink-soft); font-size: 12px; }
+.betaSurveyBanner span { color: var(--muted); font-size: 13px; }
 .betaSurveyBanner a {
   flex: 0 0 auto;
-  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   padding: 10px 14px;
-  color: white;
-  background: var(--ink);
+  color: var(--blue);
+  background: var(--blue-soft);
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 @media (max-width: 720px) {
   .betaSurveyBanner {
-    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
     margin: 12px 16px 0;
-    padding: 14px;
+    padding: 12px;
   }
 }
 
@@ -1179,7 +1191,10 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .catalogHeader { display: block; }
   .catalogSaved { margin-top: 12px; }
   .catalogGrid, .settingsGrid, .browserTestSection, .blockedExternalSection, .accountStatusSection, .accountDangerSection { grid-template-columns: 1fr; }
-  .catalogList { max-height: 220px; overflow: auto; }
+  .catalogList { min-width: 0; }
+  .catalogItems { display: flex; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding: 3px; gap: 4px; }
+  .catalogItems .catalogListItem { flex: 0 0 230px; min-height: 80px; border: 1px solid var(--line); border-radius: var(--radius-sm); scroll-snap-align: start; }
+  .catalogItems .catalogListItem strong, .catalogItems .catalogListItem span { white-space: normal; overflow: visible; }
   .catalogEditor { padding: 16px; }
   .catalogFieldGrid { grid-template-columns: 1fr 1fr; }
   .catalogFullField { grid-column: 1 / -1; }
@@ -1374,4 +1389,33 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   color: #fff;
   font: inherit;
   cursor: pointer;
+}
+
+/* Working screens: readable values and predictable touch targets. Preview art
+   intentionally keeps its separate miniature typography. */
+.pageSurface :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea),
+.authInput input, .publicRevisionCard textarea {
+  min-height: 44px;
+  min-width: 0;
+  font-size: 16px;
+}
+.pageSurface :is(.fieldLabel > span, .catalogFieldGrid label > span, .catalogTaskHead,
+  .optionEffectFields label > span, .addonForm label > span, .optionTodoEffect legend) { font-size: 13px; }
+.pageSurface :is(.clientName, .taskContext, .sectionHeadingRow p, .progressCaption,
+  .briefMessage p, .briefStats dt, .packageChoiceMain span, .packageChoiceMeta span,
+  .catalogListItem span, .catalogEditorHead span, .settingRow span, .sectionExplain,
+  .inlineEmpty, .upcomingEmpty) { font-size: 13px; line-height: 1.6; }
+.pageSurface :is(.taskRowMain strong, .catalogListItem strong) { font-size: 15px; }
+.briefStats dd, .packageChoiceMeta, .jobPreview { font-variant-numeric: tabular-nums; }
+.catalogTabs button, .catalogActions button, .catalogTaskEditor button { min-height: 44px; }
+.catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 86px 44px; }
+.catalogTaskRow .smallIconButton { width: 44px; height: 44px; }
+.catalogTaskRow label span { top: 12px; font-size: 12px; }
+.catalogListHead .smallIconButton { width: 44px; height: 44px; }
+@media (max-width: 760px) {
+  .pageSurface :is(.compactButton, .textButton, .effectToggle button, .linkPresetButtons button) { min-height: 44px; }
+  .catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 86px 44px; gap: 6px; }
+  .firstJobGuide { padding: 24px 20px; }
+  .firstJobGuide > .primaryButton { width: 100%; }
+  .firstJobGuide > p br { display: none; }
 }

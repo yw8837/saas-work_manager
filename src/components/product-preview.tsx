@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   AlertTriangle,
   BellRing,
@@ -18,6 +18,8 @@ import {
   MessageSquareText,
   MousePointer2,
   Package,
+  Pause,
+  Play,
   RotateCcw,
   SlidersHorizontal,
   Users,
@@ -25,6 +27,14 @@ import {
 
 // Hero motion should support reading the scene, not compete with it.
 const AUTO_MS = 4500;
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+function subscribeMotion(onChange: () => void) {
+  const query = window.matchMedia?.(REDUCED_MOTION);
+  query?.addEventListener("change", onChange);
+  return () => query?.removeEventListener("change", onChange);
+}
+function readMotion() { return window.matchMedia?.(REDUCED_MOTION).matches ?? false; }
+function serverMotion() { return false; }
 
 function SceneSidebar({ active }: { active: "오늘" | "일감" | "패키지" }) {
   const items: Array<"오늘" | "일감" | "패키지"> = ["오늘", "일감", "패키지"];
@@ -379,7 +389,12 @@ const orderedSlides: Slide[] = SLIDE_ORDER.map(
 
 export function ProductPreview() {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const reducedMotion = useSyncExternalStore(subscribeMotion, readMotion, serverMotion);
+  const [manualPause, setManualPause] = useState<boolean | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const playbackPaused = manualPause ?? reducedMotion;
+  const paused = playbackPaused || hovered || focused;
   // Bumped on manual navigation to restart the auto-advance timer.
   const [epoch, setEpoch] = useState(0);
 
@@ -399,10 +414,12 @@ export function ProductPreview() {
   return (
     <div
       className="previewCarousel"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
-      onBlurCapture={() => setPaused(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+      }}
     >
       <div className="previewViewport" role="group" aria-label="일감체크 화면 미리보기">
         <div className="previewTrack" style={{ transform: `translateX(-${index * 100}%)` }}>
@@ -434,13 +451,28 @@ export function ProductPreview() {
         </button>
       </div>
       <div className="previewControls">
-        <p className="previewCaption" aria-live="polite">
+        <p className="previewCaption" aria-live={paused ? "polite" : "off"}>
           <b>
             {index + 1}/{orderedSlides.length}
           </b>{" "}
           · {orderedSlides[index].caption}
         </p>
         <div className="previewDots">
+          <button
+            type="button"
+            className="previewPlayback"
+            aria-label={playbackPaused ? "자동 넘김 시작하기" : "자동 넘김 멈추기"}
+            onClick={() => {
+              setManualPause(!playbackPaused);
+              if (playbackPaused) {
+                // An explicit start must work while this control still has focus.
+                setFocused(false);
+                setHovered(false);
+              }
+            }}
+          >
+            {playbackPaused ? <Play size={16} /> : <Pause size={16} />}
+          </button>
           {orderedSlides.map((slide, i) => (
             <button
               key={slide.key}
