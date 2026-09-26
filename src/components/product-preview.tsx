@@ -462,7 +462,14 @@ export function ProductPreview() {
             type="button"
             className="previewPlayback"
             aria-label={playbackPaused ? "자동 넘김 시작하기" : "자동 넘김 멈추기"}
-            onClick={() => setManualPause(!playbackPaused)}
+            onClick={() => {
+              setManualPause(!playbackPaused);
+              if (playbackPaused) {
+                // An explicit start must work while this control still has focus.
+                setFocused(false);
+                setHovered(false);
+              }
+            }}
           >
             {playbackPaused ? <Play size={16} /> : <Pause size={16} />}
           </button>
