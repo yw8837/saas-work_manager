@@ -1414,7 +1414,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .catalogListHead .smallIconButton { width: 44px; height: 44px; }
 @media (max-width: 760px) {
   .pageSurface :is(.compactButton, .textButton, .effectToggle button, .linkPresetButtons button) { min-height: 44px; }
-  .catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 66px 44px; gap: 6px; }
+  .catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 86px 44px; gap: 6px; }
   .firstJobGuide { padding: 24px 20px; }
   .firstJobGuide > .primaryButton { width: 100%; }
   .firstJobGuide > p br { display: none; }
