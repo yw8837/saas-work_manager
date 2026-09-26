@@ -12,6 +12,25 @@
 
 ## 지금 상태 (2026-09-26 확인)
 
+### 최신 운영 검증 및 최소 권한 보완
+
+- 최종 main CI run `36248973128` SUCCESS (verify 5m3s). 배포 제품 커밋 `4f1d4cc90455ae71d594689e869863bc282a7ebd`의 자동 검증까지 종료했다. 이후 HANDOFF 단독 기록 커밋은 배포 산출물을 바꾸지 않으므로 중복 배포하지 않는다.
+
+- 대표 주소는 `https://ilgam.studioyeolmae.com`. 기존 주소는 심사 링크 호환용이다. DB 최소 권한·일감 삭제 기록 정리 및 빈 일감 화면 정렬을 추가 보완했다. 최종 배포 영수증은 아래에 별도 기록한다.
+- 사용자 "전부다 완료하고 보고해" 지시에 따라 운영 검증 전용 일감 1건 생성. 새·기존 고객 링크 각각 접수 성공, 작업자 화면 수정 사용 0→1→2 및 실시간 원문/시각 반영 확인. 기존의 고객 링크 "미검증" 기록은 이 결과로 대체한다.
+- 원격 함수 기본 ACL의 anon 직접 EXECUTE를 확인. owner RPC 14개와 trigger 4개의 불필요한 실행 권한만 제거한 migration `20260926140654_rpc_execution_surface` 적용. 고객 bearer RPC 3개와 authenticated/service_role 권한 유지. 독립 리뷰 완료, 실제 권한 회귀 22개 모두 true. 기존 trigger 4개 활성 및 owner 그대로 유지.
+- 적용 후 일감 할 일 완료 저장(1/6) 및 고객 요청 접수도 정상. 한도 초과 요청은 추가 작업 검토로 기록. 익명 owner RPC는 HTTP 401/42501로 차단된다.
+- 새·기존 주소 smoke 각9개 PASS, DB ACTIVE_HEALTHY. 521 tests/93 files, lint/typecheck, 운영 audit0 PASS. mobile bundle 생성 후 mobile:verify PASS(실기기/스토어 승인 아님).
+- PR #5 main 병합 완료: `4f1d4cc90455ae71d594689e869863bc282a7ebd`. 기능 변경 head `882ba84`의 CI run `36248678105` SUCCESS 후 병합했다. 뒤이은 `ccfc5ca`는 검증 문서 문구만 수정했으며 새 PR check가 생성되지 않아 reopen도 시도했다. 최종 동일 tree의 로컬 check:release는 unit521/93파일, E2E52, lint/typecheck/audit0/local+hosted build PASS. main CI run `36248973128` 상태는 최종 영수증 참고. CI Linux의 Windows 전용 npx spawn 1건 skip은 기존 플랫폼 조건이며 Windows 로컬에서는 실행 PASS.
+- Sites v28 운영 반영 완료. 버전 `appgprj_6a8b16a27df88191b5cad3afd63a9366~appgver_6ec48b24d9e88191922fe5603328783d`, 배포 `appgdep_6ab7d8b424388191983fb48f30bd4665`, succeeded(2026-09-26 23:37 KST), env revision6/public 유지. 소스는 위 main merge SHA. Sites 공식 workflow가 소스 push/검증은 완료했지만 Windows bash 경로로 packaging 실패하여 검증된 dist를 native tar로 포장해 저장했다. source/build hosting 일치와 worker/manifest 엔트리 검증 완료.
+- v28 새·기존 주소 smoke 각각9개 PASS, health200/readytrue/runtime202608250011/digest 동일. runtime:readback CLI는 분리 checkout에 Supabase link가 없어 BLOCKED였으며 성공으로 기록하지 않는다. 대신 양쪽 실제 /api/health 응답의 DB 계약 및 Supabase 연결 도구로 확인했다. 운영 UI의 일감0·저장됨·실시간 연결됨·수정된 빈 목록 정렬 확인. 캡처: `C:\Users\최용우\.gstack\projects\saas-work-manager\designs\design-audit-20260926\screenshots\production-final-v28.png`.
+- 외장 D: main도 4f1d4cc로 fast-forward 완료. 분리 worktree `C:\Users\최용우\.codex\worktrees\ilgam-uiux-20260926`를 재사용하며 기존 D: 미커밋/미추적 자료는 모두 보존. PR #1은 OPEN 유지, 병합하지 않았다.
+- 사용자 명시 승인 및 확인 클릭 후 `[운영검증 20260926] 삭제가능 테스트` 일감과 요청 3건 정리 완료. 삭제 전 별도 portal/request가 잔존하는 실제 버그를 발견해 migration `20260926141910_workspace_job_revision_cleanup`으로 수정했다. 과거 잔존한 해당 fixture만 owner/job/portal와 정확한 수량으로 제한해 삭제했고 DB portal0/request0 확인. 기존 패키지·계정·다른 데이터는 삭제하지 않았다.
+- 삭제 회귀는 임시 합성 계정과 실제 save RPC로 RED→GREEN 검증 후 전부 rollback. 일반 편집·유지 일감·타인·무관한 orphan 보존, 삭제 링크/재등록 거부 및 살아 있는 링크의 제출/중복 재시도 검사 PASS. 최종 유효 권한 23/23 true. document→portal 잠금 순서와 접근 제어 독립 검토 PASS, 대규모 동시 부하 검사는 미수행.
+- 빈 목록에서 안내 요소가 한 줄에 붙던 기존 결함은 세로 flex와 gap만 추가했다. 320/1440px 초기·검색 빈 상태 4개 E2E RED→GREEN, 독립 코드 리뷰 및 로컬 실제 모바일/데스크톱 화면 확인 완료. 내용·데이터 로직 변경 없음.
+- 미완료: 정책 finalized=false와 실제 법률/계정탈퇴/백업복구 운영 증거. 기록을 꾸미거나 운영 DB를 복원 시험 대상으로 사용하지 않는다. 기존 external-beta orchestration은 Vercel/SMTP/password AMR 전제가 남아 있어 현재 Sites/Google-only와 정렬 필요. 유료 결제는 여전히 준비 중.
+- 상세 검증은 PR #5의 `docs/verification/2026-09-26-operational-final.md`에 기록했다. 이하 UI/도메인 절의 "운영 데이터 미생성/고객 링크 미검증"은 과거 기록이다.
+
 ### 최신 UI/UX 배포 완료
 
 - PR #4 `일감체크 첫 사용과 모바일 UI 개선`을 GitHub CI 성공(run 36245469226) 후 병합. 배포 소스는 `c62a2a9b4818e2a16cedc42a1c9397c5054d936b`.
@@ -44,9 +63,9 @@
 
 ### 1. 남은 운영 확인
 
-- UI/UX PR #4 배포와 양쪽 주소 확인까지 완료. 정책 게시 확정(`policyPublication.finalized=false`)과 아래 운영 고객 링크 테스트 승인은 별도 확인이 필요하다.
+- UI/UX PR #4 배포와 운영 고객 링크 양쪽 조회/제출까지 완료. 정책 게시 확정(`policyPublication.finalized=false`)과 실제 운영 증거는 별도 확인이 필요하다.
 - PR #2/#3 병합·운영 배포·배포 후 검증은 완료. 중복 배포하지 않는다.
-- 실제 고객 bearer-token 조회/제출의 새·기존 주소 호환성은 미검증. 현재 로그인 계정의 일감이 0건이다. 검증용 패키지·일감 1건 생성/확인/정리 승인을 질문했으나 아직 답변 없음. 승인 전에는 운영 데이터를 만들지 않는다.
+- PR #5 병합 및 Sites v28 배포 완료. 테스트 일감/요청 정리와 고객 bearer-token 조회/제출 검증도 완료했으므로 같은 테스트 자료를 다시 만들거나 중복 배포하지 않는다.
 - D: npm ci 복원 완료. UI 작업은 `C:\Users\최용우\.codex\worktrees\ilgam-uiux-20260926`에서 분리 진행하며 D:의 미커밋 설문·검증 자료는 보존한다.
 - PR #1은 CI가 통과해도 별도 기능이므로 임의로 main에 합치지 않는다.
 
@@ -68,7 +87,7 @@
 ## 사람 확인이 필요한 것
 
 - 사용자가 로그인과 DNS 서비스 확인사항에 동의했고 에이전트가 DNS 등록 완료. 중복 요청하지 않는다.
-- PR #2/#3 병합 승인과 실제 Google 로그인은 이미 완료. 고객 링크 검증용 자료 생성·정리 승인만 미응답이다.
+- PR #2/#3 병합 승인과 실제 Google 로그인, 고객 링크 검증 및 테스트 자료 삭제 승인은 완료. 삭제 UI 결과만 아직 확인 대기다.
 - 결제 기능은 아직 없다. 요금 표현은 PRODUCT.md "가입과 베타 이용 코드"를 따른다.
 
 ## 자주 쓰는 명령
