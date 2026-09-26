@@ -2,6 +2,35 @@ import { expect, test } from "@playwright/test";
 
 import { seedWorkspace } from "./seed-state";
 
+for (const width of [320, 1440]) {
+  for (const filtered of [false, true]) {
+    test(`${width}px 빈 일감 안내는 순서대로 쌓이고 가려지지 않는다 (${filtered ? "검색" : "처음"})`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      if (filtered) await seedWorkspace(page, "empty-layout-seeded");
+      await page.goto("/jobs");
+      if (filtered) await page.getByRole("textbox", { name: "고객 또는 일감 검색" }).fill("없는고객-레이아웃검증");
+      const empty = page.locator(".jobEmpty");
+      await expect(empty).toBeVisible();
+      const children = await empty.locator(":scope > *").all();
+      let previousBottom = 0;
+      for (const child of children) {
+        const box = await child.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.y).toBeGreaterThanOrEqual(previousBottom + 4);
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+        previousBottom = box!.y + box!.height;
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      if (!filtered) {
+        await empty.getByRole("link", { name: "첫 일감 만들기" }).click();
+        await expect(page).toHaveURL(/\/jobs\/new$/);
+        await expect(page.getByLabel("고객 이름")).toBeVisible();
+      }
+    });
+  }
+}
+
 for (const width of [320, 375, 390]) {
   test(`${width}px 핵심 화면은 가로로 넘치지 않는다`, async ({ page }) => {
     // 시드 일감 상세도 확인 대상이다. 앱은 빈 상태로 시작한다.

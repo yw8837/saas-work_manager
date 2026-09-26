@@ -711,7 +711,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .statusBadge.completed, .taskStateLabel.done { color: var(--green); background: var(--green-soft); }
 .statusBadge.delayed, .usageBadge.extra, .revisionImpact.extra, .actionBarStatus.delayed { color: var(--red); background: var(--red-soft); }
 .rowArrow { color: var(--muted); justify-self: end; }
-.jobEmpty { padding: 70px 20px; text-align: center; background: white; border: 1px solid var(--line); }
+.jobEmpty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 70px 20px; text-align: center; background: white; border: 1px solid var(--line); }
 .detailKickerLine, .detailTitleLine { display: flex; align-items: center; gap: 8px; }
 .detailTitleLine { flex-wrap: wrap; }
 .detailGrid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(285px, .65fr); gap: 18px; }
