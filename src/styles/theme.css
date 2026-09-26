@@ -78,7 +78,7 @@ body {
   color: var(--ink);
   background: var(--canvas);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.55;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -833,7 +833,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 }
 
 @media (max-width: 760px) {
-  body { font-size: 14px; }
+  body { font-size: 16px; }
   .marketingHeader { height: calc(62px + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 18px 0; grid-template-columns: 1fr auto; }
   .marketingNav { display: none; }
   .headerDemoLink { font-size: 13px; }
@@ -1382,4 +1382,33 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   color: #fff;
   font: inherit;
   cursor: pointer;
+}
+
+/* Working screens: readable values and predictable touch targets. Preview art
+   intentionally keeps its separate miniature typography. */
+.pageSurface :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea),
+.authInput input, .publicRevisionCard textarea {
+  min-height: 44px;
+  min-width: 0;
+  font-size: 16px;
+}
+.pageSurface :is(.fieldLabel > span, .catalogFieldGrid label > span, .catalogTaskHead,
+  .optionEffectFields label > span, .addonForm label > span, .optionTodoEffect legend) { font-size: 13px; }
+.pageSurface :is(.clientName, .taskContext, .sectionHeadingRow p, .progressCaption,
+  .briefMessage p, .briefStats dt, .packageChoiceMain span, .packageChoiceMeta span,
+  .catalogListItem span, .catalogEditorHead span, .settingRow span, .sectionExplain,
+  .inlineEmpty, .upcomingEmpty) { font-size: 13px; line-height: 1.6; }
+.pageSurface :is(.taskRowMain strong, .catalogListItem strong) { font-size: 15px; }
+.briefStats dd, .packageChoiceMeta, .jobPreview { font-variant-numeric: tabular-nums; }
+.catalogTabs button, .catalogActions button, .catalogTaskEditor button { min-height: 44px; }
+.catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 86px 44px; }
+.catalogTaskRow .smallIconButton { width: 44px; height: 44px; }
+.catalogTaskRow label span { top: 12px; font-size: 12px; }
+.catalogListHead .smallIconButton { width: 44px; height: 44px; }
+@media (max-width: 760px) {
+  .pageSurface :is(.compactButton, .textButton, .effectToggle button, .linkPresetButtons button) { min-height: 44px; }
+  .catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 66px 44px; gap: 6px; }
+  .firstJobGuide { padding: 24px 20px; }
+  .firstJobGuide > .primaryButton { width: 100%; }
+  .firstJobGuide > p br { display: none; }
 }
