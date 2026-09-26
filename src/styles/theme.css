@@ -554,6 +554,14 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .briefStats div { display: flex; flex-direction: column-reverse; align-items: center; justify-content: center; border-left: 1px solid rgba(255,255,255,.09); }
 .briefStats dt { color: #9eabc0; font-size: 10px; }
 .briefStats dd { margin: 0; font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.firstJobGuide { max-width: 760px; padding: clamp(24px, 4vw, 48px); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); }
+.firstJobGuide > svg { color: var(--blue); margin-bottom: 20px; }
+.firstJobGuide h2 { margin: 0; font-size: clamp(22px, 3vw, 28px); line-height: 1.4; letter-spacing: -.04em; }
+.firstJobGuide > p { margin: 12px 0 24px; color: var(--muted); font-size: 16px; line-height: 1.8; word-break: keep-all; overflow-wrap: anywhere; }
+.firstJobSetup { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.firstJobSetup strong { font-size: 14px; }
+.firstJobSetup p { margin: 6px 0 8px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.firstJobSetup .inlineLink { min-height: 44px; font-size: 14px; }
 .dashboardGrid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .72fr); gap: 18px; }
 .dashboardPrimary, .dashboardAside { display: grid; align-content: start; gap: 18px; }
 .contentSection, .sideSection, .quickGuide { background: var(--paper); border: 1px solid var(--line); }

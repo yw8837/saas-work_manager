@@ -148,7 +148,7 @@ export function TodayDashboard() {
         <div>
           <p className="todayDate">{todayHeading()}</p>
           <h1>오늘 할 일</h1>
-          <p>급한 순서대로 꺼내뒀어요. 끝낸 일은 한 번만 눌러주세요.</p>
+          <p>{jobs.length === 0 ? "일감을 등록하면 마감과 할 일을 여기에 모아드려요." : "급한 순서대로 꺼내뒀어요. 끝낸 일은 한 번만 눌러주세요."}</p>
         </div>
         <div className="pageHeaderActions">
           {runtimeMode === "local" && (
@@ -162,6 +162,22 @@ export function TodayDashboard() {
         </div>
       </header>
 
+      {jobs.length === 0 ? (
+        <section className="firstJobGuide" aria-labelledby="first-job-title">
+          <PackageCheck size={32} aria-hidden="true" />
+          <h2 id="first-job-title">첫 일감부터 정리해 볼까요?</h2>
+          <p>고객과 시작일을 입력하고 패키지를 고르면,<br />마감과 할 일이 함께 만들어져요.</p>
+          <Link href="/jobs/new" className="primaryButton">
+            첫 일감 만들기 <ArrowRight size={18} />
+          </Link>
+          <div className="firstJobSetup">
+            <strong>내 판매 조건에 맞추고 싶다면</strong>
+            <p>기본 패키지의 금액·작업 기간·수정 횟수를 먼저 바꿀 수 있어요.</p>
+            <Link href="/packages" className="inlineLink">패키지 확인하기 <ArrowUpRight size={16} /></Link>
+          </div>
+        </section>
+      ) : (
+        <>
       <section className="todayBrief" aria-label="오늘 업무 요약">
         <div className="briefMessage">
           <span className="briefIcon"><BellRing size={18} /></span>
@@ -194,24 +210,10 @@ export function TodayDashboard() {
                   <QueueRow key={`${item.job.id}-${item.task.id}`} item={item} onComplete={handleComplete} />
                 ))
               ) : (
-                jobs.length === 0 ? (
-                  <div className="clearState">
-                    <PackageCheck size={24} />
-                    <div>
-                      <strong>첫 일감을 만들어 볼까요?</strong>
-                      <span>고객·시작일·패키지·옵션만 고르면 마감과 할 일이 자동으로 준비돼요.</span>
-                      {/* 첫 화면에서 갈 곳이 없으면 안내가 막다른 길이 된다. */}
-                      <Link href="/jobs/new" className="clearStateCta">
-                        첫 일감 만들기 <ArrowRight size={15} />
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
                   <div className="clearState">
                     <CheckCircle2 size={24} />
                     <div><strong>급한 일은 모두 끝났어요</strong><span>마음 편히 다음 작업에 집중하세요.</span></div>
                   </div>
-                )
               )}
             </div>
 
@@ -288,6 +290,8 @@ export function TodayDashboard() {
           </section>
         </aside>
       </div>
+        </>
+      )}
 
       {completedLabel && (
         <div className="actionToast" role="status">
