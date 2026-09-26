@@ -21,11 +21,23 @@
 - 고객 bearer-token RPC 3개는 유지. 모든 함수를 일괄 INVOKER로 바꾸지 않음.
 - supabase/tests/rpc_execution_surface.sql은 실제 pg_catalog 유효 권한을 검사한다. 적용 전 22개 중 18개 false(RED), 적용 후 22개 모두 true(GREEN). SQL 실행 성공만으로 PASS 판정하지 말고 모든 passed 값을 확인할 것.
 - 적용 후 trigger 4개 모두 활성, owner postgres 유지 확인.
+- 이어진 삭제 보완 trigger를 포함한 최종 권한 검사는 23/23 true이다.
 - advisor의 익명 SECURITY DEFINER 경고 21→3. 남은 3개는 공개 고객 링크용. authenticated 경고 18개는 용도별 로그인/공개 RPC이며 소유자 검사를 별도 유지한다.
 - RLS 정책 없는 테이블 3개는 내부용 기본 차단이다. 경고 제거 목적으로 allow 정책을 추가하지 않는다.
 - 비밀번호 유출 보호 경고는 Google-only/이메일 provider OFF 계약과 구분. MFA 추가는 별도 등록·복구 설계 없이 임의로 강제하지 않는다.
 
 독립 리뷰는 함수 본문·원격 ACL·trigger를 읽어 최소 변경을 검토했다. 이것은 모든 취약점이나 제로데이가 없다는 보장이 아니다.
+
+## 실제 발견한 일감 삭제 잔존 기록 버그
+
+UI에서 일감을 삭제하면 문서 JSON에서는 사라지고 공개 링크도 거부됐지만 별도 portal 1행·요청 3행이 남는 문제를 발견했다. 이는 일감 삭제 시 함께 삭제한다는 공개 안내와 맞지 않았다.
+
+- migration `20260926141910_workspace_job_revision_cleanup` 운영 적용.
+- 동일 문서의 OLD.jobs에는 있고 NEW.jobs에는 없는 ID에만, 그 소유자의 요청→portal 순서로 삭제한다. 유지한 일감·다른 소유자·과거 무관한 orphan·사용량 원장은 건드리지 않는다.
+- 고객 제출과 portal 등록은 document→portal 잠금 순서로 맞췄다. 공개 제출은 문서 잠금 뒤 토큰/owner/활성을 재검사하며, 등록은 문서 잠금을 얻지 못하면 즉시 거부한다. 동시 삭제·접수의 잠금 순환과 삭제 후 portal 재생성을 방지한다.
+- `supabase/tests/workspace_job_deletion.sql`: 임시 합성 소유자만 사용하며 성공/실패 모두 rollback. 실제 save RPC 경로에서 삭제·유지 일감·다른 소유자·무관한 orphan·일반 편집·반복 저장·공개 제출/동일 요청 재시도·삭제 링크 거부를 검사한다. 적용 전 `deleted_job_revision_data_retained` RED, 적용 후 PASS.
+- 사용자 승인 및 확인 클릭으로 실제 검증 일감 삭제. 이미 남아 있던 테스트 자료는 확인한 owner+job key+portal ID와 정확한 3요청/1portal 수량을 제한해 별도 삭제했다. 후속 DB 조회 결과 portal0/request0. 실제 고객/기존 패키지/계정은 삭제하지 않았다.
+- 대규모 동시 부하 테스트는 수행하지 않았다. 잠금 순서의 정적 독립 검토와 직렬 실제 RPC 회귀 결과를 구분한다.
 
 ## 미완료 운영 조건 — 통과로 꾸미지 않음
 
