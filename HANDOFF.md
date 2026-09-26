@@ -12,6 +12,7 @@
 
 ## 지금 상태 (2026-09-26 확인)
 
+- UI/UX 작업: `feat/uiux-readiness-20260926`, C: 격리 worktree에서 첫 실행 Today, 모바일 글자/버튼, 가로 패키지 목록, 설문 안내, 미리보기 재생 제어 개선. 전체 출시 검사(521 unit/44 E2E)와 독립 검토 후 보완 검사 통과. PR/운영 반영 진행 상태는 `docs/verification/2026-09-26-uiux.md` 확인.
 - 작업 기준 main: `b10312b`. 최종 제품 커밋 `5d6abe4c487ca0b09075eed96137cd757e82781c`를 main 병합·Sites 운영 배포 완료. D: 작업 폴더도 이 main으로 전환했으며 기존 설문 수정은 보존했다.
 - 보안 커밋: `8de9d8c`, PR #2 `chore: 운영 의존성 보안 업데이트`는 GitHub CI 통과 후 사용자 승인으로 main 병합 완료.
 - 새 운영 주소: `https://ilgam.studioyeolmae.com`. 기존 심사 주소 `https://ilgamcheck-beta.bsfire1237.chatgpt.site`도 유지 (ChatGPT Sites 동일 배포).
@@ -24,7 +25,7 @@
 - 도메인 PR #3도 GitHub CI 통과 후 사용자 승인으로 main 병합 완료. Sites 버전 26, 배포 `appgdep_6ab7baeab5a881918eb416461b1ea6f3`, 환경 revision 6, succeeded 확인. NEXT_PUBLIC_SITE_ORIGIN은 새 주소로 설정하고 정확한 제품 커밋으로 재빌드했다.
 - 배포 후 양쪽 주소 각각 smoke 9개 PASS, runtime 202608250011 및 public-config digest 동일 확인. Accept:text/html로 /와 /today HTTP 200·새 도메인 메타데이터 확인. 양쪽 브라우저 Today/저장됨/실시간 연결됨도 재확인.
 - NEXT_PUBLIC_SITE_ORIGIN 미설정 시 기존 심사 주소 유지. 고객 토큰 재발급이나 DB 이동 없음.
-- 외장 드라이브 I/O 지연 때문에 동일 소스의 C: 임시 복사본에서 검증했다. D: npm ci 복원 상태는 작업 종료 시 확인할 것.
+- 외장 드라이브 I/O 지연 때문에 동일 소스의 C: 임시 복사본에서 검증했다. D: npm ci 복원은 exit 0으로 완료 확인했다.
 - 열린 PR: #1 `claude/local-backup-restore` (로컬 모드 JSON 백업 불러오기). 보안 업데이트 main을 해당 브랜치에 합친 뒤 CI run 36241965670 SUCCESS. 사용자 지시대로 병합·배포하지 않았다.
 
 ## 다음 작업
@@ -33,7 +34,7 @@
 
 - PR #2/#3 병합·운영 배포·배포 후 검증은 완료. 중복 배포하지 않는다.
 - 실제 고객 bearer-token 조회/제출의 새·기존 주소 호환성은 미검증. 현재 로그인 계정의 일감이 0건이다. 검증용 패키지·일감 1건 생성/확인/정리 승인을 질문했으나 아직 답변 없음. 승인 전에는 운영 데이터를 만들지 않는다.
-- D: npm ci 복원은 외장 드라이브 I/O 지연으로 진행 중이었다. exec session 30594, node PID 35192, 로그 install-security-20260926.log를 확인한다. 운영 배포는 C: 검증 복사본에서 완료했으므로 사이트 장애와 혼동하지 않는다.
+- D: npm ci 복원 완료. UI 작업은 `C:\Users\최용우\.codex\worktrees\ilgam-uiux-20260926`에서 분리 진행하며 D:의 미커밋 설문·검증 자료는 보존한다.
 - PR #1은 CI가 통과해도 별도 기능이므로 임의로 main에 합치지 않는다.
 
 ### 2. 도메인 연결 (끝까지)
