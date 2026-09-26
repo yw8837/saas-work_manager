@@ -4,9 +4,22 @@ import { loadSitesPublicEnvironment, publicConfigEndpoint } from "./public-confi
 
 afterEach(() => {
   delete globalThis.__ILGAMCHECK_PUBLIC_ENV__;
+  vi.unstubAllEnvs();
 });
 
 describe("Sites public runtime bootstrap", () => {
+  it("uses the configured HTTPS origin for native WebViews, but same-origin for web", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ORIGIN", "https://ilgam.studioyeolmae.com/");
+    expect(publicConfigEndpoint({ hostname: "localhost" })).toBe("https://ilgam.studioyeolmae.com/api/public-config");
+    expect(publicConfigEndpoint({ hostname: "ilgam.studioyeolmae.com" })).toBe("/api/public-config");
+    expect(publicConfigEndpoint({ hostname: "ilgamcheck-beta.bsfire1237.chatgpt.site" })).toBe("/api/public-config");
+  });
+
+  it.each(["http://example.com", "https://user:password@example.com", "https://example.com/path", "https://example.com/?key=secret", "https://example.com/#fragment", "https://example.com:444", "https://example.com/\" onload=\"alert(1)"])("rejects an unsafe configured origin: %s", (origin) => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ORIGIN", origin);
+    expect(() => publicConfigEndpoint({ hostname: "localhost" })).toThrow("SITE_ORIGIN_INVALID");
+  });
+
   it("uses the deployed endpoint inside Android and iOS WebViews", () => {
     expect(publicConfigEndpoint({ hostname: "localhost" })).toBe(
       "https://ilgamcheck-beta.bsfire1237.chatgpt.site/api/public-config",

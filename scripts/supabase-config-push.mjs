@@ -67,6 +67,7 @@ try {
   hostedConfig = renderHostedSupabaseConfig(
     readFileSync(join(process.cwd(), "supabase", "config.toml"), "utf8"),
     siteUrl,
+    process.env.SUPABASE_AUTH_LEGACY_ORIGIN,
   );
 } catch (error) {
   console.error(`[supabase-config] ${error.message}`);
@@ -97,7 +98,7 @@ try {
     process.exitCode = result.status ?? 1;
   } else {
     recordAuthConfigReceipt({ projectRef, origin: siteUrl });
-    console.log("[supabase-config] 원격 Auth config push 완료. Dashboard에서도 Google 로그인 ON·이메일 로그인 OFF·redirect 2개를 교차 확인하세요.");
+    console.log("[supabase-config] 원격 Auth config push 완료. Dashboard에서도 Google 로그인 ON·이메일 로그인 OFF·현재/이전 origin의 정확한 redirect 목록을 교차 확인하세요.");
   }
 } finally {
   const resolvedTemp = resolve(temporaryRoot);

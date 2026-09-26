@@ -18,6 +18,9 @@ export function normalizeAuthSiteUrl(rawUrl) {
   if (url.username || url.password || url.port || url.search || url.hash || !["", "/"].includes(url.pathname)) {
     throw new Error("Auth Site URL은 비표준 포트·자격증명·경로·query가 없는 배포 origin이어야 합니다.");
   }
+  if (!/^[a-z\d.-]+$/i.test(url.hostname) || /[\s<>"'\\]/.test(value)) {
+    throw new Error("Auth Site URL은 와일드카드나 특수문자가 없는 정확한 호스트여야 합니다.");
+  }
   return url.origin;
 }
 
@@ -29,8 +32,18 @@ function tomlSection(text, sectionName) {
   return lines.slice(start + 1, next < 0 ? undefined : next).join("\n");
 }
 
-export function renderHostedSupabaseConfig(localConfig, rawSiteUrl) {
+export function authRedirectUrls(rawSiteUrl, rawLegacyOrigin) {
+  const origins = [normalizeAuthSiteUrl(rawSiteUrl)];
+  if (rawLegacyOrigin?.trim()) {
+    const legacy = normalizeAuthSiteUrl(rawLegacyOrigin);
+    if (!origins.includes(legacy)) origins.push(legacy);
+  }
+  return origins.flatMap((origin) => [`${origin}/today`, `${origin}/settings`]);
+}
+
+export function renderHostedSupabaseConfig(localConfig, rawSiteUrl, rawLegacyOrigin) {
   const siteUrl = normalizeAuthSiteUrl(rawSiteUrl);
+  const redirects = authRedirectUrls(siteUrl, rawLegacyOrigin);
   const auth = tomlSection(localConfig, "auth");
   const email = tomlSection(localConfig, "auth.email");
   const google = tomlSection(localConfig, "auth.external.google");
@@ -50,7 +63,7 @@ export function renderHostedSupabaseConfig(localConfig, rawSiteUrl) {
   );
   hosted = hosted.replace(
     /^additional_redirect_urls\s*=\s*\[[\s\S]*?^\]/m,
-    `additional_redirect_urls = [\n  "${siteUrl}/today",\n  "${siteUrl}/settings"\n]`,
+    `additional_redirect_urls = [\n${redirects.map((url) => `  ${JSON.stringify(url)}`).join(",\n")}\n]`,
   );
   if (
     !hosted.includes(`site_url = "${siteUrl}"`)

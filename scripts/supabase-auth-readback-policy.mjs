@@ -1,12 +1,12 @@
 import { projectRefIssue } from "./supabase-cli-policy.mjs";
-import { normalizeAuthSiteUrl } from "./supabase-config-push-policy.mjs";
+import { authRedirectUrls, normalizeAuthSiteUrl } from "./supabase-config-push-policy.mjs";
 
 export const SUPABASE_MANAGEMENT_ORIGIN = "https://api.supabase.com";
 export const DEFAULT_AUTH_READBACK_TIMEOUT_MS = 10_000;
 export const DEFAULT_AUTH_READBACK_MAX_BYTES = 64 * 1024;
 
-function authRedirectAllowListIssue(rawAllowList, expectedOrigin) {
-  const expectedUrls = [`${expectedOrigin}/today`, `${expectedOrigin}/settings`];
+function authRedirectAllowListIssue(rawAllowList, expectedOrigin, legacyOrigin) {
+  const expectedUrls = authRedirectUrls(expectedOrigin, legacyOrigin);
   let entries;
 
   // Supabase CLI 2.114.0 serializes additional_redirect_urls with join(","),
@@ -22,12 +22,12 @@ function authRedirectAllowListIssue(rawAllowList, expectedOrigin) {
 
   // Do not URL-normalize remote entries: encoded/case/trailing-path variants,
   // credentials, query strings, fragments, wildcards, and duplicate entries
-  // must never become equivalent to the two literal callbacks we configured.
+  // must never become equivalent to the literal callbacks we configured.
   if (
     entries.length !== expectedUrls.length
     || entries.some((entry, index) => typeof entry !== "string" || entry !== expectedUrls[index])
   ) {
-    return "Supabase Auth config의 uri_allow_list는 현재 배포 origin의 /today와 /settings만 허용해야 합니다.";
+    return "Supabase Auth config의 uri_allow_list는 명시한 현재·이전 origin의 /today와 /settings만 허용해야 합니다.";
   }
 
   return null;
@@ -76,10 +76,11 @@ async function readLimitedText(response, maxBytes) {
   }
 }
 
-export function supabaseAuthConfigIssue(config, expectedOrigin) {
+export function supabaseAuthConfigIssue(config, expectedOrigin, legacyOrigin) {
   let expected;
   try {
     expected = normalizeAuthSiteUrl(expectedOrigin);
+    authRedirectUrls(expected, legacyOrigin);
   } catch (error) {
     return error instanceof Error ? error.message : "Auth Site URL이 올바르지 않습니다.";
   }
@@ -112,7 +113,7 @@ export function supabaseAuthConfigIssue(config, expectedOrigin) {
     return "Supabase Auth config의 이메일 로그인 제공자(external_email_enabled)를 꺼야 합니다.";
   }
 
-  const redirectIssue = authRedirectAllowListIssue(config.uri_allow_list, expected);
+  const redirectIssue = authRedirectAllowListIssue(config.uri_allow_list, expected, legacyOrigin);
   if (redirectIssue) return redirectIssue;
 
   return null;
@@ -121,6 +122,7 @@ export function supabaseAuthConfigIssue(config, expectedOrigin) {
 export async function supabaseAuthReadbackIssue({
   projectRef,
   expectedOrigin,
+  legacyOrigin,
   accessToken,
   fetchImpl = fetch,
   timeoutMs = DEFAULT_AUTH_READBACK_TIMEOUT_MS,
@@ -130,7 +132,7 @@ export async function supabaseAuthReadbackIssue({
   if (refIssue) return refIssue;
 
   try {
-    normalizeAuthSiteUrl(expectedOrigin);
+    authRedirectUrls(expectedOrigin, legacyOrigin);
   } catch (error) {
     return error instanceof Error ? error.message : "Auth Site URL이 올바르지 않습니다.";
   }
@@ -203,5 +205,5 @@ export async function supabaseAuthReadbackIssue({
   } catch {
     return "Supabase Management API Auth config JSON을 해석할 수 없습니다.";
   }
-  return supabaseAuthConfigIssue(config, expectedOrigin);
+  return supabaseAuthConfigIssue(config, expectedOrigin, legacyOrigin);
 }

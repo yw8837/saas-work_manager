@@ -76,6 +76,7 @@ if (supabaseRemoteIssue === null) {
   authConfigRemoteIssue = await supabaseAuthReadbackIssue({
     projectRef: supabaseProjectRef,
     expectedOrigin: policyEnv.SUPABASE_AUTH_SITE_URL,
+    legacyOrigin: policyEnv.SUPABASE_AUTH_LEGACY_ORIGIN,
     accessToken: shellSupabaseAccessToken,
   });
 }
