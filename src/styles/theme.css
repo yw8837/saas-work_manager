@@ -975,31 +975,34 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   justify-content: space-between;
   gap: 18px;
   margin: 18px 30px 0;
-  padding: 15px 18px;
+  padding: 10px 16px;
   color: var(--ink);
-  background: var(--amber-soft);
-  border: 1px solid #edd09d;
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 .betaSurveyBanner div { display: grid; gap: 3px; }
 .betaSurveyBanner strong { font-size: 14px; }
-.betaSurveyBanner span { color: var(--ink-soft); font-size: 12px; }
+.betaSurveyBanner span { color: var(--muted); font-size: 13px; }
 .betaSurveyBanner a {
   flex: 0 0 auto;
-  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   padding: 10px 14px;
-  color: white;
-  background: var(--ink);
+  color: var(--blue);
+  background: var(--blue-soft);
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 @media (max-width: 720px) {
   .betaSurveyBanner {
-    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
     margin: 12px 16px 0;
-    padding: 14px;
+    padding: 12px;
   }
 }
 
