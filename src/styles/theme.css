@@ -1187,7 +1187,10 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .catalogHeader { display: block; }
   .catalogSaved { margin-top: 12px; }
   .catalogGrid, .settingsGrid, .browserTestSection, .blockedExternalSection, .accountStatusSection, .accountDangerSection { grid-template-columns: 1fr; }
-  .catalogList { max-height: 220px; overflow: auto; }
+  .catalogList { min-width: 0; }
+  .catalogItems { display: flex; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding: 3px; gap: 4px; }
+  .catalogItems .catalogListItem { flex: 0 0 230px; min-height: 80px; border: 1px solid var(--line); border-radius: var(--radius-sm); scroll-snap-align: start; }
+  .catalogItems .catalogListItem strong, .catalogItems .catalogListItem span { white-space: normal; overflow: visible; }
   .catalogEditor { padding: 16px; }
   .catalogFieldGrid { grid-template-columns: 1fr 1fr; }
   .catalogFullField { grid-column: 1 / -1; }

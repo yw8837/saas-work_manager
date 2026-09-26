@@ -183,11 +183,13 @@ export function PackageManager() {
         <div className="catalogGrid">
           <aside className="catalogList" aria-label="패키지 목록">
             <div className="catalogListHead"><strong>홈페이지 제작 패키지</strong>{canCreatePackage && <button type="button" className="smallIconButton" aria-label="새 패키지" onClick={() => { const next = newPackage(); setSelectedPackageId(next.id); setPackageDraft(next); }}><Plus size={16} /></button>}</div>
+            <div className="catalogItems">
             {packageList.map((item) => (
               <button type="button" className="catalogListItem" data-active={selectedPackage.id === item.id} key={item.id} onClick={() => selectPackage(item.id)}>
                 <div><strong>{item.name}</strong><span>{formatWon(item.price)} · {item.durationDays}일 · 수정 {item.revisionLimit}회</span></div><ChevronRight size={16} />
               </button>
             ))}
+            </div>
             {!canCreatePackage && (
               <UpgradeNotice
                 title={`지금 플랜은 패키지 ${limits.packages}개까지예요`}
@@ -213,11 +215,13 @@ export function PackageManager() {
         <div className="catalogGrid">
           <aside className="catalogList" aria-label="옵션 목록">
             <div className="catalogListHead"><strong>자동 반영 옵션</strong>{canCreateOption && <button type="button" className="smallIconButton" aria-label="새 옵션" onClick={() => { const next = newOption(); setSelectedOptionId(next.id); setOptionDraft(next); }}><Plus size={16} /></button>}</div>
+            <div className="catalogItems">
             {optionList.map((item) => (
               <button type="button" className="catalogListItem" data-active={selectedOption.id === item.id} key={item.id} onClick={() => selectOption(item.id)}>
                 <div><strong>{item.name}</strong><span>+{formatWon(item.priceDelta)} · +{item.durationDaysDelta}일 · 수정 +{item.revisionLimitDelta}회</span></div><ChevronRight size={16} />
               </button>
             ))}
+            </div>
             {!canCreateOption && (
               <UpgradeNotice
                 title={`지금 플랜은 옵션 ${limits.options}개까지예요`}
