@@ -169,13 +169,13 @@ test("잘못된 링크는 입력을 보존하고 수정한 뒤에만 저장한�
   await page.getByRole("button", { name: "편집", exact: true }).click();
   await page.getByLabel("링크 1 주소").fill("figma.com");
   await page.getByRole("button", { name: "링크 저장" }).click();
-  await expect(page.getByRole("alert")).toContainText("1번 링크 주소");
+  await expect(page.locator(".linkEditor").getByRole("alert")).toContainText("1번 링크 주소");
   await expect(page.getByLabel("링크 1 주소")).toHaveValue("figma.com");
   await expect(page.locator(".linkShortcutGrid")).toHaveText(existingLinks);
   await page.locator(".linkManagerSection").screenshot({ path: testInfo.outputPath("link-validation.png") });
   await page.getByLabel("링크 1 주소").fill("https://example.com/corrected");
   await page.getByRole("button", { name: "링크 저장" }).click();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator(".linkEditor").getByRole("alert")).toHaveCount(0);
   await page.reload();
   await expect(page.locator('.linkShortcutGrid a[href="https://example.com/corrected"]')).toBeVisible();
 });
