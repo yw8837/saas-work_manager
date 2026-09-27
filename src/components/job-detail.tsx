@@ -62,6 +62,7 @@ function formatTimelineDate(value: string) {
 export function JobDetail({ jobId }: { jobId: string }) {
   const {
     jobs,
+    hydrated,
     runtimeMode,
     saveStatus,
     toggleTask,
@@ -95,6 +96,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [copied, setCopied] = useState(false);
   const [linkEditorOpen, setLinkEditorOpen] = useState(false);
   const [linkDrafts, setLinkDrafts] = useState<JobLink[]>([]);
+  const [linkError, setLinkError] = useState("");
   const [revertTargetId, setRevertTargetId] = useState<string | null>(null);
   const [revertReason, setRevertReason] = useState("");
   const [addonOpen, setAddonOpen] = useState(false);
@@ -122,6 +124,10 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
     return () => window.cancelAnimationFrame(frame);
   }, [revisionFocusRequest, revisionOpen]);
+
+  if (!hydrated) {
+    return <div className="pageSurface missingJob" role="status" aria-live="polite"><p>일감을 불러오고 있어요.</p></div>;
+  }
 
   if (!job || !revision) {
     return (
@@ -186,6 +192,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
   const openLinkEditor = () => {
     setLinkDrafts(job.links.map((link) => ({ ...link })));
+    setLinkError("");
+    setDetailFeedback("");
     setLinkEditorOpen(true);
   };
 
@@ -194,10 +202,26 @@ export function JobDetail({ jobId }: { jobId: string }) {
   };
 
   const saveLinks = () => {
-    const valid = linkDrafts.filter((link) => link.label.trim() && /^https?:\/\//.test(link.url.trim()));
-    updateJobLinks(job.id, valid.map((link) => ({ ...link, label: link.label.trim(), url: link.url.trim() })));
+    const links = linkDrafts.map((link) => ({ ...link, label: link.label.trim(), url: link.url.trim() }));
+    setLinkError("");
+    for (const [index, link] of links.entries()) {
+      if (!link.label) {
+        setLinkError(`${index + 1}번 링크 이름을 입력해 주세요.`);
+        return;
+      }
+      try {
+        const parsed = new URL(link.url);
+        if (!/^https?:\/\//i.test(link.url) || !["http:", "https:"].includes(parsed.protocol) || !parsed.hostname) {
+          throw new Error("invalid link");
+        }
+      } catch {
+        setLinkError(`${index + 1}번 링크 주소를 확인해 주세요. https:// 또는 http://로 시작하는 전체 주소를 입력해 주세요.`);
+        return;
+      }
+    }
+    updateJobLinks(job.id, links);
     setLinkEditorOpen(false);
-    setDetailFeedback("작업 링크를 저장했어요.");
+    setDetailFeedback("작업 링크를 반영했어요. 저장 여부는 상단에서 확인해 주세요.");
   };
 
   const submitRevert = (event: FormEvent<HTMLFormElement>) => {
@@ -388,7 +412,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
                     className="detailTaskCheck"
                     onClick={() => toggleTask(job.id, task.id)}
                     disabled={job.status !== "active"}
-                    aria-label={`${task.title} 완료 처리`}
+                    aria-label={`${task.title} ${task.status === "done" ? "완료 취소" : "완료 처리"}`}
+                    aria-pressed={task.status === "done"}
                     data-testid={`task-toggle-${task.id}`}
                   >
                     {task.status === "done" ? <Check size={16} /> : <span>{index + 1}</span>}
@@ -641,6 +666,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
                 {linkDrafts.map((link, index) => (
                   <div className="linkDraftRow" key={link.id}><input aria-label={`링크 ${index + 1} 이름`} value={link.label} onChange={(event) => setLinkDrafts((items) => items.map((item) => item.id === link.id ? { ...item, label: event.target.value } : item))} placeholder="링크 이름" /><input aria-label={`링크 ${index + 1} 주소`} value={link.url} onChange={(event) => setLinkDrafts((items) => items.map((item) => item.id === link.id ? { ...item, url: event.target.value } : item))} placeholder="https://" /><button type="button" className="smallIconButton" aria-label={`${link.label || "링크"} 삭제`} onClick={() => setLinkDrafts((items) => items.filter((item) => item.id !== link.id))}>×</button></div>
                 ))}
+                {linkError && <p role="alert">{linkError}</p>}
                 <div className="revisionFormActions"><button type="button" className="textOnlyButton" onClick={() => setLinkEditorOpen(false)}>취소</button><button type="button" className="primaryButton compactSubmit" onClick={saveLinks}><Save size={15} /> 링크 저장</button></div>
               </div>
             )}
