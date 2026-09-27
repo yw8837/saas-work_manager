@@ -17,8 +17,17 @@
 - 계정 삭제 API가 크기 제한 전 본문을 전부 읽던 자원 소모 위험을 재현했다. Sites·Next 모두 공통 bounded reader로 1,024바이트 초과 즉시 413, 총 업로드 5초 초과 408, 잘못된 UTF-8 400으로 제한했다. 실제 계정 삭제·운영 데이터 변경·DB migration은 없다.
 - 신규 회귀 10개 중 수정 전 8개 실패→수정 후 전부 PASS. 전체 94파일/531개 PASS, lint/typecheck PASS. 독립 리뷰 Critical/Important 0건. slow-drip 실제 Node 추가 검사도 5초 제한 확인.
 - 운영 RLS 31/31, 함수 권한 계약 23/23 PASS. 익명 저장 401/42501, 가짜 고객 토큰 조회 빈 결과, cross-origin 계정 삭제 403, health 200/ready=true. 의존성 audit0.
-- 상세: `docs/verification/2026-09-27-security-review.md`. 전체 출시 게이트·PR·배포 최종 영수증은 완료 뒤 여기에 추가한다. 아래 v28이 현재 마지막 확인 배포이며 로컬 수정만으로 운영 반영을 주장하지 않는다.
+- 상세: `docs/verification/2026-09-27-security-review.md`. 최종 배포는 v29이며 아래 영수증이 해당 보고서의 진행 중 표기를 대체한다.
 - 남은 CSP unsafe-inline 방어 강화, 정책 finalized=false, 실제 탈퇴/백업 복구 증거, 유료 결제 미구현 상태를 숨기지 않는다. 자동 보안 경고는 보고서에서 의도된 권한과 별도 운영 과제로 구분했다.
+
+#### 2026-09-27 최종 영수증
+
+- 로컬 `check:release` 전체 PASS: 94파일/531 unit, 52 E2E(데스크톱26+모바일26), lint/typecheck/audit0/local+hosted build. Sites 운영 origin 빌드 및 산출물 검사 PASS. 패키징된 Worker에서도 초과 청크 두 번째 읽기 직후 취소·413 확인.
+- PR #6 `https://github.com/yw8837/saas-work_manager/pull/6`, head `c7a73ba7f5778ce7b4d7d2d3e869c3bb12627a9b`의 GitHub CI `36300761744` SUCCESS(verify 3m56s) 후 main 병합. 제품 소스 `8c54b6370b8c48381fb6455c2da9b596c0b0a433`.
+- Sites v29: 버전 `appgprj_6a8b16a27df88191b5cad3afd63a9366~appgver_7f1be531156881918623e64f592d1052`, 배포 `appgdep_6ab8bbbea2608191804ffb00e6a0e0c3`, succeeded, 2026-09-27 15:46:35 KST. 공개 범위 public, 환경 revision6 유지. 도메인/DNS/DB/Auth 설정 변경 없음.
+- 배포 후 새·기존 주소 각각 기본 smoke 9/9 PASS. 각각 1,025바이트 요청 413, 잘못된 UTF-8 400, 합성 무효 토큰 401 확인. Google=true/email=false/다른 provider 없음도 운영 공개 Auth 설정에서 확인. 실제 계정·작업 데이터 생성/삭제 없음.
+- 배포 도구의 기존 Windows 경로 패키징 오류는 소스 push·검증 후 발생. 동일 clean main 소스에서 생성한 dist를 tar로 묶어 manifest/Worker 파일 확인 후 native save/deploy 성공. 파일 `C:\Users\최용우\AppData\Local\Temp\ilgam-security-8c54b63.tar`. 도구 오류를 애플리케이션 검사 통과로 둔갑시키지 않는다.
+- D: main 최신 제품 소스로 fast-forward 완료. 기존 GATES/설문/과거 보안 문서 및 untracked 자료 보존. PR #1 OPEN 유지, 병합하지 않음. 이 HANDOFF 단독 영수증 갱신은 제품 산출물 변경이 아니므로 재배포하지 않는다.
 
 ### 최신 운영 검증 및 최소 권한 보완
 
@@ -71,7 +80,7 @@
 
 ### 1. 남은 운영 확인
 
-- 2026-09-27 본문 제한 보안 수정은 출시 게이트 및 PR·배포 영수증을 확인한다. 같은 수정이나 실제 삭제 검사를 중복 수행하지 않는다.
+- 2026-09-27 본문 제한 보안 수정은 PR #6 병합·v29 배포·운영 차단 확인까지 완료. 같은 수정이나 실제 삭제 검사를 중복 수행하지 않는다. 후속은 별도 CSP 강화 설계와 남은 운영 증거 확인이다.
 
 - UI/UX PR #4 배포와 운영 고객 링크 양쪽 조회/제출까지 완료. 정책 게시 확정(`policyPublication.finalized=false`)과 실제 운영 증거는 별도 확인이 필요하다.
 - PR #2/#3 병합·운영 배포·배포 후 검증은 완료. 중복 배포하지 않는다.
@@ -97,7 +106,7 @@
 ## 사람 확인이 필요한 것
 
 - 사용자가 로그인과 DNS 서비스 확인사항에 동의했고 에이전트가 DNS 등록 완료. 중복 요청하지 않는다.
-- PR #2/#3 병합 승인과 실제 Google 로그인, 고객 링크 검증 및 테스트 자료 삭제 승인은 완료. 삭제 UI 결과만 아직 확인 대기다.
+- PR #2/#3 병합 승인과 실제 Google 로그인, 고객 링크 검증 및 테스트 자료 삭제는 완료했다. 예전 삭제 UI 확인 대기 문구는 유효하지 않다.
 - 결제 기능은 아직 없다. 요금 표현은 PRODUCT.md "가입과 베타 이용 코드"를 따른다.
 
 ## 자주 쓰는 명령
