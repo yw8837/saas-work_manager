@@ -41,6 +41,7 @@ const confirmAddonSpy = vi.fn();
 function renderDetail(job = baseJob()) {
   vi.mocked(useWorkspace).mockReturnValue({
     jobs: [job],
+    hydrated: true,
     runtimeMode: "local",
     saveStatus: "saved",
     toggleTask: vi.fn(),

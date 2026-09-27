@@ -162,6 +162,38 @@ test("일감 상세에서 작업 링크를 저장하고 새로고침 뒤에도 �
   await expect(page.locator(".linkShortcutGrid").getByText("E2E 작업 링크", { exact: true })).toBeVisible();
 });
 
+test("잘못된 링크는 입력을 보존하고 수정한 뒤에만 저장한다", async ({ page }, testInfo) => {
+  await seedWorkspace(page, "ilgamcheck-e2e-seeded");
+  await page.goto("/jobs/job_seed_mora");
+  const existingLinks = await page.locator(".linkShortcutGrid").innerText();
+  await page.getByRole("button", { name: "편집", exact: true }).click();
+  await page.getByLabel("링크 1 주소").fill("figma.com");
+  await page.getByRole("button", { name: "링크 저장" }).click();
+  await expect(page.locator(".linkEditor").getByRole("alert")).toContainText("1번 링크 주소");
+  await expect(page.getByLabel("링크 1 주소")).toHaveValue("figma.com");
+  await expect(page.locator(".linkShortcutGrid")).toHaveText(existingLinks);
+  await page.locator(".linkManagerSection").screenshot({ path: testInfo.outputPath("link-validation.png") });
+  await page.getByLabel("링크 1 주소").fill("https://example.com/corrected");
+  await page.getByRole("button", { name: "링크 저장" }).click();
+  await expect(page.locator(".linkEditor").getByRole("alert")).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.linkShortcutGrid a[href="https://example.com/corrected"]')).toBeVisible();
+});
+
+test("할 일 완료 버튼은 되돌리기 동작과 눌림 상태를 정확히 알린다", async ({ page }) => {
+  await seedWorkspace(page, "ilgamcheck-e2e-seeded");
+  await page.goto("/jobs/job_seed_mora");
+  const toggle = page.locator(".detailTaskRow").first().getByRole("button");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toHaveAccessibleName(/완료 처리$/);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveAccessibleName(/완료 취소$/);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toHaveAccessibleName(/완료 처리$/);
+});
+
 test("알림 설정은 인앱 기준과 외부 권한 경계를 보여준다", async ({ page }) => {
   await page.goto("/settings");
   // 알림 설정은 항목별 제목으로 나뉘었다. 아래 D-2 문구가 속한 절을 직접 확인한다.
