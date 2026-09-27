@@ -1,5 +1,6 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server-admin";
 import { hasRecentGoogleAuthentication } from "@/lib/supabase/recent-google-authentication";
+import { readAccountDeletionBody } from "@/lib/security/account-delete-body";
 
 export const dynamic = "force-dynamic";
 
@@ -51,19 +52,16 @@ export async function POST(request: Request) {
     return jsonError("로그인 세션을 다시 확인해주세요.", 401);
   }
 
-  let rawBody: string;
-  try {
-    rawBody = await request.text();
-  } catch {
-    return jsonError("요청 본문을 읽지 못했어요.", 400);
-  }
-  if (new TextEncoder().encode(rawBody).byteLength > MAX_BODY_BYTES) {
-    return jsonError("요청 본문이 너무 커요.", 413);
+  const bodyResult = await readAccountDeletionBody(request);
+  if (!bodyResult.ok) {
+    return jsonError(bodyResult.status === 413 ? "요청 본문이 너무 커요."
+      : bodyResult.status === 408 ? "요청 시간이 초과됐어요. 다시 시도해주세요."
+      : "요청 본문을 읽지 못했어요.", bodyResult.status);
   }
 
   let body: unknown;
   try {
-    body = JSON.parse(rawBody);
+    body = JSON.parse(bodyResult.text);
   } catch {
     return jsonError("요청 본문을 읽지 못했어요.", 400);
   }
