@@ -18,7 +18,7 @@ describe("mobile document metadata", () => {
 
     expect(document).toContain('property="og:type" content="website"');
     expect(document).toContain('property="og:title" content="일감체크 · 운영은 덜고 작업에 집중하세요"');
-    expect(document).toContain('property="og:image" content="https://ilgamcheck-beta.bsfire1237.chatgpt.site/og/ilgamcheck-social.png"');
+    expect(document).toContain('property="og:image" content="https://ilgam.studioyeolmae.com/og/ilgamcheck-social.png"');
     expect(document).toContain('name="twitter:card" content="summary_large_image"');
   });
 });
