@@ -79,6 +79,8 @@
 - 2026-09-30: 법적고지에 사업자 정보를 채웠다. 값은 `src/lib/business-identity.ts`에 있다(상호 열매스튜디오(열매STUDIO), 대표 최용우, 사업자등록번호 665-38-01736, 통신판매업 2026-부산영도-0153, 전화 010-8282-8837, 문의 studioyeolmae.com@gmail.com). 배포 환경변수에 옛 운영자명·이메일이 남아 있으면 그 값이 우선하므로 배포 설정에서 확인할 것.
 - 2026-09-30: 1번 보안 업데이트(npm audit fix)는 PR #8로 main에 합쳐졌다. `npm audit --omit=dev` 0건, check:release 통과. 아래 1번은 끝났으니 PR #1 브랜치에 main을 합쳐 CI만 다시 확인하면 된다.
 
+- 2026-09-30: 코드의 기본 운영 주소를 `https://ilgam.studioyeolmae.com`으로 바꿨다(링크 미리보기 등). DNS는 연결됨. 남은 일: ChatGPT Sites에 다시 배포, 새 주소 HTTPS·로그인 확인, Supabase Auth Site URL/Redirect URLs를 supabase/config.toml과 같게 맞추기.
+
 ## 다음 작업
 
 ### 1. 남은 운영 확인
