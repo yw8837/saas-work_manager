@@ -1,4 +1,4 @@
-const DEFAULT_SITE_ORIGIN = "https://ilgamcheck-beta.bsfire1237.chatgpt.site";
+const DEFAULT_SITE_ORIGIN = "https://ilgam.studioyeolmae.com";
 
 /** Build-time public origin for metadata and native app bootstrap, never an OAuth redirect input. */
 export function deploymentOrigin(raw: string | undefined = process.env.NEXT_PUBLIC_SITE_ORIGIN): string {

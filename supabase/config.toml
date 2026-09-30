@@ -27,12 +27,14 @@ enabled = true
 
 [auth]
 enabled = true
-site_url = "https://ilgamcheck-beta.bsfire1237.chatgpt.site"
+site_url = "https://ilgam.studioyeolmae.com"
 additional_redirect_urls = [
   "http://127.0.0.1:3000/today",
   "http://127.0.0.1:3000/settings",
   "http://localhost:3000/today",
   "http://localhost:3000/settings",
+  "https://ilgam.studioyeolmae.com/today",
+  "https://ilgam.studioyeolmae.com/settings",
   "https://ilgamcheck-beta.bsfire1237.chatgpt.site/today",
   "https://ilgamcheck-beta.bsfire1237.chatgpt.site/settings"
 ]

@@ -22,8 +22,9 @@ describe("Sites public runtime bootstrap", () => {
 
   it("uses the deployed endpoint inside Android and iOS WebViews", () => {
     expect(publicConfigEndpoint({ hostname: "localhost" })).toBe(
-      "https://ilgamcheck-beta.bsfire1237.chatgpt.site/api/public-config",
+      "https://ilgam.studioyeolmae.com/api/public-config",
     );
+    expect(publicConfigEndpoint({ hostname: "ilgam.studioyeolmae.com" })).toBe("/api/public-config");
     expect(publicConfigEndpoint({ hostname: "ilgamcheck-beta.bsfire1237.chatgpt.site" })).toBe("/api/public-config");
   });
 

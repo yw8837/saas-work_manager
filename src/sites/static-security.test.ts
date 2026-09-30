@@ -9,7 +9,7 @@ describe("static Sites shell security", () => {
     expect(html).toContain('rel="icon" href="/icons/app-icon.svg"');
     expect(html).toContain('http-equiv="Content-Security-Policy"');
     expect(html).toContain("object-src 'none'");
-    expect(html).toContain("https://ilgamcheck-beta.bsfire1237.chatgpt.site");
+    expect(html).toContain("https://ilgam.studioyeolmae.com");
     expect(html).toContain("https://*.supabase.co wss://*.supabase.co");
     expect(html).toContain('window.location.replace("about:blank")');
     expect(html).not.toContain("unsafe-eval");
