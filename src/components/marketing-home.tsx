@@ -12,19 +12,21 @@ import { Brand } from "./brand";
 import { ProductPreview } from "./product-preview";
 import { getPublicServiceConfig } from "@/lib/policies";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
+import { BUSINESS_IDENTITY } from "@/lib/business-identity";
 import { getPublicEnvironmentValue } from "@/lib/public-environment";
 
 export function MarketingHome() {
   const service = getPublicServiceConfig();
-  // 전자상거래법 사업자 정보 고지 — 배포 시 NEXT_PUBLIC_* 로 주입, 미설정이면 정직하게 등록 전 고지
+  // 전자상거래법 사업자 정보 고지 — 배포 시 NEXT_PUBLIC_* 가 있으면 그 값, 없으면 사업자등록 기준 값
   const legal = {
-    businessName: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NAME")?.trim() || null,
-    regNo: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NUMBER")?.trim() || null,
-    mailOrderNo: getPublicEnvironmentValue("NEXT_PUBLIC_MAIL_ORDER_NUMBER")?.trim() || null,
-    address: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_ADDRESS")?.trim() || null,
-    phone: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_PHONE")?.trim() || null,
+    businessName: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NAME")?.trim() || BUSINESS_IDENTITY.businessName,
+    representative: BUSINESS_IDENTITY.representative,
+    regNo: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NUMBER")?.trim() || BUSINESS_IDENTITY.registrationNumber,
+    mailOrderNo: getPublicEnvironmentValue("NEXT_PUBLIC_MAIL_ORDER_NUMBER")?.trim() || BUSINESS_IDENTITY.mailOrderNumber,
+    address: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_ADDRESS")?.trim() || BUSINESS_IDENTITY.address,
+    phone: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_PHONE")?.trim() || BUSINESS_IDENTITY.phone,
   };
-  const hasLegalInfo = Object.values(legal).some(Boolean);
+  const supportEmail = service.supportEmail ?? BUSINESS_IDENTITY.email;
 
   return (
     <div className="marketingPage">
@@ -189,14 +191,15 @@ export function MarketingHome() {
             {service.supportEmail && <a href={`mailto:${service.supportEmail}`}>문의</a>}
           </nav>
         </div>
-        {hasLegalInfo && <dl className="marketingFooterLegal" role="group" aria-label="사업자 정보">
-          {legal.businessName && <div><dt>사업자</dt><dd>{legal.businessName}</dd></div>}
-          {legal.regNo && <div><dt>사업자등록번호</dt><dd>{legal.regNo}</dd></div>}
-          {legal.mailOrderNo && <div><dt>통신판매업신고</dt><dd>{legal.mailOrderNo}</dd></div>}
-          {legal.address && <div><dt>주소</dt><dd>{legal.address}</dd></div>}
-          {legal.phone && <div><dt>연락처</dt><dd>{legal.phone}</dd></div>}
-          {service.supportEmail && <div><dt>문의</dt><dd><a href={`mailto:${service.supportEmail}`}>{service.supportEmail}</a></dd></div>}
-        </dl>}
+        <dl className="marketingFooterLegal" role="group" aria-label="사업자 정보">
+          <div><dt>사업자</dt><dd>{legal.businessName}</dd></div>
+          <div><dt>대표자</dt><dd>{legal.representative}</dd></div>
+          <div><dt>사업자등록번호</dt><dd>{legal.regNo}</dd></div>
+          <div><dt>통신판매업신고</dt><dd>{legal.mailOrderNo}</dd></div>
+          <div><dt>주소</dt><dd>{legal.address}</dd></div>
+          <div><dt>연락처</dt><dd>{legal.phone}</dd></div>
+          <div><dt>문의</dt><dd><a href={`mailto:${supportEmail}`}>{supportEmail}</a></dd></div>
+        </dl>
       </footer>
     </div>
   );

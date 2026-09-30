@@ -87,6 +87,20 @@ describe("Hosted entry safety", () => {
     expect(screen.queryByText(/초대 전용 폐쇄 베타/)).not.toBeInTheDocument();
   });
 
+  it("falls back to the registered business identity when deployment values are absent", () => {
+    vi.stubEnv("NEXT_PUBLIC_BUSINESS_NAME", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPPORT_EMAIL", "");
+    render(<MarketingHome />);
+
+    const legal = screen.getByRole("group", { name: "사업자 정보" });
+    expect(legal).toHaveTextContent("사업자열매스튜디오");
+    expect(legal).toHaveTextContent("대표자최용우");
+    expect(legal).toHaveTextContent("사업자등록번호665-38-01736");
+    expect(legal).toHaveTextContent("통신판매업신고2026-부산영도-0153");
+    expect(legal).toHaveTextContent("연락처010-8282-8837");
+    expect(legal).toHaveTextContent("문의studioyeolmae.com@gmail.com");
+  });
+
   it("shows only the registered business name and inquiry in the compact legal footer", () => {
     vi.stubEnv("NEXT_PUBLIC_BUSINESS_NAME", "열매스튜디오");
     vi.stubEnv("NEXT_PUBLIC_OPERATOR_NAME", "SudioYeolmae");
