@@ -57,7 +57,10 @@ function withNativePublicConfigCors(response: Response, request: Request): Respo
 }
 
 function isHtmlNavigation(request: Request) {
-  return request.method === "GET" && request.headers.get("accept")?.includes("text/html");
+  return request.method === "GET" && (
+    new URL(request.url).pathname === "/"
+    || request.headers.get("accept")?.includes("text/html")
+  );
 }
 
 function withSecurityHeaders(
@@ -72,7 +75,7 @@ function withSecurityHeaders(
   if (/^\/r\/[^/]+$/.test(new URL(request.url).pathname)) {
     for (const { key, value } of buildBearerRouteHeaders()) headers.set(key, value);
   }
-  return new Response(responseBody(response), {
+  return new Response(request.method === "HEAD" ? null : responseBody(response), {
     status: response.status,
     statusText: response.statusText,
     headers,
@@ -101,7 +104,7 @@ async function finalizeStaticResponse(
   environment: SitesEnvironment,
 ): Promise<Response> {
   const secured = withSecurityHeaders(response, request, environment);
-  if (NULL_BODY_STATUSES.has(secured.status)) return secured;
+  if (request.method === "HEAD" || NULL_BODY_STATUSES.has(secured.status)) return secured;
   if (!isHtmlNavigation(request) || !secured.headers.get("content-type")?.includes("text/html")) {
     return secured;
   }
@@ -126,7 +129,14 @@ async function serveStatic(request: Request, environment: SitesEnvironment): Pro
   const location = response.headers.get("location");
   const redirectsUnknownRouteToRoot = (response.status === 307 || response.status === 308)
     && location === "/";
-  if ((response.status !== 404 && !redirectsUnknownRouteToRoot) || !isHtmlNavigation(request)) {
+  const { pathname } = new URL(request.url);
+  const isRootHead = request.method === "HEAD" && pathname === "/";
+  // Dynamic route identifiers may contain dots; missing files and APIs must not become the SPA.
+  const isAssetOrApi = /^\/(?:api|assets)(?:\/|$)/.test(pathname)
+    || (/\/[^/]+\.[^/]+$/.test(pathname) && !/^\/(?:jobs|r)\/[^/]+$/.test(pathname));
+  if ((response.status !== 404 && !redirectsUnknownRouteToRoot)
+    || isAssetOrApi
+    || (!isHtmlNavigation(request) && !isRootHead)) {
     return finalizeStaticResponse(response, request, environment);
   }
 
