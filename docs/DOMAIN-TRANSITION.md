@@ -6,7 +6,7 @@
 
 - 기존: `https://ilgamcheck-beta.bsfire1237.chatgpt.site`
 - 예정: `https://ilgam.studioyeolmae.com`
-- 빌드 설정: `NEXT_PUBLIC_SITE_ORIGIN` (미설정 시 기존 주소 유지)
+- 빌드 설정: `NEXT_PUBLIC_SITE_ORIGIN` (2026-09-30부터 미설정 시 새 주소 `https://ilgam.studioyeolmae.com`)
 - 단일 기본값: `src/lib/deployment-origin.ts`
 - 이 설정은 Sites HTML의 OG/Twitter 이미지·URL, CSP의 모바일 API 연결 대상, 네이티브 앱 public-config 부트스트랩에 사용된다. 런타임 설정 변경만으로 정적 HTML은 바뀌지 않는다. 반드시 재빌드한다.
 - 일반 웹의 API, Google OAuth 복귀, 고객 수정 링크는 접속한 origin을 사용한다. 새 주소는 새 주소로, 기존 주소는 기존 주소로 동작한다. 토큰을 재발급하거나 DB를 옮기지 않는다.
@@ -15,7 +15,7 @@
 
 - `index.html`: 공유 메타데이터와 connect-src의 기존 주소를 빌드용 치환자로 변경.
 - `src/sites/public-config-client.ts`: 모바일 전용 기존 URL을 공용 설정 함수로 변경.
-- `supabase/config.toml`: 현재 운영 설정이므로 기존 주소 유지. config push는 명시한 현재/이전 origin을 렌더링한다.
+- `supabase/config.toml`: 2026-09-30 site_url을 새 주소로 바꾸고 Redirect URLs에 새 주소를 추가했다. 기존 주소 항목은 남겼다. config push는 명시한 현재/이전 origin을 렌더링한다.
 - `scripts/sites-remote-smoke.mjs`: 원래부터 명령 인수로 주소를 받는다. 변경 불필요.
 - `scripts/runtime-contract-readback.mjs`: 명령 인수 또는 SUPABASE_AUTH_SITE_URL/DEPLOYMENT_URL을 사용한다. 변경 불필요.
 - 정책 publication manifest와 DB digest: 주소 전환을 이유로 임의 변경하지 않았다.

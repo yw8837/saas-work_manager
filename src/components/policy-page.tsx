@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Brand } from "./brand";
+import { BUSINESS_IDENTITY } from "@/lib/business-identity";
 import {
   POLICY_PUBLICATION_MANIFEST,
   getPublicServiceConfig,
@@ -87,13 +88,17 @@ export function PolicyPage({ document }: PolicyPageProps) {
         <section>
           <h2>{manifest.shared.operatorHeading}</h2>
           <dl className="policyDefinitionList">
-            <div><dt>{manifest.shared.operatorLabel}</dt><dd>{service.operatorName ?? manifest.shared.missingPublicValue}</dd></div>
+            <div><dt>{manifest.shared.operatorLabel}</dt><dd>{service.operatorName ?? `${BUSINESS_IDENTITY.businessName} (${BUSINESS_IDENTITY.brandName})`}</dd></div>
+            <div><dt>대표자</dt><dd>{BUSINESS_IDENTITY.representative}</dd></div>
+            <div><dt>사업자등록번호</dt><dd>{BUSINESS_IDENTITY.registrationNumber}</dd></div>
+            <div><dt>통신판매업 신고번호</dt><dd>{BUSINESS_IDENTITY.mailOrderNumber}</dd></div>
+            <div><dt>주소</dt><dd>{BUSINESS_IDENTITY.address}</dd></div>
+            <div><dt>전화</dt><dd>{BUSINESS_IDENTITY.phone}</dd></div>
+            <div><dt>개인정보 보호책임자</dt><dd>{BUSINESS_IDENTITY.privacyOfficer}</dd></div>
             <div>
               <dt>{manifest.shared.supportLabel}</dt>
               <dd>
-                {service.supportEmail
-                  ? <a href={`mailto:${service.supportEmail}`}>{service.supportEmail}</a>
-                  : manifest.shared.missingPublicValue}
+                <a href={`mailto:${service.supportEmail ?? BUSINESS_IDENTITY.email}`}>{service.supportEmail ?? BUSINESS_IDENTITY.email}</a>
               </dd>
             </div>
           </dl>
