@@ -8,6 +8,151 @@ describe("Sites Worker entry", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
+  it.each([undefined, "*/*"])("serves the homepage for a root GET probe with Accept %s", async (accept) => {
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/", {
+        headers: accept ? { Accept: accept } : undefined,
+      }),
+      {
+        ASSETS: {
+          fetch: async (request) => new URL(request.url).pathname === "/app-shell.payload"
+            ? new Response('<html><head></head><body>일감체크</body></html>', {
+              headers: { "Content-Type": "application/octet-stream" },
+            })
+            : new Response("not found", { status: 404 }),
+        },
+        NEXT_PUBLIC_OPERATOR_NAME: "상태검사 테스트 운영자",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    const html = await response.text();
+    expect(html).toContain("일감체크");
+    expect(html).toContain("__ILGAMCHECK_PUBLIC_ENV__");
+    expect(html).toContain("상태검사 테스트 운영자");
+  });
+
+  it.each([undefined, "*/*", "text/html"])("serves a bodyless homepage for a root HEAD probe with Accept %s", async (accept) => {
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/?probe=1", {
+        method: "HEAD",
+        headers: accept ? { Accept: accept } : undefined,
+      }),
+      {
+        ASSETS: {
+          fetch: async (request) => new URL(request.url).pathname === "/app-shell.payload"
+            ? new Response('<html><head></head><body>일감체크</body></html>', {
+              headers: { "Content-Type": "application/octet-stream" },
+            })
+            : new Response("not found", { status: 404 }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.body).toBeNull();
+    await expect(response.text()).resolves.toBe("");
+  });
+
+  it.each([
+    ["GET", "/assets/missing.js"],
+    ["GET", "/assets/missing"],
+    ["GET", "/qa-missing-20261006.js"],
+    ["GET", "/missing.css"],
+    ["GET", "/favicon.ico"],
+    ["GET", "/api/unknown"],
+    ["GET", "/api"],
+    ["POST", "/"],
+    ["POST", "/today"],
+    ["HEAD", "/assets/missing.js"],
+    ["HEAD", "/api/unknown"],
+  ])("does not disguise a missing %s %s request as a successful HTML page", async (method, path) => {
+    const response = await worker.fetch(
+      new Request(`https://beta.example.test${path}`, {
+        method,
+        headers: { Accept: "text/html" },
+      }),
+      {
+        ASSETS: {
+          fetch: async (request) => new URL(request.url).pathname === "/app-shell.payload"
+            ? new Response("<html>일감체크</html>")
+            : new Response("not found", { status: 404 }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    if (method === "HEAD") expect(response.body).toBeNull();
+    expect(await response.text()).not.toContain("__ILGAMCHECK_PUBLIC_ENV__");
+  });
+
+  it.each(["/r/key", "/r/key.with.dots", "/jobs/job.with.dots", "/auth/callback"])(
+    "preserves the HTML application route %s and its privacy headers",
+    async (path) => {
+      const response = await worker.fetch(
+        new Request(`https://beta.example.test${path}`, { headers: { Accept: "text/html" } }),
+        {
+          ASSETS: {
+            fetch: async (request) => new URL(request.url).pathname === "/app-shell.payload"
+              ? new Response('<html><head></head><body>일감체크</body></html>')
+              : new Response("not found", { status: 404 }),
+          },
+          NEXT_PUBLIC_STORAGE_MODE: "hosted",
+          SUPABASE_SERVICE_ROLE_KEY: "sb_secret_never_in_navigation",
+        },
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+      expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+      expect(response.headers.get("x-robots-tag")).toBe(
+        path.startsWith("/r/") ? "noindex, nofollow, noarchive" : null,
+      );
+      const html = await response.text();
+      expect(html).toContain("__ILGAMCHECK_PUBLIC_ENV__");
+      expect(html).not.toContain("sb_secret_never_in_navigation");
+    },
+  );
+
+  it("keeps direct root HEAD responses bodyless even when the asset service returns HTML bytes", async () => {
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/", { method: "HEAD" }),
+      {
+        ASSETS: {
+          fetch: async () => new Response("<html>일감체크</html>", {
+            headers: { "Content-Type": "text/html; charset=utf-8", ETag: '"direct-shell"' },
+          }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("etag")).toBe('"direct-shell"');
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(response.body).toBeNull();
+  });
+
+  it("serves the root probe instead of preserving an asset-service redirect back to the root", async () => {
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/"),
+      {
+        ASSETS: {
+          fetch: async (request) => new URL(request.url).pathname === "/app-shell.payload"
+            ? new Response('<html><head></head><body>일감체크</body></html>')
+            : new Response(null, { status: 307, headers: { Location: "/" } }),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toContain("일감체크");
+  });
+
   it("serves the app shell after an HTML route misses the asset path", async () => {
     const assets = {
       fetch: vi.fn(async (request: Request) => {
