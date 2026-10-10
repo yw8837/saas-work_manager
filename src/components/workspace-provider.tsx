@@ -51,6 +51,7 @@ import {
   type AppSettings,
   type AppState,
 } from "@/lib/store";
+import { mergeImportedWorkspace } from "@/lib/store/import";
 import { deriveInAppAlerts, registerIlgamcheckServiceWorker } from "@/lib/notifications";
 import {
   createSecurePortalToken,
@@ -139,6 +140,8 @@ type WorkspaceContextValue = AppState & {
   cancelAddon: (jobId: string, addonId: string) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
   resetDemo: () => void;
+  /** 로컬 모드에서만 동작한다. 백업의 자료로 바꾸고 한도 관리 값은 유지한다. */
+  restoreWorkspace: (imported: AppState) => boolean;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -1453,6 +1456,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setCurrentState(fresh);
   }, [hostedRequested, setCurrentState]);
 
+  const restoreWorkspace = useCallback((imported: AppState) => {
+    // Hosted 작업공간은 다른 기기와 버전 충돌을 따져야 해서 여기서 덮어쓰지 않는다.
+    if (hostedRequested) return false;
+    commitState((current) => mergeImportedWorkspace(current, imported));
+    return true;
+  }, [commitState, hostedRequested]);
+
   // 알림도 같은 기준 시각을 쓴다. 그래야 탭을 열어둔 채 자정이나 브리핑 시각을 넘겨도 갱신된다.
   const alerts = useMemo(() => {
     const reference = new Date(now);
@@ -1517,8 +1527,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       cancelAddon,
       updateSettings,
       resetDemo,
+      restoreWorkspace,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo, restoreWorkspace],
   );
 
   return (
