@@ -56,6 +56,25 @@ function validEvidence() {
 }
 
 describe("operational release evidence", () => {
+  it("rejects password evidence for Google-only account deletion", () => {
+    expect(() => validateOperationalEvidence(validEvidence(), { ...config, authMode: "google-only" }, { nowMs })).toThrow(/Google|OAuth/);
+  });
+
+  it("accepts schema3 fresh Google OAuth deletion evidence", () => {
+    const evidence = validEvidence();
+    evidence.schemaVersion = 3;
+    delete evidence.accountDeletion.recentPasswordAmrVerified;
+    Object.assign(evidence.accountDeletion, {
+      authMethod: "google-oauth", recentOAuthAmrVerified: true, googleProviderVerified: true,
+      staleAuthenticationRejected: true, wrongProviderRejected: true,
+    });
+    expect(validateOperationalEvidence(evidence, { ...config, authMode: "google-only" }, { nowMs }).finalOrigin).toBe(config.finalOrigin);
+    for (const field of ["recentOAuthAmrVerified", "googleProviderVerified", "staleAuthenticationRejected", "wrongProviderRejected"]) {
+      const incomplete = structuredClone(evidence);
+      incomplete.accountDeletion[field] = false;
+      expect(() => validateOperationalEvidence(incomplete, { ...config, authMode: "google-only" }, { nowMs })).toThrow(/증거가 필요합니다/);
+    }
+  });
   it("accepts current exact policy, deletion, and recovery evidence", () => {
     expect(validateOperationalEvidence(validEvidence(), config, { nowMs })).toEqual({
       finalOrigin: "https://ilgamcheck.kr",

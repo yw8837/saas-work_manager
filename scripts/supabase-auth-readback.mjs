@@ -15,20 +15,22 @@ export function loadSupabaseAuthReadbackEnvironment({
   loadEnv(root);
   const expectedOrigin = env.SUPABASE_AUTH_SITE_URL;
   const legacyOrigin = env.SUPABASE_AUTH_LEGACY_ORIGIN;
+  const expectedSupabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
   delete env.SUPABASE_ACCESS_TOKEN;
 
-  return { shellAccessToken, expectedOrigin, ...(legacyOrigin ? { legacyOrigin } : {}) };
+  return { shellAccessToken, expectedOrigin, ...(legacyOrigin ? { legacyOrigin } : {}), ...(expectedSupabaseUrl !== undefined ? { expectedSupabaseUrl } : {}) };
 }
 
 async function main() {
   if (process.argv.includes("--help")) {
     console.log("사용법: 현재 shell에 SUPABASE_ACCESS_TOKEN을 설정한 뒤 실행하세요.");
     console.log("SUPABASE_AUTH_SITE_URL은 .env.local에서 읽습니다.");
+    console.log("NEXT_PUBLIC_SUPABASE_URL의 실제 runtime project ref와 로컬 연결 ref가 같아야 합니다.");
     console.log("토큰은 .env.local, Vercel 환경변수, 명령행 인수에 저장하지 마세요. auth_config_read 권한이 필요합니다.");
     return;
   }
 
-  const { shellAccessToken, expectedOrigin, legacyOrigin } = loadSupabaseAuthReadbackEnvironment();
+  const { shellAccessToken, expectedOrigin, legacyOrigin, expectedSupabaseUrl } = loadSupabaseAuthReadbackEnvironment();
   let projectRef = "";
   try {
     projectRef = readFileSync(join(process.cwd(), "supabase", ".temp", "project-ref"), "utf8").trim();
@@ -40,6 +42,7 @@ async function main() {
 
   const issue = await supabaseAuthReadbackIssue({
     projectRef,
+    expectedSupabaseUrl: expectedSupabaseUrl ?? "",
     expectedOrigin,
     legacyOrigin,
     accessToken: shellAccessToken,

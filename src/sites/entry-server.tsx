@@ -57,7 +57,7 @@ function withNativePublicConfigCors(response: Response, request: Request): Respo
 }
 
 function isHtmlNavigation(request: Request) {
-  return request.method === "GET" && (
+  return (request.method === "GET" || request.method === "HEAD") && (
     new URL(request.url).pathname === "/"
     || request.headers.get("accept")?.includes("text/html")
   );

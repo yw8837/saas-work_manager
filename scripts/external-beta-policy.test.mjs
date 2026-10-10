@@ -16,6 +16,8 @@ import {
 } from "./external-beta-policy.mjs";
 
 const validEnv = {
+  ILGAMCHECK_RELEASE_PLATFORM: "vercel",
+  ILGAMCHECK_AUTH_MODE: "password",
   ILGAMCHECK_FINAL_ORIGIN: "https://ilgamcheck.kr",
   SUPABASE_AUTH_SITE_URL: "https://ilgamcheck.kr",
   ILGAMCHECK_HOSTED_VERIFY_ACK: "OVERWRITE_DEDICATED_TEST_DATA",
@@ -49,6 +51,73 @@ function successfulStep(identity = domainReadyIdentity) {
 }
 
 describe("external beta gate", () => {
+  it("defaults the current service to Sites Google-only without inheriting the legacy email path", () => {
+    const steps = externalBetaSteps({ ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: undefined, ILGAMCHECK_AUTH_MODE: undefined });
+    expect(steps[0].label).toBe("Sites release identity");
+    expect(steps.some(step => /SMTP|preflight/.test(step.label))).toBe(false);
+    const selected = externalBetaEnvironment({ ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: undefined, ILGAMCHECK_AUTH_MODE: undefined });
+    expect(selected.ILGAMCHECK_RELEASE_PLATFORM).toBe("sites");
+    expect(selected.ILGAMCHECK_AUTH_MODE).toBe("google-only");
+  });
+  it("checks Sites identity twice and rejects environment or release drift", () => {
+    const env = { ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: "sites", ILGAMCHECK_AUTH_MODE: "google-only",
+      ILGAMCHECK_SITES_PROJECT_ID: "appgprj_6a8b16a27df88191b5cad3afd63a9366", ILGAMCHECK_SITES_SOURCE_COMMIT: "52183676be62d21ef2ff68d2f1aa4db14d2a06b7" };
+    const sitesIdentity = { projectId: env.ILGAMCHECK_SITES_PROJECT_ID,
+      versionId: `${env.ILGAMCHECK_SITES_PROJECT_ID}~appgver_bea4700d1744819182051c87f79ec4a4`,
+      deploymentId: "appgdep_6ac50e3f5c108191923310c57fee6de6", sourceCommit: env.ILGAMCHECK_SITES_SOURCE_COMMIT,
+      archiveDigest: `sha256:${"a".repeat(64)}`, envRevision: 7, origin: validEnv.ILGAMCHECK_FINAL_ORIGIN, versionNumber: 31 };
+    for (const drift of [false, true]) {
+      let calls = 0;
+      const spawn = vi.fn(() => {
+        calls++;
+        return { status: 0, stdout: JSON.stringify({ automatedReady: true, archiveBound: true, liveAssetsBound: true,
+          sitesIdentity: calls === 7 && drift ? { ...sitesIdentity, envRevision: 8 } : sitesIdentity }) };
+      });
+      expect(runExternalBetaGate({ env, spawnSyncImpl: spawn, logger: { log: vi.fn(), error: vi.fn() } })).toBe(drift ? 1 : 0);
+      expect(calls).toBe(7);
+    }
+  });
+
+  it("does not accept a Vercel or unbound receipt as Sites source identity", () => {
+    const spawn = vi.fn().mockReturnValue(successfulStep());
+    expect(runExternalBetaGate({ env: { ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: "sites", ILGAMCHECK_AUTH_MODE: "google-only" },
+      spawnSyncImpl: spawn, logger: { log: vi.fn(), error: vi.fn() } })).toBe(1);
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+  it("uses Sites Google-only checks without Vercel, SMTP, or server-key preflight", () => {
+    const steps = externalBetaSteps({ ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: "sites", ILGAMCHECK_AUTH_MODE: "google-only" });
+    expect(steps.map((step) => step.label)).toEqual([
+      "Sites release identity", "Google-only Auth readback", "policy deletion backup recovery evidence",
+      "Sites public smoke", "finalized Sites runtime contract", "hosted destructive verification", "Sites release identity final recheck",
+    ]);
+    expect(steps.flatMap((step) => step.args).join(" ")).not.toMatch(/vercel|smtp|deploy-preflight/);
+    expect(steps.find((step) => step.label === "finalized Sites runtime contract").args).toContain("--require-policy-finalized");
+  });
+
+  it("propagates Google A/B token pairs only to hosted verification", () => {
+    const env = { ...validEnv, ILGAMCHECK_TEST_A_ACCESS_TOKEN: "access-a", ILGAMCHECK_TEST_A_REFRESH_TOKEN: "refresh-a", ILGAMCHECK_TEST_B_ACCESS_TOKEN: "access-b", ILGAMCHECK_TEST_B_REFRESH_TOKEN: "refresh-b" };
+    const selected = externalBetaEnvironment(env, undefined, validEnv.ILGAMCHECK_HOSTED_VERIFY_ACK);
+    const steps = externalBetaSteps(selected);
+    for (const step of steps) {
+      const child = externalBetaStepEnvironment(selected, step);
+      for (const label of ["A", "B"]) for (const kind of ["ACCESS", "REFRESH"]) {
+        const key = `ILGAMCHECK_TEST_${label}_${kind}_TOKEN`;
+        if (step.label === "hosted destructive verification") expect(child[key]).toBe(env[key]);
+        else expect(child).not.toHaveProperty(key);
+      }
+    }
+  });
+
+  it("rejects unsupported platform/auth combinations before spawning", () => {
+    for (const env of [
+      { ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: "unknown" },
+      { ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: "sites", ILGAMCHECK_AUTH_MODE: "password" },
+    ]) {
+      const spawn = vi.fn().mockReturnValue(successfulStep());
+      expect(runExternalBetaGate({ env, spawnSyncImpl: spawn, logger: { log: vi.fn(), error: vi.fn() } })).toBe(1);
+      expect(spawn).not.toHaveBeenCalled();
+    }
+  });
   it("runs remote target, operational evidence, preflight, SMTP, smoke, and hosted verification in fail-fast order", () => {
     const root = "C:\\safe\\ilgamcheck-app";
     expect(externalBetaSteps(validEnv, root).map((step) => step.label)).toEqual([
@@ -91,6 +160,8 @@ describe("external beta gate", () => {
 
   it("passes a shell PAT only to domain-ready and never supplies the destructive ACK", () => {
     const envWithoutAck = {
+      ILGAMCHECK_RELEASE_PLATFORM: "vercel",
+      ILGAMCHECK_AUTH_MODE: "password",
       ILGAMCHECK_FINAL_ORIGIN: "https://ilgamcheck.kr",
       SUPABASE_AUTH_SITE_URL: "https://ilgamcheck.kr",
       SUPABASE_ACCESS_TOKEN: "shell-pat",
@@ -118,6 +189,7 @@ describe("external beta gate", () => {
       PATH: "C:\\safe-bin",
       HOME: "C:\\safe-home",
       ILGAMCHECK_OPERATIONAL_EVIDENCE_PATH: "C:\\evidence\\operations.json",
+      ILGAMCHECK_AUTH_MODE: "password",
       ILGAMCHECK_SMTP_FROM_DOMAIN: "mail.ilgamcheck.kr",
       ILGAMCHECK_SMTP_RETURN_PATH_DOMAIN: "bounce.ilgamcheck.kr",
       ILGAMCHECK_SMTP_DMARC_DOMAIN: "ilgamcheck.kr",
@@ -127,6 +199,10 @@ describe("external beta gate", () => {
       ILGAMCHECK_TEST_A_PASSWORD: "a-password",
       ILGAMCHECK_TEST_B_EMAIL: "b@example.com",
       ILGAMCHECK_TEST_B_PASSWORD: "b-password",
+      ILGAMCHECK_TEST_A_ACCESS_TOKEN: "access-a",
+      ILGAMCHECK_TEST_A_REFRESH_TOKEN: "refresh-a",
+      ILGAMCHECK_TEST_B_ACCESS_TOKEN: "access-b",
+      ILGAMCHECK_TEST_B_REFRESH_TOKEN: "refresh-b",
       SUPABASE_ACCESS_TOKEN: "shell-pat",
     };
     const spawnSyncImpl = vi.fn().mockReturnValue(successfulStep());

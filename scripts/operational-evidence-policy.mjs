@@ -63,12 +63,15 @@ export function readOperationalEvidenceConfig(
   if (requirePolicyFinalized && expectedPolicy.finalized !== true) {
     throw new Error("공개 privacy/terms manifest가 finalized=true로 확정되지 않았습니다.");
   }
+  const authMode = env.ILGAMCHECK_AUTH_MODE ?? "google-only";
+  if (!["password", "google-only"].includes(authMode)) throw new Error("지원하지 않는 운영 evidence 인증 방식입니다.");
   return {
     evidencePath,
     finalOrigin: normalizeFinalOrigin(env.ILGAMCHECK_FINAL_ORIGIN),
     operatorName,
     supportEmail,
     policyPublication: expectedPolicy,
+    authMode,
   };
 }
 
@@ -81,7 +84,10 @@ export function validateOperationalEvidence(evidence, config, { nowMs = Date.now
     ["schemaVersion", "recordedAt", "finalOrigin", "operatorName", "supportEmail", "policy", "accountDeletion", "backupRecovery"],
     "evidence",
   );
-  if (evidence.schemaVersion !== 2) throw new Error("evidence.schemaVersion은 2여야 합니다.");
+  if (![2, 3].includes(evidence.schemaVersion)) throw new Error("evidence.schemaVersion은 2 또는 3이어야 합니다.");
+  const googleOnly = config.authMode === "google-only";
+  if (googleOnly && evidence.schemaVersion !== 3) throw new Error("Google-only 계정 탈퇴에는 schemaVersion=3 OAuth 증거가 필요합니다.");
+  if (!googleOnly && evidence.schemaVersion !== 2) throw new Error("password 계정 탈퇴에는 schemaVersion=2 증거가 필요합니다.");
   normalizeTimestamp(evidence.recordedAt, "evidence.recordedAt", nowMs);
   if (normalizeFinalOrigin(evidence.finalOrigin, "evidence.finalOrigin") !== config.finalOrigin) {
     throw new Error("evidence.finalOrigin이 현재 최종 domain과 다릅니다.");
@@ -110,14 +116,20 @@ export function validateOperationalEvidence(evidence, config, { nowMs = Date.now
 
   assertExactKeys(
     evidence.accountDeletion,
-    ["testedAt", "testedOrigin", "recentPasswordAmrVerified", "authUserDeletionVerified", "cascadeVerified"],
+    googleOnly
+      ? ["testedAt", "testedOrigin", "authMethod", "recentOAuthAmrVerified", "googleProviderVerified", "staleAuthenticationRejected", "wrongProviderRejected", "authUserDeletionVerified", "cascadeVerified"]
+      : ["testedAt", "testedOrigin", "recentPasswordAmrVerified", "authUserDeletionVerified", "cascadeVerified"],
     "evidence.accountDeletion",
   );
   normalizeTimestamp(evidence.accountDeletion.testedAt, "evidence.accountDeletion.testedAt", nowMs);
   if (normalizeFinalOrigin(evidence.accountDeletion.testedOrigin, "evidence.accountDeletion.testedOrigin") !== config.finalOrigin) {
     throw new Error("계정 탈퇴 시험 origin이 현재 최종 domain과 다릅니다.");
   }
-  for (const key of ["recentPasswordAmrVerified", "authUserDeletionVerified", "cascadeVerified"]) {
+  if (googleOnly && evidence.accountDeletion.authMethod !== "google-oauth") throw new Error("계정 탈퇴 authMethod는 google-oauth여야 합니다.");
+  const authenticationProofKeys = googleOnly
+    ? ["recentOAuthAmrVerified", "googleProviderVerified", "staleAuthenticationRejected", "wrongProviderRejected"]
+    : ["recentPasswordAmrVerified"];
+  for (const key of [...authenticationProofKeys, "authUserDeletionVerified", "cascadeVerified"]) {
     requireTrue(evidence.accountDeletion[key], `evidence.accountDeletion.${key}`);
   }
 

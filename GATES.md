@@ -60,10 +60,16 @@ Scope: 공개 가입 뒤 코드 또는 무료 시작이 가능하고, 계정당 
   CHECK: npm run policy:manifest:verify && npm run operational:evidence:verify
   EXPECT: 게시 정책과 30일 이내 운영 증거 검증 통과
 
-- [ ] G13: 프로젝트 팀원이 아닌 외부 이메일이 가입 인증 메일을 받고 로그인한다
-  CHECK: Supabase Auth readback, SMTP DNS/evidence, 외부 주소 가입 실험
-  EXPECT: 커스텀 SMTP가 활성화되고 외부 가입·인증·로그인 통과
+- [ ] G13: 외부 전용 Google 계정이 최종 custom domain에서 OAuth 가입·로그인한다
+  CHECK: Supabase Auth readback 및 외부 Google 계정의 실제 OAuth 흐름
+  EXPECT: Google provider ON/email provider OFF, 현재·이전 origin의 정확한 /today·/settings redirect, 전용 계정의 실제 로그인 통과
+  HISTORICAL: 과거 password 운영의 SMTP/가입 인증메일 기준은 현재 Google-only에 적용하지 않는다. Google 로그인 성공을 SMTP 메일 수신 증거로 기록하지 않는다.
 
 - [ ] G14: 최종 Sites 배포본이 모바일웹·Android·iOS 셸·DB 계약·베타 코드·설문 링크를 함께 검증한다
   CHECK: build:sites, mobile:verify, test:e2e:release, smoke:sites, runtime readback
   EXPECT: 모든 자동 검증과 공개 배포 확인 통과
+
+- [ ] G15: 현재 Sites/Google-only 외부 베타 준비 검사가 실제 release·Auth·정책·운영 증거를 묶어 통과한다
+  CHECK: ILGAMCHECK_RELEASE_PLATFORM=sites, ILGAMCHECK_AUTH_MODE=google-only로 npm run check:external-beta
+  EXPECT: trusted Sites initial/final metadata·source tar·live assets binding, Google-only Auth readback, finalized runtime/policy, schema3 실제 OAuth 탈퇴/복구 증거, 전용 Google A/B token pair 검증 모두 통과
+  STATUS: 검증 도구의 로컬 회귀 테스트와 실제 운영 readiness는 별개다. 정책 finalized=false, 실제 탈퇴·복구 증거 및 fresh identity 입력이 준비되기 전엔 미완료를 유지한다. 이 변경으로 운영 gate를 체크하지 않았다.
