@@ -8,6 +8,28 @@ describe("Sites Worker entry", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
+  it.each(["/today", "/privacy", "/terms", "/auth/callback", "/r/key.with.dots"])(
+    "keeps HEAD %s consistent with its successful HTML GET without returning a body",
+    async (path) => {
+      const environment = { ASSETS: {
+        fetch: async (request: Request) => new URL(request.url).pathname === "/app-shell.payload"
+          ? new Response("<html><head></head><body>일감체크</body></html>")
+          : new Response("not found", { status: 404 }),
+      } };
+      const get = await worker.fetch(new Request(`https://beta.example.test${path}`, {
+        headers: { Accept: "text/html" },
+      }), environment);
+      const head = await worker.fetch(new Request(`https://beta.example.test${path}`, {
+        method: "HEAD", headers: { Accept: "text/html" },
+      }), environment);
+      expect(get.status).toBe(200);
+      expect(head.status).toBe(get.status);
+      expect(head.headers.get("content-type")).toBe(get.headers.get("content-type"));
+      expect(head.headers.get("x-robots-tag")).toBe(get.headers.get("x-robots-tag"));
+      expect(head.headers.get("content-security-policy")).toBe(get.headers.get("content-security-policy"));
+      expect(head.body).toBeNull();
+    },
+  );
   it.each([undefined, "*/*"])("serves the homepage for a root GET probe with Accept %s", async (accept) => {
     const response = await worker.fetch(
       new Request("https://beta.example.test/", {

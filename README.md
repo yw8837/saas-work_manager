@@ -25,9 +25,9 @@ npm run dev # http://localhost:3000
 
 ### 출시 전 확인 순서
 
-1. Supabase migration 목록이 `202608260012`까지 적용됐는지 확인한다.
+1. Supabase migration 목록이 `20260926141910_workspace_job_revision_cleanup`까지 적용됐는지 확인한다(9월 RPC 권한 최소화·삭제 portal/request 정리 포함).
 2. Google Cloud OAuth 웹 클라이언트를 만들고 Supabase Google provider에 연결한다.
-3. Auth Site URL을 운영 origin으로, 허용 redirect를 `/today`와 `/settings` 두 개로만 설정한다.
+3. Auth Site URL을 운영 origin으로, 허용 redirect를 명시한 현재·이전 origin의 `/today`와 `/settings`로만 설정한다.
 4. Sites 환경변수를 설정하고 새 버전을 배포한 뒤 Google 로그인, 계정 격리, 수정 요청 링크, 계정 삭제를 실사용 흐름으로 확인한다.
 5. 설문 링크는 `NEXT_PUBLIC_FEEDBACK_FORM_URL`로 연결한다. 결제 기능은 아직 없으므로 베타에서 과금하지 않는다.
 
@@ -46,7 +46,7 @@ npm run dev # http://localhost:3000
 | `hosted` 코드 | Supabase Google OAuth, 사용자별 JSON 작업공간, dirty 초안 복구·버전 충돌 선택, Realtime 갱신, 익명 고객 수정요청 RPC가 연결돼 있다. |
 | 실제 외부 운영 | Supabase 프로젝트와 Sites 배포를 사용한다. migration, Google OAuth, 운영 URL, RLS·공개 링크를 배포 환경에서 함께 검증해야 한다. |
 
-Hosted 모드에서 앱이 실제로 읽고 쓰는 기준 데이터는 `workspace_documents.state`다. `202608140001_initial.sql`의 정규화 테이블은 향후 리포트·서버 권한 기능을 위한 기반이고, 현재 UI 데이터를 두 모델에 동시에 쓰지 않는다. `202608160003_runtime_contract.sql`이 배포 health 계약을 도입했고, 후속 필수 migration이 값을 갱신해 현재 기대 버전은 `202608230008`이다. 006은 배포 privacy/terms manifest 버전·bundle digest와 DB의 일치를, 007은 서버측 요금제 한도와 초대 코드를 담당하고, 008은 기존 Solo 데이터를 Basic으로 안전하게 옮긴다. runtime 계약과 service-role 계약은 같은 상수와 비교되므로 **둘을 함께 올려야 한다**(한쪽만 올리면 정상 배포가 `/api/health`에서 503을 받는다).
+Hosted 모드에서 앱이 실제로 읽고 쓰는 기준 데이터는 `workspace_documents.state`다. `202608140001_initial.sql`의 정규화 테이블은 향후 리포트·서버 권한 기능을 위한 기반이고, 현재 UI 데이터를 두 모델에 동시에 쓰지 않는다. `202608160003_runtime_contract.sql`이 배포 health 계약을 도입했고, 후속 필수 migration이 값을 갱신해 현재 기대 버전은 `202608250011`이다. 006은 배포 privacy/terms manifest 버전·bundle digest와 DB의 일치를, 007은 서버측 요금제 한도와 초대 코드를 담당하고, 008은 기존 Solo 데이터를 Basic으로 안전하게 옮긴다. 011은 계정당 베타 1회와 최신 health 계약, 012는 Google-only Auth 정책이며 9월 두 migration은 RPC 권한 및 일감 삭제의 portal/request 정리를 보완한다. runtime 계약과 service-role 계약은 같은 상수와 비교되므로 **둘을 함께 올려야 한다**(한쪽만 올리면 정상 배포가 `/api/health`에서 503을 받는다).
 
 ## 로컬 실행
 
@@ -73,13 +73,13 @@ npm run dev
 | `npm run hosted:bootstrap` | 현재 연결 단계를 읽고 비밀값 출력 없이 다음 Supabase 행동을 안내하는 재개 명령 |
 | `npm run smoke:sites -- URL` | Sites 배포의 health·DB 계약·보안 헤더·PWA를 확인 |
 | `npm run supabase:auth:readback` | 현재 셸의 `auth_config_read` PAT로 Site URL·정확한 `/today`, `/settings`·Google 로그인 ON·이메일 로그인 OFF를 읽기 전용 확인 |
-| `npm run runtime:readback -- URL` | 배포 `/api/health`가 DB runtime `202608230008`, policy manifest/DB contract, 현재 server key의 service-role 전용 contract를 exact 감지하는지 확인 |
+| `npm run runtime:readback -- URL` | 배포 `/api/health`가 DB runtime `202608250011`, policy manifest/DB contract, 현재 server key의 service-role 전용 contract를 exact 감지하는지 확인 |
 | `npm run smoke:remote -- URL` | Preview health·DB/policy contract·`/privacy`·`/terms`·보안 헤더·PWA 확인 |
 | `npm run verify:hosted` | 전용 A/B 계정의 RLS·공개 수정·token rotate·Realtime 실증 |
 | `npm run supabase:config:push` | Sites 운영 URL, Google 로그인 ON, 이메일 로그인 OFF, redirect 2개를 원격 Auth에 적용 |
 | `npm run policy:manifest:verify` | 공개 privacy/terms 본문·버전·본문/bundle digest의 단일 manifest 일치 확인 |
 | `npm run operational:evidence:verify` | 저장소 밖 정책·탈퇴·backup/recovery 운영 evidence 검증 |
-| `npm run check:external-beta` | 원격 대상 → 운영 evidence → SMTP → 최종 도메인 smoke → Hosted A/B를 fail-fast 실행 |
+| `npm run check:external-beta` | 기본 Sites/Google-only: source/archive identity → Auth readback → OAuth 운영 evidence → Sites smoke/finalized runtime → Google A/B → fresh identity recheck를 fail-fast 실행. 실제 입력과 미완료 사항은 docs/OPERATIONAL-EVIDENCE.md 참고 |
 | `npm run supabase:backup -- --output-dir ...` | 저장소 밖 암호화 경로에 public logical dump+hash manifest 생성 |
 | `npm run supabase:restore:verify:dry` | 전용 recovery 프로젝트 검증 전 fail-closed 환경 점검 |
 

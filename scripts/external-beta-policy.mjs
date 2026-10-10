@@ -6,6 +6,7 @@ import {
 } from "./minimal-child-environment.mjs";
 import { normalizeFinalOrigin } from "./smtp-evidence-policy.mjs";
 import { normalizeAuthSiteUrl } from "./supabase-config-push-policy.mjs";
+import { parseSitesIdentityCheckpoint, sitesReleaseIdentityMismatch } from "./sites-release-identity.mjs";
 import {
   VERCEL_PUBLIC_RUNTIME_ENV_NAMES,
   VERCEL_RUNTIME_ENV_NAMES,
@@ -32,6 +33,7 @@ const DOMAIN_READY_ENV_NAMES = Object.freeze([
   "SUPABASE_ACCESS_TOKEN",
 ]);
 const OPERATIONAL_EVIDENCE_ENV_NAMES = Object.freeze([
+  "ILGAMCHECK_AUTH_MODE",
   "ILGAMCHECK_OPERATIONAL_EVIDENCE_PATH",
   "ILGAMCHECK_FINAL_ORIGIN",
   "NEXT_PUBLIC_OPERATOR_NAME",
@@ -57,8 +59,18 @@ const HOSTED_VERIFY_ENV_NAMES = Object.freeze([
   "ILGAMCHECK_TEST_A_PASSWORD",
   "ILGAMCHECK_TEST_B_EMAIL",
   "ILGAMCHECK_TEST_B_PASSWORD",
+  "ILGAMCHECK_TEST_A_ACCESS_TOKEN",
+  "ILGAMCHECK_TEST_A_REFRESH_TOKEN",
+  "ILGAMCHECK_TEST_B_ACCESS_TOKEN",
+  "ILGAMCHECK_TEST_B_REFRESH_TOKEN",
   "ILGAMCHECK_HOSTED_VERIFY_ACK",
 ]);
+const SITES_IDENTITY_ENV_NAMES = Object.freeze([
+  "ILGAMCHECK_FINAL_ORIGIN", "ILGAMCHECK_SITES_PROJECT_ID", "ILGAMCHECK_SITES_SOURCE_COMMIT",
+  "ILGAMCHECK_SITES_RECEIPT_PATH", "ILGAMCHECK_SITES_FINAL_RECEIPT_PATH", "ILGAMCHECK_SITES_ARCHIVE_PATH",
+]);
+const SITES_AUTH_ENV_NAMES = Object.freeze(["SUPABASE_AUTH_SITE_URL", "SUPABASE_AUTH_LEGACY_ORIGIN", "SUPABASE_ACCESS_TOKEN", "NEXT_PUBLIC_SUPABASE_URL"]);
+const GOOGLE_HOSTED_ENV_NAMES = Object.freeze(HOSTED_VERIFY_ENV_NAMES.filter(name => !/_EMAIL$|_PASSWORD$/.test(name)));
 
 export const EXTERNAL_BETA_STEP_ENV_NAMES = Object.freeze({
   domainReady: DOMAIN_READY_ENV_NAMES,
@@ -69,20 +81,44 @@ export const EXTERNAL_BETA_STEP_ENV_NAMES = Object.freeze({
   remoteSmoke: Object.freeze([]),
   hostedVerify: HOSTED_VERIFY_ENV_NAMES,
   domainReadyFinal: DOMAIN_READY_ENV_NAMES,
+  sitesIdentity: SITES_IDENTITY_ENV_NAMES,
+  sitesAuth: SITES_AUTH_ENV_NAMES,
+  sitesRuntime: VERCEL_PUBLIC_RUNTIME_ENV_NAMES,
+  googleHostedVerify: GOOGLE_HOSTED_ENV_NAMES,
 });
 
 const EXTERNAL_BETA_CONFIG_ENV_NAMES = Object.freeze([
   ...new Set([
     "ILGAMCHECK_FINAL_ORIGIN",
+    "ILGAMCHECK_RELEASE_PLATFORM",
+    "ILGAMCHECK_AUTH_MODE",
     ...Object.values(EXTERNAL_BETA_STEP_ENV_NAMES).flat(),
   ]),
 ]);
 
 export function externalBetaSteps(env, root = process.cwd()) {
+  const platform = env.ILGAMCHECK_RELEASE_PLATFORM ?? "sites";
+  if (!["vercel", "sites"].includes(platform)) throw new Error("지원하지 않는 release platform입니다.");
+  if (platform === "sites" && (env.ILGAMCHECK_AUTH_MODE ?? "google-only") !== "google-only") throw new Error("Sites 검증은 ILGAMCHECK_AUTH_MODE=google-only가 필요합니다.");
   const finalOrigin = normalizeFinalOrigin(env.ILGAMCHECK_FINAL_ORIGIN);
   const authOrigin = normalizeAuthSiteUrl(env.SUPABASE_AUTH_SITE_URL);
   if (authOrigin !== finalOrigin) {
     throw new Error("SUPABASE_AUTH_SITE_URL은 ILGAMCHECK_FINAL_ORIGIN과 같은 최종 custom domain이어야 합니다.");
+  }
+  if (platform === "sites") {
+    const identity = (label, checkpoint) => ({ label,
+      args: [join(root, "scripts", "sites-release-identity.mjs"), ...(checkpoint === "final" ? ["--final"] : [])],
+      envNames: SITES_IDENTITY_ENV_NAMES, identityCheckpoint: checkpoint, identityPlatform: "sites", expectedOrigin: finalOrigin,
+      expectedProjectId: env.ILGAMCHECK_SITES_PROJECT_ID, expectedSourceCommit: env.ILGAMCHECK_SITES_SOURCE_COMMIT });
+    return [
+      identity("Sites release identity", "initial"),
+      { label: "Google-only Auth readback", args: [join(root, "scripts", "supabase-auth-readback.mjs")], envNames: SITES_AUTH_ENV_NAMES },
+      { label: "policy deletion backup recovery evidence", args: [join(root, "scripts", "operational-evidence-verify.mjs")], envNames: OPERATIONAL_EVIDENCE_ENV_NAMES },
+      { label: "Sites public smoke", args: [join(root, "scripts", "sites-remote-smoke.mjs"), finalOrigin], envNames: [] },
+      { label: "finalized Sites runtime contract", args: [join(root, "scripts", "sites-release-identity.mjs"), "--runtime", "--require-policy-finalized"], envNames: [...VERCEL_PUBLIC_RUNTIME_ENV_NAMES, "ILGAMCHECK_FINAL_ORIGIN"] },
+      { label: "hosted destructive verification", args: [join(root, "scripts", "verify-hosted-runtime.mjs")], envNames: GOOGLE_HOSTED_ENV_NAMES },
+      identity("Sites release identity final recheck", "final"),
+    ];
   }
   return [
     {
@@ -179,6 +215,8 @@ export function externalBetaEnvironment(
       "ILGAMCHECK_HOSTED_VERIFY_ACK",
     ].includes(name)),
   ]);
+  env.ILGAMCHECK_RELEASE_PLATFORM ??= "sites";
+  env.ILGAMCHECK_AUTH_MODE ??= env.ILGAMCHECK_RELEASE_PLATFORM === "sites" ? "google-only" : "password";
   if (typeof shellSupabaseAccessToken === "string" && shellSupabaseAccessToken.trim()) {
     env.SUPABASE_ACCESS_TOKEN = shellSupabaseAccessToken;
   }
@@ -193,6 +231,7 @@ export function externalBetaEnvironment(
 
 export function externalBetaStepEnvironment(env, step) {
   const childEnv = minimalChildEnvironment(env, step.envNames);
+  if (step.envNames.includes("ILGAMCHECK_AUTH_MODE")) childEnv.ILGAMCHECK_AUTH_MODE ??= (env.ILGAMCHECK_RELEASE_PLATFORM ?? "sites") === "sites" ? "google-only" : "password";
   // Child scripts call loadEnvConfig themselves. This marker makes @next/env
   // keep the coordinator's allowlist instead of re-importing unrelated .env secrets.
   childEnv.__NEXT_PROCESSED_ENV = "true";
@@ -217,9 +256,11 @@ export function runExternalBetaGate({
   for (const step of steps) {
     logger.log(`[external-beta] START ${step.label}`);
     const captureIdentity = Boolean(step.identityCheckpoint);
+    const childEnv = externalBetaStepEnvironment(env, step);
+    if (step.identityPlatform === "sites" && step.identityCheckpoint === "final") childEnv.ILGAMCHECK_SITES_RECHECK_AFTER = String(Date.now());
     const result = spawnSyncImpl(process.execPath, step.args, {
       cwd: root,
-      env: externalBetaStepEnvironment(env, step),
+      env: childEnv,
       stdio: captureIdentity ? ["inherit", "pipe", "inherit"] : "inherit",
       encoding: captureIdentity ? "utf8" : undefined,
       shell: false,
@@ -235,7 +276,7 @@ export function runExternalBetaGate({
     if (captureIdentity) {
       let identity;
       try {
-        identity = parseDomainReadyIdentityCheckpoint(
+        identity = step.identityPlatform === "sites" ? parseSitesIdentityCheckpoint(result.stdout ?? "", step.expectedOrigin, step.expectedProjectId, step.expectedSourceCommit) : parseDomainReadyIdentityCheckpoint(
           result.stdout ?? "",
           step.expectedOrigin,
         );
@@ -246,7 +287,7 @@ export function runExternalBetaGate({
       if (step.identityCheckpoint === "initial") {
         initialDomainReadyIdentity = identity;
       } else {
-        const mismatch = domainReadyIdentityMismatch(initialDomainReadyIdentity, identity);
+        const mismatch = step.identityPlatform === "sites" ? sitesReleaseIdentityMismatch(initialDomainReadyIdentity, identity) : domainReadyIdentityMismatch(initialDomainReadyIdentity, identity);
         if (mismatch) {
           logger.error(`[external-beta] FAIL ${step.label}: ${mismatch}`);
           return 1;
@@ -255,7 +296,7 @@ export function runExternalBetaGate({
     }
     logger.log(`[external-beta] PASS ${step.label}`);
   }
-  logger.log("[external-beta] PASS 자동 원격 계약·운영 evidence·SMTP·Hosted 검증 전체 통과");
+  logger.log(`[external-beta] PASS ${(env.ILGAMCHECK_RELEASE_PLATFORM ?? "sites") === "sites" ? "Sites/Google-only" : "Vercel/SMTP"} 원격 계약·운영 evidence·Hosted 검증 통과`);
   logger.log("[external-beta] 운영 evidence 검사는 기록의 형식·최신성을 확인하며 법률적 충분성과 기록의 진실성을 대신하지 않습니다.");
   return 0;
 }

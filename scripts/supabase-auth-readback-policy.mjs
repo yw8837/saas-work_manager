@@ -1,4 +1,5 @@
 import { projectRefIssue } from "./supabase-cli-policy.mjs";
+import { supabaseProjectUrlIssue } from "./deploy-env-policy.mjs";
 import { authRedirectUrls, normalizeAuthSiteUrl } from "./supabase-config-push-policy.mjs";
 
 export const SUPABASE_MANAGEMENT_ORIGIN = "https://api.supabase.com";
@@ -122,6 +123,7 @@ export function supabaseAuthConfigIssue(config, expectedOrigin, legacyOrigin) {
 
 export async function supabaseAuthReadbackIssue({
   projectRef,
+  expectedSupabaseUrl,
   expectedOrigin,
   legacyOrigin,
   accessToken,
@@ -131,6 +133,12 @@ export async function supabaseAuthReadbackIssue({
 } = {}) {
   const refIssue = projectRefIssue(projectRef);
   if (refIssue) return refIssue;
+  if (expectedSupabaseUrl !== undefined) {
+    const urlIssue = supabaseProjectUrlIssue(expectedSupabaseUrl);
+    if (urlIssue) return `NEXT_PUBLIC_SUPABASE_URL: ${urlIssue}`;
+    const expectedRef = new URL(expectedSupabaseUrl.trim()).hostname.split(".")[0];
+    if (projectRef.trim() !== expectedRef) return "Auth readback project ref가 실제 공개 runtime 프로젝트와 다릅니다.";
+  }
 
   try {
     authRedirectUrls(expectedOrigin, legacyOrigin);

@@ -4,8 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 
 import { minimalChildEnvironment } from "./minimal-child-environment.mjs";
 import { supabaseNpxInvocation } from "./supabase-cli-policy.mjs";
+import { withEphemeralVerificationScope } from "./ephemeral-verification-scope.mjs";
 import {
-  assertVerificationCleanupResults,
   HOSTED_VERIFY_ACK,
 } from "./verify-hosted-runtime-policy.mjs";
 
@@ -52,28 +52,6 @@ function readServiceRoleKey(projectRef) {
   return key;
 }
 
-async function cleanupVerificationArtifacts(admin) {
-  const codeCleanup = await Promise.all([
-    admin.from("invite_codes").delete().like("code", "VERIFYA%"),
-    admin.from("invite_codes").delete().like("code", "VERIFYB%"),
-  ]);
-  assertVerificationCleanupResults([
-    { label: "VERIFYA 코드 삭제", error: codeCleanup[0].error },
-    { label: "VERIFYB 코드 삭제", error: codeCleanup[1].error },
-  ]);
-  for (let page = 1; page <= 10; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) fail(`임시 검증 계정 조회 실패: ${error.message}`);
-    const candidates = data.users.filter((user) => /^ilgamcheck\.verify\.[ab]\+.+@example\.com$/i.test(user.email ?? ""));
-    const userCleanup = await Promise.all(candidates.map((user) => admin.auth.admin.deleteUser(user.id)));
-    assertVerificationCleanupResults(userCleanup.map((result, index) => ({
-      label: `임시 사용자 삭제 ${candidates[index].email}`,
-      error: result.error,
-    })));
-    if (data.users.length < 1000) break;
-  }
-}
-
 async function createVerificationSession(admin, userClient, email) {
   const generated = await admin.auth.admin.generateLink({ type: "magiclink", email });
   const tokenHash = generated.data?.properties?.hashed_token;
@@ -101,18 +79,15 @@ async function main() {
   const emailB = `ilgamcheck.verify.b+${suffix}@example.com`;
   const codeA = `VERIFYA${randomBytes(8).toString("hex").toUpperCase()}`;
   const codeB = `VERIFYB${randomBytes(8).toString("hex").toUpperCase()}`;
-  try {
-    await cleanupVerificationArtifacts(admin);
+  await withEphemeralVerificationScope(admin, async (scope) => {
     for (const email of [emailA, emailB]) {
-      const { data, error } = await admin.auth.admin.createUser({ email, email_confirm: true });
-      if (error || !data.user) fail(`임시 검증 계정 생성 실패: ${error?.message ?? "user 없음"}`);
+      await scope.createUser(email);
     }
 
-    const { error: codeError } = await admin.from("invite_codes").insert([
+    await scope.createCodes([
       { code: codeA, grant_days: 30, max_redemptions: 2 },
       { code: codeB, grant_days: 30, max_redemptions: 2 },
     ]);
-    if (codeError) fail(`임시 베타 코드 생성 실패: ${codeError.message}`);
 
     const userA = createClient(url, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -164,10 +139,8 @@ async function main() {
       timeout: 90_000,
     });
     if (verify.error || verify.status !== 0) fail("Hosted 핵심 계약 검증이 실패했습니다.");
-    console.log("HOSTED_VERIFY PASS");
-  } finally {
-    await cleanupVerificationArtifacts(admin);
-  }
+  });
+  console.log("HOSTED_VERIFY PASS — 이번 실행의 임시 데이터 정리 완료 (Google OAuth UI 검증 아님)");
 }
 
 main().catch((error) => {
