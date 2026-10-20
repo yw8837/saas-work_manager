@@ -17,7 +17,7 @@
 - 작업 원본은 `D:/SaaS/01_일감체크/.worktrees/mobile-mvp`, 브랜치는 `codex/mobile-linked-mvp`. 원본 app의 사용자 변경과 index.lock은 보존했다.
 - 웹·Android·iOS 공통 계정/일감, 보안 PKCE 저장, 앱 복귀, 수정 요청 푸시 outbox/발송기, 계정 전환·삭제 보호, 오프라인 읽기 전용 화면을 구현했다.
 - 독립 리뷰 첫 구현 `704257c`의 Important 4건·Minor 2건을 메인이 재현·수정했다. 최종 자동 검사 708개/115파일, E2E 56개, typecheck/lint, Next/Sites, 운영 audit 0 통과. Android debug APK 빌드·서명 검사 통과. 상세는 `docs/verification/2026-10-21-mobile-mvp.md`.
-- 사용자가 검사 통과 후 운영 DB/Auth callback/최소권한 FCM 키/예약 호출/PR 병합/웹 API 배포를 승인했다. 현재 무료 Firebase 등록만 완료, 나머지 적용 상태는 검증 기록과 함께 갱신해야 한다. 기존 데이터 삭제·유료 전환·아가톡 변경·모집 연락은 제외.
+- 사용자가 검사 통과 후 운영 DB/Auth callback/최소권한 FCM 키/예약 호출/PR 병합/웹 API 배포를 승인했다. 무료 Firebase 등록, native push DB migration `20261020162521`, 호출 secret으로 보호된 Edge Function v1 배포 완료. FCM 전송 권한 한 개의 전용 계정 준비. Auth callback/키/예약 호출/웹 배포는 검증 기록과 함께 갱신할 것. 기존 데이터 삭제·유료 전환·아가톡 변경·모집 연락은 제외.
 - Supabase CLI 기본 계정은 다른 프로젝트 목록을 반환한다. 일감체크 `evhkpgxacpweelnmjmqh`를 지원하는 연결 도구/올바른 대시보드를 사용하고, 다른 계정의 전역 인증을 교체하지 않는다.
 - 실기기 0대, Apple Developer/Mac 없음. Android 설치/OAuth/백그라운드 알림 및 iOS 서명·TestFlight 완료로 표현하지 않는다.
 

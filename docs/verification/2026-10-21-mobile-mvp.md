@@ -61,6 +61,10 @@ Android APK: `com.yeolmaestudio.ilgamcheck`, versionCode 1 / versionName 1.0, mi
 - Firebase `ilgamcheck-auth-20260829`: 기존 일감체크 프로젝트에 무료 Spark 추가, Analytics 해제, Android/iOS 앱 등록. client config는 gitignore 경로만 사용한다.
 - 운영 Supabase `evhkpgxacpweelnmjmqh`: 2026-10-21 01시대 최초 관리 조회 시간 초과와 health 503 한 차례 관찰. 설정 변경 없이 재조회 시 health 200/ready=true, SQL·migration 목록 정상으로 복구. 원인은 확정하지 않았으며 상시 안정성 증거로 확대하지 않는다.
 - 적용 전 advisor의 기존 알림: RPC SECURITY DEFINER 호출, RLS 정책 없는 서버 전용 테이블, 비밀번호 유출 방지 및 MFA. 고객 bearer RPC와 owner RPC의 의도된 권한은 기존 23개 권한 회귀로 분리 점검했다. 신규 native 테이블 적용 후 다시 비교할 것.
-- 운영 DB·Auth callback·서버 비밀키·예약 호출·Edge Function·웹 배포: 아직 적용 전. 개별 적용 후 실제 응답과 ID를 이 절에 기록한다.
+- 운영 DB: `native_revision_push` 적용 성공, 원격 버전 `20261020162521`. CLI로 처음 생성했던 로컬 파일명 `20261020151338`은 원격 이력과 일치하도록 변경했다. 기존 RPC 권한 회귀 23/23 통과. 신규 발송 RPC 3개는 service_role 전용, 기기 등록/해제 2개는 authenticated만 추가 허용, anon 전부 차단 확인.
+- FCM: `ilgam-native-push` 발송 전용 계정과 `ilgamPushSender` custom role 생성. 권한은 `cloudmessaging.messages.create` 한 개이며 키는 아직 발급하지 않았다.
+- 신규 native 테이블 3개 모두 RLS 활성, anon/authenticated 직접 SELECT 차단, service_role 허용 확인.
+- Edge Function `native-revision-push` v1 배포, ID `4605b703-f69b-4574-bfcd-9c7aa64310c4`, 상태 ACTIVE. 자체 호출 secret 검증 방식이며 FCM 비밀키·호출 secret 미설정 단계에서는 발송하지 않는다.
+- Auth callback·서버 비밀키·예약 호출·웹 배포: 아직 적용 전. 개별 적용 후 실제 응답과 ID를 이 절에 기록한다.
 
 기존 advisor 참고: [RLS 정책](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy), [공개 SECURITY DEFINER](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable), [인증된 사용자 SECURITY DEFINER](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable), [비밀번호 보안](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection), [MFA](https://supabase.com/docs/guides/auth/auth-mfa).

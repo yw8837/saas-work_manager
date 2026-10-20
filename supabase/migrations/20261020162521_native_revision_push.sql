@@ -1,5 +1,6 @@
 -- Native notification delivery is independent of revision accounting.
 -- Apply only after regression checks and explicit production deployment approval.
+-- Filename matches the version recorded by the approved hosted migration.
 create schema if not exists ilgam_private;
 revoke all on schema ilgam_private from public, anon, authenticated;
 grant usage on schema ilgam_private to authenticated, service_role;

@@ -42,7 +42,7 @@
 
 ## 운영 반영 게이트
 
-1. 검토가 끝난 `20261020151338_native_revision_push.sql`을 대상 Supabase 프로젝트에 적용한다.
+1. 검토가 끝난 `20261020162521_native_revision_push.sql`을 대상 Supabase 프로젝트에 적용한다. 운영 연결 도구가 기록한 버전과 파일명을 맞췄으며 기존 임시 파일명으로 중복 적용하지 않는다.
 2. Supabase redirect allow list에 `com.yeolmaestudio.ilgamcheck://auth/callback`만 추가한다. 기존 웹 redirect와 Site URL을 덮어쓰지 않는다.
 3. 발송 전용 최소권한 FCM 서비스 계정과 비밀키, 호출용 32자 이상의 secret을 서버에만 보관한다.
 4. `native-revision-push` Edge Function과 제한된 주기의 서버 호출을 설정한다. 공개 클라이언트에서 발송기를 호출하거나 비밀키를 번들에 넣지 않는다.
