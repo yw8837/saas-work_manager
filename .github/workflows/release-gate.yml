@@ -27,5 +27,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node scripts/test-native-push-db.mjs
       - run: npx playwright install --with-deps chromium
       - run: npm run check:release

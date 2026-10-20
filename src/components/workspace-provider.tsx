@@ -54,8 +54,9 @@ import {
 import { deriveInAppAlerts, registerIlgamcheckServiceWorker } from "@/lib/notifications";
 import { nativePlatform, nativeApiUrl } from "@/lib/native/platform";
 import { subscribeNativeResume } from "@/lib/native/lifecycle";
-import { initializeNativeAuth, startNativeOAuth, disposeNativeAuth } from "@/lib/native/auth-runtime";
+import { initializeNativeAuth, startNativeOAuth, disposeNativeAuth, validateNativeSessionOwner } from "@/lib/native/auth-runtime";
 import { initializeNativePush, disposeNativePush, disableNativePush } from "@/lib/native/push";
+import { saveNativeOfflineSnapshot, clearNativeOfflineSnapshot } from "@/lib/native/offline";
 import { GOOGLE_REAUTH_OWNER_SESSION_KEY, GOOGLE_REAUTH_REDIRECT_PATH } from "@/lib/supabase/reauthentication-context";
 import {
   createSecurePortalToken,
@@ -93,7 +94,7 @@ type CreateJobInput = {
 type WorkspaceContextValue = AppState & {
   hydrated: boolean;
   runtimeMode: StorageMode;
-  authStatus: "local" | "loading" | "signed_out" | "signed_in" | "configuration_error";
+  authStatus: "local" | "loading" | "signed_out" | "signed_in" | "offline" | "configuration_error";
   authError: string | null;
   userEmail: string | null;
   saveStatus: "saved" | "saving" | "error";
@@ -597,6 +598,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const visible = rebasedVisible.state;
       if (!jsonEqual(visible, stateRef.current)) setCurrentState(visible);
       saveState(visible, undefined, storageKeyForUser(ownerId));
+      void saveNativeOfflineSnapshot(ownerId, stateToSave, new Date().toISOString()).catch(() => undefined);
       if (sequence === saveSequenceRef.current) {
         clearHostedDraft(ownerId);
         setSaveStatus("saved");
@@ -657,6 +659,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           channel = null;
         }
         if (cancelled || currentActivation !== activation) return;
+        if (nativePlatform() !== "web" && session?.user) {
+          try {
+            await validateNativeSessionOwner(session.user.id);
+          } catch {
+            if (cancelled || currentActivation !== activation) return;
+            activeSessionIdentity = null;
+            await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+            if (cancelled || currentActivation !== activation) return;
+            hostedOwnerRef.current = null;
+            setCurrentState(createSeedState());
+            setAuthStatus("signed_out");
+            setAuthError("본인 확인 계정이 달라 연결을 중단했어요. 기존 Google 계정으로 다시 로그인해주세요.");
+            setHydrated(true);
+            return;
+          }
+          if (cancelled || currentActivation !== activation) return;
+        }
         if (nativePlatform() !== "web") {
           void initializeNativePush(session?.user.id ?? null).catch(() => undefined);
         }
@@ -798,6 +817,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
           remoteVersionRef.current = remote.documentVersion;
           lastSyncedStateRef.current = remote.state;
+          void saveNativeOfflineSnapshot(session.user.id, remote.state, remote.updatedAt).catch(() => undefined);
           setCurrentState(visibleState);
           saveState(visibleState, undefined, cacheKey);
           setSaveStatus(recoveryError ? "error" : "saved");
@@ -848,6 +868,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               remoteVersionRef.current = fresh.documentVersion;
               lastSyncedStateRef.current = fresh.state;
               setCurrentState(fresh.state);
+              void saveNativeOfflineSnapshot(session.user.id, fresh.state, fresh.updatedAt).catch(() => undefined);
               saveState(fresh.state, undefined, cacheKey);
               return;
             }
@@ -902,7 +923,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             });
         } catch (error) {
           if (cancelled || currentActivation !== activation) return;
-          setAuthStatus("configuration_error");
+          setAuthStatus(nativePlatform() === "web" ? "configuration_error" : "offline");
           setAuthError(error instanceof Error ? error.message : "Hosted 작업공간을 시작하지 못했어요.");
           setRealtimeStatus("error");
           setRealtimeError("실시간 연결을 시작하지 못했어요.");
@@ -1027,6 +1048,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (nativePlatform() !== "web") {
       await disableNativePush();
       await disposeNativeAuth();
+      await clearNativeOfflineSnapshot();
     }
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw new Error(error.message);
@@ -1082,6 +1104,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     hostedConflictRef.current = null;
     saveFailureRef.current = null;
     window.localStorage.removeItem(storageKeyForUser(ownerId));
+    await clearNativeOfflineSnapshot().catch(() => undefined);
     clearHostedDraft(ownerId);
 
     const registration = await navigator.serviceWorker?.getRegistration().catch(() => undefined);

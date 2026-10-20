@@ -41,11 +41,18 @@ const mobile = vi.hoisted(() => ({
   initialize: vi.fn().mockResolvedValue(undefined),
   start: vi.fn().mockResolvedValue(undefined),
   dispose: vi.fn().mockResolvedValue(undefined),
+  validateOwner: vi.fn().mockResolvedValue(undefined),
   resume: null as null | (() => Promise<void>),
   stopResume: vi.fn(),
   pushInit: vi.fn().mockResolvedValue(undefined),
   pushDispose: vi.fn().mockResolvedValue(undefined),
   pushDisable: vi.fn().mockResolvedValue(undefined),
+  snapshotSave: vi.fn().mockResolvedValue(undefined),
+  snapshotClear: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/native/offline", () => ({
+  saveNativeOfflineSnapshot: mobile.snapshotSave,
+  clearNativeOfflineSnapshot: mobile.snapshotClear,
 }));
 vi.mock("@/lib/native/push", () => ({
   initializeNativePush: mobile.pushInit,
@@ -66,6 +73,7 @@ vi.mock("@/lib/native/auth-runtime", () => ({
   initializeNativeAuth: mobile.initialize,
   startNativeOAuth: mobile.start,
   disposeNativeAuth: mobile.dispose,
+  validateNativeSessionOwner: mobile.validateOwner,
 }));
 
 vi.mock("@/lib/notifications", async () => {
@@ -139,10 +147,11 @@ function deferred<T>() {
 }
 
 function Probe() {
-  const { jobs, saveStatus, realtimeStatus, realtimeError, updateSettings, signInWithGoogle, signOut } = useWorkspace();
+  const { jobs, authStatus, saveStatus, realtimeStatus, realtimeError, updateSettings, signInWithGoogle, signOut } = useWorkspace();
   return (
     <div>
       <span data-testid="workspace-owner">{jobs[0]?.clientLabel}</span>
+      <span data-testid="auth-status">{authStatus}</span>
       <span data-testid="save-status">{saveStatus}</span>
       <span data-testid="realtime-status">{realtimeStatus}</span>
       <span data-testid="realtime-error">{realtimeError}</span>
@@ -168,9 +177,12 @@ describe("hosted auth activation", () => {
     mobile.platform = "web";
     mobile.resume = null; mobile.stopResume.mockClear();
     mobile.initialize.mockClear(); mobile.start.mockClear(); mobile.dispose.mockClear();
+    mobile.validateOwner.mockReset().mockResolvedValue(undefined);
     mobile.pushInit.mockReset().mockResolvedValue(undefined);
     mobile.pushDisable.mockReset().mockResolvedValue(undefined);
     mobile.pushDispose.mockReset().mockResolvedValue(undefined);
+    mobile.snapshotSave.mockReset().mockResolvedValue(undefined);
+    mobile.snapshotClear.mockReset().mockResolvedValue(undefined);
     Object.defineProperty(window, "localStorage", { configurable: true, value: new MemoryStorage() });
     Object.defineProperty(window, "sessionStorage", { configurable: true, value: new MemoryStorage() });
     hosted.authCallback = null;
@@ -213,6 +225,24 @@ describe("hosted auth activation", () => {
     fireEvent.click(screen.getByRole("button", { name: "google reauth" }));
     await waitFor(() => expect(mobile.start).toHaveBeenCalledWith("google", "/settings", "owner-a"));
     expect(hosted.signInWithOAuth).not.toHaveBeenCalled();
+  });
+  it("rejects a restored wrong-account session before loading data or registering push", async () => {
+    mobile.platform = "android";
+    mobile.validateOwner.mockRejectedValue(new Error("AUTH_ACCOUNT_MISMATCH"));
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-b")));
+    await waitFor(() => expect(hosted.signOut).toHaveBeenCalled());
+    expect(hosted.load).not.toHaveBeenCalled();
+    expect(mobile.pushInit).not.toHaveBeenCalledWith("owner-b");
+  });
+  it("uses a native read-only offline gate when initial remote loading fails, without writing", async () => {
+    mobile.platform = "android";
+    hosted.load.mockRejectedValue(new Error("offline"));
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("offline"));
+    expect(hosted.save).not.toHaveBeenCalled();
+    expect(mobile.snapshotSave).not.toHaveBeenCalled();
   });
 
   it("registers the push owner and revokes the device before native sign-out", async () => {

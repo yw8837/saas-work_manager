@@ -8,6 +8,12 @@ vi.mock("./workspace-provider", async () => ({
   ...await vi.importActual("./workspace-provider"), useWorkspace: vi.fn(),
 }));
 afterEach(() => { window.history.replaceState({}, "", "/"); });
+it("explains why an old revision notification could not open", () => {
+  vi.mocked(useWorkspace).mockReturnValue({ jobs: [] } as unknown as ReturnType<typeof useWorkspace>);
+  window.history.replaceState({}, "", "/jobs?notice=revision-unavailable");
+  render(<JobsOverview />);
+  expect(screen.getByRole("status")).toHaveTextContent("삭제되었거나 현재 계정에서 볼 수 없는");
+});
 
 it("keeps the filter and search in a 15-job list when returning from a detail", () => {
   const base = createSeedState().jobs[0];

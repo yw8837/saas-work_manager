@@ -46,6 +46,7 @@ export async function loadSitesPublicEnvironment(request: FetchLike = fetch): Pr
   const response = await request(publicConfigEndpoint(), {
     cache: "no-store",
     headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(8_000),
   });
   if (!response.ok) throw new Error("PUBLIC_CONFIG_UNAVAILABLE");
   globalThis.__ILGAMCHECK_PUBLIC_ENV__ = parsePublicEnvironment(await response.json());

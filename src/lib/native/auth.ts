@@ -2,9 +2,17 @@ import type { SecureSessionStore } from "./secure-storage";
 
 export const NATIVE_AUTH_CALLBACK = "com.yeolmaestudio.ilgamcheck://auth/callback";
 const PENDING_KEY = "ilgam-native-auth-pending";
+const REAUTH_GUARD_KEY = "ilgam-native-auth-owner";
 const MAX_AGE_MS = 10 * 60 * 1000;
 export type NativeAuthCallback = { code: string } | { error: string };
 export type NativeAuthProvider = "google" | "apple";
+
+/** The SDK saves a session before exchangeCodeForSession resolves. Keep this
+ * guard in OS storage, independent of consumed callbacks and sessionStorage. */
+export async function assertNativeSessionOwner(store: SecureSessionStore, owner: string): Promise<void> {
+  const expected = await store.getItem(REAUTH_GUARD_KEY);
+  if (expected !== null && expected !== owner) throw new Error("AUTH_ACCOUNT_MISMATCH");
+}
 
 export function parseNativeAuthCallback(raw: string): NativeAuthCallback | null {
   if (raw.length > 4096 || !raw.startsWith(`${NATIVE_AUTH_CALLBACK}?`)) return null;
@@ -74,6 +82,12 @@ export function createNativeAuthCoordinator(deps: Dependencies) {
       let written = false;
       try {
         if (await pending()) throw new Error("AUTH_ALREADY_PENDING");
+        // A previous process may have died during an exchange. Explicit retry
+        // first removes that uncertain session; a failed sign-out keeps guard.
+        if (await deps.store.getItem(REAUTH_GUARD_KEY)) {
+          await deps.signOut();
+          await deps.store.removeItem(REAUTH_GUARD_KEY);
+        }
         const request: PendingLogin = { version: 1, createdAt: deps.now(), path, owner };
         await deps.store.setItem(PENDING_KEY, JSON.stringify(request));
         written = true;
@@ -98,7 +112,10 @@ export function createNativeAuthCoordinator(deps: Dependencies) {
       try {
         const request = await pending();
         if (!request) return "ignored";
-        // Consume before exchange so a cold-launch event and URL event cannot both exchange.
+        if (request.owner && !("error" in callback)) {
+          await deps.store.setItem(REAUTH_GUARD_KEY, request.owner);
+        }
+        // Consume the one-time callback but retain the durable owner guard.
         await deps.store.removeItem(PENDING_KEY);
         if ("error" in callback) {
           deps.prepareReauthentication(null);
@@ -109,8 +126,10 @@ export function createNativeAuthCoordinator(deps: Dependencies) {
         const owner = await deps.exchange(callback.code);
         if (attempt !== generation || (request.owner !== null && request.owner !== owner)) {
           await deps.signOut();
+          await deps.store.removeItem(REAUTH_GUARD_KEY);
           throw new Error(attempt !== generation ? "AUTH_CANCELLED" : "AUTH_ACCOUNT_MISMATCH");
         }
+        await deps.store.removeItem(REAUTH_GUARD_KEY);
         await deps.close().catch(() => undefined);
         deps.navigate(request.path);
         return "handled";
@@ -122,6 +141,11 @@ export function createNativeAuthCoordinator(deps: Dependencies) {
     async cancel(): Promise<void> {
       generation++;
       await clear();
+      // An in-flight SDK exchange can still write its session after cancellation.
+      if (!handling) {
+        if (await deps.store.getItem(REAUTH_GUARD_KEY)) await deps.signOut();
+        await deps.store.removeItem(REAUTH_GUARD_KEY);
+      }
       await deps.close().catch(() => undefined);
     },
     isHandling: () => handling,

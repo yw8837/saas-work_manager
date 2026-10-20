@@ -73,11 +73,23 @@ export async function openNativeRevision(data: unknown): Promise<void> {
   if (!client) return;
   // Re-read under the active JWT/RLS. The notification never authorizes a job
   // and never increments a revision count.
-  const fresh=await loadHostedWorkspace(client,expected);
+  let fresh;
+  try { fresh=await loadHostedWorkspace(client,expected); }
+  catch {
+    if (generation===epoch && owner===expected) navigateToNotification("/jobs?notice=revision-connection");
+    return;
+  }
   if (generation!==epoch || owner!==expected) return;
   const job=fresh?.state.jobs.find((item) => item.id===parsed.jobKey);
-  if (!job?.revisions.some((request) => request.id===parsed.requestId)) return;
-  globalThis.location.assign(`/jobs/${encodeURIComponent(job.id)}#revisions`);
+  if (!job?.revisions.some((request) => request.id===parsed.requestId)) {
+    navigateToNotification("/jobs?notice=revision-unavailable");
+    return;
+  }
+  navigateToNotification(`/jobs/${encodeURIComponent(job.id)}#revisions`);
+}
+function navigateToNotification(path: string) {
+  // Native non-React event bridge: a fresh page reload rechecks session/data.
+  globalThis.location.assign(path);
 }
 
 export async function disposeNativePush(): Promise<void> {

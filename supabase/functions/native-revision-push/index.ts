@@ -59,7 +59,7 @@ Deno.serve(async (request: Request) => {
       },
       async finish(claim,result) {
         const {error}=await db.rpc("finish_native_push_attempt",{
-          p_request_id:claim.request_id,p_device_id:claim.device_id,p_lease_id:claim.lease_id,p_result:result,
+          p_request_id:claim.request_id,p_device_id:claim.device_id,p_lease_id:claim.lease_id,p_token:claim.token,p_result:result,
         });
         if(error) throw new Error("acknowledgement failed");
       },

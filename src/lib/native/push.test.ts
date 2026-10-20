@@ -86,8 +86,17 @@ it("rejects a notification for another owner's or removed request", async () => 
   await mock.handlers.get("pushNotificationActionPerformed")?.({ notification: { data: {
     type:"revision",request_id:"e65d2c61-899e-4214-86fb-4a057d07c497",job_key:"job_a",
   } } });
-  expect(mock.navigate).not.toHaveBeenCalled();
+  expect(mock.navigate).toHaveBeenCalledWith("/jobs?notice=revision-unavailable");
   expect(mock.load).toHaveBeenCalledWith(expect.anything(), "owner-a");
+});
+it("shows a connection notice when a valid notification cannot be revalidated", async () => {
+  const push = await import("./push");
+  await push.initializeNativePush("owner-a");
+  mock.load.mockRejectedValue(new Error("network failure"));
+  await push.openNativeRevision({
+    type:"revision",request_id:"e65d2c61-899e-4214-86fb-4a057d07c497",job_key:"job_a",
+  });
+  expect(mock.navigate).toHaveBeenCalledWith("/jobs?notice=revision-connection");
 });
 it("late token callbacks from the old owner cannot register after switching account", async () => {
   const push = await import("./push");

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/policies";
 
 const auth = vi.hoisted(() => ({
-  authStatus: "signed_out" as "signed_out" | "signed_in",
+  authStatus: "signed_out" as "signed_out" | "signed_in" | "offline",
   signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
   hasAcceptance: vi.fn(),
@@ -18,6 +18,9 @@ const mobile = vi.hoisted(() => ({
   subscribers: new Set<() => void>(),
 }));
 vi.mock("@/lib/native/platform", () => ({ nativePlatform: () => mobile.platform }));
+vi.mock("./native-offline-workspace", () => ({
+  NativeOfflineWorkspace: () => <div>offline read-only workspace</div>,
+}));
 vi.mock("@/lib/native/auth-runtime", () => ({
   nativeAuthStatus: () => mobile.status,
   subscribeNativeAuth: (listener: () => void) => {
@@ -64,6 +67,14 @@ describe("WorkspaceAuthGate Google login", () => {
   });
 
   afterEach(() => vi.unstubAllEnvs());
+  it("does not expose editable children or attempt policy writes in native offline mode", () => {
+    mobile.platform = "android";
+    auth.authStatus = "offline";
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    expect(screen.getByText("offline read-only workspace")).toBeInTheDocument();
+    expect(screen.queryByText("private workspace")).not.toBeInTheDocument();
+    expect(auth.recordAcceptance).not.toHaveBeenCalled();
+  });
 
   it("offers one Google login action without email or password fields", () => {
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);

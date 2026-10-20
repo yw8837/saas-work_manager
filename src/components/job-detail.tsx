@@ -31,6 +31,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { emptyJobListSearch, jobListReturnHref, jobListSearchSnapshot, subscribeJobListLocation } from "@/lib/jobs-list-location";
+import { deploymentOrigin } from "@/lib/deployment-origin";
+import { nativePlatform } from "@/lib/native/platform";
 import {
   formatShortDate,
   formatWon,
@@ -112,6 +114,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [detailFeedback, setDetailFeedback] = useState("");
 
   const revision = useMemo(() => (job ? getRevisionSummary(job) : null), [job]);
+  const hydratedJobId = hydrated ? job?.id : undefined;
+  useEffect(() => {
+    if (hydratedJobId && window.location.hash === "#revisions") {
+      revisionSectionRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+    }
+  }, [hydratedJobId]);
 
   useEffect(() => {
     if (!revisionOpen || revisionFocusRequest === 0) return;
@@ -161,7 +169,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
   const copyPortalLink = async () => {
     if (!portalEnabled) return;
-    const link = `${window.location.origin}/r/${encodeURIComponent(job.revisionPortalToken)}`;
+    const origin = nativePlatform() === "web" ? window.location.origin : deploymentOrigin();
+    const link = `${origin}/r/${encodeURIComponent(job.revisionPortalToken)}`;
     await navigator.clipboard.writeText(link);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
@@ -440,7 +449,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
             </div>
           </section>
 
-          <section className="contentSection jobRevisionSection" ref={revisionSectionRef}>
+          <section id="revisions" className="contentSection jobRevisionSection" ref={revisionSectionRef}>
             <div className="sectionHeadingRow">
               <div>
                 <span className="sectionMiniLabel">요청 경로가 달라도 한곳에</span>

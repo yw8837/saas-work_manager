@@ -28,6 +28,7 @@ export function JobsOverview() {
   const { jobs } = useWorkspace();
   const search = useSyncExternalStore(subscribeJobListLocation, jobListSearchSnapshot, emptyJobListSearch);
   const { filter, query } = readJobListLocation(search);
+  const notice = new URLSearchParams(search).get("notice");
   const returnHref = jobListHref({ filter, query });
 
   const filtered = useMemo(() => {
@@ -59,6 +60,12 @@ export function JobsOverview() {
           <Plus size={18} /> 새 일감
         </Link>
       </header>
+      {notice === "revision-unavailable" && (
+        <p role="status">삭제되었거나 현재 계정에서 볼 수 없는 수정 요청이에요. 일감 목록을 확인해주세요.</p>
+      )}
+      {notice === "revision-connection" && (
+        <p role="status">연결 문제로 수정 요청을 확인하지 못했어요. 연결을 확인한 뒤 알림을 다시 눌러주세요.</p>
+      )}
 
       <div className="jobToolbar">
         <div className="jobFilters" role="group" aria-label="일감 상태 필터">

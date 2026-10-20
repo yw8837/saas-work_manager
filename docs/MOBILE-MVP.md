@@ -24,6 +24,7 @@
 6. 앱 복귀 시 저장 대기열을 먼저 완료한 뒤 최신 서버 상태를 읽는다. 충돌한 초안을 덮어쓰지 않는다.
 7. 일감 검색·필터와 상세에서 돌아갈 위치를 유지한다. 등록 실패 시 입력을 보존한다.
 8. 고객 링크로 접수된 수정 요청은 서버 outbox에서 FCM으로 발송한다. 알림 탭은 현재 계정 권한을 재확인하며 수정 횟수를 다시 증가시키지 않는다.
+9. 통신이 끊기면 마지막으로 서버 저장을 확인한 진행 중 일감 최대 30건을 읽기 전용으로 보여준다. 같은 계정의 OS 암호화 저장소만 읽으며, 오프라인 수정이나 미저장 초안을 서버 저장본으로 표시하지 않는다.
 
 위 5~8은 이번 분리 브랜치의 구현이다. 운영 서버 반영과 실제 휴대폰 검증 전에는 설치·로그인·푸시 완료로 안내하지 않는다.
 
@@ -43,13 +44,13 @@
 
 1. 검토가 끝난 `20261020151338_native_revision_push.sql`을 대상 Supabase 프로젝트에 적용한다.
 2. Supabase redirect allow list에 `com.yeolmaestudio.ilgamcheck://auth/callback`만 추가한다. 기존 웹 redirect와 Site URL을 덮어쓰지 않는다.
-3. 발송 전용 최소권한 FCM 서비스 계정과 비밀키, 호출용 32자 이상의 secret을 준비한다. 신규 권한·키 생성은 별도 승인 대상이다.
+3. 발송 전용 최소권한 FCM 서비스 계정과 비밀키, 호출용 32자 이상의 secret을 서버에만 보관한다.
 4. `native-revision-push` Edge Function과 제한된 주기의 서버 호출을 설정한다. 공개 클라이언트에서 발송기를 호출하거나 비밀키를 번들에 넣지 않는다.
 5. 네이티브 `/api/account/delete`의 명시적 CORS 변경을 웹 서버에 반영한다. JWT·최근 OAuth·확인 헤더/본문 검사는 유지한다.
 6. Android 실기기로 Google 복귀·앱 종료 후 푸시·웹↔앱 저장을 검증한다.
 7. iPhone은 Apple Developer·Mac/Xcode·APNs 키와 서명이 준비된 후 별도로 빌드·검증한다.
 
-FCM 프로젝트 생성 승인과 위 운영 DB·Auth·키·배포 승인은 서로 다르다. 현재 운영 데이터에 테스트 일감을 만들거나 모집 대상에게 연락하지 않는다.
+2026-10-21 사용자가 검사 통과 후 위 운영 DB·Auth·최소권한 FCM 키·예약 호출·PR 병합·웹 API 배포를 승인했다. 승인은 실행 완료 증거가 아니다. 적용 결과는 `docs/verification/2026-10-21-mobile-mvp.md`에 각각 기록한다. 운영 고객 데이터 삭제·유료 전환·아가톡 변경·모집 대상 연락은 제외한다.
 
 ## 매번 동기화하는 방법
 
@@ -81,8 +82,10 @@ Windows의 한글 사용자 경로에서 Gradle 사전 검사만 실패하면 �
 ```powershell
 npm run build:mobile
 npx cap sync android
-./android/gradlew.bat -p android assembleDebug --no-daemon --max-workers=1 -Pandroid.overridePathCheck=true
+./android/gradlew.bat -p android assembleDebug --no-daemon --max-workers=1 '-Pandroid.overridePathCheck=true'
 ```
+
+PowerShell에서는 위 `-P` 옵션의 따옴표를 유지한다. 따옴표가 없으면 `-Pandroid`와 `.overridePathCheck=true`로 나뉘어 전달되어 옵션이 적용되지 않는다.
 
 기본 debug 서명은 내부 설치 검증용이다. 스토어 출시용 서명으로 재사용하지 않는다.
 

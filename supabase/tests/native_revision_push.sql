@@ -9,6 +9,7 @@ begin
   if has_table_privilege('authenticated','public.native_push_devices','select')
     or has_table_privilege('anon','public.native_revision_outbox','insert')
     or has_function_privilege('authenticated','public.claim_native_push_batch(integer)','execute')
+    or has_function_privilege('authenticated','public.finish_native_push_attempt(uuid,uuid,uuid,text,text)','execute')
     or has_function_privilege('anon','public.register_native_push_device(uuid,text,text)','execute') then
     raise exception 'push_privilege_leak';
   end if;
@@ -48,11 +49,11 @@ begin
     raise exception 'lease_claimed_twice';
   end if;
   lease := (first_claim->>'lease_id')::uuid;
-  perform public.finish_native_push_attempt(request,device,gen_random_uuid(),'sent');
+  perform public.finish_native_push_attempt(request,device,gen_random_uuid(),repeat('a',140),'sent');
   if exists(select 1 from public.native_push_attempts where request_id=request and status='sent') then
     raise exception 'stale_lease_acknowledged';
   end if;
-  perform public.finish_native_push_attempt(request,device,lease,'retry');
+  perform public.finish_native_push_attempt(request,device,lease,repeat('a',140),'retry');
   if not exists(select 1 from public.native_push_attempts where request_id=request and status='pending' and attempts=1 and next_attempt_at>now()) then
     raise exception 'retry_not_scheduled';
   end if;
@@ -72,4 +73,45 @@ begin
   end if;
 end;
 $test$;
+do $rotation$
+declare
+  owner uuid := gen_random_uuid(); installation uuid := gen_random_uuid();
+  device uuid; portal uuid; request uuid := gen_random_uuid();
+  claimed jsonb; old_lease uuid;
+begin
+  insert into auth.users(id,email) values(owner,'native-rotation@example.test');
+  perform set_config('request.jwt.claim.sub',owner::text,true);
+  perform public.register_native_push_device(installation,'android',repeat('old',50));
+  select id into device from public.native_push_devices where installation_id=installation;
+  insert into public.workspace_revision_portals(owner_id,job_key,token_hash)
+    values(owner,'job-rotation',repeat('d',64)) returning id into portal;
+  insert into public.workspace_revision_requests(id,portal_id,owner_id,job_key,idempotency_key,request_hash,body,usage,document_version)
+    values(request,portal,owner,'job-rotation',gen_random_uuid(),repeat('e',64),'rotation fixture','used',1);
+  select to_jsonb(c) into claimed from public.claim_native_push_batch(10) c where c.request_id=request;
+  old_lease := (claimed->>'lease_id')::uuid;
+  perform public.register_native_push_device(installation,'android',repeat('new',50));
+  if public.is_native_push_claim_current(request,device,old_lease,repeat('old',50)) then
+    raise exception 'rotated_token_still_current';
+  end if;
+  perform public.finish_native_push_attempt(request,device,old_lease,repeat('old',50),'invalid');
+  if not exists(select 1 from public.native_push_devices where id=device and enabled and token=repeat('new',50)) then
+    raise exception 'stale_invalid_ack_disabled_new_token';
+  end if;
+  if not exists(select 1 from public.native_push_attempts where request_id=request and status='pending') then
+    raise exception 'rotated_notification_not_requeued';
+  end if;
+  select to_jsonb(c) into claimed from public.claim_native_push_batch(10) c where c.request_id=request;
+  if claimed->>'token' is distinct from repeat('new',50) then
+    raise exception 'retry_did_not_use_new_token';
+  end if;
+  perform public.finish_native_push_attempt(request,device,old_lease,repeat('old',50),'invalid');
+  if not exists(select 1 from public.native_push_devices where id=device and enabled) then
+    raise exception 'old_lease_disabled_current_token';
+  end if;
+  perform public.finish_native_push_attempt(request,device,(claimed->>'lease_id')::uuid,repeat('new',50),'invalid');
+  if exists(select 1 from public.native_push_devices where id=device and enabled) then
+    raise exception 'current_invalid_token_not_disabled';
+  end if;
+end;
+$rotation$;
 rollback;

@@ -14,6 +14,7 @@ import {
 import { currentPolicyAcceptance } from "@/lib/policies";
 import { nativePlatform } from "@/lib/native/platform";
 import { subscribeNativeAuth, nativeAuthStatus, cancelNativeOAuth } from "@/lib/native/auth-runtime";
+import { NativeOfflineWorkspace } from "./native-offline-workspace";
 
 export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   const native = nativePlatform() !== "web";
@@ -83,6 +84,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   }
 
   if (runtimeMode === "local") return children;
+  if (native && authStatus === "offline") return <NativeOfflineWorkspace />;
   if (authStatus === "signed_in" && policyGateStatus === "accepted") return children;
 
   if (

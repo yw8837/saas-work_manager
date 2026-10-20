@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createNativeAuthCoordinator, NATIVE_AUTH_CALLBACK, parseNativeAuthCallback } from "./auth";
+import { assertNativeSessionOwner, createNativeAuthCoordinator, NATIVE_AUTH_CALLBACK, parseNativeAuthCallback } from "./auth";
 import type { SecureSessionStore } from "./secure-storage";
 
 function fixture() {
@@ -58,6 +58,31 @@ describe("native OAuth callback boundary", () => {
 });
 
 describe("native OAuth lifecycle", () => {
+  it("keeps a durable owner guard across a crash after the SDK saves the exchanged session", async () => {
+    const f = fixture();
+    let finish!: (owner: string) => void;
+    f.dependencies.exchange = () => new Promise<string>((resolve) => { finish = resolve; });
+    const controller = createNativeAuthCoordinator(f.dependencies);
+    await controller.start("google", "/settings", "account-a");
+    const exchange = controller.complete(`${NATIVE_AUTH_CALLBACK}?code=crash-window`);
+    await viWaitUntil(() => Boolean(finish));
+    // A new JS process has no sessionStorage guard but reads the same OS store.
+    await expect(assertNativeSessionOwner(f.store, "account-b")).rejects.toThrow("AUTH_ACCOUNT_MISMATCH");
+    await expect(assertNativeSessionOwner(f.store, "account-a")).resolves.toBeUndefined();
+    finish("account-a");
+    await exchange;
+    await expect(assertNativeSessionOwner(f.store, "account-b")).resolves.toBeUndefined();
+  });
+  it("does not clear the durable guard when rejecting a wrong account cannot sign out", async () => {
+    const f = fixture();
+    f.changeReturnedOwner();
+    f.dependencies.signOut = async () => { throw new Error("SIGNOUT_FAILED"); };
+    const controller = createNativeAuthCoordinator(f.dependencies);
+    await controller.start("google", "/settings", "account-a");
+    await expect(controller.complete(`${NATIVE_AUTH_CALLBACK}?code=x`)).rejects.toThrow("SIGNOUT_FAILED");
+    f.expire();
+    await expect(assertNativeSessionOwner(f.store, "account-b")).rejects.toThrow("AUTH_ACCOUNT_MISMATCH");
+  });
   it("ignores callbacks without an app-started login", async () => {
     const f = fixture();
     expect(await f.controller.complete(`${NATIVE_AUTH_CALLBACK}?code=x`)).toBe("ignored");
@@ -129,3 +154,8 @@ describe("native OAuth lifecycle", () => {
     expect(f.effects.opens).toBe(0);
   });
 });
+
+async function viWaitUntil(predicate: () => boolean) {
+  for (let index = 0; index < 30 && !predicate(); index++) await Promise.resolve();
+  expect(predicate()).toBe(true);
+}

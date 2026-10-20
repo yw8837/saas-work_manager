@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-09-27
+마지막 갱신: 2026-10-21
 
 ## 제품 한 줄
 
@@ -10,7 +10,18 @@
 
 차별점은 고객용 수정요청 링크다. 그래서 서버(Supabase)는 유지한다. 로컬 전용으로 바꾸지 않는다.
 
-## 지금 상태 (2026-09-27 확인)
+## 지금 상태
+
+### 2026-10-21 모바일 연동 MVP
+
+- 작업 원본은 `D:/SaaS/01_일감체크/.worktrees/mobile-mvp`, 브랜치는 `codex/mobile-linked-mvp`. 원본 app의 사용자 변경과 index.lock은 보존했다.
+- 웹·Android·iOS 공통 계정/일감, 보안 PKCE 저장, 앱 복귀, 수정 요청 푸시 outbox/발송기, 계정 전환·삭제 보호, 오프라인 읽기 전용 화면을 구현했다.
+- 독립 리뷰 첫 구현 `704257c`의 Important 4건·Minor 2건을 메인이 재현·수정했다. 최종 자동 검사 708개/115파일, E2E 56개, typecheck/lint, Next/Sites, 운영 audit 0 통과. Android debug APK 빌드·서명 검사 통과. 상세는 `docs/verification/2026-10-21-mobile-mvp.md`.
+- 사용자가 검사 통과 후 운영 DB/Auth callback/최소권한 FCM 키/예약 호출/PR 병합/웹 API 배포를 승인했다. 현재 무료 Firebase 등록만 완료, 나머지 적용 상태는 검증 기록과 함께 갱신해야 한다. 기존 데이터 삭제·유료 전환·아가톡 변경·모집 연락은 제외.
+- Supabase CLI 기본 계정은 다른 프로젝트 목록을 반환한다. 일감체크 `evhkpgxacpweelnmjmqh`를 지원하는 연결 도구/올바른 대시보드를 사용하고, 다른 계정의 전역 인증을 교체하지 않는다.
+- 실기기 0대, Apple Developer/Mac 없음. Android 설치/OAuth/백그라운드 알림 및 iOS 서명·TestFlight 완료로 표현하지 않는다.
+
+### 과거 운영 이력 — 이하 날짜 당시의 기록
 
 ### 보안 재점검 — 요청 본문 제한 보완
 
@@ -82,6 +93,14 @@
 - 2026-09-30: 코드의 기본 운영 주소를 `https://ilgam.studioyeolmae.com`으로 바꿨다(링크 미리보기 등). DNS는 연결됨. 남은 일: ChatGPT Sites에 다시 배포, 새 주소 HTTPS·로그인 확인, Supabase Auth Site URL/Redirect URLs를 supabase/config.toml과 같게 맞추기.
 
 ## 다음 작업
+
+### 0. 모바일 MVP 운영 연결과 실기기 게이트
+
+1. 모바일 PR의 CI를 확인하고 승인 범위의 DB/Auth/FCM/예약 호출과 웹 API를 반영한다. 현재 배포 ID와 원격 응답은 모바일 검증 문서에 기록한다.
+2. Supabase 로그인 후 앱 callback만 추가하고 기존 Google 웹 로그인 주소를 보존한다. FCM 비밀키는 발송 전용 최소권한 계정으로 서버에만 보관한다.
+3. Android APK를 사용자 폰에서 설치하여 Google 로그인 복귀, 웹↔앱 저장, 잠금화면/앱 종료 푸시, 계정 전환을 확인한다.
+4. iPhone 네이티브 배포는 Apple Developer와 Mac/Xcode 준비가 필요하다. 비용 승인이나 계정 가입을 임의로 진행하지 않는다.
+5. 사용자 연락은 하지 않는다. 로컬 검증 폴더는 증거·APK 보존 후 이 작업에서 만든 경로만 정리한다.
 
 ### 1. 남은 운영 확인
 

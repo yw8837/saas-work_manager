@@ -1,5 +1,5 @@
 -- Native notification delivery is independent of revision accounting.
--- No production application until local Supabase integration and deployment approval.
+-- Apply only after regression checks and explicit production deployment approval.
 create schema if not exists ilgam_private;
 revoke all on schema ilgam_private from public, anon, authenticated;
 grant usage on schema ilgam_private to authenticated, service_role;
@@ -151,17 +151,31 @@ returns boolean language sql security invoker set search_path='' as $$
   );
 $$;
 
-create function public.finish_native_push_attempt(p_request_id uuid,p_device_id uuid,p_lease_id uuid,p_result text)
+create function public.finish_native_push_attempt(p_request_id uuid,p_device_id uuid,p_lease_id uuid,p_token text,p_result text)
 returns void language plpgsql security invoker set search_path='' as $$
-declare v_attempts integer;
+declare v_attempts integer; v_current_token text;
 begin
-  if p_result is null or p_result not in ('sent','retry','invalid','discarded') then
+  if p_result is null or p_result not in ('sent','retry','invalid','discarded')
+    or p_token is null then
     raise invalid_parameter_value using message='invalid_push_result';
   end if;
+  -- Match registration/revocation's device -> attempt lock order. Hold the
+  -- binding stable through the ACK so an old failure cannot disable a new token.
+  select d.token into v_current_token from public.native_push_devices d
+    where d.id=p_device_id for update;
+  if not found then return; end if;
   select a.attempts into v_attempts from public.native_push_attempts a
     where a.request_id=p_request_id and a.device_id=p_device_id and a.lease_id=p_lease_id
       and a.status='sending' and a.lease_until>clock_timestamp() for update;
   if not found then return; end if;
+  if v_current_token<>p_token then
+    -- Rotation after claim/send: retry against the new token, not the old
+    -- result. This never touches the request or its revision accounting.
+    update public.native_push_attempts set status='pending',attempts=0,
+      next_attempt_at=clock_timestamp(),lease_id=null,lease_until=null,updated_at=clock_timestamp()
+      where request_id=p_request_id and device_id=p_device_id;
+    return;
+  end if;
   if p_result='invalid' then
     update public.native_push_devices set enabled=false,updated_at=clock_timestamp() where id=p_device_id;
   end if;
@@ -174,7 +188,7 @@ begin
 end $$;
 revoke all on function public.claim_native_push_batch(integer),
   public.is_native_push_claim_current(uuid,uuid,uuid,text),
-  public.finish_native_push_attempt(uuid,uuid,uuid,text) from public,anon,authenticated;
+  public.finish_native_push_attempt(uuid,uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.claim_native_push_batch(integer),
   public.is_native_push_claim_current(uuid,uuid,uuid,text),
-  public.finish_native_push_attempt(uuid,uuid,uuid,text) to service_role;
+  public.finish_native_push_attempt(uuid,uuid,uuid,text,text) to service_role;

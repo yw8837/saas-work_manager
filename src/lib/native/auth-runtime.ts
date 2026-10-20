@@ -4,7 +4,7 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getPublicEnvironmentValue } from "@/lib/public-environment";
 import { GOOGLE_REAUTH_OWNER_SESSION_KEY } from "@/lib/supabase/reauthentication-context";
-import { createNativeAuthCoordinator, NATIVE_AUTH_CALLBACK, type NativeAuthProvider } from "./auth";
+import { assertNativeSessionOwner, createNativeAuthCoordinator, NATIVE_AUTH_CALLBACK, type NativeAuthProvider } from "./auth";
 import { nativePlatform } from "./platform";
 import { createSecureSessionStore } from "./secure-storage";
 
@@ -18,6 +18,9 @@ let expiry: ReturnType<typeof setTimeout> | undefined;
 let cancelling = false;
 
 export const nativeAuthStatus = (): Status => status;
+export async function validateNativeSessionOwner(owner: string): Promise<void> {
+  if (nativePlatform() !== "web") await assertNativeSessionOwner(createSecureSessionStore(), owner);
+}
 export function subscribeNativeAuth(listener: (value: Status) => void): () => void {
   subscribers.add(listener);
   listener(status);
