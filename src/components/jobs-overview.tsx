@@ -52,7 +52,6 @@ export function JobsOverview() {
     <div className="pageSurface jobsPage">
       <header className="pageHeader">
         <div>
-          <span className="pageEyebrow">한눈에 찾고, 바로 처리하세요</span>
           <h1>일감</h1>
           <p>진행 중인 고객과 마감, 수정 잔여 횟수를 같이 봐요.</p>
         </div>

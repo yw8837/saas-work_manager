@@ -157,7 +157,6 @@ export function PackageManager() {
     <div className="pageSurface catalogPage">
       <header className="pageHeader catalogHeader">
         <div>
-          <span className="pageEyebrow">반복 조건을 한 번만</span>
           <h1>패키지와 옵션</h1>
           <p>여기서 정한 금액·마감·수정·Todo가 새 일감에 자동으로 합성돼요.</p>
         </div>

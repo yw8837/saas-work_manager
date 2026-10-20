@@ -104,7 +104,7 @@ test("상세 수정 로그는 랜딩 스타일과 격리된다", async ({ page }
     // 이 테스트가 지키려는 건 "랜딩 스타일이 새어들지 않는다"이므로 토큰과 같은지만 본다.
     const probe = document.createElement("span");
     probe.style.color = "var(--ink)";
-    document.body.appendChild(probe);
+    element.appendChild(probe);
     const inkColor = window.getComputedStyle(probe).color;
     probe.remove();
     return {

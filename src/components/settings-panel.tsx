@@ -186,7 +186,6 @@ export function SettingsPanel() {
     <div className="pageSurface settingsPage">
       <header className="pageHeader">
         <div>
-          <span className="pageEyebrow">놓치지 않도록, 과하지 않도록</span>
           <h1>설정</h1>
           <p>플랜과 알림, 앱 설치와 내 데이터를 여기서 관리해요.</p>
         </div>
@@ -194,7 +193,7 @@ export function SettingsPanel() {
 
       <section className="contentSection planSection" id="plan" aria-labelledby="plan-title">
         <div className="sectionHeadingRow">
-          <div><span className="sectionMiniLabel">요금제</span><h2 id="plan-title">플랜</h2></div>
+          <div><h2 id="plan-title">플랜</h2></div>
           <Sparkles size={20} />
         </div>
         <div className="planCurrentRow">
@@ -274,25 +273,25 @@ export function SettingsPanel() {
 
       <div className="settingsGrid">
         <section className="contentSection settingSection">
-          <div className="sectionHeadingRow"><div><span className="sectionMiniLabel">오늘의 시작</span><h2>일일 브리핑</h2></div><BellRing size={20} /></div>
+          <div className="sectionHeadingRow"><div><h2>일일 브리핑</h2></div><BellRing size={20} /></div>
           <label className="settingRow"><span><strong>매일 브리핑 표시</strong><small>설정한 시간이 지나면 알림 목록에 오늘 처리·고객 대기·수정 요청 요약을 한 줄로 올려요.</small></span><input type="checkbox" checked={settings.morningDigestEnabled} onChange={(event) => updateSettings({ morningDigestEnabled: event.target.checked })} /></label>
           <label className="settingTime"><span>브리핑 시간</span><input type="time" value={settings.morningDigestTime} onChange={(event) => updateSettings({ morningDigestTime: event.target.value })} /></label>
         </section>
 
         <section className="contentSection settingSection">
-          <div className="sectionHeadingRow"><div><span className="sectionMiniLabel">마감 기준</span><h2>마감 알림</h2></div><Clock3 size={20} /></div>
+          <div className="sectionHeadingRow"><div><h2>마감 알림</h2></div><Clock3 size={20} /></div>
           <label className="settingRow"><span><strong>D-2 · D-1 · 당일 · 지연</strong><small>활성 일감의 자동 마감을 기준으로 계산해요.</small></span><input type="checkbox" checked={settings.deadlineAlertsEnabled} onChange={(event) => updateSettings({ deadlineAlertsEnabled: event.target.checked })} /></label>
           <label className="settingTime"><span>인앱 알림 시간</span><input type="time" value={settings.deadlineAlertTime} onChange={(event) => updateSettings({ deadlineAlertTime: event.target.value })} /></label>
         </section>
 
         <section className="contentSection settingSection">
-          <div className="sectionHeadingRow"><div><span className="sectionMiniLabel">고객 답변</span><h2>대기 알림</h2></div><Smartphone size={20} /></div>
+          <div className="sectionHeadingRow"><div><h2>대기 알림</h2></div><Smartphone size={20} /></div>
           <label className="settingRow"><span><strong>2일 · 5일째 다시 보기</strong><small>Todo를 고객 대기로 바꾼 시각을 기준으로 계산해요.</small></span><input type="checkbox" checked={settings.waitingAlertsEnabled} onChange={(event) => updateSettings({ waitingAlertsEnabled: event.target.checked })} /></label>
           <label className="settingTime"><span>인앱 알림 시간</span><input type="time" value={settings.waitingAlertTime} onChange={(event) => updateSettings({ waitingAlertTime: event.target.value })} /></label>
         </section>
 
         <section className="contentSection settingSection">
-          <div className="sectionHeadingRow"><div><span className="sectionMiniLabel">수정 요청</span><h2>수정 알림</h2></div><Send size={20} /></div>
+          <div className="sectionHeadingRow"><div><h2>수정 알림</h2></div><Send size={20} /></div>
           <label className="settingRow"><span><strong>새 요청을 바로 표시</strong><small>고객 링크와 수동 기록 모두 같은 타임라인과 알림 큐에 남아요.</small></span><input type="checkbox" checked={settings.revisionAlertsEnabled} onChange={(event) => updateSettings({ revisionAlertsEnabled: event.target.checked })} /></label>
           <label className="settingRow"><span><strong>내용을 알림에서 표시</strong><small>공용 화면에서 보일 수 있으면 끄는 편이 안전해요.</small></span><input type="checkbox" checked={settings.privateNotificationDetails} onChange={(event) => updateSettings({ privateNotificationDetails: event.target.checked })} /></label>
         </section>
@@ -311,7 +310,6 @@ export function SettingsPanel() {
       <section className="accountStatusSection">
         <span className="accountStatusIcon"><Database size={20} /></span>
         <div>
-          <span className="sectionMiniLabel">데이터 저장</span>
           <h2>{runtimeMode === "hosted" ? "Supabase 계정 저장" : "이 브라우저 로컬 저장"}</h2>
           <p>{runtimeMode === "hosted" ? `${userEmail ?? "현재 계정"} · ${saveStatus === "error" ? saveError ?? "저장 실패" : saveStatus === "saving" ? "변경사항 저장 중" : "최신 상태 저장됨"} · ${realtimeStatus === "connected" ? "실시간 연결됨" : realtimeStatus === "error" ? realtimeError ?? "실시간 연결 오류" : "실시간 연결 중"}` : "내 자료는 이 브라우저에만 남아요. 다른 기기에서는 보이지 않아요."}</p>
         </div>
@@ -326,7 +324,6 @@ export function SettingsPanel() {
       <section className="accountDangerSection" aria-labelledby="account-danger-title">
         <span className="accountDangerIcon"><TriangleAlert size={20} /></span>
         <div>
-          <span className="sectionMiniLabel">위험 영역</span>
           <h2 id="account-danger-title">계정과 데이터 영구 삭제</h2>
           <p>
             {runtimeMode === "hosted"
@@ -388,7 +385,6 @@ export function SettingsPanel() {
       <section className="accountStatusSection" id="feedback" aria-labelledby="feedback-invite-title">
         <span className="accountStatusIcon"><MessageSquareText size={20} /></span>
         <div>
-          <span className="sectionMiniLabel">베타 의견</span>
           <h2 id="feedback-invite-title">불편한 점이나 필요한 기능을 알려주세요</h2>
           <p>개인정보는 받지 않아요. 고객명·금액·수정 요청 내용은 자동으로 보내지 않습니다.</p>
         </div>

@@ -12,6 +12,15 @@
 
 ## 지금 상태
 
+### 2026-10-21 작업 화면 디자인 — 모바일 구현 이후 별도 브랜치
+
+- 현재 같은 분리 폴더의 브랜치는 `codex/mobile-workspace-design`이다. `codex/mobile-linked-mvp` 및 PR #13의 head `6c75674`는 그대로 보존했다. UI 변경을 기존 PR에 몰래 추가하지 않는다.
+- 사용자 요구: 파랑·초록·베이지와 AI 생성형 SaaS 느낌 배제, 실제 참고 자료 조사 후 메인이 디자인 선택. 흰색·흑연색 작업 목록과 제한된 체리색 주의 표시로 결정했다.
+- 일감별 Today 범위 선택, 동일 고객 주문 구분, 모바일 수정 잔여 표시와 목록·버튼·패키지·설정 스타일 정리. `.appFrame` 범위만 변경하고 랜딩·공개 폼·운영 데이터는 보존한다.
+- 단위 712개 / 브라우저 58개, Next/Sites 빌드·lint/typecheck·모바일 sync·Android 빌드·APK v2 서명 통과. 독립 리뷰 지적 5개 UI 항목을 수정하고 25개 화면을 다시 확인했다. 최종 판정·문서·해시는 `docs/verification/2026-10-21-workspace-design.md`를 확인한다.
+- 디자인 검증 APK와 화면은 `D:/SaaS/01_일감체크/release-artifacts/2026-10-21-workspace-design`에 있다. 이전 모바일 APK는 보존했다. 이 디자인 브랜치는 아직 push/운영 배포하지 않았다.
+- 로컬 미리보기 `http://127.0.0.1:4121/today`는 C: 검증 복사본을 실행한다. D: 분리 폴더가 편집 원본이다. 운영 반영과 실기기 검증 완료로 혼동하지 않는다.
+
 ### 2026-10-21 모바일 연동 MVP
 
 - 작업 원본은 `D:/SaaS/01_일감체크/.worktrees/mobile-mvp`, 브랜치는 `codex/mobile-linked-mvp`. 원본 app의 사용자 변경과 index.lock은 보존했다.

@@ -174,7 +174,7 @@ describe("JobDetail 수정 되돌리기", () => {
     expect(screen.getByText("되돌림")).toBeInTheDocument();
     // 되돌린 뒤에는 되돌리기 버튼이 사라지고 남은 횟수가 복구된다.
     expect(screen.queryByTestId("revert-revision-revision_ui")).not.toBeInTheDocument();
-    expect(screen.getByText("2회 남음")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "수정 2회 남음" })).toBeInTheDocument();
   });
 });
 

@@ -17,6 +17,7 @@ import { BETA_GRANT_DAYS, type InAppAlertKind } from "@/lib/domain";
 import { getPublicEnvironmentValue } from "@/lib/public-environment";
 import { Brand } from "./brand";
 import { useWorkspace } from "./workspace-provider";
+import "@/styles/workspace.css";
 
 const primaryNavigation = [
   { href: "/today", label: "오늘", icon: CalendarCheck2 },
@@ -96,7 +97,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="sideNav" aria-label="주요 메뉴">
-          <p className="navEyebrow">작업 공간</p>
           {primaryNavigation.map(({ href, label, icon: Icon }) => {
             const current = isCurrent(pathname, href);
             return (
@@ -183,7 +183,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {alertOpen && (
             <section className="alertPopover" id="workspace-alerts" ref={alertPopoverRef} aria-label="현재 알림">
               <div className="alertPopoverHead">
-                <div><span>실시간으로 다시 계산</span><strong>놓치면 아쉬운 일</strong></div>
+                <div><strong>알림</strong></div>
                 <Link href="/settings" onClick={() => setAlertOpen(false)}>알림 설정</Link>
               </div>
               {alerts.length ? (

@@ -410,7 +410,6 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <section className="contentSection taskDetailSection">
             <div className="sectionHeadingRow">
               <div>
-                <span className="sectionMiniLabel">패키지에서 자동 생성</span>
                 <h2>작업 체크리스트</h2>
               </div>
               <span className="sectionCount">{doneTasks}/{job.tasks.length}</span>
@@ -452,7 +451,6 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <section id="revisions" className="contentSection jobRevisionSection" ref={revisionSectionRef}>
             <div className="sectionHeadingRow">
               <div>
-                <span className="sectionMiniLabel">요청 경로가 달라도 한곳에</span>
                 <h2>수정 요청 로그</h2>
               </div>
               <button
@@ -570,7 +568,6 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <section className="contentSection addonSection">
             <div className="sectionHeadingRow">
               <div>
-                <span className="sectionMiniLabel">범위가 늘어날 때만</span>
                 <h2>추가요청</h2>
               </div>
               <button type="button" className="compactButton emphasized" onClick={() => setAddonOpen((value) => !value)} disabled={job.status !== "active"} data-testid="open-addon">
@@ -608,7 +605,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
         <aside className="detailAside">
           <section className="sideSection revisionMeterSection">
             <div className="sectionHeadingRow compact">
-              <div><span className="sectionMiniLabel">수정 범위</span><h2>{revision.remaining}회 남음</h2></div>
+              <div><h2>수정 {revision.remaining}회 남음</h2></div>
               <span className="revisionFraction"><b>{revision.used}</b> / {revision.included}</span>
             </div>
             <div className="revisionMeter" aria-label={`수정 ${revision.used}회 사용, ${revision.remaining}회 남음`}>
@@ -618,8 +615,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           </section>
 
           <section className="sideSection portalLinkSection">
-            <span className="sectionMiniLabel">고객에게 보내는 링크</span>
-            <h2>수정 요청은 여기로</h2>
+            <h2>고객 수정 요청 링크</h2>
             <p>고객이 폼에 남기면 요청 내용과 횟수가 자동으로 기록돼요.</p>
             <div className="portalStatus" data-enabled={portalEnabled} role="status" aria-live="polite">
               <span />
@@ -668,7 +664,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           </section>
 
           <section className="sideSection linkManagerSection">
-            <div className="sectionHeadingRow compact"><div><span className="sectionMiniLabel">연락·작업 바로가기</span><h2>작업 링크</h2></div><button type="button" className="textButton" onClick={openLinkEditor}>편집</button></div>
+            <div className="sectionHeadingRow compact"><div><h2>작업 링크</h2></div><button type="button" className="textButton" onClick={openLinkEditor}>편집</button></div>
             <div className="linkShortcutGrid">
               {job.links.length ? job.links.map((link) => <a key={link.id} href={link.url} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {link.label}</a>) : <p>아직 저장한 링크가 없어요.</p>}
             </div>

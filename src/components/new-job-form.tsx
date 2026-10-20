@@ -18,7 +18,6 @@ import {
   Check,
   CheckCircle2,
   CircleDollarSign,
-  Clock3,
   ListChecks,
   PackageCheck,
   Plus,
@@ -133,12 +132,10 @@ export function NewJobForm() {
             <ArrowLeft size={19} />
           </Link>
           <div>
-            <span className="pageEyebrow">새 주문이 들어왔나요?</span>
             <h1>네 가지만 고르면 준비 끝.</h1>
             <p>저장하는 순간 금액, 마감, 할 일과 수정 횟수를 자동으로 채워요.</p>
           </div>
         </div>
-        <span className="formTimePromise"><Clock3 size={15} /> 평균 30초</span>
       </header>
 
       <div className="fieldProgress" aria-label="새 일감에 필요한 네 가지 항목">
