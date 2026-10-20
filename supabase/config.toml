@@ -54,3 +54,8 @@ enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 skip_nonce_check = false
+
+# Server-only endpoint. Its handler requires NATIVE_PUSH_DISPATCH_SECRET;
+# no end-user JWT, caller-selected recipient, or unauthenticated send is accepted.
+[functions.native-revision-push]
+verify_jwt = false

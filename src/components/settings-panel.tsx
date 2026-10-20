@@ -30,6 +30,8 @@ import {
 import { PLAN_LIMITS, PLAN_NAMES, PLAN_PRICES, TRIAL_DAYS, type Plan } from "@/lib/domain";
 import { InstallAppCard } from "./install-app-card";
 import { useWorkspace } from "./workspace-provider";
+import { nativePlatform } from "@/lib/native/platform";
+import { NativePushSettings } from "./native-push-settings";
 
 /** 무제한은 숫자 대신 글자로 보여준다. 숫자는 전부 PLAN_LIMITS에서 온다. */
 function limitText(value: number, unit: string) {
@@ -64,6 +66,7 @@ function permissionLabel(permission: BrowserNotificationState) {
 export function SettingsPanel() {
   const { packages, options, jobs, settings, activityDates, updateSettings, runtimeMode, userEmail, signInWithGoogle, signOut, deleteAccount, saveStatus, saveError, realtimeStatus, realtimeError, plan, planAccess, limits, activeJobCount, jobsCreatedTotal, trialStartedAt, betaAccess, activateInviteCode } = useWorkspace();
   const isPro = plan === "pro";
+  const isNative = nativePlatform() !== "web";
   const [inviteCode, setInviteCode] = useState("");
   const [inviteFeedback, setInviteFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const [capability, setCapability] = useState<NotificationCapability | null>(null);
@@ -295,7 +298,7 @@ export function SettingsPanel() {
         </section>
       </div>
 
-      <section className="browserTestSection">
+      {isNative ? <NativePushSettings /> : <section className="browserTestSection">
         <div><span className="sectionMiniLabel">현재 브라우저에서만 검사</span><h2>브라우저 테스트 알림</h2><p>권한과 표시만 확인합니다. 이 버튼은 예약 전송이나 다른 기기 전달을 증명하지 않아요.</p></div>
         <div className="browserTestActions">
           <span className={capability?.permission === "granted" ? "permissionBadge allowed" : "permissionBadge"}><ShieldAlert size={14} /> {capability ? permissionLabel(capability.permission) : "상태 확인 중"}</span>
@@ -303,7 +306,7 @@ export function SettingsPanel() {
           <button type="button" className="primaryButton" onClick={sendTest} data-testid="send-test-notification">테스트 알림</button>
         </div>
         {feedback && <p className="settingsFeedback" role="status"><Check size={15} /> {feedback}</p>}
-      </section>
+      </section>}
 
       <section className="accountStatusSection">
         <span className="accountStatusIcon"><Database size={20} /></span>
@@ -399,8 +402,8 @@ export function SettingsPanel() {
         <div className="blockedMark"><LockKeyhole size={23} /></div>
         <div>
           <span className="sectionMiniLabel">아직 준비 중인 기능</span>
-          <h2>{runtimeMode === "hosted" ? "잠금화면 알림과 결제는 아직 준비 중이에요." : "다른 기기에서 열리는 고객 링크와 잠금화면 알림은 아직 준비 중이에요."}</h2>
-          <p>{runtimeMode === "hosted" ? "로그인과 계정별 저장, 고객 수정 링크는 지금 그대로 쓸 수 있어요. 앱을 열지 않아도 먼저 찾아가는 잠금화면 알림과 결제는 준비가 끝나면 안내해 드릴게요." : "지금은 이 브라우저에 저장하는 모드예요. 모든 기능을 바로 쓸 수 있지만, 고객에게 보낸 링크를 다른 기기에서 열거나 여러 기기에서 같은 자료를 보려면 로그인 모드가 필요해요. 준비가 끝나면 안내해 드릴게요."}</p>
+          <h2>{isNative ? "결제는 아직 준비 중이에요." : runtimeMode === "hosted" ? "잠금화면 알림과 결제는 아직 준비 중이에요." : "다른 기기에서 열리는 고객 링크와 잠금화면 알림은 아직 준비 중이에요."}</h2>
+          <p>{isNative ? "웹과 앱에서 같은 계정의 일감을 관리해요. 고객 수정 요청 푸시는 위에서 기기 등록 상태를 확인해주세요. 마감·브리핑은 앱 안에서 표시하며, 결제는 준비가 끝나면 안내해 드릴게요." : runtimeMode === "hosted" ? "로그인과 계정별 저장, 고객 수정 링크는 지금 그대로 쓸 수 있어요. 앱을 열지 않아도 먼저 찾아가는 잠금화면 알림과 결제는 준비가 끝나면 안내해 드릴게요." : "지금은 이 브라우저에 저장하는 모드예요. 모든 기능을 바로 쓸 수 있지만, 고객에게 보낸 링크를 다른 기기에서 열거나 여러 기기에서 같은 자료를 보려면 로그인 모드가 필요해요. 준비가 끝나면 안내해 드릴게요."}</p>
         </div>
       </section>
     </div>

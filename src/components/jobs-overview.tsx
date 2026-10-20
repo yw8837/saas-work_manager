@@ -11,7 +11,11 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import {
+  emptyJobListSearch, jobListHref, jobListSearchSnapshot, readJobListLocation,
+  subscribeJobListLocation, updateJobListLocation,
+} from "@/lib/jobs-list-location";
 import {
   formatShortDate,
   formatWon,
@@ -20,12 +24,11 @@ import {
   useWorkspace,
 } from "./workspace-provider";
 
-type Filter = "all" | "active" | "waiting" | "completed";
-
 export function JobsOverview() {
   const { jobs } = useWorkspace();
-  const [filter, setFilter] = useState<Filter>("all");
-  const [query, setQuery] = useState("");
+  const search = useSyncExternalStore(subscribeJobListLocation, jobListSearchSnapshot, emptyJobListSearch);
+  const { filter, query } = readJobListLocation(search);
+  const returnHref = jobListHref({ filter, query });
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ko");
@@ -70,7 +73,8 @@ export function JobsOverview() {
               key={value}
               type="button"
               data-active={filter === value}
-              onClick={() => setFilter(value)}
+              aria-pressed={filter === value}
+              onClick={() => updateJobListLocation({ filter: value, query })}
             >
               {label}
             </button>
@@ -79,7 +83,7 @@ export function JobsOverview() {
         <label className="searchField">
           <Search size={17} />
           <span className="srOnly">고객 또는 일감 검색</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="고객 또는 일감 검색" />
+          <input value={query} maxLength={200} onChange={(event) => updateJobListLocation({ filter, query: event.target.value })} placeholder="고객 또는 일감 검색" />
         </label>
       </div>
 
@@ -98,7 +102,7 @@ export function JobsOverview() {
           const progress = Math.round((done / Math.max(job.tasks.length, 1)) * 100);
           const revision = getRevisionSummary(job);
           return (
-            <Link href={`/jobs/${job.id}`} className="jobTableRow" key={job.id}>
+            <Link href={`/jobs/${job.id}?list=${encodeURIComponent(returnHref)}`} className="jobTableRow" key={job.id}>
               <div className="jobIdentity">
                 <span className="jobInitial">{job.clientLabel.slice(0, 1)}</span>
                 <div>

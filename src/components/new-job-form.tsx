@@ -28,7 +28,7 @@ import {
   UserRound,
   Wallet,
 } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { formatShortDate, formatWon, useWorkspace } from "./workspace-provider";
 import { UpgradeNotice } from "./upgrade-notice";
 
@@ -79,6 +79,8 @@ export function NewJobForm() {
   const [packageId, setPackageId] = useState(activePackages[0]?.id ?? "");
   const [optionIds, setOptionIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [createError, setCreateError] = useState("");
 
   const preview = useMemo(() => {
     const selectedPackage = activePackages.find((item) => item.id === packageId) ?? activePackages[0];
@@ -108,10 +110,19 @@ export function NewJobForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!clientLabel.trim() || !packageId || submitting || !canCreateJob) return;
+    if (!clientLabel.trim() || !packageId || submittingRef.current || !canCreateJob) return;
+    submittingRef.current = true;
     setSubmitting(true);
-    const id = createJob({ clientLabel, startDate, packageId, optionIds });
-    router.push(`/jobs/${id}?created=1`);
+    setCreateError("");
+    try {
+      const id = createJob({ clientLabel, startDate, packageId, optionIds });
+      if (!id) throw new Error("일감을 만들지 못했어요. 진행 중인 일감 수와 패키지를 확인해주세요.");
+      router.push(`/jobs/${id}?created=1`);
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "일감을 등록하지 못했어요. 입력한 내용은 그대로예요.");
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -138,6 +149,7 @@ export function NewJobForm() {
       </div>
 
       <form className="jobComposer" onSubmit={handleSubmit}>
+        {createError && <p role="alert" className="fieldError">{createError}</p>}
         <div className="composerFields">
           <section className="formSection">
             <div className="formSectionNumber">01</div>

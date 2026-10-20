@@ -12,6 +12,24 @@ const auth = vi.hoisted(() => ({
   client: {},
 }));
 
+const mobile = vi.hoisted(() => ({
+  platform: "web",
+  status: { pending: false, error: null as string | null },
+  subscribers: new Set<() => void>(),
+}));
+vi.mock("@/lib/native/platform", () => ({ nativePlatform: () => mobile.platform }));
+vi.mock("@/lib/native/auth-runtime", () => ({
+  nativeAuthStatus: () => mobile.status,
+  subscribeNativeAuth: (listener: () => void) => {
+    mobile.subscribers.add(listener);
+    return () => { mobile.subscribers.delete(listener); };
+  },
+  async cancelNativeOAuth() {
+    mobile.status = { pending: false, error: null };
+    mobile.subscribers.forEach((listener) => listener());
+  },
+}));
+
 vi.mock("./workspace-provider", () => ({
   useWorkspace: () => ({
     runtimeMode: "hosted",
@@ -32,6 +50,9 @@ import { WorkspaceAuthGate } from "./workspace-auth-gate";
 
 describe("WorkspaceAuthGate Google login", () => {
   beforeEach(() => {
+    mobile.platform = "web";
+    mobile.status = { pending: false, error: null };
+    mobile.subscribers.clear();
     auth.authStatus = "signed_out";
     auth.signInWithGoogle.mockReset().mockResolvedValue(undefined);
     auth.signOut.mockReset().mockResolvedValue(undefined);
@@ -61,6 +82,18 @@ describe("WorkspaceAuthGate Google login", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
     await waitFor(() => expect(auth.signInWithGoogle).toHaveBeenCalledWith());
+  });
+  it("allows cancelling and retrying a native browser login", async () => {
+    mobile.platform = "android";
+    auth.signInWithGoogle.mockImplementation(async () => {
+      mobile.status = { pending: true, error: null };
+      mobile.subscribers.forEach((listener) => listener());
+    });
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    fireEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
+    const cancel = await screen.findByRole("button", { name: "로그인 취소" });
+    fireEvent.click(cancel);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Google로 계속하기" })).toBeEnabled());
   });
 
   it("blocks a signed-in account until the current policies are recorded", async () => {

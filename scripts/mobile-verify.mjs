@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { verifyNativeSources, mobileVerificationSummary } from "./mobile-verify-policy.mjs";
 
 const root = process.cwd();
 const requiredPaths = [
@@ -47,4 +48,5 @@ for (const orientation of ["UIInterfaceOrientationPortrait", "UIInterfaceOrienta
 const bundle = statSync(resolve(root, "dist/client/index.html"));
 if (bundle.size === 0) throw new Error("mobile web bundle is empty");
 
-console.log("[mobile-verify] PASS Android/iOS shell and production web bundle are ready.");
+verifyNativeSources((path) => readFileSync(resolve(root, path), "utf8"));
+console.log(mobileVerificationSummary());

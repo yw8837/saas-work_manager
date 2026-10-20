@@ -5,6 +5,9 @@ import { createSeedState } from "@/lib/store";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
 import { SettingsPanel } from "./settings-panel";
 import { useWorkspace } from "./workspace-provider";
+const native = vi.hoisted(() => ({ platform: "web" }));
+vi.mock("@/lib/native/platform", () => ({ nativePlatform: () => native.platform }));
+vi.mock("./native-push-settings", () => ({ NativePushSettings: () => <div>native push settings</div> }));
 
 vi.mock("./workspace-provider", () => ({ useWorkspace: vi.fn() }));
 vi.mock("@/lib/notifications", () => ({
@@ -59,6 +62,7 @@ describe("SettingsPanel account deletion", () => {
     signInWithGoogle.mockReset().mockResolvedValue(undefined);
     activateInviteCode.mockReset().mockResolvedValue({ ok: true, message: "코드를 확인했어요." });
     vi.mocked(useWorkspace).mockReturnValue(hostedWorkspace);
+    native.platform = "web";
   });
 
   it("honestly disables server account deletion in local demo mode", () => {
@@ -71,6 +75,13 @@ describe("SettingsPanel account deletion", () => {
     render(<SettingsPanel />);
     expect(screen.getByText(/지울 서버 계정이 없어요/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "계정 삭제 검토" })).toBeDisabled();
+  });
+  it("shows device push settings rather than browser test controls in the native app", () => {
+    native.platform = "android";
+    render(<SettingsPanel />);
+    expect(screen.getByText("native push settings")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "테스트 알림" })).not.toBeInTheDocument();
+    native.platform = "web";
   });
 
   it("requires Google reauthentication and the exact destructive phrase", async () => {

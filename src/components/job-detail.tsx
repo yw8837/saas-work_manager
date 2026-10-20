@@ -29,7 +29,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { emptyJobListSearch, jobListReturnHref, jobListSearchSnapshot, subscribeJobListLocation } from "@/lib/jobs-list-location";
 import {
   formatShortDate,
   formatWon,
@@ -79,6 +80,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
     cancelAddon,
   } = useWorkspace();
   const router = useRouter();
+  const locationSearch = useSyncExternalStore(subscribeJobListLocation, jobListSearchSnapshot, emptyJobListSearch);
+  const listHref = jobListReturnHref(locationSearch);
   const job = jobs.find((item) => item.id === jobId);
   const [menuOpen, setMenuOpen] = useState(false);
   const handleDeleteJob = () => {
@@ -295,7 +298,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     <div className="pageSurface jobDetailPage">
       <header className="detailHeader">
         <div className="detailTitleLine">
-          <Link href="/jobs" className="iconButton backButton" aria-label="일감 목록으로 돌아가기">
+          <Link href={listHref} className="iconButton backButton" aria-label="일감 목록으로 돌아가기">
             <ArrowLeft size={19} />
           </Link>
           <div>

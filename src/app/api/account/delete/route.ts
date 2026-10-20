@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server-admin";
 import { hasRecentGoogleAuthentication } from "@/lib/supabase/recent-google-authentication";
 import { readAccountDeletionBody } from "@/lib/security/account-delete-body";
+import { nativeApiPreflight, trustedAccountDeletionOrigin, withNativeApiCors } from "@/lib/security/native-api";
 
 export const dynamic = "force-dynamic";
 
@@ -15,20 +16,16 @@ function jsonError(message: string, status: number) {
   );
 }
 
-function isSameOriginBrowserRequest(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  const fetchSite = request.headers.get("sec-fetch-site");
-  if (!origin || fetchSite !== "same-origin") return false;
-
-  try {
-    return new URL(origin).origin === new URL(request.url).origin;
-  } catch {
-    return false;
-  }
+export function OPTIONS(request: Request) {
+  return nativeApiPreflight(request);
 }
 
 export async function POST(request: Request) {
-  if (!isSameOriginBrowserRequest(request)) {
+  return withNativeApiCors(await deleteVerifiedAccount(request), request);
+}
+
+async function deleteVerifiedAccount(request: Request) {
+  if (!trustedAccountDeletionOrigin(request)) {
     return jsonError("같은 사이트의 설정 화면에서 다시 시도해주세요.", 403);
   }
 

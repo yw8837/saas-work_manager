@@ -1,6 +1,7 @@
 import { hasRecentGoogleAuthentication } from "@/lib/supabase/recent-google-authentication";
 import { configuredSupabaseProjectRef } from "@/lib/supabase/mode";
 import { readAccountDeletionBody } from "@/lib/security/account-delete-body";
+import { trustedAccountDeletionOrigin, withNativeApiCors } from "@/lib/security/native-api";
 
 type AccountDeletionEnvironment = {
   SUPABASE_URL?: string;
@@ -20,16 +21,6 @@ function jsonError(message: string, status: number) {
   });
 }
 
-function sameOriginBrowserRequest(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin || request.headers.get("sec-fetch-site") !== "same-origin") return false;
-  try {
-    return new URL(origin).origin === new URL(request.url).origin;
-  } catch {
-    return false;
-  }
-}
-
 function configuredEnvironment(environment: AccountDeletionEnvironment) {
   const projectRef = configuredSupabaseProjectRef(environment.SUPABASE_URL);
   const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -44,7 +35,13 @@ export async function handleAccountDeletion(
   requestFn: FetchLike = fetch,
   nowSeconds = Math.floor(Date.now() / 1_000),
 ): Promise<Response> {
-  if (!sameOriginBrowserRequest(request)) {
+  return withNativeApiCors(await deleteVerifiedAccount(request, environment, requestFn, nowSeconds), request);
+}
+
+async function deleteVerifiedAccount(
+  request: Request, environment: AccountDeletionEnvironment, requestFn: FetchLike, nowSeconds: number,
+): Promise<Response> {
+  if (!trustedAccountDeletionOrigin(request)) {
     return jsonError("같은 사이트의 설정 화면에서 다시 시도해주세요.", 403);
   }
   if (request.headers.get("x-ilgamcheck-delete-confirm") !== CONFIRMATION) {

@@ -41,4 +41,13 @@ describe("mobile shell", () => {
     expect(infoPlist).toContain("UISupportedInterfaceOrientations");
     expect(infoPlist).toContain("UIInterfaceOrientationLandscapeLeft");
   });
+  it("separates source verification from device and release readiness", async () => {
+    const { verifyNativeSources, mobileVerificationSummary } = await import("./mobile-verify-policy.mjs");
+    expect(verifyNativeSources((path) => readFileSync(fromRoot(path), "utf8"))).toContain("secure-session");
+    expect(() => verifyNativeSources((path) => path.endsWith("MainActivity.java") ? "" : readFileSync(fromRoot(path), "utf8"))).toThrow();
+    const summary = mobileVerificationSummary();
+    expect(summary).toContain("NOT VERIFIED");
+    expect(summary).toContain("real-device");
+    expect(summary).not.toContain("production ready");
+  });
 });

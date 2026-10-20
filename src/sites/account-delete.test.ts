@@ -43,6 +43,28 @@ const environment = {
 };
 
 describe("Sites account deletion", () => {
+  it.each(["https://localhost", "capacitor://localhost"])("authenticates a native deletion from %s and returns scoped CORS", async (origin) => {
+    const requestFn = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "owner-a" })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const response = await handleAccountDeletion(request({ origin, fetchSite: "cross-site" }), environment, requestFn, now);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(origin);
+    expect(requestFn).toHaveBeenCalledTimes(2);
+  });
+  it("native origin does not bypass token, confirmation or recent authentication", async () => {
+    const requestFn = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ id: "owner-a" }))));
+    for (const fields of [
+      { token: "" },
+      { confirmation: "WRONG" },
+      { token: accessToken({ amr: [{ method: "oauth", timestamp: now - 86_400 }] }) },
+    ]) {
+      const response = await handleAccountDeletion(request({ origin: "https://localhost", fetchSite: "cross-site", ...fields }), environment, requestFn, now);
+      expect([400,401]).toContain(response.status);
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://localhost");
+    }
+    expect(requestFn).toHaveBeenCalledTimes(1);
+  });
   it("rejects a cross-origin request before it talks to Supabase", async () => {
     const requestFn = vi.fn();
     const response = await handleAccountDeletion(

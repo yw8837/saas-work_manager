@@ -52,6 +52,11 @@ import {
   type AppState,
 } from "@/lib/store";
 import { deriveInAppAlerts, registerIlgamcheckServiceWorker } from "@/lib/notifications";
+import { nativePlatform, nativeApiUrl } from "@/lib/native/platform";
+import { subscribeNativeResume } from "@/lib/native/lifecycle";
+import { initializeNativeAuth, startNativeOAuth, disposeNativeAuth } from "@/lib/native/auth-runtime";
+import { initializeNativePush, disposeNativePush, disableNativePush } from "@/lib/native/push";
+import { GOOGLE_REAUTH_OWNER_SESSION_KEY, GOOGLE_REAUTH_REDIRECT_PATH } from "@/lib/supabase/reauthentication-context";
 import {
   createSecurePortalToken,
   getHostedRuntimeBoundary,
@@ -169,8 +174,6 @@ function stateWithoutRevisionEvidence(state: AppState): string {
 
 const HOSTED_DRAFT_SCHEMA_VERSION = 1;
 const HOSTED_DRAFT_SUFFIX = ":hosted-draft";
-const GOOGLE_REAUTH_OWNER_SESSION_KEY = "ilgamcheck:google-reauth-owner";
-const GOOGLE_REAUTH_REDIRECT_PATH = "/settings";
 
 export type HostedDraftRecord = {
   schemaVersion: typeof HOSTED_DRAFT_SCHEMA_VERSION;
@@ -643,14 +646,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       let activation = 0;
       let channel: ReturnType<SupabaseClient["channel"]> | null = null;
       let activeSessionIdentity: string | null | undefined;
+      let refreshActiveWorkspace: (() => Promise<void>) | null = null;
+      let stopResume: (() => void) | null = null;
 
       const activateSession = async (session: Session | null) => {
         const currentActivation = ++activation;
+        refreshActiveWorkspace = null;
         if (channel) {
           await client.removeChannel(channel);
           channel = null;
         }
         if (cancelled || currentActivation !== activation) return;
+        if (nativePlatform() !== "web") {
+          void initializeNativePush(session?.user.id ?? null).catch(() => undefined);
+        }
 
         if (!session?.user) {
           hostedOwnerRef.current = null;
@@ -798,6 +807,73 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setAuthStatus("signed_in");
           setHydrated(true);
 
+          let refreshPromise: Promise<void> | null = null;
+          let refreshQueued = false;
+          const reconcileAfterPendingSaves = async () => {
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+              if (isStaleActivation()) return;
+              const pendingSaves = saveChainRef.current;
+              await pendingSaves;
+              if (isStaleActivation()) return;
+              const sequenceBeforeLoad = saveSequenceRef.current;
+              const fresh = await loadHostedWorkspace(client, session.user.id);
+              if (isStaleActivation()) return;
+              if (
+                pendingSaves !== saveChainRef.current
+                || sequenceBeforeLoad !== saveSequenceRef.current
+              ) continue;
+              if (!fresh || fresh.documentVersion <= remoteVersionRef.current) return;
+
+              const draft = readHostedDraft(session.user.id);
+              if (draft) {
+                const merged = mergeConcurrentWorkspaceState(draft.baseState, stateRef.current, fresh.state);
+                remoteVersionRef.current = fresh.documentVersion;
+                lastSyncedStateRef.current = fresh.state;
+                if (merged.conflicts.length) {
+                  const message = "다른 기기와 같은 항목을 수정해 자동 병합을 멈췄어요. 이 기기의 편집은 보존됐어요.";
+                  hostedConflictRef.current = message;
+                  const visible = preserveQueuedRevisionEvidence(stateRef.current, stateRef.current, fresh.state);
+                  setCurrentState(visible);
+                  writeHostedDraft(session.user.id, visible, draft.baseVersion, draft.baseState, message);
+                  setSaveStatus("error");
+                  setSaveError(`${message} 새로고침하면 다시 확인해요.`);
+                  return;
+                }
+                const visible = preserveQueuedRevisionEvidence(merged.state, stateRef.current, fresh.state);
+                setCurrentState(visible);
+                clearHostedDraft(session.user.id);
+                persistHostedState(visible);
+                return;
+              }
+              remoteVersionRef.current = fresh.documentVersion;
+              lastSyncedStateRef.current = fresh.state;
+              setCurrentState(fresh.state);
+              saveState(fresh.state, undefined, cacheKey);
+              return;
+            }
+          };
+          const refreshHostedWorkspace = (): Promise<void> => {
+            if (isStaleActivation()) return Promise.resolve();
+            if (refreshPromise) {
+              refreshQueued = true;
+              return refreshPromise;
+            }
+            refreshPromise = (async () => {
+              do {
+                refreshQueued = false;
+                await reconcileAfterPendingSaves();
+              } while (refreshQueued && !isStaleActivation());
+            })().catch((error: unknown) => {
+              if (isStaleActivation()) return;
+              setRealtimeStatus("error");
+              setRealtimeError(error instanceof Error
+                ? `최신 내용 확인 실패: ${error.message}`
+                : "최신 내용을 확인하지 못했어요. 연결 후 다시 확인해주세요.");
+            }).finally(() => { refreshPromise = null; });
+            return refreshPromise;
+          };
+          refreshActiveWorkspace = refreshHostedWorkspace;
+
           channel = client
             .channel(`workspace:${session.user.id}`)
             .on(
@@ -809,68 +885,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                 filter: `owner_id=eq.${session.user.id}`,
               },
               () => {
-                const reconcileAfterPendingSaves = async () => {
-                  for (let attempt = 0; attempt < 3; attempt += 1) {
-                    if (isStaleActivation()) return;
-                    const pendingSaves = saveChainRef.current;
-                    await pendingSaves;
-                    if (isStaleActivation()) return;
-                    const sequenceBeforeLoad = saveSequenceRef.current;
-                    const fresh = await loadHostedWorkspace(client, session.user.id);
-                    if (isStaleActivation()) return;
-                    if (
-                      pendingSaves !== saveChainRef.current
-                      || sequenceBeforeLoad !== saveSequenceRef.current
-                    ) continue;
-                    if (!fresh || fresh.documentVersion <= remoteVersionRef.current) return;
-
-                    const draft = readHostedDraft(session.user.id);
-                    if (draft) {
-                      const merged = mergeConcurrentWorkspaceState(
-                        draft.baseState,
-                        stateRef.current,
-                        fresh.state,
-                      );
-                      remoteVersionRef.current = fresh.documentVersion;
-                      lastSyncedStateRef.current = fresh.state;
-                      if (merged.conflicts.length) {
-                        const message = "다른 기기와 같은 항목을 수정해 자동 병합을 멈췄어요. 이 기기의 편집은 보존됐어요.";
-                        hostedConflictRef.current = message;
-                        const visible = preserveQueuedRevisionEvidence(stateRef.current, stateRef.current, fresh.state);
-                        setCurrentState(visible);
-                        writeHostedDraft(
-                          session.user.id,
-                          visible,
-                          draft.baseVersion,
-                          draft.baseState,
-                          message,
-                        );
-                        setSaveStatus("error");
-                        setSaveError(`${message} 새로고침하면 다시 확인해요.`);
-                        return;
-                      }
-
-                      const visible = preserveQueuedRevisionEvidence(merged.state, stateRef.current, fresh.state);
-                      setCurrentState(visible);
-                      clearHostedDraft(session.user.id);
-                      persistHostedState(visible);
-                      return;
-                    }
-
-                    remoteVersionRef.current = fresh.documentVersion;
-                    lastSyncedStateRef.current = fresh.state;
-                    setCurrentState(fresh.state);
-                    saveState(fresh.state, undefined, cacheKey);
-                    return;
-                  }
-                };
-                void reconcileAfterPendingSaves().catch((error: unknown) => {
-                  if (isStaleActivation()) return;
-                  setRealtimeStatus("error");
-                  setRealtimeError(error instanceof Error
-                    ? `실시간 갱신 실패: ${error.message}`
-                    : "실시간 갱신에 실패했어요. 새로고침하면 서버 내용을 다시 확인해요.");
-                });
+                void refreshHostedWorkspace();
               },
             )
             .subscribe((status) => {
@@ -920,9 +935,26 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         queueMicrotask(() => void activateSession(session));
       });
 
+      if (nativePlatform() !== "web") {
+        void initializeNativeAuth().catch((error: unknown) => {
+          if (!cancelled) setAuthError(error instanceof Error ? error.message : "앱 로그인을 시작하지 못했어요.");
+        });
+      }
+      void subscribeNativeResume(async () => {
+        if (!cancelled) await refreshActiveWorkspace?.();
+      }).then((stop) => {
+        if (cancelled) stop();
+        else stopResume = stop;
+      }).catch(() => {
+        if (!cancelled) setRealtimeError("앱 복귀 연결을 시작하지 못했어요. 새로고침으로 최신 내용을 확인해주세요.");
+      });
+
       return () => {
         cancelled = true;
         activation += 1;
+        refreshActiveWorkspace = null;
+        stopResume?.();
+        if (nativePlatform() !== "web") void disposeNativePush();
         authListener.subscription.unsubscribe();
         if (channel) void client.removeChannel(channel);
       };
@@ -955,6 +987,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       window.sessionStorage.setItem(GOOGLE_REAUTH_OWNER_SESSION_KEY, ownerId);
     }
     setAuthError(null);
+    if (nativePlatform() !== "web") {
+      try {
+        await startNativeOAuth("google", safePath, reauthenticating ? hostedOwnerRef.current : null);
+      } catch (error) {
+        if (reauthenticating) window.sessionStorage.removeItem(GOOGLE_REAUTH_OWNER_SESSION_KEY);
+        setAuthError(error instanceof Error ? error.message : "앱 로그인을 시작하지 못했어요.");
+        throw error;
+      }
+      return;
+    }
     const { error } = await client.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -982,6 +1024,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       throw Object.assign(new Error(message), { code: "UNSAVED_WORKSPACE" });
     }
     if (hostedOwnerRef.current !== ownerId) return;
+    if (nativePlatform() !== "web") {
+      await disableNativePush();
+      await disposeNativeAuth();
+    }
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw new Error(error.message);
     if (ownerId) {
@@ -1009,9 +1055,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       throw new Error("현재 계정 정보를 확인하지 못했어요. 다시 로그인해주세요.");
     }
 
-    const response = await fetch("/api/account/delete", {
+    const response = await fetch(nativeApiUrl("/api/account/delete"), {
       method: "POST",
-      credentials: "same-origin",
+      credentials: nativePlatform() === "web" ? "same-origin" : "omit",
       headers: {
         Authorization: `Bearer ${session.access_token}`,
         "Content-Type": "application/json",
@@ -1022,6 +1068,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const result = await response.json().catch(() => null) as { message?: unknown } | null;
     if (!response.ok) {
       throw new Error(typeof result?.message === "string" ? result.message : "계정을 삭제하지 못했어요.");
+    }
+    if (nativePlatform() !== "web") {
+      // The server cascades device/outbox deletion. Revoke is no longer possible
+      // with this deleted JWT; clear local listeners and OS registration instead.
+      await disposeNativeAuth();
+      await initializeNativePush(null);
     }
 
     hostedOwnerRef.current = null;
