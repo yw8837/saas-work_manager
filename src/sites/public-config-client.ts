@@ -4,12 +4,15 @@ import {
   type IlgamcheckPublicEnvironmentKey,
 } from "@/lib/public-environment";
 import { deploymentOrigin } from "@/lib/deployment-origin";
+import { nativeApiUrl, nativePlatform } from "@/lib/native/platform";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 const publicKeySet = new Set<string>(ILGAMCHECK_PUBLIC_ENV_KEYS);
 
 export function publicConfigEndpoint(locationLike: { hostname: string } = globalThis.location): string {
+  if (nativePlatform() !== "web") return nativeApiUrl("/api/public-config");
+  // The existing localhost Sites preview also reads its deployed public config.
   return locationLike.hostname === "localhost" ? `${deploymentOrigin()}/api/public-config` : "/api/public-config";
 }
 
@@ -43,6 +46,7 @@ export async function loadSitesPublicEnvironment(request: FetchLike = fetch): Pr
   const response = await request(publicConfigEndpoint(), {
     cache: "no-store",
     headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(8_000),
   });
   if (!response.ok) throw new Error("PUBLIC_CONFIG_UNAVAILABLE");
   globalThis.__ILGAMCHECK_PUBLIC_ENV__ = parsePublicEnvironment(await response.json());

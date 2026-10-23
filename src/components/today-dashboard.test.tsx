@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createSeedState } from "@/lib/store";
@@ -28,6 +28,7 @@ function renderDashboard() {
 
 beforeEach(() => {
   resetDemoSpy.mockReset();
+  window.history.replaceState(null, "", "/today");
 });
 
 afterEach(() => {
@@ -89,5 +90,96 @@ describe("TodayDashboard 수정 임박", () => {
 
     const near = screen.getByText("수정 임박").closest("div")!;
     expect(near.textContent).toContain("0");
+  });
+});
+
+describe("TodayDashboard 일감별 작업 범위", () => {
+  const jobs = seed.jobs.map((job, index) => ({
+    ...job,
+    clientLabel: "같은 고객",
+    title: index === 0 ? "로고 제작" : "홈페이지 제작",
+    dueDate: "2099-01-01",
+    tasks: [{
+      ...job.tasks[0],
+      id: `scope-task-${index}`,
+      title: index === 0 ? "로고 시안 보내기" : "홈페이지 시안 보내기",
+      status: "todo" as const,
+      dueDate: "2020-01-01",
+    }],
+  }));
+
+  function setup(currentJobs: typeof seed.jobs = jobs) {
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: currentJobs,
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask: vi.fn(),
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    return render(<TodayDashboard />);
+  }
+
+  it("상세에서 돌아와 다시 마운트해도 선택한 일감 범위를 유지한다", () => {
+    const first = setup();
+    fireEvent.change(screen.getByRole("combobox", { name: "일감별로 보기" }), { target: { value: jobs[0].id } });
+    expect(new URLSearchParams(window.location.search).get("job")).toBe(jobs[0].id);
+    first.unmount();
+    setup();
+    expect(screen.getByRole("combobox", { name: "일감별로 보기" })).toHaveValue(jobs[0].id);
+    expect(screen.queryByRole("button", { name: "홈페이지 시안 보내기 완료 처리" })).not.toBeInTheDocument();
+  });
+
+  it("같은 고객의 서로 다른 일감을 골라 작업과 마감을 좁혀 본다", () => {
+    setup();
+    const scope = screen.getByRole("combobox", { name: "일감별로 보기" });
+    expect(within(scope).getByRole("option", { name: "같은 고객 · 로고 제작" })).toBeInTheDocument();
+    expect(within(scope).getByRole("option", { name: "같은 고객 · 홈페이지 제작" })).toBeInTheDocument();
+
+    fireEvent.change(scope, { target: { value: jobs[0].id } });
+    expect(screen.getByRole("button", { name: "로고 시안 보내기 완료 처리" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "홈페이지 시안 보내기 완료 처리" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("오늘 업무 요약")).toHaveTextContent("오늘1");
+    expect(screen.queryByText("홈페이지 제작", { selector: ".upcomingItem p" })).not.toBeInTheDocument();
+
+    fireEvent.change(scope, { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "홈페이지 시안 보내기 완료 처리" })).toBeInTheDocument();
+  });
+
+  it("선택한 일감이 없어지면 전체 범위로 돌아온다", () => {
+    const { rerender } = setup();
+    fireEvent.change(screen.getByRole("combobox", { name: "일감별로 보기" }), { target: { value: jobs[0].id } });
+    const workspace = vi.mocked(useWorkspace).mock.results.at(-1)!.value;
+    vi.mocked(useWorkspace).mockReturnValue({ ...workspace, jobs: [jobs[1]] });
+    rerender(<TodayDashboard />);
+    expect(screen.getByRole("combobox", { name: "일감별로 보기" })).toHaveValue("");
+    expect(screen.getByRole("button", { name: "홈페이지 시안 보내기 완료 처리" })).toBeInTheDocument();
+  });
+
+  it("같은 고객의 같은 대기 작업도 일감 이름으로 구분한다", () => {
+    setup(jobs.map((job) => ({
+      ...job,
+      tasks: [{ ...job.tasks[0], title: "고객 확인", status: "waiting" as const }],
+    })));
+    for (const job of jobs) {
+      const waitingLink = screen.getByRole("link", {
+        name: new RegExp(`같은 고객\\s*${job.title} · 고객 확인`),
+      });
+      expect(waitingLink).toHaveAttribute("href", `/jobs/${job.id}`);
+    }
+  });
+
+  it("범위를 바꾸면 펼쳐 둔 작업 목록을 다시 여섯 개로 접는다", () => {
+    const manyTasks = Array.from({ length: 8 }, (_, index) => ({
+      ...jobs[0].tasks[0],
+      id: `many-${index}`,
+      title: `로고 작업 ${index}`,
+    }));
+    setup([{ ...jobs[0], tasks: manyTasks }, jobs[1]]);
+    fireEvent.click(screen.getByRole("button", { name: /나머지 .*개도 보기/ }));
+    expect(screen.getByRole("button", { name: "로고 작업 7 완료 처리" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "일감별로 보기" }), { target: { value: jobs[0].id } });
+    expect(screen.queryByRole("button", { name: "로고 작업 7 완료 처리" })).not.toBeInTheDocument();
   });
 });

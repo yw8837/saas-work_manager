@@ -2,6 +2,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { getHostedRuntimeBoundary } from "./mode";
 import { getPublicEnvironmentValue } from "@/lib/public-environment";
+import { nativePlatform } from "@/lib/native/platform";
+import { createSecureSessionStore } from "@/lib/native/secure-storage";
 
 let browserClient: SupabaseClient | null = null;
 
@@ -18,14 +20,19 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
   const anonKey = getPublicEnvironmentValue("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!url || !anonKey) return null;
 
+  const platform = nativePlatform();
   browserClient = createClient(url, anonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: platform === "web",
+      ...(platform !== "web" ? {
+        flowType: "pkce" as const,
+        storage: createSecureSessionStore(),
+      } : {}),
     },
     global: {
-      headers: { "X-Client-Info": "ilgamcheck-web/0.1" }
+      headers: { "X-Client-Info": `ilgamcheck-${platform}/0.1` }
     }
   });
   return browserClient;

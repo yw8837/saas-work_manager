@@ -30,6 +30,8 @@ import {
 import { PLAN_LIMITS, PLAN_NAMES, PLAN_PRICES, TRIAL_DAYS, type Plan } from "@/lib/domain";
 import { InstallAppCard } from "./install-app-card";
 import { useWorkspace } from "./workspace-provider";
+import { nativePlatform } from "@/lib/native/platform";
+import { NativePushSettings } from "./native-push-settings";
 
 /** 무제한은 숫자 대신 글자로 보여준다. 숫자는 전부 PLAN_LIMITS에서 온다. */
 function limitText(value: number, unit: string) {
@@ -64,6 +66,7 @@ function permissionLabel(permission: BrowserNotificationState) {
 export function SettingsPanel() {
   const { packages, options, jobs, settings, activityDates, updateSettings, runtimeMode, userEmail, signInWithGoogle, signOut, deleteAccount, saveStatus, saveError, realtimeStatus, realtimeError, plan, planAccess, limits, activeJobCount, jobsCreatedTotal, trialStartedAt, betaAccess, activateInviteCode } = useWorkspace();
   const isPro = plan === "pro";
+  const isNative = nativePlatform() !== "web";
   const [inviteCode, setInviteCode] = useState("");
   const [inviteFeedback, setInviteFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const [capability, setCapability] = useState<NotificationCapability | null>(null);
@@ -183,7 +186,6 @@ export function SettingsPanel() {
     <div className="pageSurface settingsPage">
       <header className="pageHeader">
         <div>
-          <span className="pageEyebrow">놓치지 않도록, 과하지 않도록</span>
           <h1>설정</h1>
           <p>플랜과 알림, 앱 설치와 내 데이터를 여기서 관리해요.</p>
         </div>
@@ -191,7 +193,7 @@ export function SettingsPanel() {
 
       <section className="contentSection planSection" id="plan" aria-labelledby="plan-title">
         <div className="sectionHeadingRow">
-          <div><span className="sectionMiniLabel">요금제</span><h2 id="plan-title">플랜</h2></div>
+          <div><h2 id="plan-title">플랜</h2></div>
           <Sparkles size={20} />
         </div>
         <div className="planCurrentRow">
@@ -271,31 +273,31 @@ export function SettingsPanel() {
 
       <div className="settingsGrid">
         <section className="contentSection settingSection">
-          <div className="sectionHeadingRow"><div><span className="sectionMiniLabel">오늘의 시작</span><h2>일일 브리핑</h2></div><BellRing size={20} /></div>
+          <div className="sectionHeadingRow"><div><h2>일일 브리핑</h2></div><BellRing size={20} /></div>
           <label className="settingRow"><span><strong>매일 브리핑 표시</strong><small>설정한 시간이 지나면 알림 목록에 오늘 처리·고객 대기·수정 요청 요약을 한 줄로 올려요.</small></span><input type="checkbox" checked={settings.morningDigestEnabled} onChange={(event) => updateSettings({ morningDigestEnabled: event.target.checked })} /></label>
           <label className="settingTime"><span>브리핑 시간</span><input type="time" value={settings.morningDigestTime} onChange={(event) => updateSettings({ morningDigestTime: event.target.value })} /></label>
         </section>
 
         <section className="contentSection settingSection">
-          <div className="sectionHeadingRow"><div><span className="sectionMiniLabel">마감 기준</span><h2>마감 알림</h2></div><Clock3 size={20} /></div>
+          <div className="sectionHeadingRow"><div><h2>마감 알림</h2></div><Clock3 size={20} /></div>
           <label className="settingRow"><span><strong>D-2 · D-1 · 당일 · 지연</strong><small>활성 일감의 자동 마감을 기준으로 계산해요.</small></span><input type="checkbox" checked={settings.deadlineAlertsEnabled} onChange={(event) => updateSettings({ deadlineAlertsEnabled: event.target.checked })} /></label>
           <label className="settingTime"><span>인앱 알림 시간</span><input type="time" value={settings.deadlineAlertTime} onChange={(event) => updateSettings({ deadlineAlertTime: event.target.value })} /></label>
         </section>
 
         <section className="contentSection settingSection">
-          <div className="sectionHeadingRow"><div><span className="sectionMiniLabel">고객 답변</span><h2>대기 알림</h2></div><Smartphone size={20} /></div>
+          <div className="sectionHeadingRow"><div><h2>대기 알림</h2></div><Smartphone size={20} /></div>
           <label className="settingRow"><span><strong>2일 · 5일째 다시 보기</strong><small>Todo를 고객 대기로 바꾼 시각을 기준으로 계산해요.</small></span><input type="checkbox" checked={settings.waitingAlertsEnabled} onChange={(event) => updateSettings({ waitingAlertsEnabled: event.target.checked })} /></label>
           <label className="settingTime"><span>인앱 알림 시간</span><input type="time" value={settings.waitingAlertTime} onChange={(event) => updateSettings({ waitingAlertTime: event.target.value })} /></label>
         </section>
 
         <section className="contentSection settingSection">
-          <div className="sectionHeadingRow"><div><span className="sectionMiniLabel">수정 요청</span><h2>수정 알림</h2></div><Send size={20} /></div>
+          <div className="sectionHeadingRow"><div><h2>수정 알림</h2></div><Send size={20} /></div>
           <label className="settingRow"><span><strong>새 요청을 바로 표시</strong><small>고객 링크와 수동 기록 모두 같은 타임라인과 알림 큐에 남아요.</small></span><input type="checkbox" checked={settings.revisionAlertsEnabled} onChange={(event) => updateSettings({ revisionAlertsEnabled: event.target.checked })} /></label>
           <label className="settingRow"><span><strong>내용을 알림에서 표시</strong><small>공용 화면에서 보일 수 있으면 끄는 편이 안전해요.</small></span><input type="checkbox" checked={settings.privateNotificationDetails} onChange={(event) => updateSettings({ privateNotificationDetails: event.target.checked })} /></label>
         </section>
       </div>
 
-      <section className="browserTestSection">
+      {isNative ? <NativePushSettings /> : <section className="browserTestSection">
         <div><span className="sectionMiniLabel">현재 브라우저에서만 검사</span><h2>브라우저 테스트 알림</h2><p>권한과 표시만 확인합니다. 이 버튼은 예약 전송이나 다른 기기 전달을 증명하지 않아요.</p></div>
         <div className="browserTestActions">
           <span className={capability?.permission === "granted" ? "permissionBadge allowed" : "permissionBadge"}><ShieldAlert size={14} /> {capability ? permissionLabel(capability.permission) : "상태 확인 중"}</span>
@@ -303,12 +305,11 @@ export function SettingsPanel() {
           <button type="button" className="primaryButton" onClick={sendTest} data-testid="send-test-notification">테스트 알림</button>
         </div>
         {feedback && <p className="settingsFeedback" role="status"><Check size={15} /> {feedback}</p>}
-      </section>
+      </section>}
 
       <section className="accountStatusSection">
         <span className="accountStatusIcon"><Database size={20} /></span>
         <div>
-          <span className="sectionMiniLabel">데이터 저장</span>
           <h2>{runtimeMode === "hosted" ? "Supabase 계정 저장" : "이 브라우저 로컬 저장"}</h2>
           <p>{runtimeMode === "hosted" ? `${userEmail ?? "현재 계정"} · ${saveStatus === "error" ? saveError ?? "저장 실패" : saveStatus === "saving" ? "변경사항 저장 중" : "최신 상태 저장됨"} · ${realtimeStatus === "connected" ? "실시간 연결됨" : realtimeStatus === "error" ? realtimeError ?? "실시간 연결 오류" : "실시간 연결 중"}` : "내 자료는 이 브라우저에만 남아요. 다른 기기에서는 보이지 않아요."}</p>
         </div>
@@ -323,7 +324,6 @@ export function SettingsPanel() {
       <section className="accountDangerSection" aria-labelledby="account-danger-title">
         <span className="accountDangerIcon"><TriangleAlert size={20} /></span>
         <div>
-          <span className="sectionMiniLabel">위험 영역</span>
           <h2 id="account-danger-title">계정과 데이터 영구 삭제</h2>
           <p>
             {runtimeMode === "hosted"
@@ -385,7 +385,6 @@ export function SettingsPanel() {
       <section className="accountStatusSection" id="feedback" aria-labelledby="feedback-invite-title">
         <span className="accountStatusIcon"><MessageSquareText size={20} /></span>
         <div>
-          <span className="sectionMiniLabel">베타 의견</span>
           <h2 id="feedback-invite-title">불편한 점이나 필요한 기능을 알려주세요</h2>
           <p>개인정보는 받지 않아요. 고객명·금액·수정 요청 내용은 자동으로 보내지 않습니다.</p>
         </div>
@@ -399,8 +398,8 @@ export function SettingsPanel() {
         <div className="blockedMark"><LockKeyhole size={23} /></div>
         <div>
           <span className="sectionMiniLabel">아직 준비 중인 기능</span>
-          <h2>{runtimeMode === "hosted" ? "잠금화면 알림과 결제는 아직 준비 중이에요." : "다른 기기에서 열리는 고객 링크와 잠금화면 알림은 아직 준비 중이에요."}</h2>
-          <p>{runtimeMode === "hosted" ? "로그인과 계정별 저장, 고객 수정 링크는 지금 그대로 쓸 수 있어요. 앱을 열지 않아도 먼저 찾아가는 잠금화면 알림과 결제는 준비가 끝나면 안내해 드릴게요." : "지금은 이 브라우저에 저장하는 모드예요. 모든 기능을 바로 쓸 수 있지만, 고객에게 보낸 링크를 다른 기기에서 열거나 여러 기기에서 같은 자료를 보려면 로그인 모드가 필요해요. 준비가 끝나면 안내해 드릴게요."}</p>
+          <h2>{isNative ? "결제는 아직 준비 중이에요." : runtimeMode === "hosted" ? "잠금화면 알림과 결제는 아직 준비 중이에요." : "다른 기기에서 열리는 고객 링크와 잠금화면 알림은 아직 준비 중이에요."}</h2>
+          <p>{isNative ? "웹과 앱에서 같은 계정의 일감을 관리해요. 고객 수정 요청 푸시는 위에서 기기 등록 상태를 확인해주세요. 마감·브리핑은 앱 안에서 표시하며, 결제는 준비가 끝나면 안내해 드릴게요." : runtimeMode === "hosted" ? "로그인과 계정별 저장, 고객 수정 링크는 지금 그대로 쓸 수 있어요. 앱을 열지 않아도 먼저 찾아가는 잠금화면 알림과 결제는 준비가 끝나면 안내해 드릴게요." : "지금은 이 브라우저에 저장하는 모드예요. 모든 기능을 바로 쓸 수 있지만, 고객에게 보낸 링크를 다른 기기에서 열거나 여러 기기에서 같은 자료를 보려면 로그인 모드가 필요해요. 준비가 끝나면 안내해 드릴게요."}</p>
         </div>
       </section>
     </div>

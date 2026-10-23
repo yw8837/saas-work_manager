@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-09-27
+마지막 갱신: 2026-10-23
 
 ## 제품 한 줄
 
@@ -10,7 +10,39 @@
 
 차별점은 고객용 수정요청 링크다. 그래서 서버(Supabase)는 유지한다. 로컬 전용으로 바꾸지 않는다.
 
-## 지금 상태 (2026-09-27 확인)
+## 지금 상태
+
+### 2026-10-23 모바일 베타 운영 보완
+
+- 현재 분리 폴더 브랜치는 `codex/mobile-beta-operational-20261023`이다. 모바일 #13과 별도 디자인 브랜치를 포함한 검증본이며, #1은 포함하지 않는다.
+- 로그인 계정 전환 즉시 이전 owner·화면·저장 권한을 무효화하고 이전 비동기 완료를 generation으로 차단했다. Today 일감 범위는 URL로 유지한다. Next 16.4.2/Vite 8.3.5/Vitest 4.1.12로 갱신했다.
+- FCM 발송 전용 키와 dispatch key는 Supabase 서버/Vault에만 보관한다. Edge `native-revision-push` v3, HMAC 90초·일회성 nonce를 적용했다. 공개/무효 호출 401, GET405, 유효 서명200, 재사용409. 실제 pg_net→Edge 200·발송0 확인 후 1분 cron 활성화.
+- pg_net 관리자 소유 큐는 프로젝트 REVOKE로 제한되지 않는다. 실패한 ACL 시도도 원격 이력과 함께 보존한다. 최종 해법은 큐에 장기 키를 넣지 않는 서명 호출이며, DB 로그인 역할의 큐 조작/DoS까지 해결했다고 표현하지 않는다.
+- 운영 migration: `20261023112855_native_push_scheduler`, `20261023113041_native_push_queue_acl`(ACL 효과 없음), `20261023113840_native_push_signed_dispatch`. nonce RPC는 service_role 전용, 실제 dispatcher와 nonce table은 postgres 전용 확인.
+- 이번 작업에서 표준 Supabase CLI 로그인을 수행하여 **기본 CLI 계정이 일감체크 계정으로 바뀌었다**. 기존 ‘전역 인증 교체 금지’ 인수인계와 달리 실행된 사항이다. 다른 프로젝트 데이터는 변경하지 않았다. 이후 다른 프로젝트 작업 전 계정/조직을 반드시 다시 확인한다.
+- Android 새 APK 빌드·서명 통과, SHA256 `7c8035114841925e1666c359d848759d7a9f159639d96af6406fc27c1f8b3616`. 실기기는 연결0대. iOS는 Mac/Apple Developer/APNs가 없어 서명·TestFlight 미완료.
+- 외부 배포 승인은 별도다. `docs/MOBILE-BETA-OPERATIONS.md`에 개인정보 추가 초안, 삭제/복구·기기 검증표를 작성했다. 정책 finalized=false는 유지한다. 현재 앱 callback 추가의 액션 시점 승인과 실기기 확인이 남아 있다.
+- GitHub/Sites 배포 영수증 및 최종 자동 검사 수치는 `docs/verification/2026-10-23-mobile-beta-operations.md`에 기록한다.
+
+### 2026-10-21 작업 화면 디자인 — 모바일 구현 이후 별도 브랜치
+
+- 현재 같은 분리 폴더의 브랜치는 `codex/mobile-workspace-design`이다. `codex/mobile-linked-mvp` 및 PR #13의 head `6c75674`는 그대로 보존했다. UI 변경을 기존 PR에 몰래 추가하지 않는다.
+- 사용자 요구: 파랑·초록·베이지와 AI 생성형 SaaS 느낌 배제, 실제 참고 자료 조사 후 메인이 디자인 선택. 흰색·흑연색 작업 목록과 제한된 체리색 주의 표시로 결정했다.
+- 일감별 Today 범위 선택, 동일 고객 주문 구분, 모바일 수정 잔여 표시와 목록·버튼·패키지·설정 스타일 정리. `.appFrame` 범위만 변경하고 랜딩·공개 폼·운영 데이터는 보존한다.
+- 단위 712개 / 브라우저 58개, Next/Sites 빌드·lint/typecheck·모바일 sync·Android 빌드·APK v2 서명 통과. 독립 리뷰 지적 5개 UI 항목을 수정하고 25개 화면을 다시 확인했다. 최종 판정·문서·해시는 `docs/verification/2026-10-21-workspace-design.md`를 확인한다.
+- 디자인 검증 APK와 화면은 `D:/SaaS/01_일감체크/release-artifacts/2026-10-21-workspace-design`에 있다. 이전 모바일 APK는 보존했다. 이 디자인 브랜치는 아직 push/운영 배포하지 않았다.
+- 로컬 미리보기 `http://127.0.0.1:4121/today`는 C: 검증 복사본을 실행한다. D: 분리 폴더가 편집 원본이다. 운영 반영과 실기기 검증 완료로 혼동하지 않는다.
+
+### 2026-10-21 모바일 연동 MVP
+
+- 작업 원본은 `D:/SaaS/01_일감체크/.worktrees/mobile-mvp`, 브랜치는 `codex/mobile-linked-mvp`. 원본 app의 사용자 변경과 index.lock은 보존했다.
+- 웹·Android·iOS 공통 계정/일감, 보안 PKCE 저장, 앱 복귀, 수정 요청 푸시 outbox/발송기, 계정 전환·삭제 보호, 오프라인 읽기 전용 화면을 구현했다.
+- 독립 리뷰 첫 구현 `704257c`의 Important 4건·Minor 2건을 메인이 재현·수정했다. 최종 자동 검사 708개/115파일, E2E 56개, typecheck/lint, Next/Sites, 운영 audit 0 통과. Android debug APK 빌드·서명 검사 통과. 상세는 `docs/verification/2026-10-21-mobile-mvp.md`.
+- 사용자가 검사 통과 후 운영 DB/Auth callback/최소권한 FCM 키/예약 호출/PR 병합/웹 API 배포를 승인했다. 무료 Firebase 등록, native push DB migration `20261020162521`, 호출 secret으로 보호된 Edge Function v1 배포 완료. FCM 전송 권한 한 개의 전용 계정 준비. Auth callback/키/예약 호출/웹 배포는 검증 기록과 함께 갱신할 것. 기존 데이터 삭제·유료 전환·아가톡 변경·모집 연락은 제외.
+- Supabase CLI 기본 계정은 다른 프로젝트 목록을 반환한다. 일감체크 `evhkpgxacpweelnmjmqh`를 지원하는 연결 도구/올바른 대시보드를 사용하고, 다른 계정의 전역 인증을 교체하지 않는다.
+- 실기기 0대, Apple Developer/Mac 없음. Android 설치/OAuth/백그라운드 알림 및 iOS 서명·TestFlight 완료로 표현하지 않는다.
+
+### 과거 운영 이력 — 이하 날짜 당시의 기록
 
 ### 보안 재점검 — 요청 본문 제한 보완
 
@@ -82,6 +114,14 @@
 - 2026-09-30: 코드의 기본 운영 주소를 `https://ilgam.studioyeolmae.com`으로 바꿨다(링크 미리보기 등). DNS는 연결됨. 남은 일: ChatGPT Sites에 다시 배포, 새 주소 HTTPS·로그인 확인, Supabase Auth Site URL/Redirect URLs를 supabase/config.toml과 같게 맞추기.
 
 ## 다음 작업
+
+### 0. 모바일 MVP 운영 연결과 실기기 게이트
+
+1. 모바일 PR의 CI를 확인하고 승인 범위의 DB/Auth/FCM/예약 호출과 웹 API를 반영한다. 현재 배포 ID와 원격 응답은 모바일 검증 문서에 기록한다.
+2. Supabase 로그인 후 앱 callback만 추가하고 기존 Google 웹 로그인 주소를 보존한다. FCM 비밀키는 발송 전용 최소권한 계정으로 서버에만 보관한다.
+3. Android APK를 사용자 폰에서 설치하여 Google 로그인 복귀, 웹↔앱 저장, 잠금화면/앱 종료 푸시, 계정 전환을 확인한다.
+4. iPhone 네이티브 배포는 Apple Developer와 Mac/Xcode 준비가 필요하다. 비용 승인이나 계정 가입을 임의로 진행하지 않는다.
+5. 사용자 연락은 하지 않는다. 로컬 검증 폴더는 증거·APK 보존 후 이 작업에서 만든 경로만 정리한다.
 
 ### 1. 남은 운영 확인
 

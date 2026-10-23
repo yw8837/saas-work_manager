@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
 import { Brand } from "./brand";
@@ -12,8 +12,13 @@ import {
   recordCurrentPolicyAcceptance,
 } from "@/lib/supabase";
 import { currentPolicyAcceptance } from "@/lib/policies";
+import { nativePlatform } from "@/lib/native/platform";
+import { subscribeNativeAuth, nativeAuthStatus, cancelNativeOAuth } from "@/lib/native/auth-runtime";
+import { NativeOfflineWorkspace } from "./native-offline-workspace";
 
 export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
+  const native = nativePlatform() !== "web";
+  const nativeAuth = useSyncExternalStore(subscribeNativeAuth, nativeAuthStatus, nativeAuthStatus);
   const { runtimeMode, authStatus, authError, signInWithGoogle, signOut } = useWorkspace();
   const [policiesAccepted, setPoliciesAccepted] = useState(false);
   const [pending, setPending] = useState<"google" | "policy" | null>(null);
@@ -79,6 +84,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   }
 
   if (runtimeMode === "local") return children;
+  if (native && authStatus === "offline") return <NativeOfflineWorkspace />;
   if (authStatus === "signed_in" && policyGateStatus === "accepted") return children;
 
   if (
@@ -159,7 +165,8 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
       setFeedback(error instanceof Error ? error.message : "요청을 처리하지 못했어요.");
       setPending(null);
     } finally {
-      // 성공하면 OAuth 페이지로 이동하므로 이 화면에서 pending을 풀 필요가 없다.
+      // Native login leaves this WebView open; its external-store status owns the pending UI.
+      if (native) setPending(null);
     }
   }
 
@@ -176,12 +183,17 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           event.preventDefault();
           void performGoogleLogin();
         }}>
-          <button className="primaryButton authPrimary" type="submit" disabled={pending !== null}>
-            {pending === "google" ? "Google로 이동 중…" : "Google로 계속하기"}
+          <button className="primaryButton authPrimary" type="submit" disabled={pending !== null || (native && nativeAuth.pending)}>
+            {pending === "google" || (native && nativeAuth.pending) ? "Google로 이동 중…" : "Google로 계속하기"}
             <ArrowRight size={17} />
           </button>
+          {native && nativeAuth.pending && (
+            <button className="authTextButton" type="button" onClick={() => {
+              void cancelNativeOAuth().catch(() => setFeedback("로그인 취소를 완료하지 못했어요. 앱을 다시 열어주세요."));
+            }}>로그인 취소</button>
+          )}
         </form>
-        {(feedback || authError) && <p className="authFeedback" role="status">{feedback ?? authError}</p>}
+        {(feedback || authError || (native && nativeAuth.error)) && <p className="authFeedback" role="status">{feedback ?? authError ?? nativeAuth.error}</p>}
         <small>
           Google 인증은 Supabase Auth가 처리하며 Google 비밀번호는 일감체크에 저장되지 않아요.
           {' '}<Link href="/terms">이용약관</Link> · <Link href="/privacy">개인정보처리방침</Link>

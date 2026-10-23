@@ -97,7 +97,6 @@ export function InstallAppCard() {
     <section className="contentSection installCard" aria-labelledby="install-title">
       <div className="sectionHeadingRow">
         <div>
-          <span className="sectionMiniLabel">앱으로 쓰기</span>
           <h2 id="install-title">홈 화면에 추가</h2>
         </div>
         <Smartphone size={20} />

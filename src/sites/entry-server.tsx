@@ -10,6 +10,7 @@ import {
 } from "@/lib/supabase/runtime-contract";
 import { probeHostedServiceRoleContract } from "@/lib/supabase/server-runtime-contract";
 import { configuredSupabaseProjectRef } from "@/lib/supabase/mode";
+import { nativeApiPreflight, withNativeApiCors } from "@/lib/security/native-api";
 
 export type SitesAssetBinding = {
   fetch(request: Request): Promise<Response>;
@@ -22,7 +23,6 @@ export type SitesEnvironment = {
 } & IlgamcheckPublicEnvironment;
 
 const unavailable = () => new Response("일감체크 정적 파일을 불러오지 못했습니다.", { status: 503 });
-const NATIVE_PUBLIC_CONFIG_ORIGINS = new Set(["capacitor://localhost", "https://localhost"]);
 const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
 
 function responseBody(response: Response): ReadableStream<Uint8Array> | null {
@@ -39,19 +39,6 @@ function json(body: unknown, status: number, environment?: SitesEnvironment) {
   }
   return new Response(JSON.stringify(body), {
     status,
-    headers,
-  });
-}
-
-function withNativePublicConfigCors(response: Response, request: Request): Response {
-  const origin = request.headers.get("origin");
-  if (!origin || !NATIVE_PUBLIC_CONFIG_ORIGINS.has(origin)) return response;
-  const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", origin);
-  headers.set("Vary", "Origin");
-  return new Response(responseBody(response), {
-    status: response.status,
-    statusText: response.statusText,
     headers,
   });
 }
@@ -250,8 +237,11 @@ async function health(environment: SitesEnvironment): Promise<Response> {
 const siteWorker = {
   async fetch(request: Request, environment: SitesEnvironment): Promise<Response> {
     const { pathname } = new URL(request.url);
+    if (request.method === "OPTIONS" && (pathname === "/api/public-config" || pathname === "/api/account/delete")) {
+      return nativeApiPreflight(request);
+    }
     if (pathname === "/api/public-config") {
-      return withNativePublicConfigCors(
+      return withNativeApiCors(
         json({ config: publicEnvironment(environment) }, 200, environment),
         request,
       );

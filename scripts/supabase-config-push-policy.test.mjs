@@ -58,7 +58,9 @@ describe("Supabase remote Auth config push", () => {
 
   it("keeps the checked-in config deployable for Google-only signup", () => {
     const checkedInConfig = readFileSync(resolve(process.cwd(), "supabase/config.toml"), "utf8");
+    expect(checkedInConfig).toContain('"com.yeolmaestudio.ilgamcheck://auth/callback"');
     const rendered = renderHostedSupabaseConfig(checkedInConfig, "https://preview.example.com");
+    expect(rendered).toContain('"com.yeolmaestudio.ilgamcheck://auth/callback"');
     expect(rendered).toContain('"https://preview.example.com/settings"');
   });
 

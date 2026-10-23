@@ -81,6 +81,12 @@ describe("POST /api/account/delete", () => {
     expect(missingFetchMetadata.status).toBe(403);
     expect(mocked.getUser).not.toHaveBeenCalled();
   });
+  it.each(["https://localhost", "capacitor://localhost"])("preserves verified-token deletion for native origin %s", async (origin) => {
+    const response = await POST(deleteRequest({ origin, fetchSite: "cross-site" }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(origin);
+    expect(mocked.deleteUser).toHaveBeenCalledWith("owner-a", false);
+  });
 
   it("requires the confirmation in both a custom header and JSON body", async () => {
     const badHeader = await POST(deleteRequest({ confirmation: "WRONG" }));

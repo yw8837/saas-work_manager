@@ -15,7 +15,8 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import { emptyTodaySearch, subscribeTodayLocation, todaySearchSnapshot, updateTodayScope } from "@/lib/today-location";
 import {
   formatShortDate,
   getRevisionSummary,
@@ -70,7 +71,7 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
           </span>
         </div>
         <strong>{task.title}</strong>
-        <span className="taskContext">{job.packageSnapshot.name} · {formatShortDate(job.dueDate)} 전체 마감</span>
+        <span className="taskContext">{job.title} · {formatShortDate(job.dueDate)} 마감</span>
       </Link>
       {(contactLink || workLink) && (
         <div className="taskQuickActions">
@@ -94,38 +95,46 @@ export function TodayDashboard() {
   const { jobs, toggleTask, toggleJobWaiting, resetDemo, alerts, settings, runtimeMode } = useWorkspace();
   const [completedLabel, setCompletedLabel] = useState<string | null>(null);
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const search = useSyncExternalStore(subscribeTodayLocation, todaySearchSnapshot, emptyTodaySearch);
+  const selectedJobId = new URLSearchParams(search).get("job") ?? "";
   const now = todayISO();
   const todayStart = new Date(`${now}T00:00:00`).getTime();
+  const activeJobs = useMemo(() => jobs.filter((job) => job.status === "active"), [jobs]);
+  // Completed/deleted jobs cannot leave the dashboard stuck on a missing selection.
+  const scopeJobId = activeJobs.some((job) => job.id === selectedJobId) ? selectedJobId : "";
+  const scopedJobs = useMemo(
+    () => scopeJobId ? activeJobs.filter((job) => job.id === scopeJobId) : activeJobs,
+    [activeJobs, scopeJobId],
+  );
 
   const queue = useMemo(
     () =>
-      jobs
-        .filter((job) => job.status === "active")
+      scopedJobs
         .flatMap((job) =>
           job.tasks
             .filter((task) => task.status !== "done" && task.status !== "waiting" && task.dueDate <= now)
             .map((task) => ({ job, task })),
         )
         .sort((a, b) => a.task.dueDate.localeCompare(b.task.dueDate)),
-    [jobs, now],
+    [scopedJobs, now],
   );
 
-  const waitingJobs = jobs.filter(
+  const waitingJobs = scopedJobs.filter(
     (job) => job.status === "active" && job.tasks.some((task) => task.status === "waiting"),
   );
-  const upcomingJobs = jobs
+  const upcomingJobs = scopedJobs
     .filter((job) => job.status === "active" && job.dueDate >= now)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 4);
   // 수정을 한 번도 안 쓴 일감까지 세면, 포함 수정 1회짜리 패키지는 만들자마자 "임박"이 뜬다.
   // 실제로 수정을 쓰기 시작한 일감만 센다.
-  const nearRevisionLimit = jobs.filter((job) => {
+  const nearRevisionLimit = scopedJobs.filter((job) => {
     if (job.status !== "active") return false;
     const summary = getRevisionSummary(job);
     // 수정 0회 패키지는 used가 영원히 0이라, extraScope도 같이 봐야 임박을 놓치지 않는다.
     return (summary.used > 0 || summary.extraScope > 0) && summary.remaining <= 1;
   });
-  const primaryAlert = alerts[0];
+  const primaryAlert = alerts.find((alert) => !scopeJobId || alert.jobId === scopeJobId);
   const visibleQueue = showAllTasks ? queue : queue.slice(0, 6);
 
   const handleComplete = (item: QueueItem) => {
@@ -146,8 +155,8 @@ export function TodayDashboard() {
     <div className="pageSurface todayPage">
       <header className="pageHeader todayHeader">
         <div>
-          <p className="todayDate">{todayHeading()}</p>
           <h1>오늘 할 일</h1>
+          <p className="todayDate">{todayHeading()}</p>
           <p>{jobs.length === 0 ? "일감을 등록하면 마감과 할 일을 여기에 모아드려요." : "급한 순서대로 꺼내뒀어요. 끝낸 일은 한 번만 눌러주세요."}</p>
         </div>
         <div className="pageHeaderActions">
@@ -178,12 +187,29 @@ export function TodayDashboard() {
         </section>
       ) : (
         <>
-      <section className="todayBrief" aria-label="오늘 업무 요약">
+      <div className="workspaceScope">
+        <label htmlFor="today-job-scope">일감별로 보기</label>
+        <select
+          id="today-job-scope"
+          value={scopeJobId}
+          onChange={(event) => {
+            updateTodayScope(event.target.value);
+            setShowAllTasks(false);
+          }}
+        >
+          <option value="">진행 중인 일감 전체 · {activeJobs.length}건</option>
+          {activeJobs.map((job) => (
+            <option key={job.id} value={job.id}>{job.clientLabel} · {job.title}</option>
+          ))}
+        </select>
+        <Link href="/jobs">전체 일감 보기 <ArrowUpRight size={15} /></Link>
+      </div>
+      <section className="todayBrief" aria-label="오늘 업무 요약" data-severity={primaryAlert?.severity}>
         <div className="briefMessage">
           <span className="briefIcon"><BellRing size={18} /></span>
           <div>
-            <strong>{primaryAlert ? primaryAlert.title : "놓치기 쉬운 일은 없어요"}</strong>
-            <p>{primaryAlert ? (primaryAlert.kind === "revision" && !settings.privateNotificationDetails ? "새 수정요청이 들어왔어요. 상세에서 내용을 확인하세요." : primaryAlert.message) : "다음 마감과 고객 대기를 계속 계산할게요."}</p>
+            <strong>{primaryAlert ? primaryAlert.title : "확인할 알림이 없어요"}</strong>
+            <p>{primaryAlert ? (primaryAlert.kind === "revision" && !settings.privateNotificationDetails ? "새 수정요청이 들어왔어요. 상세에서 내용을 확인하세요." : primaryAlert.message) : "마감과 고객 답변은 아래에서 확인하세요."}</p>
           </div>
         </div>
         <dl className="briefStats">
@@ -241,7 +267,7 @@ export function TodayDashboard() {
                       <span className="waitingAvatar">{job.clientLabel.slice(0, 1)}</span>
                       <Link href={`/jobs/${job.id}`} className="waitingMain">
                         <strong>{job.clientLabel}</strong>
-                        <span>{waitingTask?.title ?? "고객 답변 대기 중"}</span>
+                        <span>{job.title} · {waitingTask?.title ?? "고객 답변 대기 중"}</span>
                       </Link>
                       <span className="waitingDays">{days}일째</span>
                       <button type="button" className="compactButton" onClick={() => toggleJobWaiting(job.id)}>답변 받음</button>

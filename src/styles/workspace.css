@@ -1,0 +1,313 @@
+/*
+ * THESIS: A studio production list; client work, not dashboard decoration.
+ * OWN-WORLD: white / graphite, cherry only for attention; Pretendard and aligned rows.
+ * STORY: choose a job, see what is due, complete it or open the request.
+ * FIRST VIEWPORT: title/date, job scope, compact summary, task list; stable bottom nav on phones.
+ * FORM: production run-sheet, grounded candidate 3; seed 51596c9b. Code-first, choice delegated.
+ * FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review,
+ * the verdict, DESIGN.md, and every shipping raster carrying its provenance.
+ * Scoped to the workspace: marketing pages and public intake retain their existing styling.
+ */
+.appFrame {
+  --ink: #242426;
+  --ink-soft: #444448;
+  --muted: #68686e;
+  --paper: #fff;
+  --canvas: #f5f5f6;
+  --line: #e5e5e7;
+  --line-strong: #c9c9cf;
+  --border-strong: #8c8c94;
+  --primary: #242426;
+  --primary-active: #101012;
+  --surface-dark: #242426;
+  --surface-strong: #e5e5e7;
+  --blue: #3d3d43;
+  --blue-dark: #242426;
+  --blue-soft: #f1f1f3;
+  --info: #444448;
+  --info-border: #68686e;
+  --green: #444448;
+  --green-soft: #f1f1f3;
+  --amber: #535359;
+  --amber-soft: #f1f1f3;
+  --coral: #444448;
+  --red: #b82248;
+  --red-soft: #fff1f4;
+  --cream: #f1f1f3;
+  --warm: #f1f1f3;
+  --workspace-accent: #b82248;
+  --radius: 12px;
+  --radius-lg: 12px;
+  --shadow-md: 0 10px 28px rgb(24 24 28 / 10%);
+  background: var(--paper);
+  color: var(--ink);
+}
+.appFrame ::selection { background: #e6e6e9; color: #242426; }
+.appFrame :is(input, textarea) { caret-color: var(--ink); }
+.appFrame :is(input, textarea, select):focus {
+  border-color: var(--info-border);
+  box-shadow: 0 0 0 2px rgb(36 36 38 / 10%);
+}
+.appFrame :is(h1, h2, h3) { font-family: var(--font-body); font-weight: 650; }
+.appFrame .pageEyebrow { display: none; }
+.appFrame :is(.sectionKicker, .sectionMiniLabel) { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: normal; text-transform: none; }
+.appFrame :is(.primaryButton, .secondaryButton, .invertedButton) { box-shadow: none; }
+.appFrame :is(.primaryButton, .dangerButton):active { transform: translateY(1px); }
+.appFrame .primaryButton:hover { background: #3d3d43; }
+.appFrame :is(.secondaryButton, .quietButton, .compactButton):hover { background: var(--canvas); }
+.appFrame .compactButton.emphasized { background: var(--canvas); border-color: var(--line-strong); }
+.appFrame .desktopSidebar {
+  padding: 24px 14px;
+  color: var(--ink);
+  background: var(--canvas);
+  border-right: 1px solid var(--line);
+}
+.appFrame .sidebarTop { padding: 0 10px 36px; }
+.appFrame .sideNav { gap: 6px; }
+.appFrame .sideNavItem { min-height: 46px; color: var(--muted); border-radius: 8px; }
+.appFrame .sideNavItem:hover { color: var(--ink); background: #ebebee; }
+.appFrame .sideNavItem[data-active="true"] {
+  color: var(--ink);
+  background: #e5e5e9;
+  box-shadow: none;
+  font-weight: 650;
+}
+.appFrame .sideNav :focus-visible { outline-color: var(--ink); }
+.appFrame .navCount { color: var(--ink-soft); background: #fff; }
+.appFrame .navDivider { margin-block: 18px; background: var(--line); }
+.appFrame .localModeNotice { padding: 14px 8px; border: 0; background: transparent; }
+.appFrame .localModeNotice span { color: var(--muted); font-size: 11px; }
+.appFrame .statusDot { background: #77777f; box-shadow: none; }
+.appFrame .helpLink { color: var(--muted); }
+.appFrame :is(.betaLabel, .soonLabel) { color: var(--muted); background: #e5e5e9; }
+.appFrame .saveState[data-status="error"] .statusDot { background: var(--red); }
+.appFrame .saveState[data-status="saving"] .statusDot { background: #b2b2b8; }
+.appFrame .workspaceTopbar { background: #fff; backdrop-filter: none; }
+.appFrame .topbarContext strong { font-size: 14px; }
+.appFrame .topbarContext span { font-size: 12px; }
+.appFrame .topbarActions .iconButton { border-color: transparent; }
+.appFrame .avatar { color: var(--ink-soft); background: var(--canvas); font-size: 13px; }
+.appFrame .pageSurface { padding-top: 36px; }
+.appFrame .pageHeader { align-items: center; margin-bottom: 28px; }
+.appFrame .pageHeader h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: -.035em; }
+.appFrame .pageHeader p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.appFrame .todayHeader h1 { margin-bottom: 6px !important; font-size: 32px !important; }
+.appFrame .todayDate { color: var(--muted) !important; font-size: 13px; font-weight: 450; }
+.appFrame .todayHeader > div > p:last-child:not(.todayDate) { margin-top: 8px; }
+.appFrame .workspaceScope {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.appFrame .workspaceScope label { flex-shrink: 0; font-size: 13px; color: var(--muted); }
+.appFrame .workspaceScope select {
+  max-width: 430px;
+  padding: 10px 34px 10px 14px;
+  background: var(--canvas);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+.appFrame .workspaceScope a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.appFrame .todayBrief {
+  margin-bottom: 32px;
+  padding: 14px 0;
+  color: var(--ink);
+  background: transparent;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.appFrame .briefMessage { gap: 10px; padding: 4px 18px 4px 0; }
+.appFrame .briefIcon { width: 24px; height: 24px; flex-basis: 24px; color: var(--muted); background: transparent; }
+.appFrame .todayBrief[data-severity="urgent"] .briefIcon { color: var(--workspace-accent); }
+.appFrame .briefMessage strong { font-weight: 600; }
+.appFrame .briefMessage p { color: var(--muted); font-size: 12px; }
+.appFrame .briefStats { grid-template-columns: repeat(3, minmax(74px, auto)); background: transparent; }
+.appFrame .briefStats div { padding: 0 12px; border-color: var(--line); }
+.appFrame .briefStats dt { color: var(--muted); font-size: 12px; }
+.appFrame .briefStats dd { font-size: 20px; font-weight: 650; }
+.appFrame .dashboardGrid { grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr); gap: 36px; }
+.appFrame :is(.dashboardPrimary, .dashboardAside) { gap: 32px; }
+.appFrame .todayPage :is(.contentSection, .sideSection, .quickGuide) { border: 0; border-radius: 0; background: transparent; }
+.appFrame .todayPage :is(.contentSection, .sideSection) { padding: 0; }
+.appFrame .dashboardAside { padding-left: 26px; border-left: 1px solid var(--line); }
+.appFrame .sectionHeadingRow { margin-bottom: 15px; }
+.appFrame .sectionHeadingRow h2 { font-size: 18px; font-weight: 650; }
+.appFrame .sectionHeadingRow p { margin-top: 5px; font-size: 13px; }
+.appFrame .sectionCount { min-width: 34px; color: var(--ink-soft); background: var(--canvas); font-size: 12px; }
+.appFrame .taskRow { min-height: 90px; gap: 12px; border-color: var(--line); }
+.appFrame .taskRow[data-urgent="true"] { background: transparent; }
+.appFrame .taskRowMain { padding-block: 14px; }
+.appFrame .taskRowMain strong { margin-block: 5px; font-size: 16px; font-weight: 600; }
+.appFrame .clientName { color: var(--ink-soft); font-size: 13px; font-weight: 500; }
+.appFrame .dueTag { font-size: 12px; }
+.appFrame .taskContext { font-size: 12px; }
+.appFrame :is(.taskCheckButton, .detailTaskCheck)::before { width: 24px; height: 24px; border-radius: 7px; }
+.appFrame .queueExpandButton { min-height: 44px; margin-top: 12px; color: var(--ink); background: var(--canvas); border: 0; font-size: 13px; }
+.appFrame .waitingRow { padding-block: 16px; border-color: var(--line); }
+.appFrame .waitingAvatar { background: var(--canvas); color: var(--muted); }
+.appFrame .waitingMain strong { font-size: 14px; font-weight: 600; }
+.appFrame .waitingMain span { font-size: 13px; margin-top: 3px; }
+.appFrame .waitingDays { font-size: 12px; }
+.appFrame .upcomingItem { padding-block: 18px; border-color: var(--line); }
+.appFrame .upcomingTop { font-size: 14px; font-weight: 550; }
+.appFrame .upcomingItem p { margin-top: 6px; font-size: 13px; }
+.appFrame :is(.progressLine, .detailProgress, .tableProgress) { background: #ededf0; }
+.appFrame .progressCaption { font-size: 12px; }
+.appFrame .quickGuide { padding: 16px 0; color: var(--muted); border-top: 1px solid var(--line); }
+.appFrame .quickGuide strong { color: var(--ink-soft); font-size: 13px; font-weight: 550; }
+.appFrame .quickGuide p { font-size: 12px; line-height: 1.65; }
+.appFrame .firstJobGuide { max-width: 760px; padding: 32px 0; border: 0; }
+.appFrame .firstJobGuide > svg { color: var(--ink-soft); }
+.appFrame .firstJobGuide h2 { font-size: 24px; font-weight: 600; }
+.appFrame .firstJobGuide > p { font-size: 15px; }
+.appFrame .firstJobSetup { margin-top: 36px; }
+.appFrame .jobToolbar { gap: 24px; align-items: center; margin-bottom: 18px; }
+.appFrame .jobFilters { gap: 4px; align-items: center; }
+.appFrame .jobFilters > svg { display: none; }
+.appFrame .jobFilters button { min-height: 44px; padding-inline: 14px; border: 0; color: var(--muted); font-size: 14px; }
+.appFrame .jobFilters button[data-active="true"] { color: var(--ink); background: #ededf0; font-weight: 650; }
+.appFrame .searchField input { background: var(--canvas); border-color: transparent; }
+.appFrame .jobTable { border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+.appFrame :is(.jobTableHead, .jobTableRow) { grid-template-columns: minmax(170px, 1.5fr) 124px 84px 64px 112px 20px; gap: 16px; }
+.appFrame .jobTableHead { padding-block: 14px; color: var(--muted); background: transparent; font-size: 12px; }
+.appFrame .jobTableRow { min-height: 96px; padding-block: 18px; border-color: var(--line); }
+.appFrame .jobTableRow:hover { background: #f7f7f8; }
+.appFrame .jobInitial { width: 38px; height: 38px; flex-basis: 38px; border-radius: 10px; }
+.appFrame .jobIdentity strong { font-size: 15px; font-weight: 600; }
+.appFrame .jobIdentity span { font-size: 13px; }
+.appFrame .jobIdentity > .jobInitial { display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+.appFrame .jobIdentity > div { min-width: 0; }
+.appFrame .jobStatusCell { display: grid; gap: 6px; }
+.appFrame .jobStatusCell small { white-space: nowrap; }
+.appFrame .jobTableRow > .tableProgress { display: grid; height: auto; overflow: visible; background: transparent; border-radius: 0; gap: 7px; }
+.appFrame .jobTableRow > .tableProgress > span { font-size: 12px; background: transparent; height: auto; color: var(--ink-soft); }
+.appFrame .planBadge.pro { background: var(--canvas); color: var(--ink); border-color: var(--line-strong); }
+.appFrame .planPerks svg { color: var(--ink-soft); }
+.appFrame .revisionCell { display: grid; gap: 2px; }
+.appFrame .rowArrow { justify-self: end; }
+.appFrame :is(.statusBadge, .taskStateLabel, .usageBadge, .waitingChip) { font-size: 12px; padding: 5px 8px; }
+.appFrame :is(.jobStatusCell small, .revisionCell span) { font-size: 12px; }
+.appFrame .amountCell { font-size: 14px; }
+.appFrame :is(.seedHint, .portalLinkSection, .inlineEmpty, .clearState) { background: var(--canvas); border-color: var(--line); border-radius: 12px; }
+.appFrame .seedHint svg { color: var(--muted); }
+.appFrame .portalLinkSection { padding: 20px; }
+.appFrame .jobPreview { background: var(--canvas); color: var(--ink); box-shadow: none; }
+.appFrame :is(.previewTitle > span, .previewTitle p, .previewMetrics dt, .previewMetrics dd span, .selectedOptionSummary span, .snapshotNote) { color: var(--muted); }
+.appFrame .previewMetrics, .appFrame .previewMetrics > div { border-color: var(--line-strong); }
+.appFrame .previewTodoBlock ul { display: grid; gap: 10px; padding: 0; list-style: none; }
+.appFrame .previewTodoBlock li { display: flex; align-items: flex-start; gap: 7px; font-size: 13px; line-height: 1.5; }
+.appFrame .previewTodoBlock li svg { flex-shrink: 0; margin-top: 2px; }
+.appFrame .previewMetrics dd span { display: block; margin-top: 4px; font-size: 11px; }
+.appFrame .previewUpgrade .upgradeNotice { grid-template-columns: 28px minmax(0, 1fr); gap: 10px; box-shadow: none; }
+.appFrame .previewUpgrade .upgradeNoticeCta { grid-column: 2; justify-self: start; }
+.appFrame .jobFactRail { gap: 0; margin-bottom: 28px; border-radius: 0; border-inline: 0; }
+.appFrame .jobFactRail > div { display: flex; align-items: flex-start; gap: 10px; padding: 18px 12px; }
+.appFrame .jobFactRail dl { min-width: 0; border: 0; padding: 0; }
+.appFrame .jobFactRail dt { font-size: 12px; }
+.appFrame .jobFactRail dd { margin-top: 8px; font-size: 16px; }
+.appFrame .jobFactRail dd small { margin-top: 4px; font-size: 11px; }
+.appFrame .jobFactRail > div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+.appFrame .settingsPage > .contentSection { margin-bottom: 24px; }
+.appFrame .settingsGrid { gap: 24px; margin-block: 24px; }
+.appFrame .settingTime input { width: 150px; min-height: 44px; }
+.appFrame .catalogListItem[data-active="true"] { box-shadow: none; font-weight: 650; }
+.appFrame .selectedOptionSummary b { background: #e5e5e9; }
+.appFrame .jobActionBar { background: #242426; box-shadow: none; }
+.appFrame :is(.actionToast, .mobileSubmitBar) { background: #242426; }
+.appFrame :is(.actionToast button, .mobileSubmitBar span) { color: #d1d1d6; }
+.appFrame .mobileSubmitBar .primaryButton { color: var(--ink); background: #fff; }
+.appFrame .mobileSubmitBar .primaryButton:hover { background: #ededf0; }
+.appFrame :is(.detailFeedback, .catalogSaved, .authFeedback.success, .permissionBadge, .permissionBadge.allowed) { border-color: var(--line-strong); }
+.appFrame :is(.linkManagerSection, .browserTestSection, .blockedExternalSection) { background: var(--canvas); border-color: var(--line-strong); }
+.appFrame :is(.linkShortcutGrid a, .linkPresetButtons button, .effectToggle button[data-active="true"], .catalogTabs button[data-active="true"]) { border-color: var(--line-strong); }
+.appFrame :is(.catalogListItem:hover, .catalogListItem[data-active="true"], .alertPopoverItem:hover) { background: var(--canvas); }
+.appFrame .upgradeNoticeIcon { color: var(--ink-soft); background: #e5e5e9; }
+.appFrame .packageChoice[data-selected="true"], .appFrame .optionChoice[data-selected="true"] { box-shadow: none; }
+.appFrame .mobileBottomNav { background: #fff; backdrop-filter: none; }
+.appFrame .bottomNavItem[data-active="true"] { color: var(--ink); }
+.appFrame .bottomNavItem[data-active="true"] svg { stroke-width: 2.5; }
+.appFrame .mobileCreateNav { color: var(--ink); }
+.appFrame .mobileCreateNav > span { margin-top: 0; width: 32px; height: 28px; border: 0; border-radius: 8px; box-shadow: none; }
+.appFrame .alertPopoverHead { background: var(--canvas); }
+.appFrame .alertPopoverHead strong { font-size: 16px; }
+.appFrame .alertPopoverItem { border-color: var(--line); }
+.appFrame .alertPopoverItem p { font-size: 13px; }
+.appFrame .alertPopoverItem[data-severity="urgent"] > svg { color: var(--red); }
+
+@media (max-width: 1180px) {
+  .appFrame :is(.jobTableHead, .jobTableRow) { grid-template-columns: minmax(150px, 1fr) 110px 64px 52px 92px 16px; gap: 10px; }
+  .appFrame .dashboardGrid { grid-template-columns: 1fr; gap: 32px; }
+  .appFrame .dashboardAside { padding-left: 0; border-left: 0; }
+  .appFrame .dashboardAside .quickGuide { display: none; }
+}
+@media (max-width: 760px) {
+  .appFrame .pageSurface { padding: 24px 20px 108px; }
+  .appFrame .pageHeader { gap: 12px; margin-bottom: 24px; }
+  .appFrame .todayHeader h1 { font-size: 28px !important; }
+  .appFrame .todayHeader > div > p:last-child:not(.todayDate) { display: none; }
+  .appFrame .workspaceScope { flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .appFrame .workspaceScope label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .appFrame .workspaceScope select { flex: 1 1 100%; max-width: 100%; min-width: 0; min-height: 48px; font-size: 16px; }
+  .appFrame .workspaceScope a { display: none; }
+  .appFrame .todayBrief { display: flex; flex-direction: column-reverse; padding: 0; gap: 14px; margin-bottom: 28px; border-top: 0; border-bottom: 0; }
+  .appFrame .briefStats { grid-template-columns: repeat(3, 1fr); border: 0; }
+  .appFrame .briefStats div { min-height: 55px; border-color: var(--line); }
+  .appFrame .briefStats dt { font-size: 12px; }
+  .appFrame .briefStats dd { font-size: 23px; }
+  .appFrame .briefMessage { padding: 14px 12px; border-radius: 10px; background: var(--canvas); align-items: flex-start; }
+  .appFrame .briefMessage strong { font-size: 13px; }
+  .appFrame .briefMessage p { font-size: 12px; line-height: 1.5; }
+  .appFrame .todayPage :is(.contentSection, .sideSection) { padding: 0; }
+  .appFrame .sectionHeadingRow { gap: 10px; }
+  .appFrame .sectionHeadingRow h2 { font-size: 18px; }
+  .appFrame .sectionHeadingRow p { font-size: 12px; }
+  .appFrame .taskRow { gap: 8px; min-height: 100px; }
+  .appFrame .taskRowMain strong { font-size: 15px; line-height: 1.5; }
+  .appFrame .taskMetaLine { flex-wrap: wrap; gap: 4px 8px; }
+  .appFrame .taskContext { white-space: normal; font-size: 12px; }
+  .appFrame .taskQuickActions { flex-direction: column; gap: 0; }
+  .appFrame .waitingRow { gap: 8px; }
+  .appFrame .waitingRow .compactButton { grid-column: 2 / 4; min-height: 44px; }
+  .appFrame .firstJobGuide { padding: 24px 0; }
+  .appFrame .firstJobGuide h2 { font-size: 22px; }
+  .appFrame .jobToolbar { display: flex; flex-direction: column-reverse; gap: 12px; align-items: stretch; }
+  .appFrame .jobFilters { margin: 0; flex-wrap: wrap; }
+  .appFrame .jobFilters button { padding-inline: 12px; font-size: 13px; }
+  .appFrame .jobTable { border-top: 1px solid var(--line); }
+  .appFrame .jobTableRow { grid-template-columns: minmax(0, 1fr) auto; margin: 0; padding: 18px 0; gap: 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+  .appFrame .jobTableRow > .tableProgress { display: none; }
+  .appFrame .jobTableRow > .revisionCell { display: flex; grid-column: 1; gap: 4px; padding-left: 49px; color: var(--muted); font-size: 12px; }
+  .appFrame .jobTableRow > .revisionCell strong { color: var(--ink); font-size: 13px; }
+  .appFrame .rowArrow { grid-column: 2; grid-row: 2; }
+  .appFrame .jobIdentity > div > span { white-space: normal; line-height: 1.5; }
+  .appFrame .jobIdentity { align-items: flex-start; }
+  .appFrame .jobStatusCell { align-self: start; }
+  .appFrame .jobTableRow .jobInitial { width: 36px; height: 36px; flex-basis: 36px; }
+  .appFrame .newJobPage { padding-bottom: 192px; }
+  .appFrame .jobActionBar { margin: 0; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .appFrame .jobFactRail > div { padding: 14px 8px; gap: 8px; }
+  .appFrame .jobFactRail > div:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
+  .appFrame .jobFactRail dd { font-size: 14px; overflow-wrap: anywhere; }
+  .appFrame .jobFactRail .factIcon { display: none; }
+  .appFrame .portalLinkSection { padding: 18px; }
+  .appFrame .mobileBottomNav { height: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .appFrame .mobileSubmitBar { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .appFrame :is(.bottomNavItem, .mobileCreateNav) { font-size: 11px; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .appFrame *, .appFrame *::before, .appFrame *::after { transition: none; scroll-behavior: auto; }
+}

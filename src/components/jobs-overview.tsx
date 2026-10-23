@@ -11,7 +11,11 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import {
+  emptyJobListSearch, jobListHref, jobListSearchSnapshot, readJobListLocation,
+  subscribeJobListLocation, updateJobListLocation,
+} from "@/lib/jobs-list-location";
 import {
   formatShortDate,
   formatWon,
@@ -20,12 +24,12 @@ import {
   useWorkspace,
 } from "./workspace-provider";
 
-type Filter = "all" | "active" | "waiting" | "completed";
-
 export function JobsOverview() {
   const { jobs } = useWorkspace();
-  const [filter, setFilter] = useState<Filter>("all");
-  const [query, setQuery] = useState("");
+  const search = useSyncExternalStore(subscribeJobListLocation, jobListSearchSnapshot, emptyJobListSearch);
+  const { filter, query } = readJobListLocation(search);
+  const notice = new URLSearchParams(search).get("notice");
+  const returnHref = jobListHref({ filter, query });
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ko");
@@ -48,7 +52,6 @@ export function JobsOverview() {
     <div className="pageSurface jobsPage">
       <header className="pageHeader">
         <div>
-          <span className="pageEyebrow">한눈에 찾고, 바로 처리하세요</span>
           <h1>일감</h1>
           <p>진행 중인 고객과 마감, 수정 잔여 횟수를 같이 봐요.</p>
         </div>
@@ -56,6 +59,12 @@ export function JobsOverview() {
           <Plus size={18} /> 새 일감
         </Link>
       </header>
+      {notice === "revision-unavailable" && (
+        <p role="status">삭제되었거나 현재 계정에서 볼 수 없는 수정 요청이에요. 일감 목록을 확인해주세요.</p>
+      )}
+      {notice === "revision-connection" && (
+        <p role="status">연결 문제로 수정 요청을 확인하지 못했어요. 연결을 확인한 뒤 알림을 다시 눌러주세요.</p>
+      )}
 
       <div className="jobToolbar">
         <div className="jobFilters" role="group" aria-label="일감 상태 필터">
@@ -70,7 +79,8 @@ export function JobsOverview() {
               key={value}
               type="button"
               data-active={filter === value}
-              onClick={() => setFilter(value)}
+              aria-pressed={filter === value}
+              onClick={() => updateJobListLocation({ filter: value, query })}
             >
               {label}
             </button>
@@ -79,7 +89,7 @@ export function JobsOverview() {
         <label className="searchField">
           <Search size={17} />
           <span className="srOnly">고객 또는 일감 검색</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="고객 또는 일감 검색" />
+          <input value={query} maxLength={200} onChange={(event) => updateJobListLocation({ filter, query: event.target.value })} placeholder="고객 또는 일감 검색" />
         </label>
       </div>
 
@@ -98,7 +108,7 @@ export function JobsOverview() {
           const progress = Math.round((done / Math.max(job.tasks.length, 1)) * 100);
           const revision = getRevisionSummary(job);
           return (
-            <Link href={`/jobs/${job.id}`} className="jobTableRow" key={job.id}>
+            <Link href={`/jobs/${job.id}?list=${encodeURIComponent(returnHref)}`} className="jobTableRow" key={job.id}>
               <div className="jobIdentity">
                 <span className="jobInitial">{job.clientLabel.slice(0, 1)}</span>
                 <div>

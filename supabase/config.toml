@@ -36,7 +36,8 @@ additional_redirect_urls = [
   "https://ilgam.studioyeolmae.com/today",
   "https://ilgam.studioyeolmae.com/settings",
   "https://ilgamcheck-beta.bsfire1237.chatgpt.site/today",
-  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/settings"
+  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/settings",
+  "com.yeolmaestudio.ilgamcheck://auth/callback"
 ]
 jwt_expiry = 3600
 enable_signup = true
@@ -54,3 +55,8 @@ enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 skip_nonce_check = false
+
+# Server-only endpoint. Its handler requires NATIVE_PUSH_DISPATCH_SECRET;
+# no end-user JWT, caller-selected recipient, or unauthenticated send is accepted.
+[functions.native-revision-push]
+verify_jwt = false

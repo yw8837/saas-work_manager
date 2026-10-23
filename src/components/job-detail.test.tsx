@@ -7,6 +7,11 @@ import { JobDetail } from "./job-detail";
 import { useWorkspace } from "./workspace-provider";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const device = vi.hoisted(() => ({ platform: "web" }));
+vi.mock("@/lib/native/platform", async () => ({
+  ...await vi.importActual<typeof import("@/lib/native/platform")>("@/lib/native/platform"),
+  nativePlatform: () => device.platform,
+}));
 vi.mock("./workspace-provider", async () => {
   const actual = await vi.importActual<typeof import("./workspace-provider")>("./workspace-provider");
   return { ...actual, useWorkspace: vi.fn() };
@@ -61,6 +66,7 @@ function renderDetail(job = baseJob()) {
 }
 
 beforeEach(() => {
+  device.platform = "web";
   revertRevisionSpy.mockReset();
   cancelAddonSpy.mockReset();
   createAddonSpy.mockReset();
@@ -69,9 +75,26 @@ beforeEach(() => {
 
 describe("JobDetail 고객 수정 링크", () => {
   const originalUrl = window.location.href;
+  it("scrolls to revision history only after the target job has rendered", () => {
+    jsdom.reconfigure({ url: "https://localhost/jobs/job_detail#revisions" });
+    const scroll = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scroll;
+    renderDetail();
+    expect(document.getElementById("revisions")).not.toBeNull();
+    expect(scroll).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
+  });
   afterEach(() => {
     jsdom.reconfigure({ url: originalUrl });
     vi.unstubAllEnvs();
+  });
+  it.each(["android", "ios"])("%s shares the public HTTPS link, not the WebView origin", async (platform) => {
+    device.platform = platform;
+    jsdom.reconfigure({ url: platform === "android" ? "https://localhost" : "capacitor://localhost" });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderDetail();
+    fireEvent.click(screen.getByTestId("copy-revision-portal"));
+    expect(writeText).toHaveBeenCalledWith("https://ilgam.studioyeolmae.com/r/token_detail");
   });
   it.each([
     "https://ilgamcheck-beta.bsfire1237.chatgpt.site",
@@ -151,7 +174,7 @@ describe("JobDetail 수정 되돌리기", () => {
     expect(screen.getByText("되돌림")).toBeInTheDocument();
     // 되돌린 뒤에는 되돌리기 버튼이 사라지고 남은 횟수가 복구된다.
     expect(screen.queryByTestId("revert-revision-revision_ui")).not.toBeInTheDocument();
-    expect(screen.getByText("2회 남음")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "수정 2회 남음" })).toBeInTheDocument();
   });
 });
 

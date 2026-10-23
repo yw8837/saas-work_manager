@@ -32,9 +32,50 @@ const hosted = vi.hoisted(() => {
     save: vi.fn(),
     sync: vi.fn(),
     removeChannel: vi.fn(),
+    rejectedEdit: vi.fn(),
     channel,
   };
 });
+
+const mobile = vi.hoisted(() => ({
+  platform: "web",
+  initialize: vi.fn().mockResolvedValue(undefined),
+  start: vi.fn().mockResolvedValue(undefined),
+  dispose: vi.fn().mockResolvedValue(undefined),
+  validateOwner: vi.fn().mockResolvedValue(undefined),
+  resume: null as null | (() => Promise<void>),
+  stopResume: vi.fn(),
+  pushInit: vi.fn().mockResolvedValue(undefined),
+  pushDispose: vi.fn().mockResolvedValue(undefined),
+  pushDisable: vi.fn().mockResolvedValue(undefined),
+  snapshotSave: vi.fn().mockResolvedValue(undefined),
+  snapshotClear: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/native/offline", () => ({
+  saveNativeOfflineSnapshot: mobile.snapshotSave,
+  clearNativeOfflineSnapshot: mobile.snapshotClear,
+}));
+vi.mock("@/lib/native/push", () => ({
+  initializeNativePush: mobile.pushInit,
+  disposeNativePush: mobile.pushDispose,
+  disableNativePush: mobile.pushDisable,
+}));
+vi.mock("@/lib/native/lifecycle", () => ({
+  subscribeNativeResume: vi.fn(async (callback: () => Promise<void>) => {
+    mobile.resume = callback;
+    return mobile.stopResume;
+  }),
+}));
+vi.mock("@/lib/native/platform", async () => ({
+  ...await vi.importActual<typeof import("@/lib/native/platform")>("@/lib/native/platform"),
+  nativePlatform: () => mobile.platform,
+}));
+vi.mock("@/lib/native/auth-runtime", () => ({
+  initializeNativeAuth: mobile.initialize,
+  startNativeOAuth: mobile.start,
+  disposeNativeAuth: mobile.dispose,
+  validateNativeSessionOwner: mobile.validateOwner,
+}));
 
 vi.mock("@/lib/notifications", async () => {
   const actual = await vi.importActual<typeof import("@/lib/notifications")>("@/lib/notifications");
@@ -107,16 +148,21 @@ function deferred<T>() {
 }
 
 function Probe() {
-  const { jobs, saveStatus, realtimeStatus, realtimeError, updateSettings, signInWithGoogle } = useWorkspace();
+  const { jobs, authStatus, saveStatus, realtimeStatus, realtimeError, updateSettings, signInWithGoogle, signOut } = useWorkspace();
   return (
     <div>
       <span data-testid="workspace-owner">{jobs[0]?.clientLabel}</span>
+      <span data-testid="auth-status">{authStatus}</span>
       <span data-testid="save-status">{saveStatus}</span>
       <span data-testid="realtime-status">{realtimeStatus}</span>
       <span data-testid="realtime-error">{realtimeError}</span>
-      <button type="button" onClick={() => updateSettings({ morningDigestEnabled: false })}>edit workspace</button>
+      <button type="button" onClick={() => {
+        try { updateSettings({ morningDigestEnabled: false }); }
+        catch (error) { hosted.rejectedEdit(error); }
+      }}>edit workspace</button>
       <button type="button" onClick={() => void signInWithGoogle()}>google login</button>
       <button type="button" onClick={() => void signInWithGoogle("/settings")}>google reauth</button>
+      <button type="button" onClick={() => void signOut().catch(() => undefined)}>logout</button>
     </div>
   );
 }
@@ -132,6 +178,15 @@ describe("hosted auth activation", () => {
     vi.unstubAllEnvs();
   });
   beforeEach(() => {
+    mobile.platform = "web";
+    mobile.resume = null; mobile.stopResume.mockClear();
+    mobile.initialize.mockClear(); mobile.start.mockClear(); mobile.dispose.mockClear();
+    mobile.validateOwner.mockReset().mockResolvedValue(undefined);
+    mobile.pushInit.mockReset().mockResolvedValue(undefined);
+    mobile.pushDisable.mockReset().mockResolvedValue(undefined);
+    mobile.pushDispose.mockReset().mockResolvedValue(undefined);
+    mobile.snapshotSave.mockReset().mockResolvedValue(undefined);
+    mobile.snapshotClear.mockReset().mockResolvedValue(undefined);
     Object.defineProperty(window, "localStorage", { configurable: true, value: new MemoryStorage() });
     Object.defineProperty(window, "sessionStorage", { configurable: true, value: new MemoryStorage() });
     hosted.authCallback = null;
@@ -144,6 +199,7 @@ describe("hosted auth activation", () => {
     hosted.save.mockReset();
     hosted.sync.mockReset();
     hosted.removeChannel.mockReset();
+    hosted.rejectedEdit.mockReset();
     hosted.channel.on.mockReset();
     hosted.channel.on.mockImplementation((...args: unknown[]) => {
       hosted.realtimeCallback = args.at(-1) as () => void;
@@ -154,6 +210,117 @@ describe("hosted auth activation", () => {
       hosted.realtimeStatusCallback = callback ?? null;
       return hosted.channel;
     });
+  });
+
+  it.each(["android", "ios"])("starts native Google OAuth on %s without a WebView redirect", async (platform) => {
+    mobile.platform = platform;
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "google login" }));
+    await waitFor(() => expect(mobile.start).toHaveBeenCalledWith("google", "/today", null));
+    expect(hosted.signInWithOAuth).not.toHaveBeenCalled();
+    expect(mobile.initialize).toHaveBeenCalled();
+  });
+
+  it("keeps the owner binding for native reauthentication", async () => {
+    mobile.platform = "android";
+    hosted.load.mockResolvedValue(remote());
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(hosted.load).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "google reauth" }));
+    await waitFor(() => expect(mobile.start).toHaveBeenCalledWith("google", "/settings", "owner-a"));
+    expect(hosted.signInWithOAuth).not.toHaveBeenCalled();
+  });
+  it.each(["owner validation", "channel removal"])("locks the previous workspace before awaiting %s on account change", async (delay) => {
+    mobile.platform = "android";
+    hosted.load.mockImplementation(async (_client, owner) => markedRemote(owner, 7));
+    hosted.save.mockResolvedValue({ documentVersion: 8, updatedAt: "" });
+    hosted.sync.mockResolvedValue(undefined);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-a-workspace"));
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("saved"));
+    const pending = deferred<void>();
+    if (delay === "owner validation") mobile.validateOwner.mockReturnValueOnce(pending.promise);
+    else hosted.removeChannel.mockReturnValueOnce(pending.promise);
+    hosted.save.mockClear();
+
+    await act(async () => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
+    expect(screen.getByTestId("auth-status")).toHaveTextContent("loading");
+    expect(screen.getByTestId("workspace-owner")).not.toHaveTextContent("owner-a-workspace");
+    fireEvent.click(screen.getByRole("button", { name: "edit workspace" }));
+    await act(async () => undefined);
+    expect(hosted.save).not.toHaveBeenCalled();
+    await act(async () => pending.resolve());
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
+  });
+
+  it("locks old data while rejecting a wrong-account Google reauthentication", async () => {
+    mobile.platform = "android";
+    hosted.load.mockResolvedValue(markedRemote("owner-a", 7));
+    hosted.save.mockResolvedValue({ documentVersion: 8, updatedAt: "" });
+    hosted.sync.mockResolvedValue(undefined);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("saved"));
+    fireEvent.click(screen.getByRole("button", { name: "google reauth" }));
+    await waitFor(() => expect(mobile.start).toHaveBeenCalledWith("google", "/settings", "owner-a"));
+    const pending = deferred<{ error: null }>();
+    hosted.signOut.mockReturnValueOnce(pending.promise);
+    hosted.save.mockClear();
+    await act(async () => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
+    expect(screen.getByTestId("auth-status")).not.toHaveTextContent("signed_in");
+    expect(screen.getByTestId("workspace-owner")).not.toHaveTextContent("owner-a-workspace");
+    fireEvent.click(screen.getByRole("button", { name: "edit workspace" }));
+    await act(async () => undefined);
+    expect(hosted.save).not.toHaveBeenCalled();
+    await act(async () => pending.resolve({ error: null }));
+    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("signed_out"));
+  });
+
+  it("rejects a restored wrong-account session before loading data or registering push", async () => {
+    mobile.platform = "android";
+    mobile.validateOwner.mockRejectedValue(new Error("AUTH_ACCOUNT_MISMATCH"));
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-b")));
+    await waitFor(() => expect(hosted.signOut).toHaveBeenCalled());
+    expect(hosted.load).not.toHaveBeenCalled();
+    expect(mobile.pushInit).not.toHaveBeenCalledWith("owner-b");
+  });
+  it("uses a native read-only offline gate when initial remote loading fails, without writing", async () => {
+    mobile.platform = "android";
+    hosted.load.mockRejectedValue(new Error("offline"));
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("offline"));
+    expect(hosted.save).not.toHaveBeenCalled();
+    expect(mobile.snapshotSave).not.toHaveBeenCalled();
+  });
+
+  it("registers the push owner and revokes the device before native sign-out", async () => {
+    mobile.platform = "android";
+    hosted.load.mockResolvedValue(remote());
+    hosted.save.mockResolvedValue({ documentVersion: 8, updatedAt: "" });
+    hosted.sync.mockResolvedValue(undefined);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(mobile.pushInit).toHaveBeenCalledWith("owner-a"));
+    fireEvent.click(screen.getByRole("button", { name: "logout" }));
+    await waitFor(() => expect(hosted.signOut).toHaveBeenCalled());
+    expect(mobile.pushDisable.mock.invocationCallOrder[0]).toBeLessThan(hosted.signOut.mock.invocationCallOrder[0]);
+  });
+  it("keeps the JWT when native push revocation fails", async () => {
+    mobile.platform = "android";
+    mobile.pushDisable.mockRejectedValue(new Error("offline"));
+    hosted.load.mockResolvedValue(remote());
+    hosted.save.mockResolvedValue({ documentVersion: 8, updatedAt: "" });
+    hosted.sync.mockResolvedValue(undefined);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(hosted.load).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "logout" }));
+    await waitFor(() => expect(mobile.pushDisable).toHaveBeenCalled());
+    expect(hosted.signOut).not.toHaveBeenCalled();
   });
 
   it.each(deploymentOrigins)("starts Google OAuth on the visited origin %s", async (origin) => {
@@ -284,7 +451,7 @@ describe("hosted auth activation", () => {
     expect(ownerACache).not.toContain("owner-b-workspace");
   });
 
-  it("ignores an owner A realtime response that finishes after switching to owner B", async () => {
+  it.each(["realtime", "resume"])("ignores an owner A %s response that finishes after switching to owner B", async (source) => {
     const delayedRealtime = deferred<HostedDocument | null>();
     let ownerALoads = 0;
     hosted.load.mockImplementation((_client, ownerId) => {
@@ -300,8 +467,9 @@ describe("hosted auth activation", () => {
     await waitFor(() => expect(hosted.authCallback).not.toBeNull());
     await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
     await waitFor(() => expect(hosted.realtimeCallback).not.toBeNull());
-    const ownerARealtime = hosted.realtimeCallback;
-    act(() => ownerARealtime?.());
+    const ownerARealtime = source === "resume" ? mobile.resume : hosted.realtimeCallback;
+    expect(ownerARealtime).not.toBeNull();
+    act(() => { void ownerARealtime?.(); });
     await waitFor(() => expect(ownerALoads).toBe(2));
 
     await act(async () => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
@@ -310,6 +478,28 @@ describe("hosted auth activation", () => {
 
     await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
     expect(window.localStorage.getItem("ilgamcheck:mvp:v2:user:owner-b")).toContain("owner-b-workspace");
+  });
+
+  it("waits for queued saves before resume reload and releases listeners on unmount", async () => {
+    const pendingSave = deferred<{ documentVersion: number; updatedAt: string }>();
+    hosted.load.mockResolvedValue(markedRemote("owner-a", 7));
+    hosted.save.mockReturnValue(pendingSave.promise);
+    hosted.sync.mockResolvedValue(undefined);
+    const view = render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(hosted.save).toHaveBeenCalledOnce());
+    expect(mobile.resume).not.toBeNull();
+    let resumed: Promise<void> | undefined;
+    act(() => { resumed = mobile.resume?.(); });
+    expect(hosted.load).toHaveBeenCalledOnce();
+    hosted.load.mockResolvedValue(markedRemote("remote-new", 20));
+    await act(async () => {
+      pendingSave.resolve({ documentVersion: 8, updatedAt: "" });
+      await resumed;
+    });
+    expect(screen.getByTestId("workspace-owner")).toHaveTextContent("remote-new-workspace");
+    view.unmount();
+    expect(mobile.stopResume).toHaveBeenCalledOnce();
   });
 
   it("does not let a rejected owner A recovery overwrite owner A with owner B state", async () => {

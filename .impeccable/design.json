@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-21T02:52:04+09:00",
+  "title": "Design System: 일감체크",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "primary", "displayName": "흑연 잉크", "tonalRamp": ["oklch(15% 0.003 286)", "oklch(26% 0.003 286)", "oklch(38% 0.003 286)", "oklch(49% 0.003 286)", "oklch(61% 0.003 286)", "oklch(72% 0.003 286)", "oklch(84% 0.003 286)", "oklch(95% 0.003 286)"] },
+      "ink-soft": { "role": "neutral", "displayName": "보조 잉크", "tonalRamp": ["oklch(15% 0.006 286)", "oklch(26% 0.006 286)", "oklch(38% 0.006 286)", "oklch(49% 0.006 286)", "oklch(61% 0.006 286)", "oklch(72% 0.006 286)", "oklch(84% 0.006 286)", "oklch(95% 0.006 286)"] },
+      "muted": { "role": "neutral", "displayName": "메타 잉크", "tonalRamp": ["oklch(15% 0.009 286)", "oklch(26% 0.009 286)", "oklch(38% 0.009 286)", "oklch(49% 0.009 286)", "oklch(61% 0.009 286)", "oklch(72% 0.009 286)", "oklch(84% 0.009 286)", "oklch(95% 0.009 286)"] },
+      "paper": { "role": "neutral", "displayName": "백지", "tonalRamp": ["oklch(15% 0 0)", "oklch(26% 0 0)", "oklch(38% 0 0)", "oklch(49% 0 0)", "oklch(61% 0 0)", "oklch(72% 0 0)", "oklch(84% 0 0)", "oklch(95% 0 0)"] },
+      "canvas": { "role": "neutral", "displayName": "작업대 회색", "tonalRamp": ["oklch(15% 0.001 286)", "oklch(26% 0.001 286)", "oklch(38% 0.001 286)", "oklch(49% 0.001 286)", "oklch(61% 0.001 286)", "oklch(72% 0.001 286)", "oklch(84% 0.001 286)", "oklch(95% 0.001 286)"] },
+      "line": { "role": "neutral", "displayName": "구획 선", "tonalRamp": ["oklch(15% 0.003 286)", "oklch(26% 0.003 286)", "oklch(38% 0.003 286)", "oklch(49% 0.003 286)", "oklch(61% 0.003 286)", "oklch(72% 0.003 286)", "oklch(84% 0.003 286)", "oklch(95% 0.003 286)"] },
+      "line-strong": { "role": "neutral", "displayName": "입력 경계", "tonalRamp": ["oklch(15% 0.008 286)", "oklch(26% 0.008 286)", "oklch(38% 0.008 286)", "oklch(49% 0.008 286)", "oklch(61% 0.008 286)", "oklch(72% 0.008 286)", "oklch(84% 0.008 286)", "oklch(95% 0.008 286)"] },
+      "border-strong": { "role": "neutral", "displayName": "호버 경계", "tonalRamp": ["oklch(15% 0.012 286)", "oklch(26% 0.012 286)", "oklch(38% 0.012 286)", "oklch(49% 0.012 286)", "oklch(61% 0.012 286)", "oklch(72% 0.012 286)", "oklch(84% 0.012 286)", "oklch(95% 0.012 286)"] },
+      "primary-active": { "role": "primary", "displayName": "눌린 잉크", "tonalRamp": ["oklch(15% 0.004 286)", "oklch(26% 0.004 286)", "oklch(38% 0.004 286)", "oklch(49% 0.004 286)", "oklch(61% 0.004 286)", "oklch(72% 0.004 286)", "oklch(84% 0.004 286)", "oklch(95% 0.004 286)"] },
+      "interactive": { "role": "primary", "displayName": "상호작용 잉크", "tonalRamp": ["oklch(15% 0.01 286)", "oklch(26% 0.01 286)", "oklch(38% 0.01 286)", "oklch(49% 0.01 286)", "oklch(61% 0.01 286)", "oklch(72% 0.01 286)", "oklch(84% 0.01 286)", "oklch(95% 0.01 286)"] },
+      "state-soft": { "role": "neutral", "displayName": "상태 회색", "tonalRamp": ["oklch(15% 0.003 286)", "oklch(26% 0.003 286)", "oklch(38% 0.003 286)", "oklch(49% 0.003 286)", "oklch(61% 0.003 286)", "oklch(72% 0.003 286)", "oklch(84% 0.003 286)", "oklch(95% 0.003 286)"] },
+      "cherry": { "role": "primary", "displayName": "체리 경고", "tonalRamp": ["oklch(15% 0.18 8)", "oklch(26% 0.18 8)", "oklch(38% 0.18 8)", "oklch(49% 0.18 8)", "oklch(61% 0.18 8)", "oklch(72% 0.18 8)", "oklch(84% 0.18 8)", "oklch(95% 0.18 8)"] },
+      "cherry-soft": { "role": "primary", "displayName": "체리 경고 받침", "tonalRamp": ["oklch(15% 0.016 8)", "oklch(26% 0.016 8)", "oklch(38% 0.016 8)", "oklch(49% 0.016 8)", "oklch(61% 0.016 8)", "oklch(72% 0.016 8)", "oklch(84% 0.016 8)", "oklch(95% 0.016 8)"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "페이지 제목", "purpose": "일반 작업 페이지·Today 기준. Today 모바일은 28px, 폼·상세의 기존 제목은 34px." },
+      "title": { "displayName": "섹션 제목", "purpose": "목록·폼·설정 구획을 식별하는 제목." },
+      "body": { "displayName": "본문과 입력 값", "purpose": "본문과 작업 입력 가독성의 기준. 행 제목은 15–16px 변형." },
+      "label": { "displayName": "상태·메타", "purpose": "상태·기한·요약 메타. 기능적 한계 문구는 장식용 윗표제와 구별해 보존." }
+    },
+    "shadows": [
+      { "name": "workspace-floating", "value": "0 10px 28px rgb(24 24 28 / 10%)", "purpose": "떠 있는 더보기·알림 메뉴. 목록·프리뷰·선택에는 사용하지 않음." },
+      { "name": "workspace-field-focus", "value": "0 0 0 2px rgb(36 36 38 / 10%)", "purpose": "입력 포커스의 중립 테두리와 함께 쓰는 보조 링." }
+    ],
+    "motion": [
+      { "name": "control-state", "value": "background .14s ease, border-color .14s ease, box-shadow .14s ease", "purpose": "버튼 상태 전환. reduced-motion에서는 제거." },
+      { "name": "field-state", "value": "border-color .16s ease, box-shadow .16s ease", "purpose": "입력 포커스 전환. reduced-motion에서는 제거." },
+      { "name": "pressed", "value": "translateY(1px)", "purpose": "주요·위험 버튼의 누름 피드백." }
+    ],
+    "breakpoints": [
+      { "name": "today-single-column", "value": "1180px" },
+      { "name": "compact-rail-and-form", "value": "1050px" },
+      { "name": "phone-bottom-navigation", "value": "760px" },
+      { "name": "catalog-single-field", "value": "430px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "흑연 주요 버튼", "kind": "button", "refersTo": "button-primary", "description": "작업 화면의 기본 주요 행동. .appFrame 한정 토큰은 literal로 해석해 패널에서도 실제 색을 유지한다.",
+      "html": "<button class=\"ds-primary\">새 일감 만들기</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 20px;border:1px solid transparent;border-radius:12px;background:#242426;color:#fff;font-family:var(--font-body,\"Pretendard Variable\",sans-serif);font-size:16px;font-weight:500;cursor:pointer;box-shadow:none;transition:background .14s ease,border-color .14s ease,box-shadow .14s ease}.ds-primary:hover{background:#3d3d43}.ds-primary:active{background:#101012;transform:translateY(1px)}.ds-primary:focus-visible{outline:2px solid #242426;outline-offset:2px}.ds-primary:disabled{opacity:.52;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "흰색 보조 버튼", "kind": "button", "refersTo": "button-secondary", "description": "주요 행동 옆의 중립 보조 행동.",
+      "html": "<button class=\"ds-secondary\">연락하기</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 18px;border:1px solid #c9c9cf;border-radius:12px;background:#fff;color:#242426;font-family:var(--font-body,\"Pretendard Variable\",sans-serif);font-size:16px;font-weight:500;cursor:pointer;transition:background .14s ease,border-color .14s ease}.ds-secondary:hover{background:#f5f5f6;border-color:#8c8c94}.ds-secondary:focus-visible{outline:2px solid #242426;outline-offset:2px}.ds-secondary:disabled{opacity:.52;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+    },
+    {
+      "name": "고객 입력", "kind": "input", "refersTo": "input", "description": "새 일감의 아이콘 입력. 실제 입력 값은 16px.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-client\">고객 별칭</label><div class=\"ds-field-wrap\"><svg class=\"ds-field-icon\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/></svg><input class=\"ds-field\" id=\"ds-client\" value=\"스튜디오 고객\" /></div>",
+      "css": ".ds-field-label{display:block;margin-bottom:9px;color:#242426;font-family:var(--font-body,\"Pretendard Variable\",sans-serif);font-size:16px;font-weight:600}.ds-field-wrap{position:relative}.ds-field-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#68686e;pointer-events:none}.ds-field{width:100%;height:46px;min-width:0;padding:0 13px 0 41px;border:1px solid #c9c9cf;border-radius:6px;background:#fff;color:#242426;caret-color:#242426;font-family:var(--font-body,\"Pretendard Variable\",sans-serif);font-size:16px;outline:none;transition:border-color .16s ease,box-shadow .16s ease}.ds-field:focus,.ds-field:focus-visible{border-color:#68686e;box-shadow:0 0 0 2px rgb(36 36 38 / 10%)}@media(prefers-reduced-motion:reduce){.ds-field{transition:none}}"
+    },
+    {
+      "name": "선택된 사이드 내비게이션", "kind": "nav", "refersTo": "nav-item", "description": "현재 위치를 중립 명도·굵기로 표시하는 사이드바 항목.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"주요 메뉴\"><a class=\"ds-nav-item\" href=\"#today\" aria-current=\"page\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M8 2v4m8-4v4M3 10h18\"/><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"m9 16 2 2 4-4\"/></svg><span>오늘</span></a><a class=\"ds-nav-item\" href=\"#jobs\">일감</a></nav>",
+      "css": ".ds-nav{display:grid;gap:6px;padding:14px;background:#f5f5f6;font-family:var(--font-body,\"Pretendard Variable\",sans-serif)}.ds-nav-item{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 11px;border-radius:8px;background:transparent;color:#68686e;font-size:16px;text-decoration:none}.ds-nav-item:hover{color:#242426;background:#ebebee}.ds-nav-item[aria-current=page]{background:#e5e5e9;color:#242426;font-weight:650}.ds-nav-item:focus-visible{outline:2px solid #242426;outline-offset:2px}"
+    },
+    {
+      "name": "진행 상태 배지", "kind": "chip", "refersTo": "status-neutral", "description": "비위험 상태의 읽기 전용 배지. 진행·완료·대기는 문구와 아이콘으로 구별한다.",
+      "html": "<span class=\"ds-status\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></svg>진행 중</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;gap:4px;width:fit-content;padding:5px 8px;border-radius:5px;background:#f1f1f3;color:#3d3d43;font-family:var(--font-body,\"Pretendard Variable\",sans-serif);font-size:12px;font-weight:600}"
+    },
+    {
+      "name": "지연 상태 배지", "kind": "chip", "refersTo": "status-urgent", "description": "지연·초과 같은 주의 상태. 색뿐 아니라 아이콘과 문구를 표시한다.",
+      "html": "<span class=\"ds-urgent\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m10.3 3.9-8.1 14a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3l-8.1-14a2 2 0 0 0-3.4 0Z\"/><path d=\"M12 9v4m0 4h.01\"/></svg>기한 지남</span>",
+      "css": ".ds-urgent{display:inline-flex;align-items:center;gap:4px;width:fit-content;padding:5px 8px;border-radius:5px;background:#fff1f4;color:#b82248;font-family:var(--font-body,\"Pretendard Variable\",sans-serif);font-size:12px;font-weight:600}"
+    },
+    {
+      "name": "폼 구획", "kind": "card", "refersTo": "form-section", "description": "실제 입력 구획은 얇은 선과 12px 모서리. Today 행을 이 카드로 감싸지 않는다.",
+      "html": "<section class=\"ds-form-section\"><span class=\"ds-form-number\">01</span><div><h2 class=\"ds-form-title\">고객과 시작일</h2><p class=\"ds-form-copy\">이번 일감의 기준을 입력해 주세요.</p></div></section>",
+      "css": ".ds-form-section{display:grid;grid-template-columns:45px minmax(0,1fr);padding:20px;background:#fff;border:1px solid #e5e5e7;border-radius:12px;color:#242426;font-family:var(--font-body,\"Pretendard Variable\",sans-serif)}.ds-form-number{color:#3d3d43;font-size:12px;font-weight:600}.ds-form-title{margin:0 0 9px;font-size:18px;font-weight:650;line-height:1.22;letter-spacing:-.02em}.ds-form-copy{margin:0;color:#68686e;font-size:13px;line-height:1.6}@media(max-width:760px){.ds-form-section{grid-template-columns:1fr;padding:16px}.ds-form-number{margin-bottom:8px}}"
+    },
+    {
+      "name": "제작 목록 행", "kind": "custom", "description": "큰 완료 목표와 고객·작업·기한을 정렬하는 목록. 예시 텍스트는 문서 패널 전용이며 운영 데이터가 아니다.",
+      "html": "<div class=\"ds-task\"><button class=\"ds-check\" aria-label=\"작업 완료\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m9 12 2 2 4-4\"/></svg></button><div class=\"ds-task-main\"><span class=\"ds-client\">고객 · 홈페이지 제작</span><strong>시안 확인하기</strong><span class=\"ds-due\">오늘까지</span></div></div>",
+      "css": ".ds-task{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:center;min-height:90px;border-top:1px solid #e5e5e7;color:#242426;font-family:var(--font-body,\"Pretendard Variable\",sans-serif)}.ds-check{position:relative;display:grid;place-items:center;width:44px;height:44px;border:1px solid transparent;border-radius:9px;background:transparent;color:transparent;cursor:pointer}.ds-check:before{content:'';position:absolute;width:24px;height:24px;border:1px solid #c9c9cf;border-radius:7px;background:#fff}.ds-check svg{position:relative;z-index:1}.ds-check:hover{color:#3d3d43}.ds-check:hover:before{border-color:#3d3d43}.ds-check:focus-visible{outline:2px solid #242426;outline-offset:2px}.ds-task-main{padding:14px 0;min-width:0}.ds-task-main strong{display:block;margin:5px 0;font-size:16px;font-weight:600}.ds-client{color:#444448;font-size:13px;font-weight:500}.ds-due{color:#68686e;font-size:12px}@media(max-width:760px){.ds-task{gap:8px;min-height:100px}.ds-task-main strong{font-size:15px;line-height:1.5}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Studio Production List — 스튜디오 제작 목록",
+    "overview": "여러 고객의 일감을 정렬하고 필요한 항목으로 좁혀 처리하는, 차분하고 또렷한 작업대다. 흰 면과 흑연색 글자, 정렬된 목록, 얇은 구분선이 정보의 위계를 만든다. 크고 화려한 지표보다 고객·일감·기한·다음 행동의 읽기 순서를 우선한다.\n\n이 문서의 토큰은 웹과 Capacitor가 공유하는 `.appFrame` 작업 화면에 한정한다. 근거는 `src/styles/theme.css`의 공통 기반과 그 위에 적용되는 `src/styles/workspace.css`, 실제 작업 컴포넌트다. 사용자 위임에 따라 선택된 세계를 구현 뒤 기록한 것으로, 배포·서명된 iOS 빌드·실기기 검증을 뜻하지 않는다. 화면별 구성 계약과 조사 출처는 `docs/design/workspace-direction.md`에 둔다.\n\n기존 마케팅 랜딩과 고객 공개 수정요청 폼은 변경 대상이 아니다. 마케팅 제목의 자체 호스팅 Paperlogy Medium, 본문·버튼의 Pretendard, Paperlogy SIL Open Font License 1.1 및 `public/fonts/paperlogy/OFL.txt` 보관 정책을 유지한다. 이 작업 화면의 색·두께·모서리를 그 표면들에 자동 전파하지 않는다.",
+    "keyCharacteristics": ["흰 바탕과 흑연색, 정렬된 행으로 만드는 작업 중심 위계.", "중립 명도로 표현하는 선택·완료·대기·Pro 상태.", "지연·초과·오류·파괴적 행동에만 쓰는 체리색.", "장식용 윗표제 대신 제목·날짜·실제 기능 설명.", "데스크톱의 밀도와 모바일의 한 손 조작을 각각 보존."],
+    "rules": [
+      { "name": "The Neutral Selection Rule", "body": "선택·완료·대기·Pro는 중립 명도와 문구·아이콘으로 구분하고, 체리색을 선택 강조나 업그레이드 판촉색으로 쓰지 않는다.", "section": "colors" },
+      { "name": "The Attention Rule", "body": "주의 상태는 체리색에 문구·아이콘을 함께 붙인다. 색만으로 상태를 전달하지 않는다.", "section": "colors" },
+      { "name": "The Useful Label Rule", "body": "제목 위의 장식용 윗표제는 제거한다. “현재 브라우저에서만 검사”, “아직 준비 중인 기능”처럼 범위·한계를 알리는 문구와 폼의 실제 필드 라벨은 보존한다. 이들은 브랜딩용 kicker가 아니다.", "section": "typography" },
+      { "name": "The Flat Work Rule", "body": "목록·프리뷰·선택을 띄우기 위해 그림자를 늘리지 않는다. 선과 여백으로 구획하고 실제 오버레이에만 높이 차이를 준다.", "section": "elevation" }
+    ],
+    "dos": ["**Do** 작업 화면에만 이 토큰을 적용하고 마케팅·공개 폼의 기존 경계를 보존한다.", "**Do** 선택·완료·대기·Pro를 중립 명도와 문구·아이콘으로 구분한다.", "**Do** 실제 제약·미지원·저장 상태 안내와 필드 라벨을 읽을 수 있게 남긴다.", "**Do** 모바일 고정 바와 safe area를 계산하고 마지막 항목까지 접근할 여백을 확보한다.", "**Do** 키보드 포커스, reduced-motion, 최소 터치 목표를 유지한다."],
+    "donts": ["**Don't** 작업 화면에 파랑·초록·베이지 중심 색이나 전형적인 AI SaaS 장식을 다시 도입한다.", "**Don't** 체리색을 선택·완료·Pro 판촉색으로 쓰거나 상태를 색만으로 전달한다.", "**Don't** 장식용 윗표제, 유리 효과, 과한 그라데이션, 목적 없는 KPI 차트와 카드 반복을 추가한다.", "**Don't** 모바일에서 데스크톱 표를 축소하거나 수정 잔여 정보를 숨긴다.", "**Don't** 새 일감 저장 뒤 별도 Todo 생성 단계를 추가하거나 빈 작업대에 가짜 운영 일감을 넣는다."]
+  }
+}

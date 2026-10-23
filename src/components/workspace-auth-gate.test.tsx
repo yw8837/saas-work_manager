@@ -4,12 +4,33 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/policies";
 
 const auth = vi.hoisted(() => ({
-  authStatus: "signed_out" as "signed_out" | "signed_in",
+  authStatus: "signed_out" as "signed_out" | "signed_in" | "offline",
   signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
   hasAcceptance: vi.fn(),
   recordAcceptance: vi.fn(),
   client: {},
+}));
+
+const mobile = vi.hoisted(() => ({
+  platform: "web",
+  status: { pending: false, error: null as string | null },
+  subscribers: new Set<() => void>(),
+}));
+vi.mock("@/lib/native/platform", () => ({ nativePlatform: () => mobile.platform }));
+vi.mock("./native-offline-workspace", () => ({
+  NativeOfflineWorkspace: () => <div>offline read-only workspace</div>,
+}));
+vi.mock("@/lib/native/auth-runtime", () => ({
+  nativeAuthStatus: () => mobile.status,
+  subscribeNativeAuth: (listener: () => void) => {
+    mobile.subscribers.add(listener);
+    return () => { mobile.subscribers.delete(listener); };
+  },
+  async cancelNativeOAuth() {
+    mobile.status = { pending: false, error: null };
+    mobile.subscribers.forEach((listener) => listener());
+  },
 }));
 
 vi.mock("./workspace-provider", () => ({
@@ -32,6 +53,9 @@ import { WorkspaceAuthGate } from "./workspace-auth-gate";
 
 describe("WorkspaceAuthGate Google login", () => {
   beforeEach(() => {
+    mobile.platform = "web";
+    mobile.status = { pending: false, error: null };
+    mobile.subscribers.clear();
     auth.authStatus = "signed_out";
     auth.signInWithGoogle.mockReset().mockResolvedValue(undefined);
     auth.signOut.mockReset().mockResolvedValue(undefined);
@@ -43,6 +67,14 @@ describe("WorkspaceAuthGate Google login", () => {
   });
 
   afterEach(() => vi.unstubAllEnvs());
+  it("does not expose editable children or attempt policy writes in native offline mode", () => {
+    mobile.platform = "android";
+    auth.authStatus = "offline";
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    expect(screen.getByText("offline read-only workspace")).toBeInTheDocument();
+    expect(screen.queryByText("private workspace")).not.toBeInTheDocument();
+    expect(auth.recordAcceptance).not.toHaveBeenCalled();
+  });
 
   it("offers one Google login action without email or password fields", () => {
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
@@ -61,6 +93,18 @@ describe("WorkspaceAuthGate Google login", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
     await waitFor(() => expect(auth.signInWithGoogle).toHaveBeenCalledWith());
+  });
+  it("allows cancelling and retrying a native browser login", async () => {
+    mobile.platform = "android";
+    auth.signInWithGoogle.mockImplementation(async () => {
+      mobile.status = { pending: true, error: null };
+      mobile.subscribers.forEach((listener) => listener());
+    });
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    fireEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
+    const cancel = await screen.findByRole("button", { name: "로그인 취소" });
+    fireEvent.click(cancel);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Google로 계속하기" })).toBeEnabled());
   });
 
   it("blocks a signed-in account until the current policies are recorded", async () => {
