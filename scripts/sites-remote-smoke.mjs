@@ -10,9 +10,10 @@ export function normalizeSitesDeploymentUrl(rawUrl) {
   return url;
 }
 
-async function checkedFetch(fetchImpl, baseUrl, path, accept = "*/*") {
+async function checkedFetch(fetchImpl, baseUrl, path, accept = "*/*", method = "GET") {
   const response = await fetchImpl(new URL(path, baseUrl), {
     cache: "no-store",
+    method,
     headers: { Accept: accept, "User-Agent": "ilgamcheck-sites-smoke/1.0" },
     redirect: "follow",
     signal: AbortSignal.timeout(15_000),
@@ -59,6 +60,14 @@ export async function runSitesRemoteSmoke(rawUrl, fetchImpl = fetch) {
       throw new Error("/today: 프레임 차단 보호가 없습니다.");
     }
     checks.push(`${path}(html/spa-route)`);
+    const head=await checkedFetch(fetchImpl,baseUrl,path,'text/html','HEAD');
+    if(head.url && new URL(head.url).pathname.replace(/\/$/,'')!==path.replace(/\/$/,'')) {
+      throw new Error(`${path}: HEAD가 다른 화면으로 이동했습니다.`);
+    }
+    if(!head.headers.get('content-type')?.includes('text/html') || (await head.text())!=='') {
+      throw new Error(`${path}: HEAD가 본문 없는 HTML 응답이 아닙니다.`);
+    }
+    checks.push(`${path}(HEAD/bodyless)`);
   }
 
   const manifest = await checkedFetch(fetchImpl, baseUrl, "/manifest.webmanifest");

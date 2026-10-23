@@ -8,6 +8,26 @@ describe("Sites Worker entry", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
+  it('does not reuse a consumed HEAD request stream when falling back to the SPA', async () => {
+    // Workers can expose a consumed zero-byte HEAD stream. Node forbids HEAD
+    // bodies at construction, so model that platform shape with a method getter.
+    const request=new Request('https://beta.example.test/today',{
+      method:'POST',body:'',headers:{Accept:'text/html'},
+    });
+    Object.defineProperty(request,'method',{value:'HEAD'});
+    const response=await worker.fetch(request,{ASSETS:{fetch:async(input)=>{
+      if(new URL(input.url).pathname==='/app-shell.payload') {
+        expect(input.method).toBe('HEAD');
+        expect(input.body).toBeNull();
+        return new Response(null,{headers:{'Content-Type':'application/octet-stream'}});
+      }
+      await input.text();
+      return new Response(null,{status:404});
+    }}});
+    expect(response.status).toBe(200);
+    expect(response.body).toBeNull();
+    expect(response.headers.get('content-type')).toContain('text/html');
+  });
   it.each(["/today", "/privacy", "/terms", "/auth/callback", "/r/key.with.dots"])(
     "keeps HEAD %s consistent with its successful HTML GET without returning a body",
     async (path) => {

@@ -12,8 +12,9 @@ describe("Sites remote smoke", () => {
   });
 
   it("checks the Sites Worker health, SPA routes, and install files", async () => {
-    const fetchImpl = async (request) => {
+    const fetchImpl = async (request, init) => {
       const path = new URL(request).pathname;
+      if(init?.method==='HEAD') return new Response(null,{headers:htmlHeaders});
       if (path === "/api/health") return new Response(JSON.stringify({ status: "ok", ready: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
       if (path === "/api/public-config") return new Response(JSON.stringify({ config: {
         NEXT_PUBLIC_STORAGE_MODE: "hosted",
@@ -29,13 +30,23 @@ describe("Sites remote smoke", () => {
 
     await expect(runSitesRemoteSmoke("https://beta.example.test", fetchImpl)).resolves.toMatchObject({
       baseUrl: "https://beta.example.test",
-      checks: expect.arrayContaining(["public-config(hosted/no-secret/no-store)", "/today(html/spa-route)", "manifest", "service-worker", "favicon"]),
+      checks: expect.arrayContaining(["public-config(hosted/no-secret/no-store)", "/today(html/spa-route)", "/today(HEAD/bodyless)", "manifest", "service-worker", "favicon"]),
     });
+    await expect(runSitesRemoteSmoke('https://beta.example.test',(request,init)=>
+      init?.method==='HEAD' ? new Response(null,{status:500}) : fetchImpl(request,init),
+    )).rejects.toThrow('HTTP 500');
+    await expect(runSitesRemoteSmoke('https://beta.example.test',(request,init)=>{
+      if(init?.method!=='HEAD') return fetchImpl(request,init);
+      const response=new Response(null,{headers:htmlHeaders});
+      Object.defineProperty(response,'url',{value:'https://beta.example.test/'});
+      return response;
+    })).rejects.toThrow('HEAD가 다른 화면');
   });
 
   it("rejects a deep link that silently redirects to the landing page", async () => {
-    const fetchImpl = async (request) => {
+    const fetchImpl = async (request,init) => {
       const path = new URL(request).pathname;
+      if(init?.method==='HEAD') return new Response(null,{headers:htmlHeaders});
       if (path === "/api/health") return new Response(JSON.stringify({ status: "ok", ready: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
       if (path === "/api/public-config") return new Response(JSON.stringify({ config: {
         NEXT_PUBLIC_STORAGE_MODE: "hosted",
