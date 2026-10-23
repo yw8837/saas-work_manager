@@ -34,6 +34,8 @@
 | 린트·타입·prod audit | PASS / PASS / 취약점 0 |
 | 실제 restore dry | 필요한 환경/ACK 부재로 BLOCKED_EXTERNAL, exit1. 실제 복원은 실행하지 않음 |
 | APK SHA256 | `7c8035114841925e1666c359d848759d7a9f159639d96af6406fc27c1f8b3616` 일치 |
+| 모바일 build/verify | 임시 폴더 빌드 산출물 부재로 첫 검사 중단 → build:mobile 재생성 → source/asset 검사 PASS. APK 재제작·설치는 아님 |
+| 모바일 SQL 회귀 | 임시 PGlite에서 삭제 회귀·23 RPC 권한 검사 PASS. 운영 데이터 변경 없음 |
 
 테스트 출력에는 기존 React act, Capacitor 중복 등록, Node localstorage 경고가 있었다. 실패는 아니며 무경고라고 표현하지 않는다. 이번 변경은 운영 검증 스크립트·문서이며 웹/앱 UI와 API 구현 변경이 아니다. 기존 Sites34 배포와 APK를 불필요하게 교체하지 않는다.
 
@@ -66,4 +68,4 @@ Supabase Free의 유휴 정지 위험은 여전히 남는다. iOS는 Apple Devel
 - `docs/BETA-REMAINING-OPERATIONS.md`
 - 기존 APK: `D:/SaaS/01_일감체크/release-artifacts/2026-10-23-mobile-beta/일감체크-내부검증.apk`
 
-코드 리뷰·GitHub CI/병합 결과는 확인한 뒤 아래에 추가한다.
+독립 코드 리뷰에서 Critical/Important/Minor 수정 요구 0건. 운영 문서 리뷰에서 일반 WebView 캐시/초안과 암호화 스냅샷을 구분하라는 고지 보완을 반영했다. Google 세션 및 데이터가 실제로 준비된 복구 성공을 의미하지 않는다. GitHub CI/병합 결과는 확인한 뒤 아래에 추가한다.
