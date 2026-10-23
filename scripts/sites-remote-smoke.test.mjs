@@ -35,6 +35,12 @@ describe("Sites remote smoke", () => {
     await expect(runSitesRemoteSmoke('https://beta.example.test',(request,init)=>
       init?.method==='HEAD' ? new Response(null,{status:500}) : fetchImpl(request,init),
     )).rejects.toThrow('HTTP 500');
+    await expect(runSitesRemoteSmoke('https://beta.example.test',(request,init)=>{
+      if(init?.method!=='HEAD') return fetchImpl(request,init);
+      const response=new Response(null,{headers:htmlHeaders});
+      Object.defineProperty(response,'url',{value:'https://beta.example.test/'});
+      return response;
+    })).rejects.toThrow('HEAD가 다른 화면');
   });
 
   it("rejects a deep link that silently redirects to the landing page", async () => {

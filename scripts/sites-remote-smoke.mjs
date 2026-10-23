@@ -61,6 +61,9 @@ export async function runSitesRemoteSmoke(rawUrl, fetchImpl = fetch) {
     }
     checks.push(`${path}(html/spa-route)`);
     const head=await checkedFetch(fetchImpl,baseUrl,path,'text/html','HEAD');
+    if(head.url && new URL(head.url).pathname.replace(/\/$/,'')!==path.replace(/\/$/,'')) {
+      throw new Error(`${path}: HEAD가 다른 화면으로 이동했습니다.`);
+    }
     if(!head.headers.get('content-type')?.includes('text/html') || (await head.text())!=='') {
       throw new Error(`${path}: HEAD가 본문 없는 HTML 응답이 아닙니다.`);
     }
