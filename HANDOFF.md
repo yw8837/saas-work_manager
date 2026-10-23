@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-10-23
+마지막 갱신: 2026-10-24
 
 ## 제품 한 줄
 
@@ -11,6 +11,14 @@
 차별점은 고객용 수정요청 링크다. 그래서 서버(Supabase)는 유지한다. 로컬 전용으로 바꾸지 않는다.
 
 ## 지금 상태
+
+### 2026-10-24 앱 복귀 주소 등록·실기기 외 운영 점검
+
+- 사용자가 앱 callback 등록을 명시 승인했다. `com.yeolmaestudio.ilgamcheck://auth/callback` 등록 후 새로고침·재조회로 정확한 문자열을 확인했다. 기존 새/이전 웹 `/today`, `/settings` 4개 유지, 총 5개. Site URL도 그대로다. 입력 중 일시적으로 잘못 저장된 새 문자열 1개는 즉시 제거했고 최종 목록에는 없다. 아래 과거의 callback 승인 대기는 해소됐다.
+- 현재 브랜치 `codex/beta-ops-20261024`. 복구 검증 도구의 legacy smoke·비밀번호 전제 오류를 Sites/Google 세션으로 수정했다. 실제 restore/계정삭제/기기 검증을 수행한 것은 아니다. `docs/verification/2026-10-24-beta-operations.md`의 최종 영수증을 확인한다.
+- 공개 사이트 2곳 각각 13개 smoke, native API 8개 PASS. Google=true/email=false/phone=false. ready=true·DB/runtime 계약 일치. 푸시 Edge v3 ACTIVE, cron 1개 활성, 조회 직전 1시간 60회 성공, 기기·발송시도·대기요청 0개.
+- 정책은 finalized=false 유지. `docs/BETA-REMAINING-OPERATIONS.md`에 공개 전 문구 검토, 실제 탈퇴/복구 입력, Android 연결 절차를 정리했다. 운영 고객 데이터 export/delete/restore와 비용·법적 승인 상태는 변경하지 않았다.
+- 실기기는 이번 사용자 요청에서 제외. Android APK는 2026-10-23 내부 검증용 그대로이며 SHA256 재확인. iPhone 서명 환경도 그대로 미준비다. 결과/화면: `D:/SaaS/01_일감체크/release-artifacts/2026-10-24-beta-operations`.
 
 ### 2026-10-23 모바일 베타 운영 보완
 
@@ -120,10 +128,10 @@
 ### 0. 모바일 MVP 운영 연결과 실기기 게이트
 
 1. PR14·15의 CI/병합·DB/FCM/예약 호출·웹/API 운영 반영은 완료했다. 위 2026-10-23 영수증을 재사용하고 키·cron·배포를 중복 생성하지 않는다.
-2. 대기 중인 앱 callback 액션 시점 승인을 확인한 후 `com.yeolmaestudio.ilgamcheck://auth/callback` 1개만 추가하고 readback한다. 기존 Google 웹4주소는 보존한다. 승인 전 우회 적용하지 않는다.
-3. Android APK를 사용자 폰에서 설치하여 Google 로그인 복귀, 웹↔앱 저장, 잠금화면/앱 종료 푸시, 계정 전환을 확인한다.
+2. 앱 callback 등록·재조회는 2026-10-24 완료. 중복 등록하거나 기존 웹 주소를 삭제하지 않는다.
+3. 실기기는 2026-10-24 요청에서 제외했다. 사용자가 폰 연결 후 검증 재개를 요청하면 Android APK 설치, Google 로그인 복귀, 웹↔앱 저장, 잠금화면/앱 종료 푸시, 계정 전환을 확인한다.
 4. iPhone 네이티브 배포는 Apple Developer와 Mac/Xcode 준비가 필요하다. 비용 승인이나 계정 가입을 임의로 진행하지 않는다.
-5. 개인정보 안내 확정과 전용 계정 탈퇴·별도 환경 복구 증거를 준비한다. 현재 external-beta gate를 통과로 표시하지 않는다. 실제 계정 삭제·운영 DB 복원은 별도 정확한 대상 승인 없이 실행하지 않는다.
+5. `docs/BETA-REMAINING-OPERATIONS.md`에 따라 개인정보 안내 검토·게시 승인, 전용 Google A/B 계정, 별도 recovery 환경·암호화 export 위치를 확보한다. 현재 external-beta gate를 통과로 표시하지 않는다. 실제 계정 삭제·운영 데이터 export는 정확한 대상 승인 없이 실행하지 않으며 운영 DB에는 복원하지 않는다.
 6. 사용자 연락은 하지 않는다. 검증 복사본·APK·증거는 보존하며 자동 정리하지 않는다. 작업 원본은 D:의 `.worktrees/mobile-mvp`이고 기본 Supabase CLI 계정 변경 사실을 먼저 확인한다.
 
 ### 1. 남은 운영 확인
