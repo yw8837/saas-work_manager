@@ -130,7 +130,14 @@ async function serveStatic(request: Request, environment: SitesEnvironment): Pro
   const appShellUrl = new URL(request.url);
   appShellUrl.pathname = "/app-shell.payload";
   appShellUrl.search = "";
-  const appShell = await environment.ASSETS.fetch(new Request(appShellUrl, request));
+  // ASSETS may consume a zero-byte request stream even for HEAD. Reusing the
+  // whole Request then throws in Workers; the GET/HEAD fallback needs no body.
+  const appShell = await environment.ASSETS.fetch(new Request(appShellUrl, {
+    method: request.method,
+    headers: request.headers,
+    redirect: request.redirect,
+    signal: request.signal,
+  }));
   const appShellHeaders = new Headers(appShell.headers);
   appShellHeaders.set("Content-Type", "text/html; charset=utf-8");
   return finalizeStaticResponse(
