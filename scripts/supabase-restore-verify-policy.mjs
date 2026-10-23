@@ -1,6 +1,6 @@
 import { projectRefIssue } from "./supabase-cli-policy.mjs";
 import { normalizeDeploymentUrl } from "./remote-smoke-policy.mjs";
-import { collectHostedVerificationEnvIssues } from "./verify-hosted-runtime-policy.mjs";
+import { collectHostedVerificationEnvIssues, hostedVerificationCredential } from "./verify-hosted-runtime-policy.mjs";
 
 export const RECOVERY_VERIFY_ACK = "VERIFY_DEDICATED_RECOVERY_PROJECT";
 
@@ -20,6 +20,14 @@ export function recoveryProductionBindingIssue({
 
 export function collectRecoveryVerificationIssues(env) {
   const issues = collectHostedVerificationEnvIssues(env);
+  const platform = env.ILGAMCHECK_RELEASE_PLATFORM ?? "sites";
+  if (!["sites", "vercel"].includes(platform)) issues.push("지원하지 않는 release platform입니다.");
+  if (platform === "sites") {
+    if ((env.ILGAMCHECK_AUTH_MODE ?? "google-only") !== "google-only") issues.push("Sites 복구 검증은 google-only 인증만 허용합니다.");
+    if (["A", "B"].some((label) => hostedVerificationCredential(env, label)?.mode !== "session")) {
+      issues.push("Sites 복구 검증에는 전용 Google A/B access/refresh token 쌍이 필요합니다.");
+    }
+  }
   const recoveryRef = env.ILGAMCHECK_RECOVERY_PROJECT_REF?.trim();
   const refIssue = projectRefIssue(recoveryRef);
   if (refIssue) issues.push(`ILGAMCHECK_RECOVERY_PROJECT_REF: ${refIssue}`);

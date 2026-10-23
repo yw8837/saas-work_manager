@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-10-23
+마지막 갱신: 2026-10-24
 
 ## 제품 한 줄
 
@@ -12,9 +12,17 @@
 
 ## 지금 상태
 
+### 2026-10-24 앱 복귀 주소 등록·실기기 외 운영 점검
+
+- 사용자가 앱 callback 등록을 명시 승인했다. `com.yeolmaestudio.ilgamcheck://auth/callback` 등록 후 새로고침·재조회로 정확한 문자열을 확인했다. 기존 새/이전 웹 `/today`, `/settings` 4개 유지, 총 5개. Site URL도 그대로다. 입력 중 일시적으로 잘못 저장된 새 문자열 1개는 즉시 제거했고 최종 목록에는 없다. 아래 과거의 callback 승인 대기는 해소됐다.
+- 현재 브랜치 `codex/beta-ops-20261024`. 복구 검증 도구의 legacy smoke·비밀번호 전제 오류를 Sites/Google 세션으로 수정했다. 실제 restore/계정삭제/기기 검증을 수행한 것은 아니다. `docs/verification/2026-10-24-beta-operations.md`의 최종 영수증을 확인한다.
+- 공개 사이트 2곳 각각 13개 smoke, native API 8개 PASS. Google=true/email=false/phone=false. ready=true·DB/runtime 계약 일치. 푸시 Edge v3 ACTIVE, cron 1개 활성, 조회 직전 1시간 60회 성공, 기기·발송시도·대기요청 0개.
+- 정책은 finalized=false 유지. `docs/BETA-REMAINING-OPERATIONS.md`에 공개 전 문구 검토, 실제 탈퇴/복구 입력, Android 연결 절차를 정리했다. 운영 고객 데이터 export/delete/restore와 비용·법적 승인 상태는 변경하지 않았다.
+- 실기기는 이번 사용자 요청에서 제외. Android APK는 2026-10-23 내부 검증용 그대로이며 SHA256 재확인. iPhone 서명 환경도 그대로 미준비다. 결과/화면: `D:/SaaS/01_일감체크/release-artifacts/2026-10-24-beta-operations`.
+
 ### 2026-10-23 모바일 베타 운영 보완
 
-- 현재 분리 폴더 브랜치는 `codex/mobile-beta-operational-20261023`이다. 모바일 #13과 별도 디자인 브랜치를 포함한 검증본이며, #1은 포함하지 않는다.
+- 현재 분리 폴더 브랜치는 `codex/sites-head-stream-20261023`이다. PR14(모바일·디자인·운영)와 PR15(HEAD500 수정)를 각각 최신 CI 통과 후 main에 병합했다. main `9fe139f47345db2aa0092cf16cbbf61179a1ebb8`로 fast-forward했으며, 이어지는 보고서 갱신은 제품 산출물 변경이 아니다. PR #1은 병합하지 않았다.
 - 로그인 계정 전환 즉시 이전 owner·화면·저장 권한을 무효화하고 이전 비동기 완료를 generation으로 차단했다. Today 일감 범위는 URL로 유지한다. Next 16.4.2/Vite 8.3.5/Vitest 4.1.12로 갱신했다.
 - FCM 발송 전용 키와 dispatch key는 Supabase 서버/Vault에만 보관한다. Edge `native-revision-push` v3, HMAC 90초·일회성 nonce를 적용했다. 공개/무효 호출 401, GET405, 유효 서명200, 재사용409. 실제 pg_net→Edge 200·발송0 확인 후 1분 cron 활성화.
 - pg_net 관리자 소유 큐는 프로젝트 REVOKE로 제한되지 않는다. 실패한 ACL 시도도 원격 이력과 함께 보존한다. 최종 해법은 큐에 장기 키를 넣지 않는 서명 호출이며, DB 로그인 역할의 큐 조작/DoS까지 해결했다고 표현하지 않는다.
@@ -23,6 +31,8 @@
 - Android 새 APK 빌드·서명 통과, SHA256 `7c8035114841925e1666c359d848759d7a9f159639d96af6406fc27c1f8b3616`. 실기기는 연결0대. iOS는 Mac/Apple Developer/APNs가 없어 서명·TestFlight 미완료.
 - 외부 배포 승인은 별도다. `docs/MOBILE-BETA-OPERATIONS.md`에 개인정보 추가 초안, 삭제/복구·기기 검증표를 작성했다. 정책 finalized=false는 유지한다. 현재 앱 callback 추가의 액션 시점 승인과 실기기 확인이 남아 있다.
 - GitHub/Sites 배포 영수증 및 최종 자동 검사 수치는 `docs/verification/2026-10-23-mobile-beta-operations.md`에 기록한다.
+- 최종 운영은 Sites34, 제품소스 `4153f62d895a36a6583dabb2b9323eb3519432cc`, deployment `appgdep_6adb4ccef24c81919b4dda6eee39b460`, succeeded(21:02 KST), public/env7 유지. CI39949497164: 116파일719PASS/1플랫폼skip·E2E58PASS·lint/typecheck/운영audit0/build PASS. 새·기존 주소 smoke 각각13/13, native API8/8, HEADtoday200. Worker 빈 HEAD 스트림 재사용500을 실제 재현 후 수정했다.
+- 내부 설치 파일과 최종 보고서: `D:/SaaS/01_일감체크/release-artifacts/2026-10-23-mobile-beta`. 외부 베타는 정책·실제 탈퇴/복구 증거·앱 callback 승인·Android 실기기·iOS 서명 환경 조건이 남아 있어 공개 보류. Supabase Free 유휴정지 위험도 유료전환 없이 없애지 않았다.
 
 ### 2026-10-21 작업 화면 디자인 — 모바일 구현 이후 별도 브랜치
 
@@ -117,11 +127,12 @@
 
 ### 0. 모바일 MVP 운영 연결과 실기기 게이트
 
-1. 모바일 PR의 CI를 확인하고 승인 범위의 DB/Auth/FCM/예약 호출과 웹 API를 반영한다. 현재 배포 ID와 원격 응답은 모바일 검증 문서에 기록한다.
-2. Supabase 로그인 후 앱 callback만 추가하고 기존 Google 웹 로그인 주소를 보존한다. FCM 비밀키는 발송 전용 최소권한 계정으로 서버에만 보관한다.
-3. Android APK를 사용자 폰에서 설치하여 Google 로그인 복귀, 웹↔앱 저장, 잠금화면/앱 종료 푸시, 계정 전환을 확인한다.
+1. PR14·15의 CI/병합·DB/FCM/예약 호출·웹/API 운영 반영은 완료했다. 위 2026-10-23 영수증을 재사용하고 키·cron·배포를 중복 생성하지 않는다.
+2. 앱 callback 등록·재조회는 2026-10-24 완료. 중복 등록하거나 기존 웹 주소를 삭제하지 않는다.
+3. 실기기는 2026-10-24 요청에서 제외했다. 사용자가 폰 연결 후 검증 재개를 요청하면 Android APK 설치, Google 로그인 복귀, 웹↔앱 저장, 잠금화면/앱 종료 푸시, 계정 전환을 확인한다.
 4. iPhone 네이티브 배포는 Apple Developer와 Mac/Xcode 준비가 필요하다. 비용 승인이나 계정 가입을 임의로 진행하지 않는다.
-5. 사용자 연락은 하지 않는다. 로컬 검증 폴더는 증거·APK 보존 후 이 작업에서 만든 경로만 정리한다.
+5. `docs/BETA-REMAINING-OPERATIONS.md`에 따라 개인정보 안내 검토·게시 승인, 전용 Google A/B 계정, 별도 recovery 환경·암호화 export 위치를 확보한다. 현재 external-beta gate를 통과로 표시하지 않는다. 실제 계정 삭제·운영 데이터 export는 정확한 대상 승인 없이 실행하지 않으며 운영 DB에는 복원하지 않는다.
+6. 사용자 연락은 하지 않는다. 검증 복사본·APK·증거는 보존하며 자동 정리하지 않는다. 작업 원본은 D:의 `.worktrees/mobile-mvp`이고 기본 Supabase CLI 계정 변경 사실을 먼저 확인한다.
 
 ### 1. 남은 운영 확인
 

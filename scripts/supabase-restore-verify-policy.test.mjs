@@ -8,6 +8,7 @@ import { HOSTED_VERIFY_ACK } from "./verify-hosted-runtime-policy.mjs";
 
 const recoveryRef = "abcdefghijklmnopqrst";
 const validEnv = {
+  ILGAMCHECK_RELEASE_PLATFORM: "vercel",
   NEXT_PUBLIC_STORAGE_MODE: "hosted",
   NEXT_PUBLIC_SUPABASE_URL: `https://${recoveryRef}.supabase.co`,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_example",
@@ -27,6 +28,23 @@ const validEnv = {
 };
 
 describe("recovery verification safety", () => {
+  it("requires OAuth sessions on the default Sites recovery target", () => {
+    const sitesEnv = { ...validEnv };
+    delete sitesEnv.ILGAMCHECK_RELEASE_PLATFORM;
+    expect(collectRecoveryVerificationIssues(sitesEnv)).toEqual(expect.arrayContaining([
+      expect.stringContaining("Google A/B"),
+    ]));
+    expect(collectRecoveryVerificationIssues({ ...sitesEnv,
+      ILGAMCHECK_TEST_A_ACCESS_TOKEN: "access-a", ILGAMCHECK_TEST_A_REFRESH_TOKEN: "refresh-a",
+      ILGAMCHECK_TEST_B_ACCESS_TOKEN: "access-b", ILGAMCHECK_TEST_B_REFRESH_TOKEN: "refresh-b",
+    })).toEqual([]);
+  });
+  it("rejects unsupported platform and password auth for Sites before remote verification", () => {
+    expect(collectRecoveryVerificationIssues({ ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: "unknown" }))
+      .toEqual(expect.arrayContaining([expect.stringContaining("platform")]));
+    expect(collectRecoveryVerificationIssues({ ...validEnv, ILGAMCHECK_RELEASE_PLATFORM: "sites", ILGAMCHECK_AUTH_MODE: "password" }))
+      .toEqual(expect.arrayContaining([expect.stringContaining("google-only")]));
+  });
   it("accepts a dedicated recovery project with explicit consent", () => {
     expect(collectRecoveryVerificationIssues(validEnv)).toEqual([]);
   });

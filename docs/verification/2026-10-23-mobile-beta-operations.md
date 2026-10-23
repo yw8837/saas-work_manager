@@ -2,7 +2,7 @@
 
 ## 판정
 
-코드·웹/API 배포 준비와 실제 외부 모바일 이용 승인은 다르다. 본 기록에서 확인한 자동 검사·서버 응답은 통과했다. 실제 Android 설치·OAuth 복귀·웹↔앱 저장·잠금화면 알림과 iOS 서명 빌드는 별도 증거가 필요하다. 외부 모집이나 APK 배포는 수행하지 않았다.
+웹/API와 푸시 서버의 운영 반영을 완료했다. 현재·기존 주소의 배포 후 검사 각13개와 모바일 API 접근 검사8개가 통과했다. Android 내부 설치 APK를 만들었지만, 실제 Android 설치·OAuth 복귀·웹↔앱 저장·잠금화면 알림과 iOS 서명 빌드의 실증은 남아 있다. 따라서 **서버 반영 완료 / Android 내부 검증본 준비 / 외부 모바일 베타 공개 보류**로 판정한다. 외부 모집이나 APK 외부 배포는 수행하지 않았다.
 
 ## 수정과 검증
 
@@ -11,7 +11,7 @@
 | 계정 전환 경쟁 조건 | owner 검증·채널 종료 대기·잘못된 재인증 계정의 3개 RED 회귀를 수정. 이벤트 즉시 owner/화면 차단, 비동기 generation 검사 |
 | Today 범위 | 일감 필터를 URL에 유지. 화면 재마운트 회귀 RED→GREEN |
 | 의존성 | Next16.4.2/Vite8.3.5/Vitest4.1.12. 운영 audit 0. 개발 전용 braces 경로 high5는 공급자 미패치로 별도 잔존 |
-| 자동 release | 116파일719검사, typecheck/lint, 운영 audit, local/hosted 빌드 통과 |
+| 자동 release | PR14 Windows 116파일719검사 통과. PR15에 회귀1개 추가 후 GitHub Linux 116파일·719통과/1조건부skip(총720), typecheck/lint·운영audit·local/hosted 빌드 통과. Windows 관련2파일41개도 통과 |
 | 브라우저 | 데스크톱·모바일 합계58개 시나리오 통과. 실기기 설치 검사가 아님 |
 | DB | 임시 PGlite에서 전체 migration, native push·일감 삭제·23개 RPC 권한, nonce 중복 차단·권한 통과 |
 | Edge | Deno check 및3개 테스트 통과. 독립 SQL pgcrypto→실제TS 서명 검증 통과 |
@@ -53,4 +53,35 @@ Supabase 표준 CLI 로그인으로 기본 계정이 일감체크 계정으로 �
 
 ## 배포 영수증
 
-GitHub CI 및 Sites 배포 후 이 절에 실제 commit/version/deployment와 공개 응답을 추가한다. 저장만 된 파일·열린 PR을 운영 반영으로 표시하지 않는다.
+확인 시각: 2026-10-23 21:03 KST. 아래 제품 소스와 뒤이은 보고서 갱신 커밋은 구분한다.
+
+| 구분 | 실제 결과 |
+| --- | --- |
+| 모바일·운영 PR | [#14](https://github.com/yw8837/saas-work_manager/pull/14), CI `39947902922` 성공 후 main 병합 |
+| PR14 main merge SHA | `76af52ecf956be3ccde5b7a3fc5368c7ca6b0853` |
+| 첫 배포 | Sites33, 제품소스 `34e3986f61d929c3c97ce53c2a9d9266e0a2a99a`, deployment `appgdep_6adb49bfb08881919eb66507c597e0c1`, succeeded |
+| 추가 오류 수정 | [#15](https://github.com/yw8837/saas-work_manager/pull/15), CI `39949497164` 성공, main merge `9fe139f47345db2aa0092cf16cbbf61179a1ebb8` |
+| 최종 제품 소스 | `4153f62d895a36a6583dabb2b9323eb3519432cc` |
+| 최종 Sites 버전 | 34, `appgprj_6a8b16a27df88191b5cad3afd63a9366~appgver_35883096cbac8191aa02d5022938966d` |
+| 최종 배포 | `appgdep_6adb4ccef24c81919b4dda6eee39b460`, succeeded, 2026-10-23T12:02:35.508707Z |
+| 배포 범위 | 기존 public·환경 revision7·도메인 유지 |
+| 배포 아카이브 | 124파일 / 6,389,760바이트, SHA256 `2786089d808c55fb718d8c5952427a7e2a8fc8d34d6b44ee6bce842363095d4b` |
+| 소스 일치 | D 원본↔C 검증 복사본 472개 tracked 파일 SHA-256 일치. APK의109개 웹 자산과 검증 모바일 빌드 일치 |
+
+### 운영에서 발견한 HEAD500 수정
+
+v33 후 `HEAD /today`에서 HTTP500을 재현했다. Worker 로그의 `ReadableStream is disturbed`와 실제 스택을 따라가니, ASSETS가 소비한 빈 HEAD 요청 스트림을 SPA fallback에서 다시 복사하는 원인이었다. GET/HEAD fallback은 method·headers·redirect·signal만 전달하고 본문은 복사하지 않도록 수정했다. 빈 스트림 소비 회귀를 RED→GREEN으로 검증했고, 배포 smoke에 HEAD 상태·빈 본문·HTML·최종 경로 확인을 추가했다.
+
+독립 리뷰의 HEAD 전용 redirect 검사 누락(Minor)도 `4153f62`에서 보완한 뒤 추가 지적 없음으로 재검토했다.
+
+### 배포 후 실측
+
+- `https://ilgam.studioyeolmae.com` 및 기존 `https://ilgamcheck-beta.bsfire1237.chatgpt.site`: 각각13/13 통과. `/`, `/today`, `/privacy`, `/terms`의 GET 및 HEAD200·빈 HEAD본문·경로 유지 확인.
+- 네이티브 두 origin(`https://localhost`, `capacitor://localhost`)에 API preflight204·무인증401·public-config200/CORS 일치. 비허용 origin403. PowerShell 실제 HEAD200 포함8/8 통과. 계정 삭제 요청에는 인증을 넣지 않아 실제 삭제는 실행되지 않았다.
+- 두 주소 모두 health `ready=true`, runtime `202608250011`, `serviceRoleContractCurrent=true`, 공개 설정 digest `sha256:855a25e6cb446ecc5af371438895836f6858fb4c072d6c1d6f17bd3ff48b737a` 일치.
+- 정책은 두 주소·DB 모두 `finalized=false`이고 버전/digest가 일치한다. 서버가 준비됐다는 응답을 정책 승인으로 해석하지 않는다.
+- 배포 후 오류 로그 조회에서 검출된3건은 위 검사의 의도된401·403이며 Worker outcome은 모두ok. 조회 범위에서 새500 예외는 검출되지 않았다. 장기간 무장애 보증이 아니다.
+- 실제 브라우저의 Google 로그인 화면 표시와 수집된 console error0을 확인했다. 이번 회차의 실제 Google 로그인 완료·사용자 데이터 저장 확인을 의미하지 않는다.
+- `runtime:readback` CLI는 검증 복사본에 Supabase link가 없어 BLOCKED였다. 공개 health 비교는 별도 검사이며 전체 external-beta gate 통과로 대체하지 않는다.
+
+PR #1은 병합하지 않았다. 기존 고객 데이터·요금제·정책 승인 상태·다른 앱은 변경하지 않았다.
