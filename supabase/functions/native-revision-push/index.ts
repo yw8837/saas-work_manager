@@ -1,22 +1,15 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { importPKCS8, SignJWT } from "npm:jose@6.1.3";
 import { classifyFcmResponse, deliverBatch, revisionMessage } from "./delivery.ts";
-
-async function authorized(value: string | null, expected: string | undefined) {
-  if (!expected || expected.length<32 || !value || value.length>256) return false;
-  const encode=new TextEncoder();
-  const [left,right]=await Promise.all([value,expected].map((text)=>crypto.subtle.digest("SHA-256",encode.encode(text))));
-  let diff=0;
-  const a=new Uint8Array(left), b=new Uint8Array(right);
-  for(let index=0;index<a.length;index++) diff|=a[index]^b[index];
-  return diff===0;
-}
+import { authorizeDispatch, validDispatchBody } from "./auth.ts";
 // Tokens and keys remain on the server. Logs never contain request or token data.
 Deno.serve(async (request: Request) => {
   if(request.method!=="POST") return new Response(null,{status:405});
-  if(!await authorized(request.headers.get("x-native-push-secret"),Deno.env.get("NATIVE_PUSH_DISPATCH_SECRET"))) {
+  const nonce=await authorizeDispatch(request.headers,Deno.env.get("NATIVE_PUSH_DISPATCH_SECRET"),Deno.env.get("SUPABASE_URL")??"");
+  if(!nonce) {
     return new Response(null,{status:401});
   }
+  if(!await validDispatchBody(request)) return new Response(null,{status:400});
   try {
     const url=Deno.env.get("SUPABASE_URL"), key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const account=JSON.parse(Deno.env.get("FCM_SERVICE_ACCOUNT")??"{}");
@@ -25,6 +18,10 @@ Deno.serve(async (request: Request) => {
       || typeof account.project_id!=="string" || !/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(account.project_id)) {
       return Response.json({error:"push_not_configured"},{status:503});
     }
+    const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+    const {data:accepted,error:nonceError}=await db.rpc("consume_native_push_dispatch_nonce",{p_nonce:nonce});
+    if(nonceError) throw new Error("dispatch replay check failed");
+    if(accepted!==true) return new Response(null,{status:409});
     const jwt=await new SignJWT({scope:"https://www.googleapis.com/auth/firebase.messaging"})
       .setProtectedHeader({alg:"RS256",typ:"JWT"}).setIssuer(account.client_email)
       .setAudience("https://oauth2.googleapis.com/token").setIssuedAt().setExpirationTime("5m")
@@ -36,7 +33,6 @@ Deno.serve(async (request: Request) => {
     });
     const access=await oauth.json();
     if(!oauth.ok || typeof access.access_token!=="string") throw new Error("credential exchange failed");
-    const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
     const stats=await deliverBatch(new Date(),10,{
       async claim(limit) {
         const {data,error}=await db.rpc("claim_native_push_batch",{p_limit:limit});

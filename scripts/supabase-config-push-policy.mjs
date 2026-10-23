@@ -38,7 +38,10 @@ export function authRedirectUrls(rawSiteUrl, rawLegacyOrigin) {
     const legacy = normalizeAuthSiteUrl(rawLegacyOrigin);
     if (!origins.includes(legacy)) origins.push(legacy);
   }
-  return origins.flatMap((origin) => [`${origin}/today`, `${origin}/settings`]);
+  return [
+    ...origins.flatMap((origin) => [`${origin}/today`, `${origin}/settings`]),
+    "com.yeolmaestudio.ilgamcheck://auth/callback",
+  ];
 }
 
 export function renderHostedSupabaseConfig(localConfig, rawSiteUrl, rawLegacyOrigin) {

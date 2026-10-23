@@ -28,6 +28,7 @@ function renderDashboard() {
 
 beforeEach(() => {
   resetDemoSpy.mockReset();
+  window.history.replaceState(null, "", "/today");
 });
 
 afterEach(() => {
@@ -119,6 +120,16 @@ describe("TodayDashboard 일감별 작업 범위", () => {
     } as unknown as ReturnType<typeof useWorkspace>);
     return render(<TodayDashboard />);
   }
+
+  it("상세에서 돌아와 다시 마운트해도 선택한 일감 범위를 유지한다", () => {
+    const first = setup();
+    fireEvent.change(screen.getByRole("combobox", { name: "일감별로 보기" }), { target: { value: jobs[0].id } });
+    expect(new URLSearchParams(window.location.search).get("job")).toBe(jobs[0].id);
+    first.unmount();
+    setup();
+    expect(screen.getByRole("combobox", { name: "일감별로 보기" })).toHaveValue(jobs[0].id);
+    expect(screen.queryByRole("button", { name: "홈페이지 시안 보내기 완료 처리" })).not.toBeInTheDocument();
+  });
 
   it("같은 고객의 서로 다른 일감을 골라 작업과 마감을 좁혀 본다", () => {
     setup();

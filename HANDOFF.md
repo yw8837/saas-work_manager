@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-10-21
+마지막 갱신: 2026-10-23
 
 ## 제품 한 줄
 
@@ -11,6 +11,18 @@
 차별점은 고객용 수정요청 링크다. 그래서 서버(Supabase)는 유지한다. 로컬 전용으로 바꾸지 않는다.
 
 ## 지금 상태
+
+### 2026-10-23 모바일 베타 운영 보완
+
+- 현재 분리 폴더 브랜치는 `codex/mobile-beta-operational-20261023`이다. 모바일 #13과 별도 디자인 브랜치를 포함한 검증본이며, #1은 포함하지 않는다.
+- 로그인 계정 전환 즉시 이전 owner·화면·저장 권한을 무효화하고 이전 비동기 완료를 generation으로 차단했다. Today 일감 범위는 URL로 유지한다. Next 16.4.2/Vite 8.3.5/Vitest 4.1.12로 갱신했다.
+- FCM 발송 전용 키와 dispatch key는 Supabase 서버/Vault에만 보관한다. Edge `native-revision-push` v3, HMAC 90초·일회성 nonce를 적용했다. 공개/무효 호출 401, GET405, 유효 서명200, 재사용409. 실제 pg_net→Edge 200·발송0 확인 후 1분 cron 활성화.
+- pg_net 관리자 소유 큐는 프로젝트 REVOKE로 제한되지 않는다. 실패한 ACL 시도도 원격 이력과 함께 보존한다. 최종 해법은 큐에 장기 키를 넣지 않는 서명 호출이며, DB 로그인 역할의 큐 조작/DoS까지 해결했다고 표현하지 않는다.
+- 운영 migration: `20261023112855_native_push_scheduler`, `20261023113041_native_push_queue_acl`(ACL 효과 없음), `20261023113840_native_push_signed_dispatch`. nonce RPC는 service_role 전용, 실제 dispatcher와 nonce table은 postgres 전용 확인.
+- 이번 작업에서 표준 Supabase CLI 로그인을 수행하여 **기본 CLI 계정이 일감체크 계정으로 바뀌었다**. 기존 ‘전역 인증 교체 금지’ 인수인계와 달리 실행된 사항이다. 다른 프로젝트 데이터는 변경하지 않았다. 이후 다른 프로젝트 작업 전 계정/조직을 반드시 다시 확인한다.
+- Android 새 APK 빌드·서명 통과, SHA256 `7c8035114841925e1666c359d848759d7a9f159639d96af6406fc27c1f8b3616`. 실기기는 연결0대. iOS는 Mac/Apple Developer/APNs가 없어 서명·TestFlight 미완료.
+- 외부 배포 승인은 별도다. `docs/MOBILE-BETA-OPERATIONS.md`에 개인정보 추가 초안, 삭제/복구·기기 검증표를 작성했다. 정책 finalized=false는 유지한다. 현재 앱 callback 추가의 액션 시점 승인과 실기기 확인이 남아 있다.
+- GitHub/Sites 배포 영수증 및 최종 자동 검사 수치는 `docs/verification/2026-10-23-mobile-beta-operations.md`에 기록한다.
 
 ### 2026-10-21 작업 화면 디자인 — 모바일 구현 이후 별도 브랜치
 

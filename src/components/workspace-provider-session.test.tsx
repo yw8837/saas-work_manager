@@ -32,6 +32,7 @@ const hosted = vi.hoisted(() => {
     save: vi.fn(),
     sync: vi.fn(),
     removeChannel: vi.fn(),
+    rejectedEdit: vi.fn(),
     channel,
   };
 });
@@ -155,7 +156,10 @@ function Probe() {
       <span data-testid="save-status">{saveStatus}</span>
       <span data-testid="realtime-status">{realtimeStatus}</span>
       <span data-testid="realtime-error">{realtimeError}</span>
-      <button type="button" onClick={() => updateSettings({ morningDigestEnabled: false })}>edit workspace</button>
+      <button type="button" onClick={() => {
+        try { updateSettings({ morningDigestEnabled: false }); }
+        catch (error) { hosted.rejectedEdit(error); }
+      }}>edit workspace</button>
       <button type="button" onClick={() => void signInWithGoogle()}>google login</button>
       <button type="button" onClick={() => void signInWithGoogle("/settings")}>google reauth</button>
       <button type="button" onClick={() => void signOut().catch(() => undefined)}>logout</button>
@@ -195,6 +199,7 @@ describe("hosted auth activation", () => {
     hosted.save.mockReset();
     hosted.sync.mockReset();
     hosted.removeChannel.mockReset();
+    hosted.rejectedEdit.mockReset();
     hosted.channel.on.mockReset();
     hosted.channel.on.mockImplementation((...args: unknown[]) => {
       hosted.realtimeCallback = args.at(-1) as () => void;
@@ -226,6 +231,53 @@ describe("hosted auth activation", () => {
     await waitFor(() => expect(mobile.start).toHaveBeenCalledWith("google", "/settings", "owner-a"));
     expect(hosted.signInWithOAuth).not.toHaveBeenCalled();
   });
+  it.each(["owner validation", "channel removal"])("locks the previous workspace before awaiting %s on account change", async (delay) => {
+    mobile.platform = "android";
+    hosted.load.mockImplementation(async (_client, owner) => markedRemote(owner, 7));
+    hosted.save.mockResolvedValue({ documentVersion: 8, updatedAt: "" });
+    hosted.sync.mockResolvedValue(undefined);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-a-workspace"));
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("saved"));
+    const pending = deferred<void>();
+    if (delay === "owner validation") mobile.validateOwner.mockReturnValueOnce(pending.promise);
+    else hosted.removeChannel.mockReturnValueOnce(pending.promise);
+    hosted.save.mockClear();
+
+    await act(async () => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
+    expect(screen.getByTestId("auth-status")).toHaveTextContent("loading");
+    expect(screen.getByTestId("workspace-owner")).not.toHaveTextContent("owner-a-workspace");
+    fireEvent.click(screen.getByRole("button", { name: "edit workspace" }));
+    await act(async () => undefined);
+    expect(hosted.save).not.toHaveBeenCalled();
+    await act(async () => pending.resolve());
+    await waitFor(() => expect(screen.getByTestId("workspace-owner")).toHaveTextContent("owner-b-workspace"));
+  });
+
+  it("locks old data while rejecting a wrong-account Google reauthentication", async () => {
+    mobile.platform = "android";
+    hosted.load.mockResolvedValue(markedRemote("owner-a", 7));
+    hosted.save.mockResolvedValue({ documentVersion: 8, updatedAt: "" });
+    hosted.sync.mockResolvedValue(undefined);
+    render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("saved"));
+    fireEvent.click(screen.getByRole("button", { name: "google reauth" }));
+    await waitFor(() => expect(mobile.start).toHaveBeenCalledWith("google", "/settings", "owner-a"));
+    const pending = deferred<{ error: null }>();
+    hosted.signOut.mockReturnValueOnce(pending.promise);
+    hosted.save.mockClear();
+    await act(async () => hosted.authCallback?.("SIGNED_IN", session("owner-b")));
+    expect(screen.getByTestId("auth-status")).not.toHaveTextContent("signed_in");
+    expect(screen.getByTestId("workspace-owner")).not.toHaveTextContent("owner-a-workspace");
+    fireEvent.click(screen.getByRole("button", { name: "edit workspace" }));
+    await act(async () => undefined);
+    expect(hosted.save).not.toHaveBeenCalled();
+    await act(async () => pending.resolve({ error: null }));
+    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("signed_out"));
+  });
+
   it("rejects a restored wrong-account session before loading data or registering push", async () => {
     mobile.platform = "android";
     mobile.validateOwner.mockRejectedValue(new Error("AUTH_ACCOUNT_MISMATCH"));

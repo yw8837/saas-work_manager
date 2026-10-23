@@ -15,7 +15,8 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import { emptyTodaySearch, subscribeTodayLocation, todaySearchSnapshot, updateTodayScope } from "@/lib/today-location";
 import {
   formatShortDate,
   getRevisionSummary,
@@ -94,7 +95,8 @@ export function TodayDashboard() {
   const { jobs, toggleTask, toggleJobWaiting, resetDemo, alerts, settings, runtimeMode } = useWorkspace();
   const [completedLabel, setCompletedLabel] = useState<string | null>(null);
   const [showAllTasks, setShowAllTasks] = useState(false);
-  const [selectedJobId, setSelectedJobId] = useState("");
+  const search = useSyncExternalStore(subscribeTodayLocation, todaySearchSnapshot, emptyTodaySearch);
+  const selectedJobId = new URLSearchParams(search).get("job") ?? "";
   const now = todayISO();
   const todayStart = new Date(`${now}T00:00:00`).getTime();
   const activeJobs = useMemo(() => jobs.filter((job) => job.status === "active"), [jobs]);
@@ -191,7 +193,7 @@ export function TodayDashboard() {
           id="today-job-scope"
           value={scopeJobId}
           onChange={(event) => {
-            setSelectedJobId(event.target.value);
+            updateTodayScope(event.target.value);
             setShowAllTasks(false);
           }}
         >

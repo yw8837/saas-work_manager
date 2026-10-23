@@ -36,7 +36,8 @@ additional_redirect_urls = [
   "https://ilgam.studioyeolmae.com/today",
   "https://ilgam.studioyeolmae.com/settings",
   "https://ilgamcheck-beta.bsfire1237.chatgpt.site/today",
-  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/settings"
+  "https://ilgamcheck-beta.bsfire1237.chatgpt.site/settings",
+  "com.yeolmaestudio.ilgamcheck://auth/callback"
 ]
 jwt_expiry = 3600
 enable_signup = true

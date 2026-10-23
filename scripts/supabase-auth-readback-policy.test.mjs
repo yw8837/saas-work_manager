@@ -9,7 +9,8 @@ import {
 const projectRef = "abcdefghijklmnopqrst";
 const expectedOrigin = "https://preview.example.com";
 const accessToken = "sbp_private-test-token";
-const expectedRedirects = `${expectedOrigin}/today,${expectedOrigin}/settings`;
+const nativeCallback = "com.yeolmaestudio.ilgamcheck://auth/callback";
+const expectedRedirects = `${expectedOrigin}/today,${expectedOrigin}/settings,${nativeCallback}`;
 
 function authResponse(overrides = {}, options = {}) {
   return Response.json({
@@ -25,7 +26,7 @@ function authResponse(overrides = {}, options = {}) {
 describe("Supabase Auth Management API readback policy", () => {
   it("accepts the same exact callback set when Dashboard appends the new domain last", async () => {
     const legacyOrigin = "https://old.example.com";
-    const callbacks = [`${legacyOrigin}/today`, `${legacyOrigin}/settings`, `${expectedOrigin}/today`, `${expectedOrigin}/settings`];
+    const callbacks = [`${legacyOrigin}/today`, `${legacyOrigin}/settings`, `${expectedOrigin}/today`, `${expectedOrigin}/settings`, nativeCallback];
     const config = await authResponse({ uri_allow_list: callbacks }).json();
     expect(supabaseAuthConfigIssue(config, expectedOrigin, legacyOrigin)).toBeNull();
     expect(supabaseAuthConfigIssue({ ...config, uri_allow_list: [callbacks[0], callbacks[0], callbacks[2], callbacks[3]] }, expectedOrigin, legacyOrigin)).toMatch(/uri_allow_list/);
@@ -101,7 +102,7 @@ describe("Supabase Auth Management API readback policy", () => {
     }, expectedOrigin)).toMatch(/external_email_enabled/);
   });
 
-  it("accepts only the two literal OAuth return URLs in string or array form", () => {
+  it("requires two literal web callbacks and the exact native callback, with no broader schemes", () => {
     const publicConfig = {
       site_url: expectedOrigin,
       disable_signup: false,
@@ -113,18 +114,23 @@ describe("Supabase Auth Management API readback policy", () => {
 
     expect(supabaseAuthConfigIssue({
       ...publicConfig,
-      uri_allow_list: `${todayUrl},${settingsUrl}`,
+      uri_allow_list: `${todayUrl},${settingsUrl},${nativeCallback}`,
     }, expectedOrigin)).toBeNull();
     expect(supabaseAuthConfigIssue({
       ...publicConfig,
-      uri_allow_list: [todayUrl, settingsUrl],
+      uri_allow_list: [todayUrl, settingsUrl, nativeCallback],
     }, expectedOrigin)).toBeNull();
     expect(supabaseAuthConfigIssue({
       ...publicConfig,
-      uri_allow_list: [settingsUrl, todayUrl],
+      uri_allow_list: [nativeCallback, settingsUrl, todayUrl],
     }, expectedOrigin)).toBeNull();
 
     const rejectedAllowLists = [
+      [todayUrl, settingsUrl],
+      [todayUrl, settingsUrl, "com.yeolmaestudio.ilgamcheck://**"],
+      [todayUrl, settingsUrl, `${nativeCallback}?next=evil`],
+      [todayUrl, settingsUrl, `${nativeCallback}/`],
+      [todayUrl, settingsUrl, nativeCallback, nativeCallback],
       undefined,
       "",
       [],

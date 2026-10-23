@@ -487,6 +487,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   const hostedClientRef = useRef<SupabaseClient | null>(null);
   const hostedOwnerRef = useRef<string | null>(null);
+  const hostedSessionGenerationRef = useRef(0);
   const remoteVersionRef = useRef(0);
   const lastSyncedStateRef = useRef<AppState | null>(null);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
@@ -502,6 +503,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const persistHostedState = useCallback((next: AppState) => {
     const client = hostedClientRef.current;
     const ownerId = hostedOwnerRef.current;
+    const generation = hostedSessionGenerationRef.current;
+    const isStaleSession = () => hostedOwnerRef.current !== ownerId
+      || hostedSessionGenerationRef.current !== generation;
     if (!client || !ownerId) {
       setSaveStatus("error");
       setSaveError("로그인 세션이 없어 저장하지 못했어요.");
@@ -527,7 +531,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setSaveError(null);
 
     const operation = saveChainRef.current.then(async () => {
-      if (hostedOwnerRef.current !== ownerId) return;
+      if (isStaleSession()) return;
       if (hostedConflictRef.current) throw new Error(hostedConflictRef.current);
       let stateToSave = preserveQueuedRevisionEvidence(
         next,
@@ -536,12 +540,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       );
       try {
         const saved = await saveHostedWorkspace(client, stateToSave, remoteVersionRef.current);
-        if (hostedOwnerRef.current !== ownerId) return;
+        if (isStaleSession()) return;
         remoteVersionRef.current = saved.documentVersion;
       } catch (error) {
         if (!(error instanceof Error) || error.name !== "HostedWorkspaceConflictError") throw error;
         const remote = await loadHostedWorkspace(client, ownerId);
-        if (hostedOwnerRef.current !== ownerId) return;
+        if (isStaleSession()) return;
         const previous = lastSyncedStateRef.current;
         const publicRevisionOnly = remote
           && previous
@@ -575,13 +579,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         stateToSave = preserveQueuedRevisionEvidence(stateToSave, stateRef.current, remote.state);
         remoteVersionRef.current = remote.documentVersion;
         const saved = await saveHostedWorkspace(client, stateToSave, remoteVersionRef.current);
-        if (hostedOwnerRef.current !== ownerId) return;
+        if (isStaleSession()) return;
         remoteVersionRef.current = saved.documentVersion;
       }
 
-      if (hostedOwnerRef.current !== ownerId) return;
+      if (isStaleSession()) return;
       await syncHostedRevisionPortals(client, stateToSave.jobs);
-      if (hostedOwnerRef.current !== ownerId) return;
+      if (isStaleSession()) return;
       lastSyncedStateRef.current = stateToSave;
       const rebasedVisible = mergeConcurrentWorkspaceState(next, stateRef.current, stateToSave);
       if (rebasedVisible.conflicts.length) {
@@ -608,7 +612,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
 
     saveChainRef.current = operation.catch((error: unknown) => {
-      if (hostedOwnerRef.current !== ownerId) return;
+      if (isStaleSession()) return;
       saveFailureRef.current = error;
       const draft = readHostedDraft(ownerId);
       const message = error instanceof Error ? error.message : "저장 중 알 수 없는 오류가 발생했어요.";
@@ -651,12 +655,34 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       let refreshActiveWorkspace: (() => Promise<void>) | null = null;
       let stopResume: (() => void) | null = null;
 
-      const activateSession = async (session: Session | null) => {
-        const currentActivation = ++activation;
+      const invalidateSession = () => {
+        // Close the write gate synchronously, before React renders or any
+        // channel/secure-storage/sign-out promise settles (including A → B → A).
+        activation += 1;
+        hostedSessionGenerationRef.current += 1;
+        hostedOwnerRef.current = null;
+        remoteVersionRef.current = 0;
+        lastSyncedStateRef.current = null;
+        hostedConflictRef.current = null;
+        saveFailureRef.current = null;
+        refreshActiveWorkspace = null;
+        setCurrentState(createSeedState());
+        setUserEmail(null);
+        setHostedSubscription(null);
+        setHydrated(false);
+        setAuthStatus("loading");
+        setSaveError(null);
+        setRealtimeStatus("idle");
+        setRealtimeError(null);
+        return activation;
+      };
+      const activateSession = async (session: Session | null, currentActivation: number) => {
+        if (cancelled || currentActivation !== activation) return;
         refreshActiveWorkspace = null;
         if (channel) {
-          await client.removeChannel(channel);
+          const previousChannel = channel;
           channel = null;
+          await client.removeChannel(previousChannel);
         }
         if (cancelled || currentActivation !== activation) return;
         if (nativePlatform() !== "web" && session?.user) {
@@ -937,9 +963,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           window.sessionStorage.removeItem(GOOGLE_REAUTH_OWNER_SESSION_KEY);
           if (session.user.id !== pendingReauthenticationOwner) {
             activeSessionIdentity = null;
+            const rejectedActivation = invalidateSession();
             queueMicrotask(async () => {
+              if (cancelled || rejectedActivation !== activation) return;
               await client.auth.signOut({ scope: "local" }).catch(() => undefined);
-              if (cancelled) return;
+              if (cancelled || hostedOwnerRef.current !== null) return;
               setAuthStatus("signed_out");
               setAuthError("본인 확인에 사용한 Google 계정이 기존 계정과 달라 로그아웃했어요. 기존 계정으로 다시 로그인해주세요.");
               setHydrated(true);
@@ -953,7 +981,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return;
         }
         activeSessionIdentity = identity;
-        queueMicrotask(() => void activateSession(session));
+        const currentActivation = invalidateSession();
+        queueMicrotask(() => void activateSession(session, currentActivation));
       });
 
       if (nativePlatform() !== "web") {
@@ -1201,7 +1230,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
       return next;
     }
-    if (authStatus !== "signed_in") throw new Error("로그인 뒤에 저장할 수 있어요.");
+    if (authStatus !== "signed_in" || !hostedOwnerRef.current) throw new Error("로그인 뒤에 저장할 수 있어요.");
     const next = mutator(stateRef.current);
     setCurrentState(next);
     persistHostedState(next);
