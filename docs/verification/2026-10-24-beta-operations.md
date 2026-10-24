@@ -68,4 +68,14 @@ Supabase Free의 유휴 정지 위험은 여전히 남는다. iOS는 Apple Devel
 - `docs/BETA-REMAINING-OPERATIONS.md`
 - 기존 APK: `D:/SaaS/01_일감체크/release-artifacts/2026-10-23-mobile-beta/일감체크-내부검증.apk`
 
-독립 코드 리뷰에서 Critical/Important/Minor 수정 요구 0건. 운영 문서 리뷰에서 일반 WebView 캐시/초안과 암호화 스냅샷을 구분하라는 고지 보완을 반영했다. Google 세션 및 데이터가 실제로 준비된 복구 성공을 의미하지 않는다. GitHub CI/병합 결과는 확인한 뒤 아래에 추가한다.
+독립 코드 리뷰에서 Critical/Important/Minor 수정 요구 0건. 운영 문서 리뷰의 WebView 캐시 구분 및 legacy SMTP 주석 보완 2건도 반영 후 재검토 지적 0건. Google 세션 및 데이터가 실제로 준비된 복구 성공을 의미하지 않는다.
+
+## 최종 GitHub 영수증
+
+- PR [#16](https://github.com/yw8837/saas-work_manager/pull/16) MERGED, 2026-10-24 02:13:26 KST.
+- 검사 대상 head: `7d829c47d9d6b85f326eede637ce9728970262de`.
+- [최종 CI 39992330093](https://github.com/yw8837/saas-work_manager/actions/runs/39992330093) SUCCESS. Linux 117파일, 726 PASS + Windows 전용1 skip = 총727, E2E58 PASS, lint/typecheck/prod audit0/local·hosted build PASS, PGlite23권한 검사 및 Deno3개 PASS.
+- main 병합 커밋: `89543f8e53671406c58e3eb55cd701c6f256da39`. 분리 폴더도 이 커밋으로 fast-forward한 뒤 이 결과 문서를 기록했다. PR1은 병합하지 않았다.
+- GitHub 전체 검사 로그는 산출물 폴더의 `GitHub-최종검사.log`에 보관했다. Actions 런타임/Ubuntu 이미지 전환 안내 경고는 남아 있으며 CI 실패가 아니다.
+- 제품 소스 변경이 없어 Sites34·기존 내부 APK 유지. 이번 기록 갱신은 운영 사이트를 새 버전으로 배포한 것이 아니다.
+- 브라우저 callback 증빙은 이번 운영 설정 변경의 결과이고, CI는 로컬 도구·회귀 검증의 증거다. 둘 다 실제 폰 OAuth·알림 수신이나 실제 복구 실증을 대신하지 않는다.
