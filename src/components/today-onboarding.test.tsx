@@ -13,6 +13,7 @@ const seed = createSeedState("2026-08-16");
 function show(jobs = seed.jobs) {
   vi.mocked(useWorkspace).mockReturnValue({
     jobs, alerts: [], settings: seed.settings, runtimeMode: "local",
+    packages: seed.packages, jobsCreatedTotal: jobs.length, applyIndustryStarter: vi.fn(),
     toggleTask: vi.fn(), toggleJobWaiting: vi.fn(), resetDemo: vi.fn(),
   } as unknown as ReturnType<typeof useWorkspace>);
   render(<TodayDashboard />);

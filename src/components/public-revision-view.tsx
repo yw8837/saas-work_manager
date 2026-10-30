@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { CheckCircle2, LockKeyhole, Send, ShieldCheck } from "lucide-react";
+import { Check, CheckCircle2, LockKeyhole, Send, ShieldCheck } from "lucide-react";
 
 import { Brand } from "@/components/brand";
+import { CUSTOMER_STAGE_LABELS, type CustomerStage } from "@/lib/domain/customer-stage";
 import { getPublicServiceConfig } from "@/lib/policies";
 
 /**
@@ -17,11 +18,14 @@ export function PublicRevisionPrivacyNotice() {
 
   return (
     <aside className="publicRevisionPrivacyNotice" aria-label="개인정보 처리 안내">
-      <strong>개인정보 처리 안내</strong>
-      <p>
-        이름·담당자명(선택), 수정 요청 원문과 접수 시각을 요청 전달·처리 기록 목적으로 저장하며,
-        연결된 일감 또는 계정이 삭제될 때 함께 삭제합니다. 주민번호·건강정보·계좌 비밀번호 같은 민감한 내용은 적지 마세요.
-      </p>
+      {/* 문구는 그대로 두고 접기만 한다. 펼치면 전체 내용을 읽을 수 있고, 방침 링크는 늘 보인다. */}
+      <details>
+        <summary><strong>개인정보 처리 안내</strong><span>무엇을 저장하는지 보기</span></summary>
+        <p>
+          이름·담당자명(선택), 수정 요청 원문과 접수 시각을 요청 전달·처리 기록 목적으로 저장하며,
+          연결된 일감 또는 계정이 삭제될 때 함께 삭제합니다. 주민번호·건강정보·계좌 비밀번호 같은 민감한 내용은 적지 마세요.
+        </p>
+      </details>
       <div>
         <Link href="/privacy">개인정보처리방침</Link>
         <span aria-hidden="true"> · </span>
@@ -45,10 +49,15 @@ export function PublicRevisionUnavailable({ message }: { message: string }) {
   return (
     <main className="publicRevisionPage">
       <section className="publicRevisionCard publicRevisionEmpty">
-        <Brand />
-        <LockKeyhole size={28} />
+        <header className="publicRevisionHeader"><Brand /></header>
+        <span className="publicRevisionEmptyIcon" aria-hidden="true"><LockKeyhole size={28} /></span>
         <h1>사용할 수 없는 링크예요</h1>
         <p>{message}</p>
+        <div className="publicRevisionNextStep" data-testid="unavailable-next-step">
+          <strong>이렇게 해 보세요</strong>
+          <p>이 링크를 보낸 작업자에게 새 수정 요청 링크를 보내 달라고 말해 주세요. 작업자가 링크를 다시 만들면 예전 주소는 열리지 않아요.</p>
+        </div>
+        <p className="publicRevisionAbout"><Link href="/">일감체크가 무엇인지 보기</Link></p>
         <PublicRevisionPrivacyNotice />
       </section>
     </main>
@@ -61,6 +70,12 @@ export type PublicRevisionViewProps = {
   title: string;
   packageName: string;
   revision: { included: number; used: number; remaining: number };
+  /** 작업자(가게) 이름. 서버가 내려 주지 않는 실제 링크에서는 비워 둔다. */
+  workerName?: string;
+  /** 마감 표시(예: "11월 6일 · 7일 남음"). 모르면 비워 둔다. */
+  dueLabel?: string;
+  /** 진행 단계. 모르면 비워 두고, 그러면 단계 칩을 그리지 않는다. */
+  stage?: CustomerStage;
   badgeLabel: string;
   footnote: string;
   /** 성공하면 차감 결과를 돌려주고, 실패하면 고객에게 보여줄 문구로 throw한다. */
@@ -74,6 +89,9 @@ export function PublicRevisionView({
   title,
   packageName,
   revision,
+  workerName,
+  dueLabel,
+  stage,
   badgeLabel,
   footnote,
   onSubmit,
@@ -114,21 +132,54 @@ export function PublicRevisionView({
             <CheckCircle2 size={36} />
             <h1>수정 요청을 남겼어요</h1>
             <p>{receipt === "used" ? "작업자에게 요청 내용과 접수 시각이 기록됐어요." : "포함된 수정 횟수를 넘어 추가 작업 검토 요청으로 기록됐어요."}</p>
+            <div className="publicRevisionNextStep" data-testid="revision-next-step">
+              <strong>다음에 일어나는 일</strong>
+              <p>
+                {receipt === "used"
+                  ? "작업자가 요청을 확인하고 평소 연락하던 방법으로 답해 드려요."
+                  : "추가 작업으로 진행할지, 작업자가 먼저 확인하고 알려 드려요."}
+                {" "}남은 포함 수정은 {revision.remaining}회예요.
+              </p>
+            </div>
             <button type="button" className="primaryButton" onClick={() => setReceipt(null)}>다른 요청 남기기</button>
           </div>
         ) : (
           <>
             <div className="publicRevisionIntro">
+              {workerName && <p className="publicRevisionWorker" data-testid="revision-worker">{workerName}</p>}
               <p className="pageEyebrow">{title} · {packageName}</p>
               <h1>수정할 내용을 한 번에 남겨주세요</h1>
               <p>남겨주신 내용은 접수 시각과 함께 기록돼요. 서로 다른 수정사항은 번호를 붙이면 더 정확해요.</p>
             </div>
 
-            <div className="publicRevisionCounter">
-              <span>포함 수정</span>
-              <strong>{revision.remaining}회 남음</strong>
-              <small>사용 {revision.used} / 전체 {revision.included}</small>
-            </div>
+            <dl className="publicRevisionFacts" data-has-due={Boolean(dueLabel)}>
+              <div className="publicRevisionCounter">
+                <dt>남은 수정</dt>
+                <dd><strong data-testid="revision-remaining">{revision.remaining}</strong><span>회</span></dd>
+                <dd className="publicRevisionFactSub">전체 {revision.included}회 중 {revision.used}회 사용</dd>
+              </div>
+              {dueLabel && (
+                <div className="publicRevisionDue">
+                  <dt>마감</dt>
+                  <dd data-testid="revision-due">{dueLabel}</dd>
+                </div>
+              )}
+            </dl>
+
+            {stage !== undefined && (
+              <ol className="customerStageChips" aria-label="진행 단계">
+                {CUSTOMER_STAGE_LABELS.map((label, index) => {
+                  const state = index < stage ? "done" : index === stage ? "current" : "todo";
+                  return (
+                    <li key={label} data-state={state} aria-current={state === "current" ? "step" : undefined}>
+                      {state === "done" && <Check size={13} aria-hidden="true" />}
+                      <span>{label}</span>
+                      {state === "current" && <em>지금</em>}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
 
             <form className="publicRevisionFields" onSubmit={submit}>
               <label>

@@ -6,6 +6,9 @@ test("그림 사용설명서는 6단계 캡처를 모두 불러오고 체험 링
 
   const steps = page.locator(".guideStep");
   await expect(steps).toHaveCount(6);
+  // 맨 위 6칸 띠와 단계별 직접 해보기 버튼
+  await expect(page.getByRole("navigation", { name: "여섯 단계 한눈에 보기" }).getByRole("link")).toHaveCount(6);
+  await expect(page.locator(".guideTryButton")).toHaveCount(6);
   const images = page.locator(".guideShot img");
   await expect(images).toHaveCount(6);
   for (let index = 0; index < 6; index += 1) {
@@ -39,7 +42,7 @@ test("고객 체험 링크는 검색에 막혀 있고, 요청을 남겨도 서�
 
   await expect(page.getByRole("note")).toContainText("실제로 전송되지 않아요");
   await expect(page.getByTestId("demo-revision-usage")).toHaveText("3회 중 1회 사용");
-  await expect(page.getByText("2회 남음")).toBeVisible();
+  await expect(page.getByTestId("revision-remaining")).toHaveText("2");
 
   await page.getByLabel("이름 또는 담당자명").fill("예시 고객");
   await page.getByLabel("수정 요청 내용").fill("1. 메뉴판 글씨를 키워주세요.");
@@ -48,7 +51,7 @@ test("고객 체험 링크는 검색에 막혀 있고, 요청을 남겨도 서�
   await expect(page.getByRole("status")).toContainText("수정 요청을 남겼어요");
   await expect(page.getByTestId("demo-revision-usage")).toHaveText("3회 중 2회 사용");
   await page.getByRole("button", { name: "다른 요청 남기기" }).click();
-  await expect(page.getByText("1회 남음")).toBeVisible();
+  await expect(page.getByTestId("revision-remaining")).toHaveText("1");
 
   const stored = await page.evaluate(() => Object.keys(localStorage));
   expect(stored).toEqual([]);

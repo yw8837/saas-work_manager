@@ -41,16 +41,24 @@ describe("CustomerRevisionDemo", () => {
     expect(screen.getByText("STANDARD 로고", { selector: "dd" })).toBeInTheDocument();
     expect(screen.getByText("300,000원")).toBeInTheDocument();
     expect(screen.getByTestId("demo-revision-usage")).toHaveTextContent("3회 중 1회 사용");
-    expect(screen.getByText("2회 남음")).toBeInTheDocument();
+    expect(screen.getByTestId("revision-remaining")).toHaveTextContent("2");
+    // 리뉴얼: 작업자 이름을 크게, 마감·진행 단계를 함께 보여 주되 체험에서만 먼저 보인다고 밝힌다.
+    expect(screen.getByTestId("revision-worker")).toHaveTextContent("샘플 디자인 스튜디오");
+    expect(screen.getByTestId("revision-due")).toHaveTextContent("5일 남음");
+    expect(screen.getByRole("list", { name: "진행 단계" })).toBeInTheDocument();
+    expect(screen.getByText("수정", { selector: "li[aria-current=step] span" })).toBeInTheDocument();
+    expect(screen.getByTestId("demo-preview-only")).toHaveTextContent("체험 화면에서만");
 
     fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "메뉴판 글씨를 키워주세요." } });
     fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("수정 요청을 남겼어요"));
     expect(screen.getByTestId("demo-revision-usage")).toHaveTextContent("3회 중 2회 사용");
+    expect(screen.getByTestId("revision-next-step")).toHaveTextContent("다음에 일어나는 일");
+    expect(screen.getByTestId("revision-next-step")).toHaveTextContent("남은 포함 수정은 1회예요");
 
     fireEvent.click(screen.getByRole("button", { name: "다른 요청 남기기" }));
-    expect(screen.getByText("1회 남음")).toBeInTheDocument();
+    expect(screen.getByTestId("revision-remaining")).toHaveTextContent("1");
 
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(setItemSpy).not.toHaveBeenCalled();
@@ -65,11 +73,12 @@ describe("CustomerRevisionDemo", () => {
       await waitFor(() => expect(screen.getByRole("status")).toBeInTheDocument());
       fireEvent.click(screen.getByRole("button", { name: "다른 요청 남기기" }));
     }
-    expect(screen.getByText("0회 남음")).toBeInTheDocument();
+    expect(screen.getByTestId("revision-remaining")).toHaveTextContent("0");
 
     fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "범위 밖 요청" } });
     fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("추가 작업 검토 요청"));
+    expect(screen.getByTestId("revision-next-step")).toHaveTextContent("추가 작업으로 진행할지");
 
     fireEvent.click(screen.getByRole("button", { name: /처음 상태로/ }));
     expect(screen.getByTestId("demo-revision-usage")).toHaveTextContent("3회 중 1회 사용");

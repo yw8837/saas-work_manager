@@ -31,6 +31,9 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { emptyJobListSearch, jobListReturnHref, jobListSearchSnapshot, subscribeJobListLocation } from "@/lib/jobs-list-location";
+import { revisionPortalUrl } from "@/lib/client-share";
+import { markFirstRun } from "@/lib/first-run";
+import { SendToClientBanner } from "./send-to-client-banner";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { nativePlatform } from "@/lib/native/platform";
 import {
@@ -112,6 +115,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [addonTaskTitle, setAddonTaskTitle] = useState("");
   const [addonTaskDay, setAddonTaskDay] = useState("0");
   const [detailFeedback, setDetailFeedback] = useState("");
+  const [sendBannerDismissed, setSendBannerDismissed] = useState(false);
+  const sendBannerRequested = useMemo(() => {
+    const params = new URLSearchParams(locationSearch);
+    return params.get("created") === "1" || params.get("send") === "1";
+  }, [locationSearch]);
 
   const revision = useMemo(() => (job ? getRevisionSummary(job) : null), [job]);
   const hydratedJobId = hydrated ? job?.id : undefined;
@@ -167,13 +175,31 @@ export function JobDetail({ jobId }: { jobId: string }) {
     setRevisionOpen(false);
   };
 
+  const portalLink = revisionPortalUrl(
+    nativePlatform() === "web" ? window.location.origin : deploymentOrigin(),
+    job.revisionPortalToken,
+  );
+
   const copyPortalLink = async () => {
     if (!portalEnabled) return;
-    const origin = nativePlatform() === "web" ? window.location.origin : deploymentOrigin();
-    const link = `${origin}/r/${encodeURIComponent(job.revisionPortalToken)}`;
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    try {
+      await navigator.clipboard.writeText(portalLink);
+      markFirstRun("linkShared");
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setDetailFeedback(`자동 복사가 막혔어요. 이 주소를 직접 복사해 주세요: ${portalLink}`);
+    }
+  };
+
+  const dismissSendBanner = () => {
+    setSendBannerDismissed(true);
+    // 새로고침해도 다시 뜨지 않게 주소에서 표시만 지운다. 목록 복귀 정보(list=)는 남긴다.
+    const params = new URLSearchParams(window.location.search);
+    params.delete("created");
+    params.delete("send");
+    const query = params.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
   };
 
   const togglePortal = () => {
@@ -372,6 +398,19 @@ export function JobDetail({ jobId }: { jobId: string }) {
           </div>
         </div>
       </header>
+
+      {sendBannerRequested && !sendBannerDismissed && job.status === "active" && (
+        <SendToClientBanner
+          link={portalLink}
+          clientLabel={job.clientLabel}
+          title={job.title}
+          included={revision.included}
+          ready={portalEnabled && portalSynced}
+          pendingMessage={portalEnabled ? "저장이 끝나면 보낼 수 있어요. 상단에 저장 완료가 표시될 때까지 잠시만 기다려 주세요." : "고객 수정 링크가 꺼져 있어요. 아래 고객 수정 요청 링크 카드에서 켜면 보낼 수 있어요."}
+          localOnly={runtimeMode === "local"}
+          onDismiss={dismissSendBanner}
+        />
+      )}
 
       <section className="jobFactRail" aria-label="일감 핵심 정보">
         <div>

@@ -90,6 +90,8 @@ export const SAMPLE_OPTIONS: OptionTemplate[] = [
 
 export const SAMPLE_ORDER_ID = "job_sample_cafe_logo";
 export const SAMPLE_CLIENT_LABEL = "예시 고객";
+/** 체험 화면 머리에 크게 보이는 작업자 이름. 실제 사업자가 아닌 가상의 이름이다. */
+export const SAMPLE_WORKER_NAME = "샘플 디자인 스튜디오";
 export const SAMPLE_ORDER_TITLE = "샘플 카페 로고 디자인";
 /** 설명서 캡처용 로컬 일감에만 쓰는 가짜 링크 값. 실제 고객 토큰 형식(256-bit 난수)이 아니다. */
 export const SAMPLE_PORTAL_TOKEN = "sample-cafe-logo-guide";

@@ -82,7 +82,39 @@ function Scene({
 
 type Slide = { key: string; caption: string; render: () => ReactNode };
 
+/** 고객이 카톡으로 받은 링크를 연 모습. 작업자 앱 틀(사이드바) 없이 고객 화면만 그린다. */
+function CustomerScene() {
+  return (
+    <div className="productScene customerScene">
+      <div className="productSceneBar">
+        <span className="sceneDots" aria-hidden="true" />
+        <span>고객이 받은 링크</span>
+        <span className="sceneLive">
+          <i /> 로그인 없이 열림
+        </span>
+      </div>
+      <div className="customerSceneBody">
+        <small>모로우 베이크 로고 · Standard 로고</small>
+        <strong className="customerSceneTitle">수정할 내용을 한 번에 남겨주세요</strong>
+        <div className="customerSceneFacts">
+          <span><small>남은 수정</small><b>2</b>회</span>
+          <span><small>전체</small>3회 중 1회 사용</span>
+        </div>
+        <div className="customerSceneField">
+          <MessageSquareText size={14} /> 1. 로고 글자를 조금 더 굵게 해주세요.
+        </div>
+        <span className="sceneAction customerSceneSend">요청 남기기</span>
+      </div>
+    </div>
+  );
+}
+
 const slides: Slide[] = [
+  {
+    key: "customer",
+    caption: "고객은 카톡으로 받은 링크에서 남은 수정 횟수를 보고 바로 요청을 남겨요",
+    render: () => <CustomerScene />,
+  },
   {
     key: "today",
     caption: "앱을 열면 마감과 고객 대기를 먼저 정리해서 보여줘요",
@@ -381,8 +413,8 @@ const slides: Slide[] = [
   },
 ];
 
-// 표시 순서: 작업 흐름대로 — 패키지 설정 → 새 일감 딸깍 → 오늘 작업대 → 수정 요청 → 마감 알림
-const SLIDE_ORDER = ["packages", "compose", "today", "revision", "alerts"] as const;
+// 표시 순서: 고객이 받는 화면을 먼저 — 고객 링크 → 패키지 설정 → 새 일감 딸깍 → 오늘 작업대 → 수정 요청 → 마감 알림
+const SLIDE_ORDER = ["customer", "packages", "compose", "today", "revision", "alerts"] as const;
 const orderedSlides: Slide[] = SLIDE_ORDER.map(
   (key) => slides.find((slide) => slide.key === key) as Slide,
 );

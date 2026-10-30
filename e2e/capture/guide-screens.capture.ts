@@ -118,11 +118,17 @@ test.describe("로그인 뒤 화면", () => {
   });
 
   test("4~6. 일감 상세", async ({ page }) => {
-    await page.goto(`/jobs/${SAMPLE_ORDER_ID}`);
-    await expect(page.getByRole("heading", { name: "고객 수정 요청 링크" })).toBeVisible();
+    // 저장 직후 화면(?created=1)의 "이제 고객에게 보내세요" 안내를 찍는다.
+    await page.goto(`/jobs/${SAMPLE_ORDER_ID}?created=1`);
+    await expect(page.getByTestId("send-to-client-banner")).toBeVisible();
     // 로컬 모드에서만 나오는 "이 브라우저에서만 열려요" 안내는 실제 로그인 사용자 화면에 없으므로 가린다.
     await page.locator(".portalLinkSection > small").evaluate((element) => { (element as HTMLElement).style.display = "none"; });
-    await scrollToSection(page, ".revisionMeterSection");
+    await page.locator("[data-testid=send-to-client-banner] [data-local-only]").evaluate((element) => { (element as HTMLElement).style.display = "none"; });
+    // 캡처 서버 주소(127.0.0.1) 대신 실제 서비스 주소 형태로 보여 준다. 토큰은 가짜 예시 값 그대로다.
+    await page.getByTestId("send-to-client-link").evaluate((element: HTMLInputElement) => {
+      element.value = element.value.replace(/^https?:\/\/[^/]+/, "https://ilgam.studioyeolmae.com");
+    });
+    await scrollToSection(page, "[data-testid=send-to-client-banner]");
     await save(page, "04-send-link");
     await scrollToSection(page, "#revisions");
     await save(page, "05-revisions");
