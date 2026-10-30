@@ -1628,3 +1628,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .previewDots { flex: 1 1 100%; }
   .previewDot { flex: 1 1 0; width: auto; min-width: 0; }
 }
+
+/* 초대 링크로 들어온 사람에게 로그인 화면에서 코드가 준비됐다고 알린다. */
+.authCard > p.authInviteNotice { margin: 0; padding: 10px 12px; color: var(--ink); background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius-sm); font-size: 13px; line-height: 1.6; word-break: keep-all; }

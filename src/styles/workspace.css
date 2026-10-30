@@ -24,6 +24,7 @@
   --blue: #3d3d43;
   --blue-dark: #242426;
   --blue-soft: #f1f1f3;
+  --blue-line: #c9c9cf;  /* 리뉴얼에서 새로 쓴 토큰. 작업 화면에서는 다른 blue 별칭처럼 중립색 */
   --info: #444448;
   --info-border: #68686e;
   --green: #444448;

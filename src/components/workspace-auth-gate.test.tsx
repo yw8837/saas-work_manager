@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type {} from "vitest/jsdom";
+
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/policies";
 
 const auth = vi.hoisted(() => ({
@@ -124,5 +126,40 @@ describe("WorkspaceAuthGate Google login", () => {
       { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION },
     ));
     expect(await screen.findByText("private workspace")).toBeInTheDocument();
+  });
+});
+
+describe("WorkspaceAuthGate 초대 링크", () => {
+  class MemoryStorage {
+    values = new Map<string, string>();
+    getItem(key: string) { return this.values.get(key) ?? null; }
+    setItem(key: string, value: string) { this.values.set(key, value); }
+    removeItem(key: string) { this.values.delete(key); }
+    clear() { this.values.clear(); }
+  }
+  const originalUrl = window.location.href;
+
+  beforeEach(() => {
+    mobile.platform = "web";
+    auth.authStatus = "signed_out";
+    Object.defineProperty(window, "sessionStorage", { configurable: true, value: new MemoryStorage() });
+  });
+  afterEach(() => jsdom.reconfigure({ url: originalUrl }));
+
+  it("로그인 전에 주소의 코드를 이 탭에 옮겨 두고 주소에서 지운 뒤, 자동 적용된다고 알린다", async () => {
+    jsdom.reconfigure({ url: "https://ilgam.example/today?invite=MAILCODE" });
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    expect(window.location.search).toBe("");
+    expect(window.sessionStorage.getItem("ilgamcheck:pending-invite")).toBe("MAILCODE");
+    expect(await screen.findByTestId("invite-ready")).toHaveTextContent("베타 코드가 자동으로 적용돼요");
+    // 화면 어디에도 코드 값을 그대로 보여 주지 않는다.
+    expect(document.body.textContent).not.toContain("MAILCODE");
+  });
+
+  it("초대 링크가 아니면 안내를 띄우지 않는다", async () => {
+    jsdom.reconfigure({ url: "https://ilgam.example/today" });
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Google로 계속하기/ })).toBeInTheDocument());
+    expect(screen.queryByTestId("invite-ready")).not.toBeInTheDocument();
   });
 });

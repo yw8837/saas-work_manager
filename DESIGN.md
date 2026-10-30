@@ -100,7 +100,42 @@ components:
 
 이 문서의 토큰은 웹과 Capacitor가 공유하는 `.appFrame` 작업 화면에 한정한다. 근거는 `src/styles/theme.css`의 공통 기반과 그 위에 적용되는 `src/styles/workspace.css`, 실제 작업 컴포넌트다. 사용자 위임에 따라 선택된 세계를 구현 뒤 기록한 것으로, 배포·서명된 iOS 빌드·실기기 검증을 뜻하지 않는다. 화면별 구성 계약과 조사 출처는 `docs/design/workspace-direction.md`에 둔다.
 
-기존 마케팅 랜딩과 고객 공개 수정요청 폼은 변경 대상이 아니다. 마케팅 제목의 자체 호스팅 Paperlogy Medium, 본문·버튼의 Pretendard, Paperlogy SIL Open Font License 1.1 및 `public/fonts/paperlogy/OFL.txt` 보관 정책을 유지한다. 이 작업 화면의 색·두께·모서리를 그 표면들에 자동 전파하지 않는다.
+기존 마케팅 랜딩과 고객 공개 수정요청 폼은 이 작업 화면 토큰의 대상이 아니다. 그 표면들의 실제 값은 아래 "코드 기준 색·모서리·바탕"에 따로 적는다. 마케팅 제목의 자체 호스팅 Paperlogy Medium, 본문·버튼의 Pretendard, Paperlogy SIL Open Font License 1.1 및 `public/fonts/paperlogy/OFL.txt` 보관 정책을 유지한다. 이 작업 화면의 색·두께·모서리를 그 표면들에 자동 전파하지 않는다.
+
+## 코드 기준 색·모서리·바탕 (2026-10-31 사용자 결정 반영)
+
+주 버튼 색은 **지금 사이트(먹색) 기준**이다. 이 절은 코드를 바꾸지 않고 코드에 있는 값을 그대로 적은 것이다. 값을 바꾸려면 코드(`src/styles/theme.css`, `src/styles/workspace.css`)를 먼저 바꾸고 이 표를 맞춘다.
+
+색은 두 층으로 정의된다.
+
+- **기본 층** `src/styles/theme.css` `:root`: 랜딩·사용설명서·고객 수정요청 링크(`/r/{token}`, `/demo/r`)·로그인 화면이 쓴다.
+- **작업 화면 층** `src/styles/workspace.css` `.appFrame`: 로그인 뒤 작업 화면이 쓴다. 같은 변수 이름을 더 짙은 흑연·중립색으로 덮어쓴다(위 frontmatter 값).
+
+| 역할 | 변수 | 기본 층 실제값 | 작업 화면 층 실제값 |
+|---|---|---|---|
+| 주 버튼(행동) | `--primary` = `--ink` | `#181d26` 먹색, 글자 `--on-primary` `#ffffff` | `#242426` 흑연 |
+| 주 버튼 눌림 | `--primary-active` | `#0d1218` | `#101012` |
+| 링크·선택·정보 | `--blue` / `--blue-soft` / `--blue-line` | `#1b61c9` / `#eef3fc` / `#c9d8fa` | 중립 별칭 `#3d3d43` / `#f1f1f3` / `#c9c9cf` |
+| 상태 | `--green` `--amber` `--red` (+ `-soft`) | `#0a7d45` `#8a4f06` `#b3311f` | 완료·대기는 중립(`#444448`, `#535359`), 주의만 체리 `#b82248` |
+| 마케팅 전용 강조 | `--coral` `--peach` `--forest` `--cream` `--mint` `--yellow` `--mustard` | `#aa2d00` `#fcab79` `#0a2e0e` `#f5e9d4` `#a8d8c4` `#f4d35e` `#d9a441` | 쓰지 않는다. `--coral`·`--cream`·`--warm`은 중립색(`#444448`, `#f1f1f3`)으로 덮여 있다 |
+| 본문 면 | `--paper` | `#ffffff` | `#fff` |
+| 바탕 | `--canvas` (`html` 배경) | `#f8fafc` | `#f5f5f6` |
+| 고객 링크 화면 바탕 | `.publicRevisionPage` | `#eef2f7` (하드코딩, 모바일 760px 이하는 흰색) | — |
+
+- **주 버튼은 먹색 하나.** 파랑으로 행동 버튼을 칠하지 않는다. 파랑은 기본 층에서 링크·선택·정보에만 쓴다. 작업 화면에서는 파랑 변수 자체가 중립색으로 덮여 있어서, 링크·선택도 흑연 명도로 보인다.
+- **산호·피치·포레스트(와 크림·민트·옐로·머스터드)는 마케팅 전용.** 랜딩의 제목 강조, 약속 띠, 흐름 구획, 마지막 CTA 띠에만 쓴다. 앱 안으로 새로 들이지 않는다.
+- 상태는 색만으로 전달하지 않고 글자·아이콘을 같이 붙인다(아래 Attention Rule과 같다).
+
+모서리 실제값:
+
+| 변수 | 기본 층 | 작업 화면 층 | 쓰임 |
+|---|---|---|---|
+| `--radius-sm` | `6px` | `6px`(덮지 않음) | 입력, 작은 버튼(`.compactButton`) |
+| `--radius` | `10px` | `12px` | 카드·보조 버튼 |
+| `--radius-lg` | `12px` | `12px` | 주 버튼, 큰 카드 |
+| `--radius-pill` | `9999px` | `9999px` | 칩·배지 |
+
+작업 화면 frontmatter의 `rounded`(field 6 / navigation 8 / control 12 / badge 5)는 위 변수와 컴포넌트별 고정값(`8px` 내비게이션 등)을 함께 요약한 것이다.
 
 **Key Characteristics:**
 
