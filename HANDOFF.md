@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-10-24
+마지막 갱신: 2026-10-30
 
 ## 제품 한 줄
 
@@ -11,6 +11,13 @@
 차별점은 고객용 수정요청 링크다. 그래서 서버(Supabase)는 유지한다. 로컬 전용으로 바꾸지 않는다.
 
 ## 지금 상태
+
+### 2026-10-30 그림 사용설명서·고객 화면 체험 링크 (미배포)
+
+- 브랜치 `claude/guide-demo-link`(origin/main `89543f8` 기준, 작업 트리 `D:/SaaS/01_일감체크/app-wt-guide`). push·PR·배포·운영 DB/Auth 변경 없음.
+- `/demo/r`: 로그인 없이 여는 고객 수정요청 체험. 실제 `/r/[token]`과 같은 `PublicRevisionView`를 쓰고, 요청은 메모리에서만 차감(새로고침하면 초기화). `X-Robots-Tag`·meta noindex. Next 루트 레이아웃과 Sites 셸 모두 `/demo/r`·`/guide`에서는 WorkspaceProvider를 띄우지 않는다(`src/lib/standalone-routes.ts`).
+- `/guide`: 6단계 그림 설명서. 이미지 `public/guide/*.webp`는 `npx playwright test -c playwright.guide.config.ts`(로컬 모드 가짜 예시 데이터)로 다시 찍는다. 랜딩·로그인 화면에 설명서·체험 링크 추가.
+- 검증 기록·남은 한계: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/범위-설명서-체험링크-2026-10-30.md`.
 
 ### 2026-10-24 앱 복귀 주소 등록·실기기 외 운영 점검
 

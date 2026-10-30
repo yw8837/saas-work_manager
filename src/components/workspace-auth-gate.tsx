@@ -198,6 +198,9 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           Google 인증은 Supabase Auth가 처리하며 Google 비밀번호는 일감체크에 저장되지 않아요.
           {' '}<Link href="/terms">이용약관</Link> · <Link href="/privacy">개인정보처리방침</Link>
         </small>
+        <p className="authGuideLinks">
+          처음이라면 <Link href="/guide">사용설명서</Link> · <Link href="/demo/r">고객 화면 체험</Link>
+        </p>
       </section>
     </main>
   );

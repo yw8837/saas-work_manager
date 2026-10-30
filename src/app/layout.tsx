@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { WorkspaceProvider } from "@/components/workspace-provider";
+import { WorkspaceBoundary } from "@/components/workspace-boundary";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "@/styles/theme.css";
 
@@ -42,7 +42,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <link rel="preload" href="/fonts/paperlogy/Paperlogy-5Medium.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
       <body>
-        <WorkspaceProvider>{children}</WorkspaceProvider>
+        <WorkspaceBoundary>{children}</WorkspaceBoundary>
       </body>
     </html>
   );

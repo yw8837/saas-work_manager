@@ -59,7 +59,9 @@ function withSecurityHeaders(
   for (const { key, value } of buildSecurityHeaders(false, environment.NEXT_PUBLIC_SUPABASE_URL)) {
     headers.set(key, value);
   }
-  if (/^\/r\/[^/]+$/.test(new URL(request.url).pathname)) {
+  // 고객 링크와 체험 링크는 검색 결과에 남지 않게 한다.
+  const { pathname } = new URL(request.url);
+  if (/^\/r\/[^/]+$/.test(pathname) || /^\/demo(?:\/|$)/.test(pathname)) {
     for (const { key, value } of buildBearerRouteHeaders()) headers.set(key, value);
   }
   return new Response(request.method === "HEAD" ? null : responseBody(response), {

@@ -36,6 +36,7 @@ export function MarketingHome() {
           <a href="#workflow">사용 방식</a>
           <a href="#revision">수정 관리</a>
           <a href="#faq">자주 묻는 질문</a>
+          <Link href="/guide">사용설명서</Link>
         </nav>
         <Link href="/today" className="headerDemoLink">
           로그인
@@ -63,6 +64,11 @@ export function MarketingHome() {
                 어떻게 편해지나요?
               </a>
             </div>
+            <p className="heroGuideLinks">
+              <Link href="/demo/r" data-testid="landing-customer-demo">고객이 받는 화면 체험하기</Link>
+              <span aria-hidden="true">·</span>
+              <Link href="/guide" data-testid="landing-guide">그림 사용설명서</Link>
+            </p>
           </div>
 
           <ProductPreview />
@@ -186,6 +192,7 @@ export function MarketingHome() {
           </div>
           <nav aria-label="정책 및 문의">
             <a href="#faq">FAQ</a>
+            <Link href="/guide">사용설명서</Link>
             <Link href="/terms">이용약관</Link>
             <Link href="/privacy">개인정보처리방침</Link>
             {service.supportEmail && <a href={`mailto:${service.supportEmail}`}>문의</a>}

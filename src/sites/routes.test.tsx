@@ -15,6 +15,8 @@ describe("Sites route contract", () => {
       "/r/:token",
       "/privacy",
       "/terms",
+      "/guide",
+      "/demo/r",
     ]);
   });
 });

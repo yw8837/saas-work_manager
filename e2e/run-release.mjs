@@ -19,6 +19,7 @@ const batches = [
   {
     name: "surface",
     files: [
+      "e2e/guide-demo.spec.ts",
       "e2e/responsive-ui.spec.ts",
       "e2e/settings-export.spec.ts",
       "e2e/visual-capture.spec.ts",
