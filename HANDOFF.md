@@ -12,6 +12,24 @@
 
 ## 지금 상태
 
+### 2026-10-31 개발 의존성 감사 17개 → 0개 (재배포 불필요)
+
+- 원인 권고 2개: GHSA-g3hv-75wg-m249(minimatch <11.0.1, 2026-10-30 공개, 11.0.1만 패치)와 GHSA-mrhx-c7xc-m3w5(zod <4.6.6). 17개 중 15개는 minimatch를 쓰는 eslint 쪽 연쇄 표시였다.
+- zod: `eslint-plugin-react-hooks`만 쓰고 허용 범위가 `^3.25.0 || ^4.0.0`이라 override `"zod": "^4.6.6"` → 4.6.7.
+- minimatch: 업스트림 최신판도 아직 3.x·10.x다(eslint/eslint#21463, typescript-eslint#13125 열린 상태. 3.x 영향 범위 정정 제안 github/advisory-database#10807도 미병합). 11은 함수가 아니라 객체를 내보내고 `makeRe`를 없애 그대로 바꾸면 eslint가 깨진다. 그래서:
+  - 3.x 사용처 6곳(eslint, @eslint/eslintrc, @eslint/config-array, eslint-plugin-import·react·jsx-a11y) → `vendor/minimatch-v3-compat`(3.x 호출 모양 + 패치된 11.0.3 엔진). 3.1.5의 `pattern.trim()`과 Windows `\` 처리를 그대로 맞췄다. override `"minimatch@<10": "$minimatch"` + 루트 devDependency `file:` (상대 경로 file: override는 npm이 각 패키지 기준으로 풀어 링크가 깨지므로 `$` 참조를 쓴다).
+  - 10.x 사용처(typescript-estree, `minimatch(path, pattern)`만 씀) → override `"minimatch@>=10 <11.0.1": "11.0.3"`.
+- 검증: 진짜 3.1.5와 래퍼를 실제 경로 458 × 패턴 51(공백·`\` 변형 포함) × 옵션 7 × 일반/부분 = 327,012번 비교 → 일반 일치 차이 0, 부분 일치 64건은 모두 11.0의 의도된 `**` 수정이며 eslint가 쓰는 `dot:true`에선 `..` 경로뿐. eslint 결과 교체 전후 같은 328개 파일·지적 0(+새 테스트 파일 1). npm 10.9.9·11.12.1 깨끗한 `npm ci` 성공·감사 0. `check:release` 전체 PASS(unit 132파일/827, E2E 74), PGlite 권한 24 PASS. `scripts/minimatch-v3-compat.test.mjs` 17개는 옛 잠금 파일·공백 처리 제거로 일부러 망가뜨리면 실패함을 확인. Sites 빌드 결과 136파일이 v36 배포본과 해시까지 같아 재배포하지 않았다. Codex 읽기 전용 독립 리뷰 지적(Windows `\`·trim, 테스트 프리릴리스 비교·항진식) 반영.
+- 업스트림이 11.0.1 이상으로 올리면 `vendor/minimatch-v3-compat`, devDependency `minimatch`, override 두 줄, `eslint.config.mjs`의 `vendor/**`를 함께 지운다.
+
+### 2026-10-31 PR #19 운영 Sites v36 배포 완료 — 실제 고객 링크에 작업자 이름·마감·진행 단계
+
+- 사용자 "배포부터 마쳐" 지시. 소스 main `78f9e34`(PR #19 병합), 트리 `0a38884662fb22bc95f6962b0c523f5f0b3a8ac2`.
+- 운영 DB migration `20261031110217_public_revision_view`(Supabase apply_migration이 적용 시각으로 버전을 기록해 파일 이름을 맞췄다). `get_workspace_revision_view(text)`: anon·authenticated·service_role 실행 true, PUBLIC 없음, 가짜 토큰 0행.
+- Sites 버전 36: `appgprj_6a8b16a27df88191b5cad3afd63a9366~appgver_ebd4b36fc5488191a6efeee755d931c5`, 배포 `appgdep_6ae5edee2c448191ad59b38b392db618`, `succeeded` 2026-10-31 22:32:51 KST. helper commit `78f9e34`, 136파일, 로컬 tar SHA256 `a2460066b1f86aef6bc73719da3b5dbcdf4d7e76f551e65b7c98c41bc07cc65f`, 서버 tar SHA256 `b2e4d0bac37d6b36a261553f2e3ac2ba0086e468308ebdc70f327a2cc8132598`. public·환경 revision 7 유지.
+- 확인: 두 주소 JS `index-BYKeBOXl.js`(로컬 빌드와 같은 이름)에 `get_workspace_revision_view`·`publicWorkerName` 포함, `/ /today /guide /demo/r /settings` 200, health `ready=true`·`publicConfigDigest` 변화 없음, `smoke:sites` 두 주소 PASS. 브라우저로 `/r/<가짜 토큰>`을 열면 `rpc/get_workspace_revision_view` 200(옛 함수로 되돌아간 호출 없음). 실제 작업자 데이터로 이름·마감·단계가 보이는지는 사용자 계정으로 확인할 일이다.
+- **배포 요령(Windows):** Codex workspace-write 샌드박스는 `.git`과 분리한 git 폴더까지 쓰기를 막아 공식 helper 커밋이 불가능하다 → 사용자 허락으로 전체 권한 1회. helper를 tty로 띄울 때 Store판 `WindowsApps\pwsh.exe`면 os error 5 → 셸을 `C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe`로 지정. 샌드박스 git의 schannel 오류는 배포 복사본 `.git/config`에 `http.sslBackend=openssl`과 CA 사본. 운영 확인 curl은 `Accept: text/html` 헤더가 있어야 화면 HTML(없으면 404).
+
 ### 2026-10-31 PR #18 운영 Sites v35 배포 완료
 
 - 사용자 "배포까지 진행" 승인에 따라 공식 Sites 스킬의 source helper → save_site_version → deploy_site_version 절차로 배포했다. 아래 2026-10-30 리뉴얼·설명서·체험 링크 절의 "미배포"는 당시 기록이며 PR #18 내용은 이번 v35에 반영됐다.
