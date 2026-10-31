@@ -271,6 +271,22 @@ export function SettingsPanel() {
 
       <InstallAppCard />
 
+      <section className="contentSection settingSection" data-testid="public-worker-name-section">
+        <div className="sectionHeadingRow"><div><h2>고객 링크에 보일 이름</h2></div><Send size={20} /></div>
+        <label className="settingTime publicWorkerNameField">
+          <span>이름 또는 가게 이름 <small>선택</small></span>
+          <input
+            type="text"
+            maxLength={40}
+            value={settings.publicWorkerName ?? ""}
+            onChange={(event) => updateSettings({ publicWorkerName: event.target.value })}
+            placeholder="예: 열매 디자인"
+            data-testid="public-worker-name"
+          />
+        </label>
+        <p className="planPrice">적으면 고객 링크 맨 위에 보여요. 비워 두면 이름 없이 마감일·진행 단계·남은 수정 횟수만 보여요.</p>
+      </section>
+
       <div className="settingsGrid">
         <section className="contentSection settingSection">
           <div className="sectionHeadingRow"><div><h2>일일 브리핑</h2></div><BellRing size={20} /></div>

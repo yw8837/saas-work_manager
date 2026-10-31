@@ -47,7 +47,7 @@ describe("CustomerRevisionDemo", () => {
     expect(screen.getByTestId("revision-due")).toHaveTextContent("5일 남음");
     expect(screen.getByRole("list", { name: "진행 단계" })).toBeInTheDocument();
     expect(screen.getByText("수정", { selector: "li[aria-current=step] span" })).toBeInTheDocument();
-    expect(screen.getByTestId("demo-preview-only")).toHaveTextContent("체험 화면에서만");
+    expect(screen.getByTestId("demo-preview-only")).toHaveTextContent("설정에서 적은 경우에만");
 
     fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "메뉴판 글씨를 키워주세요." } });
     fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));

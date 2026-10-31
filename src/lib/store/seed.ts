@@ -136,6 +136,8 @@ export interface AppSettings {
   privateNotificationDetails: boolean;
   /** 첫 로그인에서 베타 코드 안내를 적용하거나 건너뛴 시각. */
   betaCodeOnboardingCompletedAt?: string;
+  /** 고객 링크 위에 보일 작업자(가게) 이름. 비우면 고객 링크에 이름을 보이지 않는다. */
+  publicWorkerName?: string;
 }
 
 export interface AppState {
