@@ -16,6 +16,12 @@ export type PublicRevisionSummary = {
   included: number;
   used: number;
   remaining: number;
+  /** 아래는 get_workspace_revision_view가 있는 DB에서만 채워진다. */
+  dueDate?: string;
+  tasksTotal?: number;
+  tasksDone?: number;
+  hasOpenRevision?: boolean;
+  workerName?: string;
 };
 
 export type PublicRevisionReceipt = {
@@ -253,6 +259,36 @@ export async function getHostedPublicRevisionSummary(
   client: SupabaseClient,
   token: string,
 ): Promise<PublicRevisionSummary | null> {
+  const view = await client.rpc("get_workspace_revision_view", { p_token: token });
+  if (!view.error) {
+    const row = firstRow<{
+      job_key: string;
+      title: string;
+      package_name: string;
+      included: number;
+      used: number;
+      remaining: number;
+      due_date: string | null;
+      tasks_total: number;
+      tasks_done: number;
+      has_open_revision: boolean;
+      worker_name: string | null;
+    }>(view.data);
+    return row ? {
+      jobKey: row.job_key,
+      title: row.title,
+      packageName: row.package_name,
+      included: Number(row.included),
+      used: Number(row.used),
+      remaining: Number(row.remaining),
+      dueDate: row.due_date ?? undefined,
+      tasksTotal: Number(row.tasks_total),
+      tasksDone: Number(row.tasks_done),
+      hasOpenRevision: Boolean(row.has_open_revision),
+      workerName: row.worker_name ?? undefined,
+    } : null;
+  }
+  // 새 함수가 아직 없는 DB(migration 적용 전)에서는 기존 요약 함수로 되돌아간다.
   const { data, error } = await client.rpc("get_workspace_revision_summary", { p_token: token });
   if (error) throw new Error("사용할 수 없는 링크예요.");
   const row = firstRow<{

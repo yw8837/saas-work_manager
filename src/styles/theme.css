@@ -1529,6 +1529,9 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .customerStageChips li[data-state="done"] { color: var(--green); background: var(--green-soft); border-color: transparent; }
 .customerStageChips li[data-state="current"] { color: var(--on-primary); background: var(--ink); border-color: var(--ink); }
 .customerStageChips em { font-size: 11px; font-style: normal; font-weight: 600; }
+.customerStageChips:has(+ .customerStageProgress) { margin-bottom: 8px; }
+.customerStageProgress { margin: 0 0 18px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.publicWorkerNameField input { width: 100%; max-width: 320px; }
 .publicRevisionNextStep { margin: 18px 0 14px; padding: 12px 14px; text-align: left; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius); }
 .publicRevisionNextStep strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 13px; }
 .publicRevisionNextStep p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }

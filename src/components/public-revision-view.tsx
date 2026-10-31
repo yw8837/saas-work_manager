@@ -76,6 +76,8 @@ export type PublicRevisionViewProps = {
   dueLabel?: string;
   /** 진행 단계. 모르면 비워 두고, 그러면 단계 칩을 그리지 않는다. */
   stage?: CustomerStage;
+  /** 할 일 완료 개수. 이름은 내보내지 않고 개수만 보여 준다. 할 일이 없으면 그리지 않는다. */
+  progress?: { done: number; total: number };
   badgeLabel: string;
   footnote: string;
   /** 성공하면 차감 결과를 돌려주고, 실패하면 고객에게 보여줄 문구로 throw한다. */
@@ -92,6 +94,7 @@ export function PublicRevisionView({
   workerName,
   dueLabel,
   stage,
+  progress,
   badgeLabel,
   footnote,
   onSubmit,
@@ -179,6 +182,9 @@ export function PublicRevisionView({
                   );
                 })}
               </ol>
+            )}
+            {stage !== undefined && progress && progress.total > 0 && (
+              <p className="customerStageProgress" data-testid="revision-progress">할 일 {progress.total}개 중 {progress.done}개 완료</p>
             )}
 
             <form className="publicRevisionFields" onSubmit={submit}>

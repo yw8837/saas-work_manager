@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { Info, RotateCcw } from "lucide-react";
 
 import { PublicRevisionView } from "@/components/public-revision-view";
-import { customerStageOf } from "@/lib/domain/customer-stage";
+import { customerProgressOf, customerStageOf } from "@/lib/domain/customer-stage";
 import {
   createCustomerDemoState,
   SAMPLE_WORKER_NAME,
@@ -61,7 +61,7 @@ export function CustomerRevisionDemo({ initialState }: { initialState?: Customer
         위 주문 정보는 작업자 화면 기준이에요. 실제 고객 화면에는 금액·연락처가 보이지 않아요.
       </p>
       <p className="demoNoticeSub" data-testid="demo-preview-only">
-        아래 작업자 이름·마감·진행 단계는 체험 화면에서만 먼저 보여 드리는 표시예요. 지금 실제 고객 링크에는 남은 수정 횟수와 일감·패키지 이름만 나와요.
+        실제 고객 링크에도 마감일·진행 단계·남은 수정 횟수가 같은 모양으로 보여요. 작업자 이름은 설정에서 적은 경우에만 보여요.
       </p>
       <div className="demoNoticeActions">
         <Link href="/guide">사용설명서 보기</Link>
@@ -85,6 +85,7 @@ export function CustomerRevisionDemo({ initialState }: { initialState?: Customer
       workerName={SAMPLE_WORKER_NAME}
       dueLabel={`${view.daysLeft}일 남음`}
       stage={customerStageOf(state.order)}
+      progress={customerProgressOf(state.order)}
       badgeLabel="체험용 · 전송 안 됨"
       footnote="체험 화면이라 남긴 내용은 어디에도 전송·저장되지 않아요. 새로고침하면 처음 상태로 돌아가요."
       onSubmit={submit}

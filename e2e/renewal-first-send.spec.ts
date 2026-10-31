@@ -113,10 +113,11 @@ test("2번: 고객 링크 화면은 남은 수정을 크게, 개인정보 안내
   await expect(page.getByTestId("revision-remaining")).toHaveText("2");
   const fontSize = await page.getByTestId("revision-remaining").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
   expect(fontSize).toBeGreaterThanOrEqual(32);
-  // 서버가 주지 않는 값(작업자 이름·마감·단계)은 실제 링크에 새로 노출하지 않는다.
+  // 마감일·진행 단계는 실제 링크에도 보인다. 작업자 이름은 설정에서 적기 전에는 보이지 않는다.
   await expect(page.getByTestId("revision-worker")).toHaveCount(0);
-  await expect(page.getByTestId("revision-due")).toHaveCount(0);
-  await expect(page.getByRole("list", { name: "진행 단계" })).toHaveCount(0);
+  await expect(page.getByTestId("revision-due")).toBeVisible();
+  await expect(page.getByRole("list", { name: "진행 단계" }).locator("[aria-current=step]")).toHaveCount(1);
+  await expect(page.getByTestId("revision-progress")).toContainText(/할 일 \d+개 중 \d+개 완료/);
   await expect(page.getByText(/민감한 내용은 적지 마세요/)).toBeHidden();
   await expect(page.getByRole("link", { name: "개인정보처리방침" })).toBeVisible();
   await noHorizontalOverflow(page);
@@ -133,6 +134,13 @@ test("2번: 고객 링크 화면은 남은 수정을 크게, 개인정보 안내
   const brand = await page.locator(".publicRevisionEmpty .brand").boundingBox();
   const lock = await page.locator(".publicRevisionEmptyIcon").boundingBox();
   expect(lock!.y).toBeGreaterThanOrEqual(brand!.y + brand!.height);
+  await noHorizontalOverflow(page);
+
+  // 설정에서 이름을 적으면 고객 링크 맨 위에 보인다.
+  await page.goto("/settings");
+  await page.getByTestId("public-worker-name").fill("열매 디자인");
+  await page.goto("/r/demo-mora-revision");
+  await expect(page.getByTestId("revision-worker")).toHaveText("열매 디자인");
   await noHorizontalOverflow(page);
 });
 

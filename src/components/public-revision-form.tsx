@@ -8,6 +8,8 @@ import {
   PublicRevisionView,
 } from "@/components/public-revision-view";
 import { getRevisionSummary, useWorkspace } from "@/components/workspace-provider";
+import { customerDueLabel, customerProgressOf, customerStageFromProgress, type CustomerProgress } from "@/lib/domain";
+import { localToday } from "@/lib/store";
 import {
   getHostedPublicRevisionSummary,
   getHostedRuntimeBoundary,
@@ -17,7 +19,7 @@ import {
 } from "@/lib/supabase";
 
 export function PublicRevisionForm({ token }: { token: string }) {
-  const { jobs, hydrated, recordPublicRevision } = useWorkspace();
+  const { jobs, settings, hydrated, recordPublicRevision } = useWorkspace();
   const hosted = useMemo(() => getHostedRuntimeBoundary().requestedMode === "hosted", []);
   const localMatch = useMemo(
     () => jobs.find((item) => item.revisionPortalToken === token),
@@ -66,6 +68,8 @@ export function PublicRevisionForm({ token }: { token: string }) {
         ...current,
         used: result.usage === "used" ? current.used + 1 : current.used,
         remaining: result.remaining,
+        // 방금 남긴 요청도 되돌리지 않은 요청이라 진행 단계가 '수정'으로 바뀐다.
+        hasOpenRevision: current.tasksTotal === undefined ? current.hasOpenRevision : true,
       } : current);
       return result.usage;
     }
@@ -90,12 +94,28 @@ export function PublicRevisionForm({ token }: { token: string }) {
   const revision = hostedSummary ?? getRevisionSummary(localJob!);
   const title = hostedSummary?.title ?? localJob!.clientLabel;
   const packageName = hostedSummary?.packageName ?? localJob!.packageSnapshot.name;
+  // 새 RPC가 없는 DB에서는 hostedSummary에 진행 정보가 없다. 그때는 이름·마감·단계를 그리지 않는다.
+  const progress: CustomerProgress | undefined = hostedSummary
+    ? hostedSummary.tasksTotal === undefined
+      ? undefined
+      : {
+          total: hostedSummary.tasksTotal,
+          done: hostedSummary.tasksDone ?? 0,
+          hasOpenRevision: hostedSummary.hasOpenRevision ?? false,
+        }
+    : customerProgressOf(localJob!);
+  const dueDate = hostedSummary ? hostedSummary.dueDate : localJob!.dueDate;
+  const workerName = (hostedSummary ? hostedSummary.workerName : settings.publicWorkerName)?.trim().slice(0, 40) || undefined;
 
   return (
     <PublicRevisionView
       title={title}
       packageName={packageName}
       revision={revision}
+      workerName={workerName}
+      dueLabel={dueDate ? customerDueLabel(dueDate, localToday()) : undefined}
+      stage={progress ? customerStageFromProgress(progress) : undefined}
+      progress={progress}
       badgeLabel={hosted ? "보안 링크로 직접 전달" : "이 브라우저에 저장"}
       footnote={hosted ? "링크를 받은 사람만 요청할 수 있어요. 연락처·금액·다른 고객 정보는 공개하지 않아요." : "보내주신 내용은 지금 이 브라우저에만 저장돼요."}
       onSubmit={submit}
