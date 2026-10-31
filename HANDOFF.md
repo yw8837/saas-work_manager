@@ -16,7 +16,7 @@
 
 - 범위: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/범위-신청동의수신거부-2026-11-01.md`. 앱은 기록·판정·기한 관리·메일 초안까지만 하고 메일은 보내지 않는다(발송은 사용자가 Gmail로).
 - 화면: `/apply`(신청), `/apply/confirm/[token]`(주소 확인, 버튼으로만 처리), `/u/[token]`(수신거부, 한글·영문), `/ops/applications`(운영자). 넷 다 WorkspaceProvider 없이 뜨는 단독 경로이고 Sites 셸에도 있다. 확인·수신거부·운영자 화면은 noindex.
-- DB: migration `20261101090000_beta_application_consent.sql`(공개 RPC 3개 + 운영자 RPC 9개, 표 9개 직접 접근 차단. 독립 리뷰 7건·재검토 3건·3차 4건·4차 3건·5차 3건·6차 2건 반영. 호출 제한 기록은 운영자 화면 '정리 실행'으로만 지워지니 신청 기간에 며칠마다 눌러야 함). **운영 DB 미적용.** 적용 뒤 운영자 계정은 사용자가 `insert into public.beta_operator_accounts(user_id) values ('<본인 auth.users id>');`로 등록한다(저장소에는 넣지 않음).
+- DB: migration `20261101090000_beta_application_consent.sql`(공개 RPC 3개 + 운영자 RPC 9개, 표 9개 직접 접근 차단. 독립 리뷰 7건·재검토 3건·3차 4건·4차 3건·5차 3건·6차 2건·7차 1건 반영. 호출 제한 기록은 운영자 화면 '정리 실행'으로만 지워지니 신청 기간에 며칠마다 눌러야 함). **운영 DB 미적용.** 적용 뒤 운영자 계정은 사용자가 `insert into public.beta_operator_accounts(user_id) values ('<본인 auth.users id>');`로 등록한다(저장소에는 넣지 않음).
 - 검증·대응표·판단한 것·한계: `docs/verification/2026-11-01-beta-consent.md`. 개인정보처리방침 추가 문구 초안(법률 검토 대상): `docs/beta-apply-privacy-draft.md`.
 - 남은 일: 사용자 검토 → push·PR·CI → 운영 DB migration·운영자 등록·Sites 배포(모두 사용자 승인 뒤). 방침 문구 법률 검토·게시. 전송자 명칭 "스튜디오열매" vs 저장소 사업자 정보 "열매스튜디오" 확인.
 

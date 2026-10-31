@@ -188,6 +188,17 @@ RED 확인(작업자 보고, 독립 입증 아님): 리뷰 2·5·6 DB 시험 7�
 
 한계: 실제 PostgreSQL 다중 세션의 동시 정리 대기·교착은 이번에도 시험하지 않았다(PGlite는 세션 하나). 화면 문구는 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과).
 
+## 7차 재검토 반영 (Codex, 2026-11-01, 판정 "수정 필요")
+
+원문: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능-재검토6.md`. 판정: 6차 2건 중 1건 해결(남은 수 상한), 1건 부분 해결(부분 성공 안내). 남은 결함 1건(P2, 재검토는 6차 이전 커밋에서도 재현돼 이번 변경이 만든 것은 아니라고 구분).
+작업자(Claude) 보고: 시험을 먼저 만들어 실패를 확인한 뒤 고쳤다(작업자 실행 기록, 독립 입증 아님).
+
+| # | 심각도 | 원인 | 수정 | 시험 이름 |
+|---|---|---|---|---|
+| 1 | P2 | 작업 뒤 목록을 다시 불러오다 실패하면 화면이 오류 화면(`gate="error"`)으로 일찍 빠지는데, 작업 결과 메시지는 정상 화면에서만 그려져 이미 끝난 작업 결과가 가려졌다. 정리 실행뿐 아니라 같은 `run()` → `refresh()` 흐름인 통지 보냄 표시·삭제 요청 처리·삭제 안내 완료·결과 기록도 같은 문제였다 | 오류 화면에서도 같은 로그인 세션에서 받은 작업 결과를 먼저 보여 주고(`beta-ops-last-result`), 그 아래에 "운영 기록을 불러오지 못했어요. 방금 한 작업은 위와 같이 처리됐고, 목록만 다시 불러오지 못했어요."와 "목록 다시 불러오기" 버튼을 따로 보여 준다. 모든 작업이 같은 메시지 상태를 쓰므로 한 번에 고쳐진다. 로그아웃·계정 전환 때 결과를 지우는 동작(`clearAll`)은 그대로이고, 로그인 필요·운영자 아님 화면에는 결과를 보여 주지 않는다 | 단위 `[재검토6] 신청 정리 성공 → 호출 기록 정리 실패 → 목록 다시 불러오기 실패여도, 완료된 정리 결과와 목록 갱신 실패를 둘 다 보여 준다`, `[재검토6] 통지 보냄 표시처럼 다른 작업도, 뒤이은 목록 갱신이 실패해도 완료 결과를 보여 준다`, `[재검토6] 남아 있던 작업 결과는 계정이 바뀌면 지운다(1차 1번 회귀 금지)` |
+
+한계: 작업 결과는 화면 메모리에만 있어 브라우저를 새로고침하면 사라진다(DB에 남는 기록 — 삭제 수는 신청 목록, 통지·삭제 기록은 각 목록 — 은 다시 불러오면 볼 수 있다). 화면 문구는 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과).
+
 ## 한계·운영 안내 (호출 제한 기록)
 
 - 호출 제한 카운터 표(`beta_public_call_counters`)는 **운영자가 "정리 실행"을 누르지 않으면 계속 커진다.** "2일 지난 행" 조건은 자동 만료가 아니라 정리를 실행할 때만 적용된다. 자동 예약은 아직 없다(범위 문서 '하지 않는 것').
@@ -436,6 +447,37 @@ $ npm run check:release
 CHECK_RELEASE_EXIT=0
 $ npm run build:sites && node scripts/verify-sites-output.mjs
 BUILD_SITES_EXIT=0 (✓ built in 819ms / ✓ built in 44ms)
+Sites output verified
+VERIFY_SITES_EXIT=0
+```
+
+### 7차 재검토 반영 뒤 재검증 (2026-11-01, 출력 원문 발췌)
+
+```
+$ npm run lint            → LINT_EXIT=0
+$ npm run typecheck       → TYPECHECK_EXIT=0
+$ npx vitest run
+ Test Files  137 passed (137)
+      Tests  917 passed (917)
+$ node scripts/test-native-push-db.mjs
+PASS: native SQL contract, deletion regression, 36 RPC privilege checks (ephemeral PGlite).
+NATIVE_DB_EXIT=0
+$ node scripts/test-beta-consent-db.mjs
+PASS: 40 beta consent DB checks (ephemeral PGlite).
+BETA_DB_EXIT=0
+$ npm run check:release
+[release-gate] PASS unit            (917 tests)
+[release-gate] PASS lint
+[release-gate] PASS typecheck
+[release-gate] PASS production dependency audit   (found 0 vulnerabilities)
+[release-gate] PASS local production build
+[e2e-release] PASS desktop/core 14 · desktop/surface 27 · mobile/core 14 · mobile/surface 27
+[release-gate] PASS local production E2E
+[release-gate] PASS hosted fail-closed production build
+[release-gate] PASS unit/lint/typecheck/audit/local E2E/hosted build 전체 게이트 통과.
+CHECK_RELEASE_EXIT=0
+$ npm run build:sites && node scripts/verify-sites-output.mjs
+BUILD_SITES_EXIT=0 (✓ built in 750ms / ✓ built in 52ms)
 Sites output verified
 VERIFY_SITES_EXIT=0
 ```
