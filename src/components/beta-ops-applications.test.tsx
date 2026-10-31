@@ -177,6 +177,24 @@ describe("/ops/applications 운영자 화면", () => {
     expect(screen.getByTestId("beta-deletion")).toHaveTextContent("test-a@example.invalid");
   });
 
+  it("[재검토 3] 주소가 정리된 뒤 생긴 통지는 '주소가 정리되어 이메일 통지 불가 — 화면 통지만 함'으로 구분하고, 보낼 통지로 세지 않는다", async () => {
+    const notice = {
+      event_id: "event-screen-only", kind: "withdraw", source: "unsubscribe_link", occurred_at: "2026-11-01T00:00:00Z",
+      confirmed_at: null, notice_shown_at: "2026-11-01T00:00:00Z", notice_due_at: "2026-11-15T00:00:00Z",
+      notice_emailed_at: null, application_id: null, recipient_email: null, email_unavailable: true,
+    };
+    const rpc = vi.fn((name: string): Promise<RpcResult> => Promise.resolve(
+      name === "beta_ops_list_notices" ? { data: [notice], error: null } : { data: [], error: null },
+    ));
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    const item = await screen.findByTestId("beta-notice");
+    expect(item).toHaveTextContent("주소가 정리되어 이메일 통지 불가 — 화면 통지만 함");
+    expect(item).not.toHaveTextContent("삭제 결과 안내까지 끝나 주소를 지웠어요");
+    expect(within(item).queryByRole("button", { name: "통지 보냄 표시" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "처리결과 통지 0건 남음" })).toBeInTheDocument();
+  });
+
   it("[리뷰 7] 결과를 고르기만 해도 그 결과의 초안이 보이고, 보냄 표시는 아직 기록되지 않는다", async () => {
     useLocal();
     render(<BetaOpsApplications />);

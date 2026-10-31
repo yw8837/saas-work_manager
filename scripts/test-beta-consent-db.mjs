@@ -131,6 +131,7 @@ try {
     for (const table of [
       "beta_operator_accounts", "beta_applications", "beta_application_links", "beta_unsubscribe_tokens",
       "beta_ad_consent_events", "beta_ad_suppressions", "beta_public_call_counters",
+      "beta_deletion_requests", "beta_ad_exclusions",
     ]) {
       for (const role of ["anon", "authenticated"]) {
         for (const privilege of ["select", "insert", "update", "delete"]) {
@@ -347,7 +348,8 @@ try {
     await apply("test06@example.invalid", { ad: true });
     const row = await latestApplication("test06@example.invalid");
     const result = await unsubscribe(row.unsubscribe_token);
-    assert.deepEqual(Object.keys(result).sort(), ["event_at", "event_kind", "status"]);
+    assert.deepEqual(Object.keys(result).sort(), ["email_notice", "event_at", "event_kind", "status"]);
+    assert.equal(result.email_notice, true);
     assert.equal(result.status, "withdrawn");
     assert.ok(!JSON.stringify(result).includes("example.invalid"), "응답에 주소가 없다");
   });
@@ -588,6 +590,119 @@ try {
     await as("authenticated", OPERATOR, "select public.beta_ops_mark_notice_emailed($1)", [notice.event_id]);
     assert.equal((await as("authenticated", OPERATOR, "select public.beta_ops_purge_expired() as count")).rows[0].count, 1);
     assert.equal(await latestApplication(email), undefined);
+  });
+
+  const markAllNoticesFor = async (email) => {
+    for (const notice of (await opsNotices()).filter((item) => item.recipient_email === email && !item.notice_emailed_at)) {
+      await as("authenticated", OPERATOR, "select public.beta_ops_mark_notice_emailed($1)", [notice.event_id]);
+    }
+  };
+  const expireAndPurge = async (applicationId) => {
+    await db.query("update public.beta_applications set purge_after = now() - interval '1 day' where id = $1", [applicationId]);
+    return (await as("authenticated", OPERATOR, "select public.beta_ops_purge_expired() as count")).rows[0].count;
+  };
+
+  await check("[재검토 1] 같은 주소의 새 신청을 미선정 안내한 뒤 그 신청을 보유기간 정리해도, 남은 과거 적격 신청은 광고 대상이 되지 않는다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-rc1-a@example.invalid";
+    await apply(email, { ad: true });
+    await confirm((await latestApplication(email)).confirm_token);
+    await apply(email, { ad: false });
+    const rows = (await opsApplications()).filter((row) => row.email === email);
+    const newest = rows.reduce((a, b) => (a.created_at > b.created_at ? a : b));
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','not_selected')", [newest.id]);
+    await markAllNoticesFor(email);
+    assert.equal(await expireAndPurge(newest.id), 1);
+    const remaining = (await opsApplications()).filter((row) => row.email === email);
+    assert.equal(remaining.length, 1);
+    assert.equal(remaining[0].ad_target, false, "미선정 정리 뒤에도 광고 제외 유지");
+  });
+
+  await check("[재검토 1] 미선정 신청을 모두 정리한 뒤 같은 주소가 다시 적격으로 신청해도(광고 체크 없음·있음) 이번 모집 광고 대상이 아니다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-rc1-b@example.invalid";
+    await apply(email, { ad: true });
+    const first = await latestApplication(email);
+    await confirm(first.confirm_token);
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','not_selected')", [first.id]);
+    await markAllNoticesFor(email);
+    assert.equal(await expireAndPurge(first.id), 1);
+    assert.equal(await latestApplication(email), undefined);
+
+    await apply(email, { ad: false });
+    const noAd = await latestApplication(email);
+    assert.equal(noAd.ad_status, "active", "동의 이력은 그대로");
+    assert.equal(noAd.ad_target, false, "광고 체크 없이 재신청");
+
+    await apply(email, { ad: true });
+    const withAd = (await opsApplications()).filter((row) => row.email === email).reduce((a, b) => (a.created_at > b.created_at ? a : b));
+    await confirm(withAd.confirm_token);
+    const after = (await opsApplications()).filter((row) => row.email === email);
+    assert.deepEqual(after.map((row) => row.ad_target), [false, false], "광고 체크하고 재신청");
+    // 광고 제외 근거는 주소 원문 없이 해시로만 남는다.
+    const raw = await db.query("select count(*)::int as n from public.beta_ad_exclusions where email_hash = $1", [email]);
+    assert.equal(raw.rows[0].n, 0);
+    const hashed = await db.query(
+      "select count(*)::int as n from public.beta_ad_exclusions where email_hash = encode(extensions.digest('ilgamcheck-beta-ad:' || $1, 'sha256'), 'hex')",
+      [email],
+    );
+    assert.equal(hashed.rows[0].n, 1);
+  });
+
+  await check("[재검토 2] 전체 신청 한도가 찬 뒤 새 주소로 거절되는 요청은 카운터 행을 새로 만들지 않는다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    await db.exec(`insert into public.beta_public_call_counters (bucket, window_start, calls)
+      values ('apply:all:hour', to_timestamp(floor(extract(epoch from clock_timestamp()) / 3600) * 3600), 300)`);
+    const before = (await db.query("select count(*)::int as n from public.beta_public_call_counters")).rows[0].n;
+    for (let index = 0; index < 5; index += 1) {
+      assert.equal((await apply(`test-rc2-${index}@example.invalid`)).status, "rate_limited");
+    }
+    const after = (await db.query("select count(*)::int as n from public.beta_public_call_counters")).rows[0].n;
+    assert.equal(after, before, "거절된 요청이 주소별 카운터 행을 만들었다");
+    assert.equal((await opsApplications()).filter((row) => row.email.startsWith("test-rc2-")).length, 0);
+  });
+
+  await check("[재검토 2] 주소별 한도에 걸린 요청은 여전히 전체 예산을 쓰지 않고, 통과한 요청만 주소별·전체 카운터를 함께 센다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-rc2-same@example.invalid";
+    for (let index = 0; index < 3; index += 1) assert.equal((await apply(email)).status, "received");
+    for (let index = 0; index < 5; index += 1) assert.equal((await apply(email)).status, "rate_limited");
+    assert.equal(await callsIn("apply:all:hour"), 3);
+    const perEmail = await db.query("select coalesce(sum(calls), 0)::int as n from public.beta_public_call_counters where bucket like 'apply:%:hour' and bucket <> 'apply:all:hour'");
+    assert.equal(perEmail.rows[0].n, 3);
+  });
+
+  await check("[재검토 3] 보유기간 정리 뒤 옛 수신거부 링크로 철회하면 처리는 되고, 통지 기록은 '화면 통지함·이메일 주소 없음(정리됨)'으로 정확히 남는다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-rc3@example.invalid";
+    await apply(email, { ad: true });
+    const row = await latestApplication(email);
+    await confirm(row.confirm_token);
+    await markAllNoticesFor(email);
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','beta')", [row.id]);
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'beta_ended',null)", [row.id]);
+    assert.equal(await expireAndPurge(row.id), 1);
+
+    const result = await unsubscribe(row.unsubscribe_token);
+    assert.equal(result.status, "withdrawn");
+    assert.equal(result.email_notice, false, "이메일로 따로 알릴 주소가 없음을 화면에 알린다");
+    const notice = (await opsNotices()).find((item) => item.kind === "withdraw" && item.occurred_at.getTime() === result.event_at.getTime());
+    assert.equal(notice.recipient_email, null);
+    assert.equal(notice.email_unavailable, true);
+    assert.ok(notice.notice_shown_at instanceof Date, "화면 통지 시각");
+    assert.equal(notice.notice_emailed_at, null);
+    // 주소를 새로 남기지 않는다.
+    const kept = await db.query("select count(*)::int as n from public.beta_deletion_requests where email = $1", [email]);
+    assert.equal(kept.rows[0].n, 0);
+    // 화면 통지만 가능한 건은 정리·삭제 완료를 막는 '보내야 할 통지'로 세지 않는다.
+    await apply(email, { ad: false });
+    const again = await latestApplication(email);
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','not_selected')", [again.id]);
+    assert.equal(await expireAndPurge(again.id), 1);
+    // 두 번째 클릭도 같은 결과.
+    const second = await unsubscribe(row.unsubscribe_token);
+    assert.equal(second.status, "already");
+    assert.equal(second.email_notice, false);
   });
 
   const failed = results.filter((result) => !result.ok);

@@ -78,14 +78,19 @@ export type BetaUnsubscribeResult = {
   status: "withdrawn" | "refused" | "already" | "invalid" | "rate_limited";
   eventKind: "refuse" | "withdraw" | null;
   eventAt: string | null;
+  /** 이메일로도 처리 결과를 알릴 수 있는지. false면 주소가 이미 정리돼 이 화면이 유일한 통지다. */
+  emailNotice: boolean | null;
 };
 
 export async function unsubscribeBetaAds(client: SupabaseClient, token: string): Promise<BetaUnsubscribeResult> {
   const { data, error } = await client.rpc("unsubscribe_beta_ads", { p_token: token });
   if (error) throw new Error("수신거부를 처리하지 못했어요.");
-  const row = firstRow<{ status: BetaUnsubscribeResult["status"]; event_kind: BetaUnsubscribeResult["eventKind"]; event_at: string | null }>(data);
+  const row = firstRow<{
+    status: BetaUnsubscribeResult["status"]; event_kind: BetaUnsubscribeResult["eventKind"]; event_at: string | null;
+    email_notice: boolean | null;
+  }>(data);
   if (!row) throw new Error("수신거부를 처리하지 못했어요.");
-  return { status: row.status, eventKind: row.event_kind, eventAt: row.event_at };
+  return { status: row.status, eventKind: row.event_kind, eventAt: row.event_at, emailNotice: row.email_notice ?? null };
 }
 
 export type BetaOpsApplication = {
@@ -125,6 +130,8 @@ export type BetaOpsNotice = {
   applicationId: string | null;
   /** 통지를 보낼 주소. 신청이 삭제 요청으로 지워졌어도 삭제 결과 안내를 끝낼 때까지는 남아 있다. */
   recipientEmail: string | null;
+  /** 의사표시 때 주소가 이미 정리돼 이메일로 통지할 수 없었고 화면 통지만 한 건. */
+  emailUnavailable: boolean;
 };
 
 export type BetaOpsDeletion = {
@@ -200,6 +207,7 @@ type NoticeRow = {
   event_id: string; kind: BetaNoticeKind; source: BetaOpsNotice["source"]; occurred_at: string; confirmed_at: string | null;
   notice_shown_at: string | null; notice_due_at: string; notice_emailed_at: string | null; application_id: string | null;
   recipient_email: string | null;
+  email_unavailable: boolean | null;
 };
 
 export async function listBetaNotices(client: SupabaseClient): Promise<BetaOpsNotice[]> {
@@ -216,6 +224,7 @@ export async function listBetaNotices(client: SupabaseClient): Promise<BetaOpsNo
     noticeEmailedAt: row.notice_emailed_at,
     applicationId: row.application_id,
     recipientEmail: row.recipient_email,
+    emailUnavailable: Boolean(row.email_unavailable),
   }));
 }
 

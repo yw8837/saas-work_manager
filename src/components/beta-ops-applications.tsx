@@ -263,7 +263,8 @@ export function BetaOpsApplications() {
   const byId = new Map(applications.map((application) => [application.id, application]));
   const expired = applications.filter((application) => application.purgeAfter && new Date(application.purgeAfter).getTime() <= now);
   const adTargets = [...new Set(applications.filter((application) => application.adTarget).map((application) => application.email))];
-  const openNotices = notices.filter((notice) => !notice.noticeEmailedAt);
+  // 화면 통지만 가능한 건(주소가 이미 정리됨)은 메일로 보낼 수 없으니 '남은 통지'로 세지 않는다.
+  const openNotices = notices.filter((notice) => !notice.noticeEmailedAt && !notice.emailUnavailable);
   const openDeletions = deletions.filter((deletion) => deletion.email && !deletion.resultEmailedAt);
 
   async function run(action: () => Promise<unknown>, done: string) {
@@ -348,7 +349,7 @@ export function BetaOpsApplications() {
         <ul className="betaOpsList">
           {notices.map((notice) => {
             const application = notice.applicationId ? byId.get(notice.applicationId) : undefined;
-            const overdue = !notice.noticeEmailedAt && new Date(notice.noticeDueAt).getTime() < now;
+            const overdue = !notice.noticeEmailedAt && !notice.emailUnavailable && new Date(notice.noticeDueAt).getTime() < now;
             return (
               <li
                 key={notice.eventId}
@@ -364,7 +365,11 @@ export function BetaOpsApplications() {
                   <span>의사표시 {koreanDate(notice.occurredAt)}</span>
                   <span>화면 표시 {notice.noticeShownAt ? koreanDate(notice.noticeShownAt) : "없음"}</span>
                   <span className={overdue ? "betaOverdue" : undefined}>마감 {koreanDate(notice.noticeDueAt)}</span>
-                  <span>{notice.noticeEmailedAt ? `통지 보냄 ${koreanDate(notice.noticeEmailedAt)}` : "통지 안 보냄"}</span>
+                  <span>
+                    {notice.noticeEmailedAt
+                      ? `통지 보냄 ${koreanDate(notice.noticeEmailedAt)}`
+                      : notice.emailUnavailable ? "화면 통지만 함" : "통지 안 보냄"}
+                  </span>
                 </div>
                 {notice.recipientEmail ? (
                   <details>
@@ -374,10 +379,14 @@ export function BetaOpsApplications() {
                       recordEmail={notice.recipientEmail}
                     />
                   </details>
-                ) : (
+                ) : notice.emailUnavailable ? (
+                  <p className="betaPublicMuted">주소가 정리되어 이메일 통지 불가 — 화면 통지만 함 (의사표시 때 처리 결과를 화면으로 보여 줬어요)</p>
+                ) : notice.noticeEmailedAt ? (
                   <p className="betaPublicMuted">통지를 마치고 삭제 결과 안내까지 끝나 주소를 지웠어요.</p>
+                ) : (
+                  <p className="betaDraftProblems">받는 주소를 찾지 못했어요. 운영 확인이 필요해요.</p>
                 )}
-                {!notice.noticeEmailedAt && (
+                {!notice.noticeEmailedAt && !notice.emailUnavailable && (
                   <ConfirmButton label="통지 보냄 표시" confirmLabel="보낸 것 맞아요" onConfirm={() => run(() => backend!.markNoticeEmailed(notice.eventId), "통지 보낸 시각을 남겼어요.")} />
                 )}
               </li>

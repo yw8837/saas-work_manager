@@ -100,6 +100,7 @@ export function previewBetaOpsBackend(now: Date = new Date()): BetaOpsBackend {
       noticeEmailedAt: null,
       applicationId: application.id,
       recipientEmail: application.email,
+      emailUnavailable: false,
     }));
   let deletions: Array<BetaOpsDeletion & { key: string }> = [];
 
@@ -144,7 +145,7 @@ export function previewBetaOpsBackend(now: Date = new Date()): BetaOpsBackend {
         notices = [{
           eventId: withdrawEventId, kind: "withdraw", source: "deletion_request", occurredAt: requestedAt, confirmedAt: null,
           noticeShownAt: null, noticeDueAt: noticeDueAt(new Date(requestedAt)).toISOString(), noticeEmailedAt: null,
-          applicationId: null, recipientEmail: target.email,
+          applicationId: null, recipientEmail: target.email, emailUnavailable: false,
         }, ...notices];
       }
       const deletionId = `${applicationId}-deletion-request`;

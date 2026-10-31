@@ -77,6 +77,9 @@ create table public.beta_ad_consent_events (
   notice_shown_at timestamptz,
   notice_due_at timestamptz not null,
   notice_emailed_at timestamptz,
+  -- 의사표시 때 그 주소가 이미 정리돼(신청 정보·삭제 안내용 주소 모두 없음) 이메일로 통지할 수 없었던 건.
+  -- 화면 통지(notice_shown_at)만 했다는 뜻이다. 주소를 새로 남기지는 않는다.
+  notice_email_unavailable boolean not null default false,
   check (kind = 'consent' or confirmed_at is null)
 );
 create index beta_ad_consent_events_email_hash_idx on public.beta_ad_consent_events (email_hash, occurred_at);
@@ -86,6 +89,17 @@ create table public.beta_ad_suppressions (
   email_hash text primary key check (email_hash ~ '^[0-9a-f]{64}$'),
   reason text not null check (reason in ('withdraw', 'refuse', 'deletion_request')),
   created_at timestamptz not null default now()
+);
+
+-- 이번 모집에서 광고를 보내지 않을 주소: 미충족·미선정으로 결과를 안내한 주소(D1 결정 전 기본 동작).
+-- 신청 정보를 보유기간에 맞춰 정리해도 이 근거는 남아야 하므로 신청 표와 떼어 이메일 해시만 남긴다.
+-- 보관 기한은 D1·G05 결정 전이라 정하지 않는다.
+create table public.beta_ad_exclusions (
+  cohort text not null,
+  email_hash text not null check (email_hash ~ '^[0-9a-f]{64}$'),
+  reason text not null check (reason in ('not_matched', 'not_selected')),
+  created_at timestamptz not null default now(),
+  primary key (cohort, email_hash)
 );
 
 -- 삭제 요청 처리 기록. 신청 정보는 요청을 처리할 때 바로 지운다.
@@ -116,6 +130,7 @@ alter table public.beta_application_links enable row level security;
 alter table public.beta_unsubscribe_tokens enable row level security;
 alter table public.beta_ad_consent_events enable row level security;
 alter table public.beta_ad_suppressions enable row level security;
+alter table public.beta_ad_exclusions enable row level security;
 alter table public.beta_deletion_requests enable row level security;
 alter table public.beta_public_call_counters enable row level security;
 
@@ -126,6 +141,7 @@ revoke all on table
   public.beta_unsubscribe_tokens,
   public.beta_ad_consent_events,
   public.beta_ad_suppressions,
+  public.beta_ad_exclusions,
   public.beta_deletion_requests,
   public.beta_public_call_counters
 from public, anon, authenticated;
@@ -187,6 +203,34 @@ begin
 end;
 $$;
 
+-- 현재 시간 창의 호출 수를 읽기만 한다(행을 만들지 않는다).
+create function ilgam_private.beta_peek_calls(p_bucket text, p_window_seconds integer)
+returns integer
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce((
+    select counter.calls from public.beta_public_call_counters as counter
+    where counter.bucket = p_bucket
+      and counter.window_start = to_timestamp(
+        floor(extract(epoch from clock_timestamp()) / p_window_seconds) * p_window_seconds
+      )
+  ), 0);
+$$;
+
+-- 지금 받는 모집. 모집을 새로 열면 새 migration에서 이 값을 바꾼다(광고 제외는 모집 단위).
+create function ilgam_private.beta_current_cohort()
+returns text
+language sql
+immutable
+security definer
+set search_path = ''
+as $$
+  select 'beta-2026-1'::text;
+$$;
+
 -- 이메일(해시) 하나의 광고 동의 상태.
 -- 마지막 거부·철회 뒤에 확인된 동의가 있으면 active, 확인 전 동의만 있으면 pending,
 -- 거부·철회만 남았으면 withdrawn, 아무 의사표시도 없으면 none.
@@ -240,6 +284,8 @@ revoke all on function
   ilgam_private.beta_token_hash(text),
   ilgam_private.beta_new_token(),
   ilgam_private.beta_take_call(text, integer, integer),
+  ilgam_private.beta_peek_calls(text, integer),
+  ilgam_private.beta_current_cohort(),
   ilgam_private.beta_ad_status(text),
   ilgam_private.beta_require_operator()
 from public, anon, authenticated;
@@ -299,14 +345,24 @@ begin
 
   v_hash := ilgam_private.beta_email_hash(v_email);
 
-  -- 같은 주소 시간당 3건·하루 5건을 먼저 보고, 통과한 신청만 전체 시간당 300건 예산을 쓴다.
-  -- (주소별 한도에 걸린 반복 신청이 다른 사람의 신청 예산을 소진하지 않게)
-  if not ilgam_private.beta_take_call('apply:' || v_hash || ':hour', 3600, 3)
-    or not ilgam_private.beta_take_call('apply:' || v_hash || ':day', 86400, 5)
-    or not ilgam_private.beta_take_call('apply:all:hour', 3600, 300) then
+  -- 호출 제한(같은 주소 시간당 3건·하루 5건, 전체 시간당 300건).
+  -- 1) 같은 주소 요청을 줄 세운 뒤 주소별 사용량을 읽기만 한다. 걸리면 아무것도 쓰지 않고 거절한다
+  --    (주소별 한도에 걸린 반복 신청이 전체 예산을 쓰지 않게).
+  -- 2) 전체 예산을 확보한다. 모자라면 거절하고, 이때도 주소별 행은 만들지 않는다
+  --    (전체 한도가 찬 뒤 주소를 바꿔 가며 보내도 카운터 행이 늘지 않게. 전체 행은 시간 창마다 1개뿐).
+  -- 3) 둘 다 통과했을 때만 주소별 카운터를 센다. 모두 이 트랜잭션 안에서 일어나 함께 커밋된다.
+  perform pg_advisory_xact_lock(hashtext('apply:' || v_hash));
+  if ilgam_private.beta_peek_calls('apply:' || v_hash || ':hour', 3600) >= 3
+    or ilgam_private.beta_peek_calls('apply:' || v_hash || ':day', 86400) >= 5 then
     return query select 'rate_limited'::text, null::text, null::timestamptz, null::timestamptz;
     return;
   end if;
+  if not ilgam_private.beta_take_call('apply:all:hour', 3600, 300) then
+    return query select 'rate_limited'::text, null::text, null::timestamptz, null::timestamptz;
+    return;
+  end if;
+  perform ilgam_private.beta_take_call('apply:' || v_hash || ':hour', 3600, 3);
+  perform ilgam_private.beta_take_call('apply:' || v_hash || ':day', 86400, 5);
 
   insert into public.beta_applications (
     email, email_hash, work_type, sells_packages, concurrent_jobs, order_channels, participation,
@@ -428,7 +484,7 @@ $$;
 -- ── 공개 RPC: 수신거부(버튼을 눌렀을 때만 부른다) ────────────────────────────
 
 create function public.unsubscribe_beta_ads(p_token text)
-returns table(status text, event_kind text, event_at timestamptz)
+returns table(status text, event_kind text, event_at timestamptz, email_notice boolean)
 language plpgsql
 volatile
 security definer
@@ -440,9 +496,10 @@ declare
   v_now timestamptz := clock_timestamp();
   v_kind text;
   v_last record;
+  v_has_address boolean;
 begin
   if coalesce(char_length(p_token), 0) not between 43 and 128 or p_token !~ '^[A-Za-z0-9_-]+$' then
-    return query select 'invalid'::text, null::text, null::timestamptz;
+    return query select 'invalid'::text, null::text, null::timestamptz, null::boolean;
     return;
   end if;
   -- 무효 토큰은 아무것도 쓰지 않고 돌려보낸다. 호출 제한은 실제로 있는 링크마다 따로 센다.
@@ -450,11 +507,11 @@ begin
   from public.beta_unsubscribe_tokens as token
   where token.token_hash = ilgam_private.beta_token_hash(p_token);
   if v_email_hash is null then
-    return query select 'invalid'::text, null::text, null::timestamptz;
+    return query select 'invalid'::text, null::text, null::timestamptz, null::boolean;
     return;
   end if;
   if not ilgam_private.beta_take_call('unsubscribe:' || ilgam_private.beta_token_hash(p_token) || ':minute', 60, 10) then
-    return query select 'rate_limited'::text, null::text, null::timestamptz;
+    return query select 'rate_limited'::text, null::text, null::timestamptz, null::boolean;
     return;
   end if;
 
@@ -463,7 +520,7 @@ begin
   v_status := ilgam_private.beta_ad_status(v_email_hash);
 
   if v_status = 'withdrawn' then
-    select event.kind, event.occurred_at into v_last
+    select event.kind, event.occurred_at, event.notice_email_unavailable into v_last
     from public.beta_ad_consent_events as event
     where event.email_hash = v_email_hash and event.kind in ('refuse', 'withdraw')
     order by event.occurred_at desc
@@ -471,21 +528,30 @@ begin
     insert into public.beta_ad_suppressions (email_hash, reason)
     values (v_email_hash, v_last.kind)
     on conflict (email_hash) do nothing;
-    return query select 'already'::text, v_last.kind::text, v_last.occurred_at;
+    return query select 'already'::text, v_last.kind::text, v_last.occurred_at, not v_last.notice_email_unavailable;
     return;
   end if;
+
+  -- 이메일로 통지할 주소가 남아 있는지: 신청 정보, 또는 삭제 결과 안내를 위해 잠시 남긴 주소.
+  -- 보유기간 정리로 둘 다 없으면 주소를 새로 남기지 않고, 이 화면의 처리 결과 안내(화면 통지)만 한다.
+  v_has_address := exists (
+      select 1 from public.beta_applications as application where application.email_hash = v_email_hash
+    ) or exists (
+      select 1 from public.beta_deletion_requests as deletion
+      where deletion.email_hash = v_email_hash and deletion.email is not null
+    );
 
   -- 동의(확인 대기 포함)가 있으면 철회, 동의한 적이 없으면 거부로 기록한다.
   v_kind := case when v_status in ('active', 'pending') then 'withdraw' else 'refuse' end;
   insert into public.beta_ad_consent_events (
-    email_hash, kind, source, occurred_at, notice_shown_at, notice_due_at
+    email_hash, kind, source, occurred_at, notice_shown_at, notice_due_at, notice_email_unavailable
   ) values (
-    v_email_hash, v_kind, 'unsubscribe_link', v_now, v_now, v_now + interval '14 days'
+    v_email_hash, v_kind, 'unsubscribe_link', v_now, v_now, v_now + interval '14 days', not v_has_address
   );
   insert into public.beta_ad_suppressions (email_hash, reason)
   values (v_email_hash, v_kind)
   on conflict (email_hash) do nothing;
-  return query select case when v_kind = 'withdraw' then 'withdrawn' else 'refused' end, v_kind, v_now;
+  return query select case when v_kind = 'withdraw' then 'withdrawn' else 'refused' end, v_kind, v_now, v_has_address;
 end;
 $$;
 
@@ -569,10 +635,17 @@ begin
         order by latest.created_at desc, latest.id desc
         limit 1
       ) as latest_eligible,
-      exists (
-        select 1 from public.beta_applications as decided
-        where decided.email_hash = application.email_hash
-          and decided.outcome in ('not_matched', 'not_selected')
+      (
+        exists (
+          select 1 from public.beta_ad_exclusions as exclusion
+          where exclusion.cohort = ilgam_private.beta_current_cohort()
+            and exclusion.email_hash = application.email_hash
+        )
+        or exists (
+          select 1 from public.beta_applications as decided
+          where decided.email_hash = application.email_hash
+            and decided.outcome in ('not_matched', 'not_selected')
+        )
       ) as excluded_by_result
   ) as state
   order by application.created_at desc;
@@ -590,7 +663,8 @@ returns table(
   notice_due_at timestamptz,
   notice_emailed_at timestamptz,
   application_id uuid,
-  recipient_email text
+  recipient_email text,
+  email_unavailable boolean
 )
 language plpgsql
 stable
@@ -620,7 +694,8 @@ begin
         order by deletion.requested_at desc
         limit 1
       )
-    )
+    ),
+    event.notice_email_unavailable
   from public.beta_ad_consent_events as event
   cross join lateral (
     select coalesce(event.application_id, (
@@ -694,6 +769,12 @@ begin
     end if;
     v_application.outcome := p_outcome;
     v_application.result_sent_at := v_now;
+    if p_outcome in ('not_matched', 'not_selected') then
+      -- 신청 정보를 정리한 뒤에도 이번 모집 광고에서 빠지도록 해시만 따로 남긴다.
+      insert into public.beta_ad_exclusions (cohort, email_hash, reason)
+      values (ilgam_private.beta_current_cohort(), v_application.email_hash, p_outcome)
+      on conflict (cohort, email_hash) do nothing;
+    end if;
   elsif p_kind = 'interview_done' then
     if v_application.outcome is distinct from 'interview' or v_application.interview_done_at is not null then
       raise exception using errcode = '22023', message = 'invalid_milestone';
@@ -805,6 +886,7 @@ begin
     (
       select count(*)::integer from public.beta_ad_consent_events as event
       where event.email_hash = deletion.email_hash and event.notice_emailed_at is null
+        and not event.notice_email_unavailable
     )
   from public.beta_deletion_requests as deletion
   order by deletion.requested_at desc;
@@ -838,6 +920,7 @@ begin
   if exists (
     select 1 from public.beta_ad_consent_events as event
     where event.email_hash = v_deletion.email_hash and event.notice_emailed_at is null
+      and not event.notice_email_unavailable
   ) then
     raise exception using errcode = '22023', message = 'notices_pending';
   end if;
@@ -866,6 +949,7 @@ begin
     and not exists (
       select 1 from public.beta_ad_consent_events as event
       where event.email_hash = application.email_hash and event.notice_emailed_at is null
+        and not event.notice_email_unavailable
     );
   get diagnostics v_deleted = row_count;
   return v_deleted;

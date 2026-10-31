@@ -8,7 +8,7 @@ import { koreanDate, isWellFormedBetaToken } from "@/lib/beta/rules";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { unsubscribeBetaAds, type BetaUnsubscribeResult } from "@/lib/supabase/beta";
 
-type Outcome = BetaUnsubscribeResult | { status: "error"; eventKind: null; eventAt: null };
+type Outcome = BetaUnsubscribeResult | { status: "error"; eventKind: null; eventAt: null; emailNotice: null };
 
 function FallbackChannel() {
   return (
@@ -29,24 +29,24 @@ export function BetaUnsubscribeView({ token }: { token: string }) {
   const wellFormed = isWellFormedBetaToken(token);
   const [pending, setPending] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(
-    wellFormed ? null : { status: "invalid", eventKind: null, eventAt: null },
+    wellFormed ? null : { status: "invalid", eventKind: null, eventAt: null, emailNotice: null },
   );
 
   async function unsubscribe() {
     if (preview) {
-      setOutcome({ status: "withdrawn", eventKind: "withdraw", eventAt: new Date().toISOString() });
+      setOutcome({ status: "withdrawn", eventKind: "withdraw", eventAt: new Date().toISOString(), emailNotice: true });
       return;
     }
     const client = getSupabaseBrowserClient();
     if (!client) {
-      setOutcome({ status: "error", eventKind: null, eventAt: null });
+      setOutcome({ status: "error", eventKind: null, eventAt: null, emailNotice: null });
       return;
     }
     setPending(true);
     try {
       setOutcome(await unsubscribeBetaAds(client, token));
     } catch {
-      setOutcome({ status: "error", eventKind: null, eventAt: null });
+      setOutcome({ status: "error", eventKind: null, eventAt: null, emailNotice: null });
     } finally {
       setPending(false);
     }
@@ -82,9 +82,16 @@ export function BetaUnsubscribeView({ token }: { token: string }) {
               <div><dt>의사표시</dt><dd>광고성 정보(이메일) 수신 {outcome.eventKind === "refuse" ? "거부" : "철회"}</dd></div>
               <div><dt>일자</dt><dd>{koreanDate(outcome.eventAt)}</dd></div>
               <div><dt>처리 결과</dt><dd>{outcome.eventKind === "refuse" ? "거부" : "철회"}가 처리되어 앞으로 광고성 이메일을 보내지 않습니다.</dd></div>
+              <div><dt>변경 방법</dt><dd>변경을 원하시면 신청 페이지에서 광고 수신에 다시 체크하시거나 {BETA_SENDER.email} 로 회신해 언제든 바꾸실 수 있습니다.</dd></div>
             </dl>
             <p lang="en">Result: processed on {koreanDate(outcome.eventAt)}. We will not send you promotional e-mail.</p>
-            <p>신청 결과·일정 같은 운영 안내는 광고가 아니라서 신청하신 목적에 따라 따로 보내 드릴 수 있어요. 다시 받으시려면 신청 페이지에서 광고 수신에 새로 체크해 주세요.</p>
+            {/* 처리결과 통지: 이 화면이 통지다. 주소가 이미 정리됐으면 메일로는 따로 알리지 못한다는 사실을 그대로 말한다. */}
+            <p data-testid="beta-unsubscribe-email-notice">
+              {outcome.emailNotice === false
+                ? "신청 정보를 보유기간에 따라 이미 지워 이메일 주소가 남아 있지 않아요. 그래서 메일로 따로 알려 드리지 않고, 이 화면이 처리 결과 안내예요."
+                : "같은 내용을 14일 안에 이메일로도 알려 드려요."}
+            </p>
+            <p>신청 결과·일정 같은 운영 안내는 광고가 아니라서 신청하신 목적에 따라 따로 보내 드릴 수 있어요.</p>
           </section>
         </div>
       )}
