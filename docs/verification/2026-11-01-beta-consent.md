@@ -36,7 +36,7 @@
 | `beta_ops_mark_deletion_emailed(uuid)` | X | O(운영자만) | O | 삭제 결과 안내 보냄 표시. 같은 주소의 통지가 남아 있으면 거부, 표시하면 주소 삭제 |
 | `beta_ops_purge_expired()` | X | O(운영자만) | O | 보유기간 지난 신청 정리. 보내지 않은 통지가 남은 주소는 건너뜀 |
 
-모두 `security definer`, `set search_path = ''`. 내부 도우미 6개(`ilgam_private.beta_*`)는 anon·authenticated 실행 불가. 표 9개(독립 리뷰 반영으로 `beta_deletion_requests`, 재검토 반영으로 `beta_ad_exclusions` 추가)는 anon·authenticated의 select·insert·update·delete 모두 불가(Supabase 기본 ACL을 흉내 낸 PGlite에서 확인).
+모두 `security definer`, `set search_path = ''`. 내부 도우미 9개(`ilgam_private.beta_email_hash`, `beta_token_hash`, `beta_new_token`, `beta_take_call`, `beta_peek_calls`, `beta_lock_email`, `beta_current_cohort`, `beta_ad_status`, `beta_require_operator`)는 anon·authenticated 실행 불가(DB 시험 `[권한] 운영자 RPC는 …`에서 9개 모두 확인). 표 9개(독립 리뷰 반영으로 `beta_deletion_requests`, 재검토 반영으로 `beta_ad_exclusions` 추가)는 anon·authenticated의 select·insert·update·delete 모두 불가(Supabase 기본 ACL을 흉내 낸 PGlite에서 확인).
 
 ## 시험표 13줄 ↔ 테스트 이름
 
@@ -129,6 +129,22 @@ RED 확인(작업자 보고, 독립 입증 아님): 리뷰 2·5·6 DB 시험 7�
 26. 광고 제외 근거(`beta_ad_exclusions`)는 모집 단위(`beta-2026-1`)로 남기고, 보관 기한은 정하지 않았다(D1·G05 결정 전). 모집을 새로 열면 새 migration에서 `beta_current_cohort()` 값을 바꾼다.
 27. **법률 검토 질문:** 신청 정보를 보유기간에 따라 지운 뒤 같은 주소가 옛 수신거부 링크로 철회·거부하면, 앱은 처리하고 화면으로만 처리 결과를 알린다(이메일 주소가 남아 있지 않음). 이 경우 정보통신망법 제50조 ⑦의 처리결과 통지를 화면 통지로 갈음할 수 있는가? 아니면 통지를 위해 최소한의 주소를 (얼마 동안) 남겨야 하는가? 정책이 정해지기 전에는 주소를 새로 남기지 않는다.
 28. 재검토가 함께 짚은 보관 한계(새 버그로 세지는 않음): 삭제 요청 기록의 미완료 주소에는 보관 상한·실패 종료 절차가 없고, 보내지 않은 통지가 있으면 신청 정보 전체의 정리가 미뤄진다. 최소 정보 보관 방식과 미완료 건의 종료 기준은 사용자 결정이 필요하다.
+
+## 3차 재검토 반영 (Codex, 2026-11-01, 판정 "수정 필요")
+
+원문: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능-재검토2.md`. 판정: 2차 지적 ①·② 해결, ③ 부분 해결(주소 없는 철회의 이메일 통지는 정책·법률 결정 대기라 **이번에 손대지 않음**), 새 지적 2건·문서 2건.
+작업자(Claude) 보고: 재검토 재현 순서대로 시험을 먼저 만들어 실패를 확인한 뒤 고쳤다(작업자 실행 기록, 독립 입증 아님).
+
+| # | 심각도 | 원인 | 수정 | 시험 이름 |
+|---|---|---|---|---|
+| 1 | 중간(신규) | 다시 누른 수신거부 링크(`already`)에 "과거 의사표시 때 주소가 있었다"는 값을 돌려줘, 통지가 이미 끝난 건에도 화면이 "같은 내용을 14일 안에 이메일로도 알려 드려요"라고 새 발송을 약속했다 | RPC가 참/거짓 대신 `notice_state`를 돌려준다. 새 의사표시: `email_pending`(메일로 보낼 예정)·`screen_only`(주소 없음). 다시 누른 링크: 기존 통지 상태 그대로 `emailed`(이미 보냄)·`email_pending`(아직 안 보냄)·`screen_only`. 화면은 `already`일 때 새 발송을 약속하지 않고 "이미 보내 드렸어요/이번에 새로 바뀐 것은 없어요/주소가 남아 있지 않아요"만 말한다. 새 통지는 만들지 않는다 | DB `[재검토2 1] 통지까지 끝난 옛 수신거부 링크를 정리 뒤 다시 누르면 already·통지 완료(emailed)로 답하고 새 통지를 만들지 않는다` · 단위 `[재검토2 1] 다시 누른 링크(emailed/email_pending/screen_only)는 기존 통지 상태에 맞게만 안내하고, 새 메일 발송을 약속하지 않는다`(3개) |
+| 2 | 중간(기존 경계) | 수신거부(주소 확인·통지 생성)와 보유기간 정리·삭제 안내 완료(마지막 주소 삭제)가 같은 잠금을 쓰지 않아, 겹치면 주소가 없는데 '메일로 보낼 예정'으로 기록될 수 있었다 | 이메일 해시마다 잠금 키 하나(`ilgam_private.beta_lock_email`, `hashtext('beta-email:' || 해시)`)를 두고 신청·주소 확인·수신거부·삭제 요청·삭제 안내 완료·보유기간 정리가 모두 이것을 쓴다. 잠금은 행 잠금·행 삭제보다 먼저 잡는다(주소 확인도 행 잠금 앞으로 옮김). 정리는 주소를 해시 오름차순으로 하나씩 잠그고, 잠근 뒤 같은 조건(미발송 통지 없음)으로 다시 확인하며 지운다. 삭제 안내 완료와 삭제 요청도 잠근 뒤 조건을 다시 읽는다 | DB `[재검토2 2] 신청·확인·수신거부·삭제 요청·삭제 안내 완료·보유기간 정리가 같은 이메일에 같은 잠금 키를 쓴다`, `[재검토2 2] 보유기간 정리는 잠금을 이메일 해시 순서로 잡는다(…)` |
+| 3 | 낮음 | 검증 기록이 새 화면 분기를 E2E로도 확인한 것처럼 적었다 | "새 분기는 단위 시험으로만, E2E는 기존 흐름 회귀 통과"로 고쳤다 | 문서 |
+| 4 | 낮음 | 검증 기록의 내부 도우미 수가 6개였다(실제 9개) | 9개 이름을 적고, DB 시험이 9개 모두 anon·authenticated 실행 불가인지 확인하게 했다 | DB `[권한] 운영자 RPC는 anon이 실행할 수 없고, …`(9개 확인 추가) |
+
+**2번의 한계:** PGlite는 세션 하나라 실제로 두 세션이 겹치는 경합은 재현하지 못했다. 시험은 (가) 각 경로가 트랜잭션 안에서 쥐는 advisory 잠금 키가 같은지(`pg_locks`), (나) 정리 함수가 해시 순서로 잠그는지, (다) 잠금 뒤 조건 재확인 동작(미발송 통지가 있으면 정리·삭제 안내 완료 거부)을 확인한다. 실제 Supabase에서의 다중 세션 부하·교착 시험은 하지 않았다. 잠금 순서 규칙: 한 경로가 여러 주소를 잠그는 곳은 정리뿐이고 해시 오름차순이며, 나머지는 한 주소만 잠그므로 잠금끼리 서로 기다리는 고리는 생기지 않는다고 판단했다(정적 분석).
+
+그대로 둔 것: ③ 주소 없는 철회·거부의 이메일 통지(판단 27번 법률 검토 질문), `beta_ad_exclusions` 보관 기한, 미완료 삭제 기록의 주소 보관 상한·실패 종료 절차, 미발송 통지 때문에 신청 정리를 미루는 정책(판단 26·28번). 모두 사용자·법률 결정 대기다.
 
 ## 못 한 것·한계
 
@@ -232,4 +248,37 @@ Sites output verified
 VERIFY_SITES_EXIT=0
 ```
 
-- 이번 재검토 반영으로 바뀐 화면(수신거부 결과의 '변경 방법' 줄·이메일 통지 안내 줄, 운영자 화면의 '화면 통지만 함' 표시)은 단위 시험과 E2E로 확인했고, 스크린샷은 다시 찍지 않았다.
+- 이번 재검토 반영으로 새로 생긴 화면 분기(수신거부 결과의 '변경 방법' 줄·이메일 통지 안내 줄, 운영자 화면의 '화면 통지만 함' 표시)는 **단위 시험으로만** 확인했다. 기존 E2E는 이 새 문구를 검사하지 않고, 미리보기 수신거부는 늘 '메일로 보낼 예정' 상태라 주소 없는 분기를 실행하지 않는다 — E2E는 **기존 흐름의 회귀 통과**만 뜻한다. 스크린샷은 다시 찍지 않았다.
+
+### 3차 재검토 반영 뒤 재검증 (2026-11-01, 출력 원문 발췌)
+
+```
+$ npm run lint            → LINT_EXIT=0
+$ npm run typecheck       → TYPECHECK_EXIT=0
+$ npx vitest run
+ Test Files  137 passed (137)
+      Tests  908 passed (908)
+$ node scripts/test-native-push-db.mjs
+PASS: native SQL contract, deletion regression, 35 RPC privilege checks (ephemeral PGlite).
+NATIVE_DB_EXIT=0
+$ node scripts/test-beta-consent-db.mjs
+PASS: 34 beta consent DB checks (ephemeral PGlite).
+BETA_DB_EXIT=0
+$ npm run check:release
+[release-gate] PASS unit            (908 tests)
+[release-gate] PASS lint
+[release-gate] PASS typecheck
+[release-gate] PASS production dependency audit   (found 0 vulnerabilities)
+[release-gate] PASS local production build
+[e2e-release] PASS desktop/core 14 · desktop/surface 27 · mobile/core 14 · mobile/surface 27
+[release-gate] PASS local production E2E
+[release-gate] PASS hosted fail-closed production build
+[release-gate] PASS unit/lint/typecheck/audit/local E2E/hosted build 전체 게이트 통과.
+CHECK_RELEASE_EXIT=0
+$ npm run build:sites && node scripts/verify-sites-output.mjs
+BUILD_SITES_EXIT=0 (✓ built in 890ms / ✓ built in 44ms)
+Sites output verified
+VERIFY_SITES_EXIT=0
+```
+
+- 이번에 바뀐 수신거부 재클릭 문구는 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과). 스크린샷은 찍지 않았다.
