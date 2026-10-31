@@ -15,6 +15,7 @@ import {
   type BetaOpsApplication,
   type BetaOpsDeletion,
   type BetaOpsNotice,
+  type BetaPurgeResult,
 } from "@/lib/supabase/beta";
 import { noticeDueAt } from "./rules";
 
@@ -27,7 +28,7 @@ export type BetaOpsBackend = {
   recordMilestone(applicationId: string, kind: BetaMilestone, outcome: BetaOpsApplication["outcome"]): Promise<void>;
   deleteApplication(applicationId: string): Promise<BetaDeletionReceipt>;
   markDeletionEmailed(deletionId: string): Promise<void>;
-  purgeExpired(): Promise<number>;
+  purgeExpired(): Promise<BetaPurgeResult>;
 };
 
 export function hostedBetaOpsBackend(client: SupabaseClient): BetaOpsBackend {
@@ -166,10 +167,11 @@ export function previewBetaOpsBackend(now: Date = new Date()): BetaOpsBackend {
     purgeExpired: async () => {
       const cutoff = Date.now();
       const before = applications.length;
-      applications = withAdTargets(applications.filter((application) => !application.purgeAfter
-        || new Date(application.purgeAfter).getTime() > cutoff
-        || pendingFor(application.email) > 0));
-      return before - applications.length;
+      const expired = (application: BetaOpsApplication) => Boolean(application.purgeAfter)
+        && new Date(application.purgeAfter!).getTime() <= cutoff;
+      applications = withAdTargets(applications.filter((application) => !expired(application) || pendingFor(application.email) > 0));
+      const remaining = new Set(applications.filter(expired).map((application) => application.email)).size;
+      return { deletedCount: before - applications.length, remainingCount: remaining };
     },
   };
 }

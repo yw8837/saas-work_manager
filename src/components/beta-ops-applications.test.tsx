@@ -195,6 +195,20 @@ describe("/ops/applications 운영자 화면", () => {
     expect(screen.getByRole("heading", { name: "처리결과 통지 0건 남음" })).toBeInTheDocument();
   });
 
+  it("[재검토3 2] 보유기간 정리가 한 번에 다 못 지우면 남은 정리 대상이 있다고 알린다", async () => {
+    const expired = { ...applicationRow("test-batch@example.invalid", "app-batch"), purge_after: "2026-01-01T00:00:00Z" };
+    const rpc = vi.fn((name: string): Promise<RpcResult> => Promise.resolve(
+      name === "beta_ops_list_applications" ? { data: [expired], error: null }
+        : name === "beta_ops_purge_expired" ? { data: [{ deleted_count: 100, remaining_count: 7 }], error: null }
+          : { data: [], error: null },
+    ));
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    fireEvent.click(await screen.findByRole("button", { name: "보유기간 지난 신청 정리 (1건)" }));
+    fireEvent.click(screen.getByRole("button", { name: "1건 지우기" }));
+    expect(await screen.findByText(/100건을 정리했어요\. 남은 정리 대상 7명/)).toBeInTheDocument();
+  });
+
   it("[리뷰 7] 결과를 고르기만 해도 그 결과의 초안이 보이고, 보냄 표시는 아직 기록되지 않는다", async () => {
     useLocal();
     render(<BetaOpsApplications />);

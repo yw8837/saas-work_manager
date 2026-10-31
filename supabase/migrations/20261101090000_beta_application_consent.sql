@@ -9,6 +9,14 @@
 --   저장소에는 운영자 계정을 넣지 않는다. 등록은 배포 때 사용자가 한다(비어 있으면 아무도 운영자가 아니다).
 -- - 확인·수신거부 토큰은 해시로만 비교한다. 운영자가 메일에 붙일 원본 링크는 beta_application_links에만 두고
 --   운영자 RPC로만 읽는다. 신청 RPC는 토큰을 돌려주지 않는다(남의 주소로 신청한 사람이 스스로 확인하지 못하게).
+--
+-- 잠금 순서 규칙(교착 방지). 같은 이메일을 다루는 모든 쓰기 경로는 아래 순서만 따른다.
+--   1) 이메일 잠금 ilgam_private.beta_lock_email(해시)  — 한 주소만 잠그거나, 여러 주소면 해시 오름차순(보유기간 정리)
+--   2) 호출 제한 카운터(beta_public_call_counters)의 UPSERT  — beta_take_call
+--   3) 신청·통지·삭제 기록 등 행 잠금·행 삭제(for update, insert, delete)
+-- 무효 토큰은 1) 전에 끝나며 카운터도 쓰지 않는다(토큰 조회는 읽기만).
+-- 오래된 카운터 행 정리(DELETE)는 공개 RPC에서 하지 않는다. 운영자 정리(beta_ops_purge_expired)가 마지막 단계에서
+-- 2일 지난 시간 창만 지우며, 공개 RPC는 현재 시간 창 행만 건드리므로 같은 행을 두고 다투지 않는다.
 
 -- 운영자 계정. 비어 있으면 운영자 화면은 "운영자 계정이 아닙니다"만 보인다.
 create table public.beta_operator_accounts (
@@ -193,8 +201,7 @@ declare
   );
   v_calls integer;
 begin
-  delete from public.beta_public_call_counters
-  where window_start < clock_timestamp() - interval '2 days';
+  -- 오래된 시간 창 정리는 여기서 하지 않는다(운영자 정리 함수가 한다). 공개 요청끼리 다른 행을 두고 다투지 않게.
   insert into public.beta_public_call_counters as counter (bucket, window_start, calls)
   values (p_bucket, v_start, 1)
   on conflict (bucket, window_start) do update set calls = counter.calls + 1
@@ -439,11 +446,12 @@ begin
     return query select 'invalid'::text, false;
     return;
   end if;
+  -- 잠금 순서: 이메일 잠금 → 카운터 → 행 잠금.
+  perform ilgam_private.beta_lock_email(v_application.email_hash);
   if not ilgam_private.beta_take_call('confirm:' || v_application.confirm_token_hash || ':minute', 60, 10) then
     return query select 'rate_limited'::text, false;
     return;
   end if;
-  perform ilgam_private.beta_lock_email(v_application.email_hash);
   select application.* into v_application
   from public.beta_applications as application
   where application.id = v_application.id
@@ -529,13 +537,13 @@ begin
     return query select 'invalid'::text, null::text, null::timestamptz, null::text;
     return;
   end if;
+  -- 잠금 순서: 이메일 잠금 → 카운터 → 통지·발송금지 기록. 같은 링크를 거의 동시에 두 번 눌러도 이력이 두 건 생기지 않는다.
+  perform ilgam_private.beta_lock_email(v_email_hash);
   if not ilgam_private.beta_take_call('unsubscribe:' || ilgam_private.beta_token_hash(p_token) || ':minute', 60, 10) then
     return query select 'rate_limited'::text, null::text, null::timestamptz, null::text;
     return;
   end if;
 
-  -- 같은 링크를 거의 동시에 두 번 눌러도 이력이 두 건 생기지 않게 한다.
-  perform ilgam_private.beta_lock_email(v_email_hash);
   v_status := ilgam_private.beta_ad_status(v_email_hash);
 
   if v_status = 'withdrawn' then
@@ -968,7 +976,7 @@ $$;
 
 -- 보유기간이 지난 신청 정보 정리(운영자 버튼). 자동 예약은 다음 단계다.
 create function public.beta_ops_purge_expired()
-returns integer
+returns table(deleted_count integer, remaining_count integer)
 language plpgsql
 volatile
 security definer
@@ -978,15 +986,18 @@ declare
   v_deleted integer := 0;
   v_count integer;
   v_email_hash text;
+  v_remaining integer;
 begin
   perform ilgam_private.beta_require_operator();
   -- 정리할 주소를 해시 오름차순으로 하나씩 잠근다(잠금 순서를 한 가지로). 잠근 뒤 같은 조건으로 다시 확인하며 지운다.
   -- 그 주소로 아직 보내지 않은 처리결과 통지가 있으면 주소를 잃지 않도록 정리하지 않는다(통지를 보낸 뒤 다시 정리).
   for v_email_hash in
+    -- 잠금을 함수 끝까지 쥐므로 한 번에 주소 100개까지만 처리하고, 남은 것은 다음 실행에서 처리한다.
     select distinct candidate.email_hash
     from public.beta_applications as candidate
     where candidate.purge_after is not null and candidate.purge_after <= clock_timestamp()
     order by candidate.email_hash
+    limit 100
   loop
     perform ilgam_private.beta_lock_email(v_email_hash);
     delete from public.beta_applications as application
@@ -1000,7 +1011,17 @@ begin
     get diagnostics v_count = row_count;
     v_deleted := v_deleted + v_count;
   end loop;
-  return v_deleted;
+
+  -- 남은 정리 대상(다음 실행 몫, 또는 보내지 않은 통지 때문에 미룬 것)의 주소 수.
+  select count(distinct candidate.email_hash)::integer into v_remaining
+  from public.beta_applications as candidate
+  where candidate.purge_after is not null and candidate.purge_after <= clock_timestamp();
+
+  -- 공개 RPC에서 뺀 오래된 호출 제한 카운터 정리. 2일 지난 시간 창만 지우므로 공개 요청이 쓰는 현재 행과 겹치지 않는다.
+  delete from public.beta_public_call_counters as counter
+  where counter.window_start < clock_timestamp() - interval '2 days';
+
+  return query select v_deleted, v_remaining;
 end;
 $$;
 

@@ -267,11 +267,11 @@ export function BetaOpsApplications() {
   const openNotices = notices.filter((notice) => !notice.noticeEmailedAt && !notice.emailUnavailable);
   const openDeletions = deletions.filter((deletion) => deletion.email && !deletion.resultEmailedAt);
 
-  async function run(action: () => Promise<unknown>, done: string) {
+  async function run<T>(action: () => Promise<T>, done: string | ((result: T) => string)) {
     if (!backend) return;
     try {
-      await action();
-      setMessage(done);
+      const result = await action();
+      setMessage(typeof done === "function" ? done(result) : done);
     } catch (error) {
       setMessage(error instanceof BetaNotOperatorError || error instanceof BetaNoticesPendingError
         ? error.message
@@ -430,7 +430,9 @@ export function BetaOpsApplications() {
             label={`보유기간 지난 신청 정리 (${expired.length}건)`}
             confirmLabel={`${expired.length}건 지우기`}
             disabled={expired.length === 0}
-            onConfirm={() => run(() => backend!.purgeExpired(), "보유기간이 지난 신청을 정리했어요. 보내지 않은 통지가 남은 주소는 통지를 보낸 뒤 정리돼요.")}
+            onConfirm={() => run(() => backend!.purgeExpired(), (result) => result.remainingCount > 0
+              ? `${result.deletedCount}건을 정리했어요. 남은 정리 대상 ${result.remainingCount}명이 있어요. 한 번에 주소 100개까지만 정리하니 다시 눌러 주세요. 보내지 않은 통지가 남은 주소는 통지를 보낸 뒤 정리돼요.`
+              : `${result.deletedCount}건을 정리했어요. 남은 정리 대상은 없어요.`)}
           />
         </div>
         <ul className="betaOpsList">

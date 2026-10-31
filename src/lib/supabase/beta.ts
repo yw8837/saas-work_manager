@@ -302,8 +302,15 @@ export async function deleteBetaApplication(
   };
 }
 
-export async function purgeExpiredBetaApplications(client: SupabaseClient): Promise<number> {
+export type BetaPurgeResult = {
+  deletedCount: number;
+  /** 아직 남은 정리 대상 주소 수(한 번에 100개까지만 처리하므로 다음 실행 몫, 또는 보내지 않은 통지 때문에 미룬 것). */
+  remainingCount: number;
+};
+
+export async function purgeExpiredBetaApplications(client: SupabaseClient): Promise<BetaPurgeResult> {
   const { data, error } = await client.rpc("beta_ops_purge_expired");
   if (error) throw opsError(error);
-  return Number(data ?? 0);
+  const row = firstRow<{ deleted_count: number; remaining_count: number }>(data);
+  return { deletedCount: Number(row?.deleted_count ?? 0), remainingCount: Number(row?.remaining_count ?? 0) };
 }
