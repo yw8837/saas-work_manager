@@ -12,7 +12,7 @@
 |---|---|
 | DB | `supabase/migrations/20261101090000_beta_application_consent.sql` |
 | DB 동작 시험(PGlite) | `scripts/test-beta-consent-db.mjs` (CI: `.github/workflows/release-gate.yml`) |
-| 권한 회귀 | `supabase/tests/rpc_execution_surface.sql` 24→33행, `scripts/test-native-push-db.mjs` 기대 33 |
+| 권한 회귀 | `supabase/tests/rpc_execution_surface.sql` 24→35행, `scripts/test-native-push-db.mjs` 기대 35 |
 | 규칙·문구·초안 | `src/lib/beta/apply-copy.ts`, `rules.ts`, `mail-drafts.ts`, `ops-backend.ts` |
 | RPC 호출 | `src/lib/supabase/beta.ts` |
 | 화면 | `src/components/beta-apply-form.tsx`, `beta-confirm-view.tsx`, `beta-unsubscribe-view.tsx`, `beta-ops-applications.tsx`, `beta-public-shell.tsx` |
@@ -24,17 +24,19 @@
 
 | 함수 | anon | authenticated | service_role | 비고 |
 |---|---|---|---|---|
-| `submit_beta_application(text,text,boolean,text,text[],text,boolean,boolean,text)` | O | O | O | 신청. 토큰을 돌려주지 않음. 주소당 3건/시간·5건/일, 전체 300건/시간 |
-| `confirm_beta_email(text)` | O | O | O | 주소 확인. 전체 120회/분 |
-| `unsubscribe_beta_ads(text)` | O | O | O | 수신거부. 전체 120회/분 |
+| `submit_beta_application(text,text,boolean,text,text[],text,boolean,boolean,text)` | O | O | O | 신청. 토큰을 돌려주지 않음. 주소당 3건/시간·5건/일을 먼저 보고, 통과한 것만 전체 300건/시간 |
+| `confirm_beta_email(text)` | O | O | O | 주소 확인. 무효 토큰은 기록 없이 invalid, 실제 링크마다 10회/분 |
+| `unsubscribe_beta_ads(text)` | O | O | O | 수신거부. 무효 토큰은 기록 없이 invalid, 실제 링크마다 10회/분 |
 | `beta_ops_list_applications()` | X | O(운영자만) | O | 함수 안에서 `beta_operator_accounts` 재확인 |
 | `beta_ops_list_notices()` | X | O(운영자만) | O | |
 | `beta_ops_mark_notice_emailed(uuid)` | X | O(운영자만) | O | |
 | `beta_ops_record_milestone(uuid,text,text)` | X | O(운영자만) | O | 결과 안내·인터뷰 끝·베타 끝 → 정리 예정일 |
-| `beta_ops_delete_application(uuid)` | X | O(운영자만) | O | 삭제 요청 |
-| `beta_ops_purge_expired()` | X | O(운영자만) | O | 보유기간 지난 신청 정리 |
+| `beta_ops_delete_application(uuid)` | X | O(운영자만) | O | 삭제 요청. 신청 정보는 바로 지우고 안내용 주소만 삭제 기록에 남김 |
+| `beta_ops_list_deletions()` | X | O(운영자만) | O | 삭제 요청 기록과 남은 통지 수 |
+| `beta_ops_mark_deletion_emailed(uuid)` | X | O(운영자만) | O | 삭제 결과 안내 보냄 표시. 같은 주소의 통지가 남아 있으면 거부, 표시하면 주소 삭제 |
+| `beta_ops_purge_expired()` | X | O(운영자만) | O | 보유기간 지난 신청 정리. 보내지 않은 통지가 남은 주소는 건너뜀 |
 
-모두 `security definer`, `set search_path = ''`. 내부 도우미 6개(`ilgam_private.beta_*`)는 anon·authenticated 실행 불가. 표 7개는 anon·authenticated의 select·insert·update·delete 모두 불가(Supabase 기본 ACL을 흉내 낸 PGlite에서 확인).
+모두 `security definer`, `set search_path = ''`. 내부 도우미 6개(`ilgam_private.beta_*`)는 anon·authenticated 실행 불가. 표 8개(독립 리뷰 반영으로 `beta_deletion_requests` 추가)는 anon·authenticated의 select·insert·update·delete 모두 불가(Supabase 기본 ACL을 흉내 낸 PGlite에서 확인).
 
 ## 시험표 13줄 ↔ 테스트 이름
 
@@ -70,9 +72,9 @@ DB = `node scripts/test-beta-consent-db.mjs`, 단위 = `npx vitest run`, E2E = `
 
 1. 광고 동의에 체크하지 않은 신청은 의사표시(거부)로 보지 않아 처리결과 통지를 기록하지 않는다. 상태 규칙("체크 안 하고 다시 신청 = 이전 상태 유지")과 맞춘 것이다. 법률 검토에서 '미체크 = 거부 통지 필요'인지 확인 필요.
 2. 동의한 적 없는 주소가 수신거부 링크를 누르면 '거부'로 기록하고(통지 대상) 발송금지 해시를 남긴다.
-3. 삭제 요청은 광고 동의(유효·확인 대기)가 있으면 '철회'로도 기록한다(통지 마감 14일, 화면 표시 없음). 같은 주소의 신청 정보를 모두 지운다.
+3. 삭제 요청은 광고 동의(유효·확인 대기)가 있으면 '철회'로도 기록한다(통지 마감 14일, 화면 표시 없음). 같은 주소의 신청 정보는 요청을 처리할 때 모두 지운다. (독립 리뷰 6 반영) 그 주소로 아직 보내지 않은 처리결과 통지(삭제 전 동의 등)와 새 철회 통지, 삭제 결과 안내를 보낼 수 있도록 주소만 `beta_deletion_requests`에 남긴다. 순서: 삭제 요청 처리 → 같은 주소의 통지를 모두 보내고 '통지 보냄 표시' → 마지막으로 삭제 결과 안내를 보내고 '보냄 표시'(통지가 남아 있으면 서버가 거부) → 그때 남겨 둔 주소를 지운다. 보유기간 정리도 보내지 않은 통지가 남은 주소는 건너뛴다.
 4. 확인 링크 유효기간 30일. 수신거부 링크는 만료 없음(신청 삭제 뒤에도 해시로 '이미 처리됨' 안내).
-5. 호출 제한: 신청 전체 300건/시간, 같은 주소 3건/시간·5건/일. 확인·수신거부 각각 전체 120회/분. 넘으면 저장·처리하지 않고 화면에 "처리하지 못함"을 보여 준다.
+5. 호출 제한(독립 리뷰 2 반영): 처음에는 확인·수신거부에 전체 공용 120회/분을 토큰 확인 전에 소비해서, 형식만 맞는 무효 토큰 120회로 모든 정상 처리를 막을 수 있었다. 지금은 (가) 무효 토큰은 아무것도 기록하지 않고 invalid로 돌려보내고, (나) 실제로 있는 링크만 링크마다 10회/분으로 센다. 그래서 무효 토큰이 많아도 다른 사람의 정상 확인·수신거부 예산은 줄지 않는다. 신청은 같은 주소 3건/시간·5건/일을 먼저 보고 통과한 것만 전체 300건/시간 예산을 쓴다(주소별 한도에 걸린 반복 신청이 전체 예산을 쓰지 않음). 남는 위험: 호출자(IP)를 구분하지 않으므로 매번 다른 주소로 300건/시간을 채우면 그 시간 동안 다른 신청이 막힐 수 있다. 신청폼이 IP를 받지 않기로 했으므로(신청폼-항목 v3) IP 기반 제한은 넣지 않았다. 필요하면 배포 앞단(Sites·WAF)에서 제한하는 것을 사용자와 정한다. 넘으면 저장·처리하지 않고 화면에 "처리하지 못함"을 보여 준다.
 6. 이메일 해시 = SHA-256('ilgamcheck-beta-ad:' + 소문자·공백 제거 주소). 비밀 키가 없어 주소 후보를 알면 대조할 수 있다(G05 질문 4와 함께 검토).
 7. 철회한 사람이 다시 체크하고 주소까지 확인하면 발송금지 해시를 지운다(동의·철회 이력은 남김).
 8. 미충족·미선정자에게 가는 결과 메일에는 확인 링크를 넣지 않는다(어차피 광고를 보내지 않으므로). 수신거부 링크는 넣는다.
@@ -86,12 +88,30 @@ DB = `node scripts/test-beta-consent-db.mjs`, 단위 = `npx vitest run`, E2E = `
 16. 신청 완료 화면은 이전 동의 상태를 보여 주지 않는다(남의 주소를 넣은 사람에게 그 주소의 상태가 드러나지 않게). 체크했으면 늘 "동의 접수, 주소 확인 뒤 유효"를 보여 준다. 이미 유효한 사람이 다시 체크해도 상태는 내려가지 않는다(확인 대기 이벤트가 하나 더 쌓일 뿐).
 17. 신청 RPC는 확인 토큰을 돌려주지 않는다. 확인 링크는 운영자 화면에서만 볼 수 있다.
 18. 문구 판본은 서버 허용 목록(`beta-apply-v1-2026-11-01`)으로 고정했다. 문구를 바꾸면 새 migration이 필요하다.
-19. 결과 안내 보냄 표시는 한 번만 기록된다(되돌리기 없음). 미충족이면 결과는 '기준 미충족'만 고를 수 있다.
+19. (독립 리뷰 7 반영) 결과는 운영자 화면에서 먼저 골라(보낼 예정) 그 결과의 초안을 확인하고, Gmail로 실제로 보낸 뒤에 '이 결과로 보낸 것 맞아요'로 기록한다. 고르기만 해서는 아무것도 기록되지 않는다. 기록은 한 번만 된다(되돌리기 없음 — 잘못 기록하면 운영자가 DB에서 고쳐야 한다). 미충족이면 결과는 '기준 미충족'만 고를 수 있다.
 20. 운영자 로그인은 기존 `/today` 로그인을 그대로 쓰고, 운영자 화면은 세션과 운영자 표만 확인한다.
-21. `/apply` 자체는 공개 모집 페이지라 noindex를 붙이지 않았다. 확인·수신거부·운영자 화면만 noindex(메타 + `X-Robots-Tag`).
+21. `/apply` 자체는 공개 모집 페이지라 noindex를 붙이지 않았다. 확인·수신거부·운영자 화면만 noindex(Next 메타 + `X-Robots-Tag`). (독립 리뷰 3 반영) Sites Worker는 끝의 `/`를 떼어 낸 같은 기준(`normalizeRoutePath`)으로 판정한다. 이 과정에서 고객 링크 `/r/<token>/`(끝 슬래시)에도 noindex가 붙게 됐다(기존 `/r/<token>`과 같은 의도).
 22. 신청 화면에 개인정보처리방침 링크를 넣지 않았다(방침에 아직 이 처리 내용이 없어서). 방침 게시 뒤 넣는다.
 23. 운영자 화면 로컬 미리보기는 가상 예시 4건(example.invalid)을 메모리에만 둔다(E2E로 초안 화면을 확인하려고).
-24. 전송자 명칭은 범위 문서·확정값의 "스튜디오열매"를 썼다. 저장소 `src/lib/business-identity.ts`는 "열매스튜디오(열매STUDIO)"라 다르다. 어느 쪽이 맞는지 사용자 확인 필요.
+24. (독립 리뷰 5 반영) 광고 대상은 신청 행이 아니라 주소 단위로 한 번만 계산한다: 주소 확인까지 끝난 동의 + 발송금지 아님 + 그 주소의 가장 최근 신청이 적격 + 그 주소의 어느 신청도 미충족·미선정으로 결과 안내되지 않음. 예전 신청이 미충족·미선정이었다가 나중에 적격으로 다시 신청한 경우도 이번 모집에서는 광고 대상에서 뺀다(보수적, 사용자 확인 필요).
+25. 전송자 명칭은 범위 문서·확정값의 "스튜디오열매"를 썼다. 저장소 `src/lib/business-identity.ts`는 "열매스튜디오(열매STUDIO)"라 다르다. 어느 쪽이 맞는지 사용자 확인 필요.
+
+## 독립 리뷰 반영 (Codex 읽기 전용 리뷰, 2026-11-01)
+
+원문: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능.md` (7건: 높음 2·중간 4·낮음 1).
+건마다 실패하는 시험을 먼저 만들어 실패(RED)를 확인한 뒤 고치고 통과(GREEN)시켰다. migration `20261101090000`은 아직 어디에도 적용되지 않아 새 migration을 쌓지 않고 같은 파일을 고쳤다.
+
+| # | 심각도 | 원인 | 수정 | 시험 이름 |
+|---|---|---|---|---|
+| 1 | 높음 | 운영자 화면이 처음 한 번 `getSession()`만 보고 인증 변경을 구독하지 않았다. 로그아웃·계정 전환 뒤에도 주소·토큰·초안이 남고, 전환 전 조회의 늦은 응답이 화면을 다시 채울 수 있었다 | `onAuthStateChange` 구독. 사용자가 바뀌거나 로그아웃하면 목록·통지·삭제 기록·고른 결과·backend를 즉시 비우고 권한을 다시 확인한다. 계정이 정해질 때마다 세대 번호를 올리고, 이전 세대의 응답은 버린다. 같은 계정의 토큰 갱신은 비우지 않는다 (`src/components/beta-ops-applications.tsx`) | 단위 `[리뷰 1] 다른 탭에서 로그아웃하면 신청자 주소·링크·초안을 바로 지우고 로그인 안내로 바꾼다`, `[리뷰 1] 일반 계정으로 바뀌면 화면을 비우고 다시 확인해 '운영자 계정이 아닙니다'만 보인다`, `[리뷰 1] 계정이 바뀌기 전에 보낸 조회가 늦게 와도 화면을 다시 채우지 않는다`, `[리뷰 1] 같은 계정의 토큰 갱신은 화면을 비우지 않는다` |
+| 2 | 중간 | 확인·수신거부가 토큰 존재 확인 전에 전체 공용 120회/분을 소비해, 형식만 맞는 무효 토큰으로 정상 처리를 막을 수 있었다. 신청은 주소별 한도에 걸린 요청도 전체 한도를 소비했다 | 무효 토큰은 기록 없이 invalid. 실제 링크만 링크마다 10회/분. 신청은 주소별 한도를 먼저 보고 통과한 것만 전체 한도를 쓴다. 남는 위험(다른 주소로 전체 한도 채우기)은 '판단한 것' 5번에 적었다 | DB `[리뷰 2] 주소별 한도에 걸린 신청은 전체 신청 한도를 쓰지 않는다`, `[리뷰 2] 형식만 맞는 무효 토큰을 많이 보내도 정상 주소 확인·수신거부는 막히지 않는다`, `[리뷰 2] 같은 링크를 분당 10번 넘게 누르면 그 링크만 rate_limited, 다른 링크는 그대로` |
+| 3 | 중간 | Sites Worker의 검색 차단 정규식이 끝 슬래시를 허용하지 않아 `/u/<token>/`, `/apply/confirm/<token>/`에 `X-Robots-Tag`가 빠졌다 | `src/lib/standalone-routes.ts`에 `normalizeRoutePath`·`isNoindexRoutePath`를 두고 Worker(`entry-server.tsx`)와 단독 경로 판정이 같은 정규화를 쓴다 | 단위 `beta-routes.test.tsx > Worker가 /u/…/ HTML에 검색 차단 헤더…` 등 끝 슬래시 6사례 · E2E `[시험표 6·8·9] 수신거부 링크…`(Next에서 `/u/<token>/` 확인) |
+| 4 | 낮음 | 주소 확인의 일시 오류(연결 문제·호출 제한)도 결과 화면으로 바뀌며 확인 버튼이 사라졌다 | 일시 오류 결과에 "다시 확인하기" 버튼을 둔다 (`beta-confirm-view.tsx`) | 단위 `[리뷰 4] 네트워크 오류 뒤에도 새로고침 없이 다시 눌러 확인할 수 있다`, `[리뷰 4] 호출 제한 뒤에도 …`(두 번째 RPC 호출까지 확인) |
+| 5 | 높음 | 광고 동의는 주소 단위인데 적격·미선정 제외는 신청 행마다 계산해, 같은 주소의 새 신청을 미선정 처리해도 과거 적격 행 때문에 광고 대상에 남았다 | `beta_ops_list_applications`가 주소 단위로 한 번만 계산: 가장 최근 신청이 적격 + 같은 주소의 어느 신청도 미충족·미선정으로 안내되지 않음(미리보기 backend도 같은 규칙) | DB `[리뷰 5] 같은 주소가 다시 신청해 새 신청이 미선정이면 과거 적격 신청이 있어도 광고 대상이 아니다`, `[리뷰 5] 최근 신청이 미충족이면 과거 적격 신청이 있어도 광고 대상이 아니다` |
+| 6 | 중간 | 삭제 요청 때 신청 정보를 모두 지워, 삭제 전에 생긴 미발송 통지의 받는 주소를 잃었다. 새 철회 초안은 화면 메모리에만 있어 새로고침하면 사라졌다 | 표 `beta_deletion_requests` 추가. 삭제 요청 처리 때 주소만 남기고, 통지 목록은 `recipient_email`로 그 주소를 돌려준다. `beta_ops_mark_deletion_emailed`는 같은 주소의 통지가 남아 있으면 거부하고, 표시하는 순간 주소를 지운다. 운영자 화면의 '삭제 처리 안내'는 DB에서 읽어 새로고침해도 남는다. 보유기간 정리도 보내지 않은 통지가 남은 주소는 건너뛴다 | DB `[리뷰 6] 삭제 요청 전 못 보낸 통지는 삭제 뒤에도 받는 주소가 남고, 통지를 다 보낸 뒤에야 삭제 결과 안내를 끝내며 그때 주소를 지운다`, `[리뷰 6] 보유기간이 지나도 그 주소로 보내지 않은 통지가 남아 있으면 정리하지 않고, 통지를 보낸 뒤 정리한다`, `[시험표 10] …`(받는 주소 확인 추가) · 단위 `[리뷰 6] 삭제 요청 처리 뒤에도 안 보낸 통지의 초안이 남고, 통지를 보내기 전에는 삭제 결과 안내를 끝낼 수 없다`, `mail-drafts.test.ts > [시험표 10] 삭제 처리 결과 초안` |
+| 7 | 중간 | 결과 선택이 컨트롤 내부 상태에만 있고 초안은 DB `outcome`만 봐서, 미선정 초안을 보려면 먼저 '보냄'을 기록해야 했다 | 고른 결과(보낼 예정)를 화면 상태로 올려 초안과 공유한다. 실제로 보낸 뒤 '이 결과로 보낸 것 맞아요'로 기록한다 | 단위 `[리뷰 7] 결과를 고르기만 해도 그 결과의 초안이 보이고, 보냄 표시는 아직 기록되지 않는다` |
+
+RED 확인: 리뷰 2·5·6 DB 시험 7개(기존 `[시험표 10]` 기대 보강 포함)가 고치기 전 FAIL, 리뷰 1·6·7 화면 시험 6개, 리뷰 3 Worker 시험 4개, 리뷰 4 시험 2개가 고치기 전 FAIL이었다. 보유기간 정리 건너뛰기는 조건을 일부러 빼서 FAIL → 원본 복구(`cmp` 동일) 뒤 PASS를 확인했다.
 
 ## 못 한 것·한계
 
@@ -132,3 +152,34 @@ Sites output verified
 - 기존 대비: unit 132파일/827개 → 137파일/888개, E2E 74개 → 82개(새 `e2e/beta-apply.spec.ts` 4개 × desktop·mobile), PGlite 권한 24 → 33.
 - 기존 테스트를 지우거나 skip하지 않았다. 바꾼 기존 테스트: `src/sites/routes.test.tsx`(경로 목록에 새 경로 4개 추가), `scripts/verify-sites-output.test.mjs`(셸 번들에 새 경로가 있어야 통과하도록 fixture 보강 + 빠진 경우 실패 시험 추가), `supabase/tests/rpc_execution_surface.sql`·`scripts/test-native-push-db.mjs`(새 함수 9개 행 추가).
 - 화면은 로컬 빌드를 390px·1280px로 띄워 신청·수신거부·운영자 화면을 직접 찍어 보고, 운영자 화면 버튼이 가로로 늘어나던 것과 "결과" 글자가 세로로 꺾이던 것을 고쳤다.
+
+### 독립 리뷰 반영 뒤 재검증 (2026-11-01, 출력 원문 발췌)
+
+```
+$ npm run lint            → LINT_EXIT=0
+$ npm run typecheck       → TYPECHECK_EXIT=0
+$ npx vitest run
+ Test Files  137 passed (137)
+      Tests  902 passed (902)
+$ node scripts/test-native-push-db.mjs
+PASS: native SQL contract, deletion regression, 35 RPC privilege checks (ephemeral PGlite).
+$ node scripts/test-beta-consent-db.mjs
+PASS: 26 beta consent DB checks (ephemeral PGlite).
+$ npm run check:release
+[release-gate] PASS unit            (137 files / 902 tests)
+[release-gate] PASS lint
+[release-gate] PASS typecheck
+[release-gate] PASS production dependency audit   (found 0 vulnerabilities)
+[release-gate] PASS local production build
+[e2e-release] PASS desktop/core 14 · desktop/surface 27 · mobile/core 14 · mobile/surface 27
+[release-gate] PASS local production E2E
+[release-gate] PASS hosted fail-closed production build
+[release-gate] PASS unit/lint/typecheck/audit/local E2E/hosted build 전체 게이트 통과.
+CHECK_RELEASE_EXIT=0
+$ npm run build:sites && node scripts/verify-sites-output.mjs
+BUILD_SITES_EXIT=0 (✓ built in 861ms / ✓ built in 42ms)
+Sites output verified
+VERIFY_SITES_EXIT=0
+```
+
+- 로컬 빌드 운영자 화면을 1280px·390px로 띄워 삭제 요청 처리 → '삭제 처리 안내' 칸, 미선정을 고르기만 했을 때의 결과 초안을 확인했다. 가로 넘침 0px(두 폭 모두).
