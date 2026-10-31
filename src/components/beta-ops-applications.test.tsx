@@ -195,18 +195,38 @@ describe("/ops/applications 운영자 화면", () => {
     expect(screen.getByRole("heading", { name: "처리결과 통지 0건 남음" })).toBeInTheDocument();
   });
 
-  it("[재검토3 2] 보유기간 정리가 한 번에 다 못 지우면 남은 정리 대상이 있다고 알린다", async () => {
+  it("[재검토3 2][재검토4 1] 정리 결과에서 '정리 가능한 남은 대상'과 '통지 때문에 보류된 주소'를 나눠 알린다", async () => {
     const expired = { ...applicationRow("test-batch@example.invalid", "app-batch"), purge_after: "2026-01-01T00:00:00Z" };
     const rpc = vi.fn((name: string): Promise<RpcResult> => Promise.resolve(
       name === "beta_ops_list_applications" ? { data: [expired], error: null }
-        : name === "beta_ops_purge_expired" ? { data: [{ deleted_count: 100, remaining_count: 7 }], error: null }
-          : { data: [], error: null },
+        : name === "beta_ops_purge_expired" ? { data: [{ deleted_count: 100, remaining_count: 7, held_count: 3 }], error: null }
+          : name === "beta_ops_prune_call_counters" ? { data: [{ deleted_rows: 0, remaining_rows: 0 }], error: null }
+            : { data: [], error: null },
     ));
     hostedClient({ user: { id: "operator-1" } }, rpc);
     render(<BetaOpsApplications />);
-    fireEvent.click(await screen.findByRole("button", { name: "보유기간 지난 신청 정리 (1건)" }));
-    fireEvent.click(screen.getByRole("button", { name: "1건 지우기" }));
-    expect(await screen.findByText(/100건을 정리했어요\. 남은 정리 대상 7명/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "정리 실행 (만료 신청 1건 · 2일 지난 호출 기록)" }));
+    fireEvent.click(screen.getByRole("button", { name: "신청과 오래된 호출 기록 정리하기" }));
+    const message = await screen.findByText(/신청 100건을 정리했어요/);
+    expect(message).toHaveTextContent("정리 가능한 남은 대상 7명");
+    expect(message).toHaveTextContent("보내지 않은 통지 때문에 보류된 주소 3명");
+  });
+
+  it("[재검토4 2] 만료 신청이 0건이어도 정리 버튼을 누를 수 있고, 오래된 호출 기록 정리 RPC까지 부른다", async () => {
+    const rpc = vi.fn((name: string): Promise<RpcResult> => Promise.resolve(
+      name === "beta_ops_list_applications" ? { data: [applicationRow("test-fresh@example.invalid", "app-fresh")], error: null }
+        : name === "beta_ops_purge_expired" ? { data: [{ deleted_count: 0, remaining_count: 0, held_count: 0 }], error: null }
+          : name === "beta_ops_prune_call_counters" ? { data: [{ deleted_rows: 12, remaining_rows: 0 }], error: null }
+            : { data: [], error: null },
+    ));
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    const button = await screen.findByRole("button", { name: "정리 실행 (만료 신청 0건 · 2일 지난 호출 기록)" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    fireEvent.click(screen.getByRole("button", { name: "신청과 오래된 호출 기록 정리하기" }));
+    expect(await screen.findByText(/오래된 호출 기록 12행을 지웠어요/)).toBeInTheDocument();
+    expect(rpc).toHaveBeenCalledWith("beta_ops_prune_call_counters");
   });
 
   it("[리뷰 7] 결과를 고르기만 해도 그 결과의 초안이 보이고, 보냄 표시는 아직 기록되지 않는다", async () => {

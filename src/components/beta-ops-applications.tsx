@@ -426,13 +426,26 @@ export function BetaOpsApplications() {
       <section className="betaOpsSection" aria-labelledby="beta-ops-applications">
         <h2 id="beta-ops-applications">신청 {applications.length}건</h2>
         <div className="betaActions">
+          {/* 만료 신청이 없어도 누를 수 있다: 2일 지난 호출 제한 기록 정리도 이 버튼으로만 실행된다. */}
           <ConfirmButton
-            label={`보유기간 지난 신청 정리 (${expired.length}건)`}
-            confirmLabel={`${expired.length}건 지우기`}
-            disabled={expired.length === 0}
-            onConfirm={() => run(() => backend!.purgeExpired(), (result) => result.remainingCount > 0
-              ? `${result.deletedCount}건을 정리했어요. 남은 정리 대상 ${result.remainingCount}명이 있어요. 한 번에 주소 100개까지만 정리하니 다시 눌러 주세요. 보내지 않은 통지가 남은 주소는 통지를 보낸 뒤 정리돼요.`
-              : `${result.deletedCount}건을 정리했어요. 남은 정리 대상은 없어요.`)}
+            label={`정리 실행 (만료 신청 ${expired.length}건 · 2일 지난 호출 기록)`}
+            confirmLabel="신청과 오래된 호출 기록 정리하기"
+            onConfirm={() => run(async () => {
+              // 두 정리는 따로 부른다(서로 다른 트랜잭션). 신청 정리가 이메일 잠금을 쥔 채 카운터를 지우지 않게.
+              const purge = await backend!.purgeExpired();
+              const prune = await backend!.pruneCallCounters();
+              return { purge, prune };
+            }, ({ purge, prune }) => [
+              `신청 ${purge.deletedCount}건을 정리했어요.`,
+              purge.remainingCount > 0
+                ? `정리 가능한 남은 대상 ${purge.remainingCount}명이 있어요(한 번에 주소 100개까지라 다시 눌러 주세요).`
+                : "",
+              purge.heldCount > 0
+                ? `보내지 않은 통지 때문에 보류된 주소 ${purge.heldCount}명이 있어요(통지를 보낸 뒤 정리돼요).`
+                : "",
+              `오래된 호출 기록 ${prune.deletedRows}행을 지웠어요.`,
+              prune.remainingRows > 0 ? `남은 ${prune.remainingRows}행은 다시 눌러 지워 주세요.` : "",
+            ].filter(Boolean).join(" "))}
           />
         </div>
         <ul className="betaOpsList">

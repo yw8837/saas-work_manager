@@ -15,8 +15,9 @@
 --   2) 호출 제한 카운터(beta_public_call_counters)의 UPSERT  — beta_take_call
 --   3) 신청·통지·삭제 기록 등 행 잠금·행 삭제(for update, insert, delete)
 -- 무효 토큰은 1) 전에 끝나며 카운터도 쓰지 않는다(토큰 조회는 읽기만).
--- 오래된 카운터 행 정리(DELETE)는 공개 RPC에서 하지 않는다. 운영자 정리(beta_ops_purge_expired)가 마지막 단계에서
--- 2일 지난 시간 창만 지우며, 공개 RPC는 현재 시간 창 행만 건드리므로 같은 행을 두고 다투지 않는다.
+-- 오래된 카운터 행 정리(DELETE)는 공개 RPC에서 하지 않는다. 운영자 카운터 정리(beta_ops_prune_call_counters)가
+-- 신청 정리와 따로(별도 트랜잭션, 이메일 잠금 없이) 2일 지난 시간 창만 한 번에 5,000행까지 지운다.
+-- 공개 RPC는 현재 시간 창 행만 건드리므로 같은 행을 두고 다투지 않는다.
 
 -- 운영자 계정. 비어 있으면 운영자 화면은 "운영자 계정이 아닙니다"만 보인다.
 create table public.beta_operator_accounts (
@@ -131,6 +132,7 @@ create table public.beta_public_call_counters (
   calls integer not null default 0,
   primary key (bucket, window_start)
 );
+create index beta_public_call_counters_window_idx on public.beta_public_call_counters (window_start);
 
 alter table public.beta_operator_accounts enable row level security;
 alter table public.beta_applications enable row level security;
@@ -976,7 +978,7 @@ $$;
 
 -- 보유기간이 지난 신청 정보 정리(운영자 버튼). 자동 예약은 다음 단계다.
 create function public.beta_ops_purge_expired()
-returns table(deleted_count integer, remaining_count integer)
+returns table(deleted_count integer, remaining_count integer, held_count integer)
 language plpgsql
 volatile
 security definer
@@ -987,15 +989,23 @@ declare
   v_count integer;
   v_email_hash text;
   v_remaining integer;
+  v_held integer;
 begin
   perform ilgam_private.beta_require_operator();
   -- 정리할 주소를 해시 오름차순으로 하나씩 잠근다(잠금 순서를 한 가지로). 잠근 뒤 같은 조건으로 다시 확인하며 지운다.
   -- 그 주소로 아직 보내지 않은 처리결과 통지가 있으면 주소를 잃지 않도록 정리하지 않는다(통지를 보낸 뒤 다시 정리).
   for v_email_hash in
     -- 잠금을 함수 끝까지 쥐므로 한 번에 주소 100개까지만 처리하고, 남은 것은 다음 실행에서 처리한다.
+    -- 미발송 통지 때문에 보류된 주소는 후보에서 먼저 뺀다(보류된 앞 주소들이 뒤의 정리 가능한 주소를 가리지 않게).
+    -- 잠근 뒤 DELETE에서 같은 조건을 한 번 더 검사한다(그 사이 통지가 생겼을 수 있으므로).
     select distinct candidate.email_hash
     from public.beta_applications as candidate
     where candidate.purge_after is not null and candidate.purge_after <= clock_timestamp()
+      and not exists (
+        select 1 from public.beta_ad_consent_events as event
+        where event.email_hash = candidate.email_hash and event.notice_emailed_at is null
+          and not event.notice_email_unavailable
+      )
     order by candidate.email_hash
     limit 100
   loop
@@ -1012,15 +1022,53 @@ begin
     v_deleted := v_deleted + v_count;
   end loop;
 
-  -- 남은 정리 대상(다음 실행 몫, 또는 보내지 않은 통지 때문에 미룬 것)의 주소 수.
-  select count(distinct candidate.email_hash)::integer into v_remaining
+  -- 남은 정리 대상을 둘로 나눈다: 정리 가능한데 다음 실행 몫인 주소, 보내지 않은 통지 때문에 보류된 주소.
+  select
+    count(distinct candidate.email_hash) filter (where not candidate_state.held)::integer,
+    count(distinct candidate.email_hash) filter (where candidate_state.held)::integer
+  into v_remaining, v_held
   from public.beta_applications as candidate
+  cross join lateral (
+    select exists (
+      select 1 from public.beta_ad_consent_events as event
+      where event.email_hash = candidate.email_hash and event.notice_emailed_at is null
+        and not event.notice_email_unavailable
+    ) as held
+  ) as candidate_state
   where candidate.purge_after is not null and candidate.purge_after <= clock_timestamp();
 
-  -- 공개 RPC에서 뺀 오래된 호출 제한 카운터 정리. 2일 지난 시간 창만 지우므로 공개 요청이 쓰는 현재 행과 겹치지 않는다.
-  delete from public.beta_public_call_counters as counter
-  where counter.window_start < clock_timestamp() - interval '2 days';
+  return query select v_deleted, v_remaining, v_held;
+end;
+$$;
 
+-- 오래된 호출 제한 카운터 정리(운영자). 신청 정리와 따로 부르는 별도 트랜잭션이며 이메일 잠금을 잡지 않는다.
+-- 2일 지난 시간 창만, 한 번에 5,000행까지 지우고 남은 수를 돌려준다(남으면 다시 실행).
+create function public.beta_ops_prune_call_counters()
+returns table(deleted_rows integer, remaining_rows integer)
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_cutoff timestamptz := clock_timestamp() - interval '2 days';
+  v_deleted integer;
+  v_remaining integer;
+begin
+  perform ilgam_private.beta_require_operator();
+  delete from public.beta_public_call_counters as counter
+  using (
+    select old.bucket, old.window_start
+    from public.beta_public_call_counters as old
+    where old.window_start < v_cutoff
+    order by old.window_start
+    limit 5000
+  ) as batch
+  where counter.bucket = batch.bucket and counter.window_start = batch.window_start;
+  get diagnostics v_deleted = row_count;
+  select count(*)::integer into v_remaining
+  from public.beta_public_call_counters as counter
+  where counter.window_start < v_cutoff;
   return query select v_deleted, v_remaining;
 end;
 $$;
@@ -1044,7 +1092,8 @@ revoke all on function
   public.beta_ops_delete_application(uuid),
   public.beta_ops_list_deletions(),
   public.beta_ops_mark_deletion_emailed(uuid),
-  public.beta_ops_purge_expired()
+  public.beta_ops_purge_expired(),
+  public.beta_ops_prune_call_counters()
 from public, anon;
 grant execute on function
   public.beta_ops_list_applications(),
@@ -1054,7 +1103,8 @@ grant execute on function
   public.beta_ops_delete_application(uuid),
   public.beta_ops_list_deletions(),
   public.beta_ops_mark_deletion_emailed(uuid),
-  public.beta_ops_purge_expired()
+  public.beta_ops_purge_expired(),
+  public.beta_ops_prune_call_counters()
 to authenticated;
 
 notify pgrst, 'reload schema';

@@ -304,13 +304,33 @@ export async function deleteBetaApplication(
 
 export type BetaPurgeResult = {
   deletedCount: number;
-  /** 아직 남은 정리 대상 주소 수(한 번에 100개까지만 처리하므로 다음 실행 몫, 또는 보내지 않은 통지 때문에 미룬 것). */
+  /** 정리할 수 있는데 이번에 못 한 주소 수(한 번에 주소 100개까지라 다음 실행 몫). */
   remainingCount: number;
+  /** 보내지 않은 처리결과 통지 때문에 정리를 미룬 주소 수(통지를 보낸 뒤 정리된다). */
+  heldCount: number;
+};
+
+export type BetaCounterPruneResult = {
+  deletedRows: number;
+  /** 아직 남은 2일 지난 호출 제한 기록 행 수(한 번에 5,000행까지). */
+  remainingRows: number;
 };
 
 export async function purgeExpiredBetaApplications(client: SupabaseClient): Promise<BetaPurgeResult> {
   const { data, error } = await client.rpc("beta_ops_purge_expired");
   if (error) throw opsError(error);
-  const row = firstRow<{ deleted_count: number; remaining_count: number }>(data);
-  return { deletedCount: Number(row?.deleted_count ?? 0), remainingCount: Number(row?.remaining_count ?? 0) };
+  const row = firstRow<{ deleted_count: number; remaining_count: number; held_count: number }>(data);
+  return {
+    deletedCount: Number(row?.deleted_count ?? 0),
+    remainingCount: Number(row?.remaining_count ?? 0),
+    heldCount: Number(row?.held_count ?? 0),
+  };
+}
+
+/** 2일 지난 호출 제한 기록 정리. 신청 정리와 따로 부른다(별도 트랜잭션, 이메일 잠금 없음). */
+export async function pruneBetaCallCounters(client: SupabaseClient): Promise<BetaCounterPruneResult> {
+  const { data, error } = await client.rpc("beta_ops_prune_call_counters");
+  if (error) throw opsError(error);
+  const row = firstRow<{ deleted_rows: number; remaining_rows: number }>(data);
+  return { deletedRows: Number(row?.deleted_rows ?? 0), remainingRows: Number(row?.remaining_rows ?? 0) };
 }

@@ -8,6 +8,7 @@ import {
   listBetaNotices,
   markBetaDeletionEmailed,
   markBetaNoticeEmailed,
+  pruneBetaCallCounters,
   purgeExpiredBetaApplications,
   recordBetaMilestone,
   type BetaDeletionReceipt,
@@ -15,6 +16,7 @@ import {
   type BetaOpsApplication,
   type BetaOpsDeletion,
   type BetaOpsNotice,
+  type BetaCounterPruneResult,
   type BetaPurgeResult,
 } from "@/lib/supabase/beta";
 import { noticeDueAt } from "./rules";
@@ -29,6 +31,7 @@ export type BetaOpsBackend = {
   deleteApplication(applicationId: string): Promise<BetaDeletionReceipt>;
   markDeletionEmailed(deletionId: string): Promise<void>;
   purgeExpired(): Promise<BetaPurgeResult>;
+  pruneCallCounters(): Promise<BetaCounterPruneResult>;
 };
 
 export function hostedBetaOpsBackend(client: SupabaseClient): BetaOpsBackend {
@@ -41,6 +44,7 @@ export function hostedBetaOpsBackend(client: SupabaseClient): BetaOpsBackend {
     deleteApplication: (applicationId) => deleteBetaApplication(client, applicationId),
     markDeletionEmailed: async (deletionId) => { await markBetaDeletionEmailed(client, deletionId); },
     purgeExpired: () => purgeExpiredBetaApplications(client),
+    pruneCallCounters: () => pruneBetaCallCounters(client),
   };
 }
 
@@ -170,8 +174,10 @@ export function previewBetaOpsBackend(now: Date = new Date()): BetaOpsBackend {
       const expired = (application: BetaOpsApplication) => Boolean(application.purgeAfter)
         && new Date(application.purgeAfter!).getTime() <= cutoff;
       applications = withAdTargets(applications.filter((application) => !expired(application) || pendingFor(application.email) > 0));
-      const remaining = new Set(applications.filter(expired).map((application) => application.email)).size;
-      return { deletedCount: before - applications.length, remainingCount: remaining };
+      const held = new Set(applications.filter(expired).map((application) => application.email)).size;
+      return { deletedCount: before - applications.length, remainingCount: 0, heldCount: held };
     },
+    // 미리보기에는 호출 제한 기록이 없다.
+    pruneCallCounters: async () => ({ deletedRows: 0, remainingRows: 0 }),
   };
 }

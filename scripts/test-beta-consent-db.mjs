@@ -779,6 +779,8 @@ try {
     assert.deepEqual(await advisoryKeysDuring("anon", null, "select * from public.unsubscribe_beta_ads($1)", [row.unsubscribe_token]), key, "수신거부");
     assert.deepEqual(await advisoryKeysDuring("authenticated", OPERATOR, "select * from public.beta_ops_delete_application($1)", [row.id]), key, "삭제 요청");
     await db.query("update public.beta_applications set purge_after = now() - interval '1 day' where id = $1", [row.id]);
+    // 미발송 통지로 보류된 주소는 정리 후보에서 먼저 빠지므로(재검토4 1) 잠그지 않는다. 통지를 보낸 표시를 한 뒤 본다.
+    await markAllNoticesFor(email);
     assert.deepEqual(await advisoryKeysDuring("authenticated", OPERATOR, "select * from public.beta_ops_purge_expired()"), key, "보유기간 정리");
     const deletion = await as("authenticated", OPERATOR, "select * from public.beta_ops_delete_application($1)", [row.id]);
     // 통지가 남아 있으면 함수가 거부하고(저장점과 함께 잠금도 풀린다) 키를 볼 수 없으니, 통지를 먼저 보낸 것으로 표시한다.
@@ -821,7 +823,7 @@ try {
     }
   });
 
-  await check("[재검토3 1] 공개 RPC는 오래된 카운터를 지우지 않고(경합 제거), 운영자 정리가 지운다. 무효 토큰은 여전히 카운터를 쓰지 않는다", async () => {
+  await check("[재검토3 1] 공개 RPC는 오래된 카운터를 지우지 않고(경합 제거), 운영자 카운터 정리가 지운다. 무효 토큰은 여전히 카운터를 쓰지 않는다", async () => {
     await db.exec("delete from public.beta_public_call_counters");
     assert.doesNotMatch(functionBody("ilgam_private.beta_take_call"), /delete from public\.beta_public_call_counters/);
     await db.exec(`insert into public.beta_public_call_counters (bucket, window_start, calls)
@@ -837,11 +839,13 @@ try {
     assert.equal((await unsubscribe("q".repeat(43))).status, "invalid");
     assert.equal((await confirm("q".repeat(43))).status, "invalid");
     assert.equal((await db.query("select count(*)::int as n from public.beta_public_call_counters")).rows[0].n, before, "무효 토큰이 카운터를 썼다");
-    await as("authenticated", OPERATOR, "select * from public.beta_ops_purge_expired()");
-    assert.equal(await countOld(), 0, "운영자 정리가 오래된 카운터를 지운다");
+    await as("authenticated", OPERATOR, "select * from public.beta_ops_prune_call_counters()");
+    assert.equal(await countOld(), 0, "운영자 카운터 정리가 오래된 카운터를 지운다");
   });
 
   await check("[재검토3 2] 보유기간 정리는 한 번에 주소 100개까지만 처리하고 남은 수를 알려 준다", async () => {
+    // 앞 시험들이 남긴 만료 신청이 숫자에 섞이지 않도록 정리 예정일을 비운다.
+    await db.exec("update public.beta_applications set purge_after = null where purge_after <= now()");
     await db.exec(`
       insert into public.beta_applications (
         email, email_hash, work_type, sells_packages, concurrent_jobs, participation, eligible, copy_version,
@@ -858,11 +862,68 @@ try {
     const first = (await as("authenticated", OPERATOR, "select * from public.beta_ops_purge_expired()")).rows[0];
     assert.equal(first.deleted_count, 100);
     assert.equal(first.remaining_count, 1);
+    assert.equal(first.held_count, 0);
     const second = (await as("authenticated", OPERATOR, "select * from public.beta_ops_purge_expired()")).rows[0];
     assert.equal(second.deleted_count, 1);
     assert.equal(second.remaining_count, 0);
     const left = await db.query("select count(*)::int as n from public.beta_applications where email like 'test-batch-%'");
     assert.equal(left.rows[0].n, 0);
+  });
+
+  await check("[재검토4 1] 해시순 앞 100주소가 미발송 통지로 보류돼도, 그 뒤의 정리 가능한 주소는 정리된다(보류·남은 수 구분)", async () => {
+    // 앞 시험들이 남긴 만료 신청이 숫자에 섞이지 않도록 정리 예정일을 비운다.
+    await db.exec("update public.beta_applications set purge_after = null where purge_after <= now()");
+    await db.exec(`
+      insert into public.beta_applications (
+        email, email_hash, work_type, sells_packages, concurrent_jobs, participation, eligible, copy_version,
+        privacy_consented_at, ad_checked, confirm_token_hash, confirm_expires_at, purge_after
+      )
+      select
+        'test-held-' || i || '@example.invalid',
+        encode(extensions.digest('ilgamcheck-beta-ad:test-held-' || i || '@example.invalid', 'sha256'), 'hex'),
+        'web', true, '2-3', 'beta', true, 'beta-apply-v1-2026-11-01', now(), true,
+        encode(extensions.digest('held-confirm-' || i, 'sha256'), 'hex'), now() + interval '30 days',
+        now() - interval '1 day'
+      from generate_series(1, 101) as i;
+    `);
+    // 해시가 가장 큰 1주소만 통지를 보낸 상태, 나머지 100주소(해시순 앞)는 미발송 통지가 있다.
+    const last = (await db.query(
+      "select email_hash from public.beta_applications where email like 'test-held-%' order by email_hash desc limit 1",
+    )).rows[0].email_hash;
+    await db.query(`
+      insert into public.beta_ad_consent_events (email_hash, kind, source, occurred_at, notice_shown_at, notice_due_at)
+      select email_hash, 'consent', 'apply_form', now(), now(), now() + interval '14 days'
+      from public.beta_applications where email like 'test-held-%' and email_hash <> $1`, [last]);
+    const runs = [];
+    for (let index = 0; index < 3; index += 1) {
+      runs.push((await as("authenticated", OPERATOR, "select * from public.beta_ops_purge_expired()")).rows[0]);
+    }
+    assert.deepEqual(runs[0], { deleted_count: 1, remaining_count: 0, held_count: 100 });
+    assert.deepEqual(runs[1], { deleted_count: 0, remaining_count: 0, held_count: 100 });
+    assert.equal((await db.query("select count(*)::int as n from public.beta_applications where email_hash = $1", [last])).rows[0].n, 0);
+    assert.equal((await db.query("select count(*)::int as n from public.beta_applications where email like 'test-held-%'")).rows[0].n, 100);
+    await db.exec("delete from public.beta_ad_consent_events where email_hash in (select email_hash from public.beta_applications where email like 'test-held-%')");
+    await db.exec("delete from public.beta_applications where email like 'test-held-%'");
+  });
+
+  await check("[재검토4 3] 오래된 카운터 정리는 신청 정리와 따로(이메일 잠금 없이) 한 번에 5,000행까지 지우고 남은 수를 알려 준다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    await db.exec(`insert into public.beta_public_call_counters (bucket, window_start, calls)
+      select 'old:' || i, now() - interval '3 days', 1 from generate_series(1, 5001) as i`);
+    await db.exec(`insert into public.beta_public_call_counters (bucket, window_start, calls) values ('fresh:1', now(), 1)`);
+    const keys = await advisoryKeysDuring("authenticated", OPERATOR, "select * from public.beta_ops_prune_call_counters()");
+    assert.deepEqual(keys, [], "카운터 정리는 이메일 잠금을 잡지 않는다");
+    const first = (await as("authenticated", OPERATOR, "select * from public.beta_ops_prune_call_counters()")).rows[0];
+    assert.deepEqual(first, { deleted_rows: 5000, remaining_rows: 1 });
+    const second = (await as("authenticated", OPERATOR, "select * from public.beta_ops_prune_call_counters()")).rows[0];
+    assert.deepEqual(second, { deleted_rows: 1, remaining_rows: 0 });
+    assert.equal((await db.query("select count(*)::int as n from public.beta_public_call_counters where bucket = 'fresh:1'")).rows[0].n, 1, "현재 시간 창은 남긴다");
+    await rejects(as("anon", null, "select * from public.beta_ops_prune_call_counters()"), "permission denied");
+    await rejects(as("authenticated", STRANGER, "select * from public.beta_ops_prune_call_counters()"), "not_operator");
+    const index = await db.query("select count(*)::int as n from pg_indexes where tablename = 'beta_public_call_counters' and indexdef like '%(window_start)%'");
+    assert.equal(index.rows[0].n, 1, "window_start 인덱스");
+    // 신청 정리 함수는 더 이상 카운터를 지우지 않는다(긴 트랜잭션에서 이메일 잠금을 쥔 채 지우지 않게).
+    assert.doesNotMatch(functionBody("public.beta_ops_purge_expired"), /beta_public_call_counters/);
   });
 
   const failed = results.filter((result) => !result.ok);
