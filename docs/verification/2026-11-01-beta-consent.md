@@ -35,7 +35,7 @@
 | `beta_ops_list_deletions()` | X | O(운영자만) | O | 삭제 요청 기록과 남은 통지 수 |
 | `beta_ops_mark_deletion_emailed(uuid)` | X | O(운영자만) | O | 삭제 결과 안내 보냄 표시. 같은 주소의 통지가 남아 있으면 거부, 표시하면 주소 삭제 |
 | `beta_ops_purge_expired()` | X | O(운영자만) | O | 보유기간 지난 신청 정리. 보내지 않은 통지가 남은 주소는 후보에서 먼저 빼고(보류), 정리 가능한 주소만 해시순 100개씩. (deleted_count, remaining_count, held_count) 반환 |
-| `beta_ops_prune_call_counters()` | X | O(운영자만) | O | 2일 지난 호출 제한 기록 정리. 신청 정리와 따로(이메일 잠금 없음), 한 번에 5,000행, (deleted_rows, remaining_rows) 반환 |
+| `beta_ops_prune_call_counters()` | X | O(운영자만) | O | 2일 지난 호출 제한 기록 정리. 신청 정리와 따로(이메일 잠금 없음), 한 번에 5,000행, (deleted_rows, remaining_rows) 반환. 남은 수는 5,001개까지만 센다(5,001 = 5,000 넘음) |
 
 모두 `security definer`, `set search_path = ''`. 내부 도우미 9개(`ilgam_private.beta_email_hash`, `beta_token_hash`, `beta_new_token`, `beta_take_call`, `beta_peek_calls`, `beta_lock_email`, `beta_current_cohort`, `beta_ad_status`, `beta_require_operator`)는 anon·authenticated 실행 불가(DB 시험 `[권한] 운영자 RPC는 …`에서 9개 모두 확인). 표 9개(독립 리뷰 반영으로 `beta_deletion_requests`, 재검토 반영으로 `beta_ad_exclusions` 추가)는 anon·authenticated의 select·insert·update·delete 모두 불가(Supabase 기본 ACL을 흉내 낸 PGlite에서 확인).
 
@@ -175,6 +175,18 @@ RED 확인(작업자 보고, 독립 입증 아님): 리뷰 2·5·6 DB 시험 7�
 
 바뀐 기존 시험(설계 변경에 맞춤, 삭제·skip 없음): `[재검토2 2]`는 보류 주소를 이제 잠그지 않으므로 정리 잠금 키를 보기 전에 통지 보냄 표시를 한다. `[재검토3 1]`은 카운터 정리를 새 함수로 부른다. `[재검토3 2]`·`[재검토4 1]`은 앞 시험이 남긴 만료 신청이 숫자에 섞이지 않게 시작 때 정리 예정일을 비운다. 운영자 RPC 계약 시험은 운영자 확인 9개·새 권한 회수 목록에 맞췄다. 권한 회귀는 35 → 36행.
 101주소 시험이 옛 동작을 잡는지: 후보 필터를 일부러 빼면 `[재검토4 1]`만 FAIL, 원본 복구(`cmp` 동일) 뒤 39개 PASS(작업자 보고).
+
+## 6차 재검토 반영 (Codex, 2026-11-01, 판정 "수정 필요")
+
+원문: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능-재검토5.md`. 판정: 5차 3건 모두 해결, 화면 결함 1건(중간), 메모 1건.
+작업자(Claude) 보고: 시험을 먼저 만들어 실패를 확인한 뒤 고쳤다(작업자 실행 기록, 독립 입증 아님). '둘 다 성공' 시험은 고치기 전에도 통과하는 보호 시험이다.
+
+| # | 심각도 | 원인 | 수정 | 시험 이름 |
+|---|---|---|---|---|
+| 1 | 중간 | "정리 실행"이 신청 정리 → 호출 기록 정리를 한 덩어리로 처리해, 신청 정리(이미 커밋된 별도 트랜잭션)가 성공한 뒤 호출 기록 정리만 실패해도 삭제 수·남은 수·보류 수가 사라지고 "처리하지 못했어요"만 떴다 | 두 트랜잭션 분리는 그대로 두고 결과·오류를 각각 처리하는 `runCleanup`으로 바꿨다. 신청 정리 성공 뒤 호출 기록 정리만 실패하면 "신청 N건을 정리했어요. (남은·보류 수) 호출 기록 정리는 완료하지 못했어요. 다시 시도해 주세요."를 보여 준다. 신청 정리가 실패하면 "신청 정리를 하지 못했어요. 호출 기록 정리도 하지 않았어요."를 보여 주고 두 번째 RPC는 부르지 않는다 | 단위 `[재검토5 1] 정리 실행: 둘 다 성공하면 …`, `[재검토5 1] 정리 실행: 신청 정리는 성공하고 호출 기록 정리만 실패하면 …`, `[재검토5 1] 정리 실행: 신청 정리가 실패하면 그렇게 알리고 호출 기록 정리 RPC는 부르지 않는다` |
+| 2 | 메모 | 호출 기록 정리가 남은 행을 `COUNT(*)`로 전부 세서, 5,000행 삭제 제한이 전체 실행 시간의 상한이 되지 못했다 | 남은 수를 `LIMIT 5001` 부분 질의로 5,001개까지만 센다. 5,001이면 화면에 "남은 기록이 5,000행 넘게 있어요. 다시 눌러 지워 주세요."를 보여 준다 | DB `[재검토5 2] 호출 기록 정리의 남은 수는 5,001개까지만 센다(실행 시간 상한, 5,001 = '5,000 넘음')`(10,002행 → 5,000/5,001, 5,000/2, 2/0) · 단위 `[재검토5 2] 남은 호출 기록이 5,000행을 넘으면 정확한 수 대신 '5,000행 넘게'로 알린다` |
+
+한계: 실제 PostgreSQL 다중 세션의 동시 정리 대기·교착은 이번에도 시험하지 않았다(PGlite는 세션 하나). 화면 문구는 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과).
 
 ## 한계·운영 안내 (호출 제한 기록)
 
@@ -396,3 +408,34 @@ VERIFY_SITES_EXIT=0
 ```
 
 - 정리 버튼·결과 문구 변경은 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과). 스크린샷은 찍지 않았다.
+
+### 6차 재검토 반영 뒤 재검증 (2026-11-01, 출력 원문 발췌)
+
+```
+$ npm run lint            → LINT_EXIT=0
+$ npm run typecheck       → TYPECHECK_EXIT=0
+$ npx vitest run
+ Test Files  137 passed (137)
+      Tests  914 passed (914)
+$ node scripts/test-native-push-db.mjs
+PASS: native SQL contract, deletion regression, 36 RPC privilege checks (ephemeral PGlite).
+NATIVE_DB_EXIT=0
+$ node scripts/test-beta-consent-db.mjs
+PASS: 40 beta consent DB checks (ephemeral PGlite).
+BETA_DB_EXIT=0
+$ npm run check:release
+[release-gate] PASS unit            (914 tests)
+[release-gate] PASS lint
+[release-gate] PASS typecheck
+[release-gate] PASS production dependency audit   (found 0 vulnerabilities)
+[release-gate] PASS local production build
+[e2e-release] PASS desktop/core 14 · desktop/surface 27 · mobile/core 14 · mobile/surface 27
+[release-gate] PASS local production E2E
+[release-gate] PASS hosted fail-closed production build
+[release-gate] PASS unit/lint/typecheck/audit/local E2E/hosted build 전체 게이트 통과.
+CHECK_RELEASE_EXIT=0
+$ npm run build:sites && node scripts/verify-sites-output.mjs
+BUILD_SITES_EXIT=0 (✓ built in 819ms / ✓ built in 44ms)
+Sites output verified
+VERIFY_SITES_EXIT=0
+```
