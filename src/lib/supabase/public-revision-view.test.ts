@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getHostedPublicRevisionSummary } from "./workspace";
 
 const sql = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261031120000_public_revision_view.sql"),
+  resolve(process.cwd(), "supabase/migrations/20261031110217_public_revision_view.sql"),
   "utf8",
 );
 
