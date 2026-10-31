@@ -20,6 +20,19 @@ const nextConfig: NextConfig = {
         source: "/demo/:path*",
         headers: buildBearerRouteHeaders(),
       },
+      {
+        // 베타 신청 주소 확인·수신거부 링크는 메일로만 전달하는 토큰 주소다. 운영자 화면도 검색에 노출하지 않는다.
+        source: "/apply/confirm/:path*",
+        headers: buildBearerRouteHeaders(),
+      },
+      {
+        source: "/u/:path*",
+        headers: buildBearerRouteHeaders(),
+      },
+      {
+        source: "/ops/:path*",
+        headers: buildBearerRouteHeaders(),
+      },
     ];
   },
 };

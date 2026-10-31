@@ -59,9 +59,11 @@ function withSecurityHeaders(
   for (const { key, value } of buildSecurityHeaders(false, environment.NEXT_PUBLIC_SUPABASE_URL)) {
     headers.set(key, value);
   }
-  // 고객 링크와 체험 링크는 검색 결과에 남지 않게 한다.
+  // 고객 링크와 체험 링크, 베타 주소 확인·수신거부·운영자 화면은 검색 결과에 남지 않게 한다.
   const { pathname } = new URL(request.url);
-  if (/^\/r\/[^/]+$/.test(pathname) || /^\/demo(?:\/|$)/.test(pathname)) {
+  if (/^\/r\/[^/]+$/.test(pathname) || /^\/demo(?:\/|$)/.test(pathname)
+    || /^\/apply\/confirm\/[^/]+$/.test(pathname) || /^\/u\/[^/]+$/.test(pathname)
+    || /^\/ops(?:\/|$)/.test(pathname)) {
     for (const { key, value } of buildBearerRouteHeaders()) headers.set(key, value);
   }
   return new Response(request.method === "HEAD" ? null : responseBody(response), {

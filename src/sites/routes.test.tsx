@@ -17,6 +17,10 @@ describe("Sites route contract", () => {
       "/terms",
       "/guide",
       "/demo/r",
+      "/apply",
+      "/apply/confirm/:token",
+      "/u/:token",
+      "/ops/applications",
     ]);
   });
 });

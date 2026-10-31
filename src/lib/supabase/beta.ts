@@ -1,0 +1,241 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type {
+  BetaConcurrentJobs,
+  BetaOrderChannel,
+  BetaParticipation,
+  BetaWorkType,
+} from "@/lib/beta/apply-copy";
+import type { BetaAdStatus, BetaNoticeKind } from "@/lib/beta/rules";
+
+/** 베타 신청·광고 동의 RPC. 표는 직접 읽지 않고 migration 20261101090000의 함수만 부른다. */
+
+export type BetaApplicationInput = {
+  email: string;
+  workType: BetaWorkType;
+  sellsPackages: boolean;
+  concurrentJobs: BetaConcurrentJobs;
+  orderChannels: BetaOrderChannel[];
+  participation: BetaParticipation;
+  privacyConsent: boolean;
+  adConsent: boolean;
+  copyVersion: string;
+};
+
+export type BetaApplicationReceipt =
+  | { status: "received"; adEvent: { kind: "consent"; at: string; dueAt: string } | null }
+  | { status: "rate_limited" };
+
+function firstRow<T>(data: unknown): T | null {
+  return Array.isArray(data) ? (data[0] as T | undefined) ?? null : (data as T | null);
+}
+
+export async function submitBetaApplication(
+  client: SupabaseClient,
+  input: BetaApplicationInput,
+): Promise<BetaApplicationReceipt> {
+  const { data, error } = await client.rpc("submit_beta_application", {
+    p_email: input.email,
+    p_work_type: input.workType,
+    p_sells_packages: input.sellsPackages,
+    p_concurrent_jobs: input.concurrentJobs,
+    p_order_channels: input.orderChannels,
+    p_participation: input.participation,
+    p_privacy_consent: input.privacyConsent,
+    p_ad_consent: input.adConsent,
+    p_copy_version: input.copyVersion,
+  });
+  if (error) {
+    if (error.message?.includes("privacy_consent_required")) throw new Error("개인정보 수집·이용에 동의해야 신청할 수 있어요.");
+    if (error.message?.includes("invalid_beta_application")) throw new Error("입력한 내용을 다시 확인해 주세요.");
+    throw new Error("신청을 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
+  }
+  const row = firstRow<{ status: string; ad_event_kind: string | null; ad_event_at: string | null; ad_notice_due_at: string | null }>(data);
+  if (!row) throw new Error("신청을 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
+  if (row.status === "rate_limited") return { status: "rate_limited" };
+  return {
+    status: "received",
+    adEvent: row.ad_event_kind === "consent" && row.ad_event_at && row.ad_notice_due_at
+      ? { kind: "consent", at: row.ad_event_at, dueAt: row.ad_notice_due_at }
+      : null,
+  };
+}
+
+export type BetaConfirmResult = {
+  status: "confirmed" | "already_confirmed" | "expired" | "invalid" | "rate_limited";
+  adActive: boolean;
+};
+
+export async function confirmBetaEmail(client: SupabaseClient, token: string): Promise<BetaConfirmResult> {
+  const { data, error } = await client.rpc("confirm_beta_email", { p_token: token });
+  if (error) throw new Error("확인을 처리하지 못했어요.");
+  const row = firstRow<{ status: BetaConfirmResult["status"]; ad_active: boolean }>(data);
+  if (!row) throw new Error("확인을 처리하지 못했어요.");
+  return { status: row.status, adActive: Boolean(row.ad_active) };
+}
+
+export type BetaUnsubscribeResult = {
+  status: "withdrawn" | "refused" | "already" | "invalid" | "rate_limited";
+  eventKind: "refuse" | "withdraw" | null;
+  eventAt: string | null;
+};
+
+export async function unsubscribeBetaAds(client: SupabaseClient, token: string): Promise<BetaUnsubscribeResult> {
+  const { data, error } = await client.rpc("unsubscribe_beta_ads", { p_token: token });
+  if (error) throw new Error("수신거부를 처리하지 못했어요.");
+  const row = firstRow<{ status: BetaUnsubscribeResult["status"]; event_kind: BetaUnsubscribeResult["eventKind"]; event_at: string | null }>(data);
+  if (!row) throw new Error("수신거부를 처리하지 못했어요.");
+  return { status: row.status, eventKind: row.event_kind, eventAt: row.event_at };
+}
+
+export type BetaOpsApplication = {
+  id: string;
+  email: string;
+  workType: BetaWorkType;
+  sellsPackages: boolean;
+  concurrentJobs: BetaConcurrentJobs;
+  orderChannels: BetaOrderChannel[];
+  participation: BetaParticipation;
+  eligible: boolean;
+  adChecked: boolean;
+  createdAt: string;
+  confirmExpiresAt: string;
+  emailConfirmedAt: string | null;
+  outcome: "not_matched" | "not_selected" | "interview" | "beta" | null;
+  resultSentAt: string | null;
+  interviewDoneAt: string | null;
+  betaEndedAt: string | null;
+  purgeAfter: string | null;
+  adStatus: BetaAdStatus;
+  suppressed: boolean;
+  adTarget: boolean;
+  confirmToken: string | null;
+  unsubscribeToken: string | null;
+};
+
+export type BetaOpsNotice = {
+  eventId: string;
+  kind: BetaNoticeKind;
+  source: "apply_form" | "unsubscribe_link" | "deletion_request";
+  occurredAt: string;
+  confirmedAt: string | null;
+  noticeShownAt: string | null;
+  noticeDueAt: string;
+  noticeEmailedAt: string | null;
+  applicationId: string | null;
+};
+
+export class BetaNotOperatorError extends Error {
+  constructor() {
+    super("운영자 계정이 아닙니다.");
+    this.name = "BetaNotOperatorError";
+  }
+}
+
+function opsError(error: { message?: string; code?: string }): Error {
+  if (error.code === "42501" || error.message?.includes("not_operator") || error.message?.includes("permission denied")) {
+    return new BetaNotOperatorError();
+  }
+  return new Error("운영 기록을 처리하지 못했어요.");
+}
+
+type ApplicationRow = {
+  id: string; email: string; work_type: BetaWorkType; sells_packages: boolean; concurrent_jobs: BetaConcurrentJobs;
+  order_channels: BetaOrderChannel[] | null; participation: BetaParticipation; eligible: boolean; ad_checked: boolean;
+  created_at: string; confirm_expires_at: string; email_confirmed_at: string | null; outcome: BetaOpsApplication["outcome"];
+  result_sent_at: string | null; interview_done_at: string | null; beta_ended_at: string | null; purge_after: string | null;
+  ad_status: BetaAdStatus; suppressed: boolean; ad_target: boolean; confirm_token: string | null; unsubscribe_token: string | null;
+};
+
+export async function listBetaApplications(client: SupabaseClient): Promise<BetaOpsApplication[]> {
+  const { data, error } = await client.rpc("beta_ops_list_applications");
+  if (error) throw opsError(error);
+  return ((data ?? []) as ApplicationRow[]).map((row) => ({
+    id: row.id,
+    email: row.email,
+    workType: row.work_type,
+    sellsPackages: row.sells_packages,
+    concurrentJobs: row.concurrent_jobs,
+    orderChannels: row.order_channels ?? [],
+    participation: row.participation,
+    eligible: row.eligible,
+    adChecked: row.ad_checked,
+    createdAt: row.created_at,
+    confirmExpiresAt: row.confirm_expires_at,
+    emailConfirmedAt: row.email_confirmed_at,
+    outcome: row.outcome,
+    resultSentAt: row.result_sent_at,
+    interviewDoneAt: row.interview_done_at,
+    betaEndedAt: row.beta_ended_at,
+    purgeAfter: row.purge_after,
+    adStatus: row.ad_status,
+    suppressed: row.suppressed,
+    adTarget: row.ad_target,
+    confirmToken: row.confirm_token,
+    unsubscribeToken: row.unsubscribe_token,
+  }));
+}
+
+type NoticeRow = {
+  event_id: string; kind: BetaNoticeKind; source: BetaOpsNotice["source"]; occurred_at: string; confirmed_at: string | null;
+  notice_shown_at: string | null; notice_due_at: string; notice_emailed_at: string | null; application_id: string | null;
+};
+
+export async function listBetaNotices(client: SupabaseClient): Promise<BetaOpsNotice[]> {
+  const { data, error } = await client.rpc("beta_ops_list_notices");
+  if (error) throw opsError(error);
+  return ((data ?? []) as NoticeRow[]).map((row) => ({
+    eventId: row.event_id,
+    kind: row.kind,
+    source: row.source,
+    occurredAt: row.occurred_at,
+    confirmedAt: row.confirmed_at,
+    noticeShownAt: row.notice_shown_at,
+    noticeDueAt: row.notice_due_at,
+    noticeEmailedAt: row.notice_emailed_at,
+    applicationId: row.application_id,
+  }));
+}
+
+export async function markBetaNoticeEmailed(client: SupabaseClient, eventId: string): Promise<string> {
+  const { data, error } = await client.rpc("beta_ops_mark_notice_emailed", { p_event_id: eventId });
+  if (error) throw opsError(error);
+  return String(data);
+}
+
+export type BetaMilestone = "result_sent" | "interview_done" | "beta_ended";
+
+export async function recordBetaMilestone(
+  client: SupabaseClient,
+  applicationId: string,
+  kind: BetaMilestone,
+  outcome: BetaOpsApplication["outcome"],
+): Promise<string | null> {
+  const { data, error } = await client.rpc("beta_ops_record_milestone", {
+    p_application_id: applicationId,
+    p_kind: kind,
+    p_outcome: outcome,
+  });
+  if (error) throw opsError(error);
+  return (data as string | null) ?? null;
+}
+
+export async function deleteBetaApplication(
+  client: SupabaseClient,
+  applicationId: string,
+): Promise<{ deletedCount: number; withdrawEventId: string | null; withdrawAt: string | null }> {
+  const { data, error } = await client.rpc("beta_ops_delete_application", { p_application_id: applicationId });
+  if (error) throw opsError(error);
+  const row = firstRow<{ deleted_count: number; withdraw_event_id: string | null; withdraw_at: string | null }>(data);
+  return {
+    deletedCount: Number(row?.deleted_count ?? 0),
+    withdrawEventId: row?.withdraw_event_id ?? null,
+    withdrawAt: row?.withdraw_at ?? null,
+  };
+}
+
+export async function purgeExpiredBetaApplications(client: SupabaseClient): Promise<number> {
+  const { data, error } = await client.rpc("beta_ops_purge_expired");
+  if (error) throw opsError(error);
+  return Number(data ?? 0);
+}

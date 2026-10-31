@@ -2,6 +2,10 @@ import { Route, Routes, useParams, useSearchParams } from "react-router-dom";
 
 import { AppShell } from "@/components/app-shell";
 import { BetaActivationGate } from "@/components/beta-activation-gate";
+import { BetaApplyForm } from "@/components/beta-apply-form";
+import { BetaConfirmView } from "@/components/beta-confirm-view";
+import { BetaOpsApplications } from "@/components/beta-ops-applications";
+import { BetaUnsubscribeView } from "@/components/beta-unsubscribe-view";
 import { CustomerRevisionDemo } from "@/components/customer-revision-demo";
 import { FeedbackPanel } from "@/components/feedback-panel";
 import { JobDetail } from "@/components/job-detail";
@@ -33,13 +37,31 @@ export const SITE_ROUTE_PATHS = [
   "/terms",
   "/guide",
   "/demo/r",
+  "/apply",
+  "/apply/confirm/:token",
+  "/u/:token",
+  "/ops/applications",
 ] as const;
+
+function BetaConfirmRoute() {
+  const { token = "" } = useParams<{ token: string }>();
+  return <BetaConfirmView token={token} />;
+}
+
+function BetaUnsubscribeRoute() {
+  const { token = "" } = useParams<{ token: string }>();
+  return <BetaUnsubscribeView token={token} />;
+}
 
 export function StandaloneRoutes() {
   return (
     <Routes>
       <Route path="/guide" element={<UserGuide />} />
       <Route path="/demo/r" element={<CustomerRevisionDemo />} />
+      <Route path="/apply" element={<BetaApplyForm />} />
+      <Route path="/apply/confirm/:token" element={<BetaConfirmRoute />} />
+      <Route path="/u/:token" element={<BetaUnsubscribeRoute />} />
+      <Route path="/ops/applications" element={<BetaOpsApplications />} />
     </Routes>
   );
 }
