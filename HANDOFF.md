@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-10-30
+마지막 갱신: 2026-10-31
 
 ## 제품 한 줄
 
@@ -11,6 +11,19 @@
 차별점은 고객용 수정요청 링크다. 그래서 서버(Supabase)는 유지한다. 로컬 전용으로 바꾸지 않는다.
 
 ## 지금 상태
+
+### 2026-10-31 PR #18 운영 Sites v35 배포 완료
+
+- 사용자 "배포까지 진행" 승인에 따라 공식 Sites 스킬의 source helper → save_site_version → deploy_site_version 절차로 배포했다. 아래 2026-10-30 리뉴얼·설명서·체험 링크 절의 "미배포"는 당시 기록이며 PR #18 내용은 이번 v35에 반영됐다.
+- 소스 SHA `42ab4aac6304a468c9849c2f6d384f2723238fb4`. 원본 main HEAD·제품 파일은 그대로다. 별도 `../sites-deploy-20261031-pr18` 복사본에서 공식 helper로 기존 Sites 원격만 push했고 새 커밋·GitHub push는 하지 않았다.
+- Sites 버전 35: `appgprj_6a8b16a27df88191b5cad3afd63a9366~appgver_e439a89885588191be6ad55d7eaded68`. 배포 `appgdep_6ae556af42908191aa5baa94f0bce12d`, 최종 `succeeded`, 2026-10-31 11:47:25.301 KST (`2026-10-31T02:47:25.301101+00:00`). 기존 public·환경 revision 7 유지.
+- `npm ci` → `npm run build:sites` → `node scripts/verify-sites-output.mjs` 모두 exit 0. 공식 helper 패키징 성공, 수동 tar 대체 없음. manifest project_id·Worker `dist/server/index.js`·셸 payload·설명서 이미지 확인 완료.
+- 로컬 `../ilgamcheck-pr18-20261031.tar.gz`: 파일 136개, 6,118,815바이트, SHA256 `a671ba2d79960087e7b014e8d555a63638c478e0b95cf7f0ae430b1413353b09`. Sites 저장 영수증 tar: 파일 136개, 6,963,200바이트, SHA256 `1f0643a1abed3c6c312058ab1eae2567db9e539fcf0c064a4d26a6d11ba8ac5d`. 각각 로컬 압축 파일과 서버 저장 영수증의 값이다.
+- 새 주소·기존 chatgpt.site 주소 `smoke:sites` 각각 13개 PASS/0개 FAIL, exit 0. `/guide` GET 200, `/demo/r` GET 200 및 `X-Robots-Tag: noindex, nofollow, noarchive`, `/today?invite=TEST` GET 200 및 `Referrer-Policy: no-referrer`. 마지막 확인 2026-10-31 11:49:08 KST. 실제 응답의 JS·CSS 파일명도 이번 빌드와 일치했다.
+- `npm run runtime:readback -- https://ilgam.studioyeolmae.com`: 미완료(exit 1). 첫 시도는 복사본에 `supabase/.temp/project-ref`가 없어 BLOCKED. Claude가 project-ref만 넣어 다시 돌리자 `FAIL /api/health: 배포 public config가 현재 로컬 환경값과 일치하지 않습니다` — 복사본에 `.env.local`이 없어 비교 대상이 비어 있기 때문이며, 비밀값 파일은 복사하지 않았다. 대신 새·기존 주소 `/api/health`의 `publicConfigDigest`가 둘 다 `sha256:855a25e6…b737a`로 10/23 v34 영수증 값과 같음을 확인했다(환경 미변경 근거).
+- 별도 읽기 전용 `/api/health`: HTTP 200, `ready=true`, hosted, project ref `evhkpgxacpweelnmjmqh`, DB runtime expected/detected `202608250011`, `serviceRoleContractCurrent=true`, 정책 `databaseMatches=true`. 기존 `policyPublication.finalized=false`는 그대로다. 이 보조 조회는 CLI PASS나 external-beta 완료를 뜻하지 않는다.
+- 경고: `npm ci`의 전체 감사(개발 의존성 포함)는 17개(중간 16·높음 1)다. 출시 게이트의 운영 의존성 감사 `npm audit --omit=dev`는 0개다(PR #18의 `6fb2130`·`c3496fa`에서 body-parser·qs·undici·glob를 고쳐 CI 통과). 빌드에는 Vite native config의 확장자 없는 import·500 kB 초과 chunk 경고가 있었다. 의존성·제품 코드는 변경하지 않았다.
+- 원시 출력은 별도 복사본의 `npm-ci.log`, `build-sites.log`, `verify-sites.log`, `smoke-custom-domain.log`, `smoke-original-domain.log`, `runtime-readback.log`, `*-headers.log`, `health-readback.log`에 보존했다. 로그인·계정/일감 생성·DB 쓰기·환경변수/공개 범위/도메인/slug/메타데이터 변경·예약 생성 없음. HANDOFF 기록은 Claude가 검증을 덧붙여 main에 단독 커밋했다(HANDOFF 예외 규칙).
 
 ### 2026-10-30 "바로 쓸 수 있게" 리뉴얼 (미배포)
 
@@ -142,6 +155,12 @@
 - 2026-09-30: 코드의 기본 운영 주소를 `https://ilgam.studioyeolmae.com`으로 바꿨다(링크 미리보기 등). DNS는 연결됨. 남은 일: ChatGPT Sites에 다시 배포, 새 주소 HTTPS·로그인 확인, Supabase Auth Site URL/Redirect URLs를 supabase/config.toml과 같게 맞추기.
 
 ## 다음 작업
+
+### 배포 후 남은 확인 (2026-10-31)
+
+1. PR #18 v35 배포는 완료됐다. 동일 소스로 중복 배포하지 말고 위 버전·배포 영수증을 재사용한다.
+2. runtime:readback CLI는 복사본의 로컬 Supabase 연결 정보 부재로 BLOCKED다. 검증된 기존 연결 checkout과 필요한 공개 설정을 확보한 뒤 읽기 전용 재검증한다. 이번 health 보조 조회를 CLI PASS로 적지 않는다.
+3. 개발 의존성 포함 전체 감사 17개(운영 의존성 0개)는 별도 검토 과제다. 배포 승인 범위를 넓혀 자동 수정하지 않는다. 정책 finalized=false와 아래 실기기·운영 증거 과제는 미완료 상태를 유지한다.
 
 ### 0. 모바일 MVP 운영 연결과 실기기 게이트
 
