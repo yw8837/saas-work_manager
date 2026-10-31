@@ -295,6 +295,76 @@ describe("/ops/applications 운영자 화면", () => {
     expect(await screen.findByText(/오래된 호출 기록 5000행을 지웠어요/)).toHaveTextContent("남은 기록이 5,000행 넘게 있어요");
   });
 
+  /** 첫 목록 조회는 성공, 그 뒤 목록 조회는 모두 실패하게 만든다(작업 뒤 갱신 실패). */
+  function failingRefreshRpc(handlers: Record<string, () => Promise<RpcResult>>) {
+    const expired = { ...applicationRow("test-refresh@example.invalid", "app-refresh"), purge_after: "2026-01-01T00:00:00Z" };
+    let listCalls = 0;
+    return vi.fn((name: string): Promise<RpcResult> => {
+      if (name === "beta_ops_list_applications") {
+        listCalls += 1;
+        return Promise.resolve(listCalls === 1
+          ? { data: [expired], error: null }
+          : { data: null, error: { message: "network down" } });
+      }
+      return handlers[name]?.() ?? Promise.resolve({ data: [], error: null });
+    });
+  }
+
+  it("[재검토6] 신청 정리 성공 → 호출 기록 정리 실패 → 목록 다시 불러오기 실패여도, 완료된 정리 결과와 목록 갱신 실패를 둘 다 보여 준다", async () => {
+    const rpc = failingRefreshRpc({
+      beta_ops_purge_expired: async () => ({ data: [{ deleted_count: 7, remaining_count: 9, held_count: 11 }], error: null }),
+      beta_ops_prune_call_counters: async () => ({ data: null, error: { message: "statement timeout" } }),
+    });
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    fireEvent.click(await screen.findByRole("button", { name: "정리 실행 (만료 신청 1건 · 2일 지난 호출 기록)" }));
+    fireEvent.click(screen.getByRole("button", { name: "신청과 오래된 호출 기록 정리하기" }));
+    const result = await screen.findByTestId("beta-ops-last-result");
+    expect(result).toHaveTextContent("신청 7건을 정리했어요.");
+    expect(result).toHaveTextContent("정리 가능한 남은 대상 9명");
+    expect(result).toHaveTextContent("보류된 주소 11명");
+    expect(result).toHaveTextContent("호출 기록 정리는 완료하지 못했어요");
+    expect(screen.getByTestId("beta-ops-gate")).toHaveTextContent("운영 기록을 불러오지 못했어요.");
+    expect(screen.getByRole("button", { name: "목록 다시 불러오기" })).toBeInTheDocument();
+  });
+
+  it("[재검토6] 통지 보냄 표시처럼 다른 작업도, 뒤이은 목록 갱신이 실패해도 완료 결과를 보여 준다", async () => {
+    const notice = {
+      event_id: "event-refresh", kind: "consent", source: "apply_form", occurred_at: "2026-11-01T00:00:00Z",
+      confirmed_at: null, notice_shown_at: "2026-11-01T00:00:00Z", notice_due_at: "2026-11-15T00:00:00Z",
+      notice_emailed_at: null, application_id: "app-refresh", recipient_email: "test-refresh@example.invalid", email_unavailable: false,
+    };
+    const rpc = failingRefreshRpc({
+      beta_ops_list_notices: async () => ({ data: [notice], error: null }),
+      beta_ops_mark_notice_emailed: async () => ({ data: "2026-11-01T01:00:00Z", error: null }),
+    });
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    const item = await screen.findByTestId("beta-notice");
+    fireEvent.click(within(item).getByRole("button", { name: "통지 보냄 표시" }));
+    fireEvent.click(within(item).getByRole("button", { name: "보낸 것 맞아요" }));
+    expect(await screen.findByTestId("beta-ops-last-result")).toHaveTextContent("통지 보낸 시각을 남겼어요.");
+    expect(screen.getByTestId("beta-ops-gate")).toHaveTextContent("운영 기록을 불러오지 못했어요.");
+  });
+
+  it("[재검토6] 남아 있던 작업 결과는 계정이 바뀌면 지운다(1차 1번 회귀 금지)", async () => {
+    const rpc = failingRefreshRpc({
+      beta_ops_purge_expired: async () => ({ data: [{ deleted_count: 7, remaining_count: 0, held_count: 0 }], error: null }),
+      beta_ops_prune_call_counters: async () => ({ data: [{ deleted_rows: 1, remaining_rows: 0 }], error: null }),
+    });
+    const { auth } = hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    fireEvent.click(await screen.findByRole("button", { name: "정리 실행 (만료 신청 1건 · 2일 지난 호출 기록)" }));
+    fireEvent.click(screen.getByRole("button", { name: "신청과 오래된 호출 기록 정리하기" }));
+    expect(await screen.findByTestId("beta-ops-last-result")).toHaveTextContent("신청 7건을 정리했어요.");
+    act(() => auth.listener?.("SIGNED_IN", { user: { id: "someone-else" } }));
+    expect(screen.queryByTestId("beta-ops-last-result")).toBeNull();
+    expect(document.body).not.toHaveTextContent("신청 7건을 정리했어요.");
+    act(() => auth.listener?.("SIGNED_OUT", null));
+    expect(await screen.findByTestId("beta-ops-gate")).toHaveTextContent("로그인이 필요해요.");
+    expect(screen.queryByTestId("beta-ops-last-result")).toBeNull();
+  });
+
   it("[리뷰 7] 결과를 고르기만 해도 그 결과의 초안이 보이고, 보냄 표시는 아직 기록되지 않는다", async () => {
     useLocal();
     render(<BetaOpsApplications />);

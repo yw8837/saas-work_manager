@@ -341,10 +341,24 @@ export function BetaOpsApplications() {
       : gate === "login_required" ? "로그인이 필요해요."
         : gate === "not_operator" ? "운영자 계정이 아닙니다."
           : "운영 기록을 불러오지 못했어요.";
+    // 같은 로그인 세션에서 방금 끝낸 작업의 결과는, 뒤이은 목록 갱신이 실패해도 지우지 않고 먼저 보여 준다.
+    // (계정이 바뀌거나 로그아웃하면 clearAll()이 결과도 지운다. 로그인 필요·운영자 아님 화면에서는 보여 주지 않는다.)
+    const keepResult = gate === "error" && message;
     return (
       <main className="betaOpsPage">
         {header}
-        <p role="status" data-testid="beta-ops-gate">{text}</p>
+        {keepResult && (
+          <p className="betaOpsMessage" role="status" data-testid="beta-ops-last-result">{message}</p>
+        )}
+        <p role={keepResult ? "alert" : "status"} data-testid="beta-ops-gate">
+          {text}
+          {keepResult && " 방금 한 작업은 위와 같이 처리됐고, 목록만 다시 불러오지 못했어요."}
+        </p>
+        {gate === "error" && backend && (
+          <p>
+            <button className="compactButton" type="button" onClick={() => void refresh(backend)}>목록 다시 불러오기</button>
+          </p>
+        )}
         {gate === "login_required" && <p><Link href="/today">로그인하러 가기</Link></p>}
       </main>
     );
@@ -357,7 +371,7 @@ export function BetaOpsApplications() {
         <BetaPreviewNote>미리보기: 가상 신청 예시(example.invalid)예요. 서버에 연결되지 않아 실제 신청은 보이지 않고, 누른 결과도 저장되지 않아요.</BetaPreviewNote>
       )}
       <p className="betaPublicMuted">이 화면은 메일을 보내지 않아요. 초안을 복사해 Gmail로 직접 보내고, 보낸 뒤 표시를 남겨 주세요.</p>
-      {message && <p className="betaOpsMessage" role="status">{message}</p>}
+      {message && <p className="betaOpsMessage" role="status" data-testid="beta-ops-last-result">{message}</p>}
 
       <section className="betaOpsSection" aria-labelledby="beta-ops-inputs">
         <h2 id="beta-ops-inputs">초안에 넣을 링크</h2>
