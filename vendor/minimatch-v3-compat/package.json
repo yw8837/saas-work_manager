@@ -1,0 +1,11 @@
+{
+  "name": "minimatch",
+  "version": "11.0.3-v3compat.0",
+  "description": "minimatch 3.x 호출 방식(함수 기본 내보내기)을 패치된 minimatch 11.0.3 위에 제공하는 호환 래퍼. GHSA-g3hv-75wg-m249 대응.",
+  "main": "index.js",
+  "license": "ISC",
+  "private": true,
+  "dependencies": {
+    "minimatch-patched": "npm:minimatch@11.0.3"
+  }
+}
