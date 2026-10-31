@@ -145,7 +145,7 @@ describe("/u/[token] 수신거부 화면", () => {
 
   it("[재검토 3] 화면의 처리 결과 안내는 통지 v1 항목(전송자·의사표시·일자·처리 결과·변경 방법)을 모두 담고, 메일로도 알린다고 말한다", async () => {
     useHosted();
-    rpc.mockResolvedValue({ data: [{ status: "withdrawn", event_kind: "withdraw", event_at: "2026-11-01T01:00:00.000Z", email_notice: true }], error: null });
+    rpc.mockResolvedValue({ data: [{ status: "withdrawn", event_kind: "withdraw", event_at: "2026-11-01T01:00:00.000Z", notice_state: "email_pending" }], error: null });
     render(<BetaUnsubscribeView token={TOKEN} />);
     fireEvent.click(screen.getByRole("button", { name: "수신거부 / Unsubscribe" }));
     const notice = await screen.findByRole("region", { name: "광고성 정보 수신거부 처리 결과" });
@@ -156,13 +156,27 @@ describe("/u/[token] 수신거부 화면", () => {
 
   it("[재검토 3] 주소가 이미 정리돼 메일을 보낼 수 없으면, 이 화면이 처리 결과 안내라고 정확히 알린다", async () => {
     useHosted();
-    rpc.mockResolvedValue({ data: [{ status: "withdrawn", event_kind: "withdraw", event_at: "2026-11-01T01:00:00.000Z", email_notice: false }], error: null });
+    rpc.mockResolvedValue({ data: [{ status: "withdrawn", event_kind: "withdraw", event_at: "2026-11-01T01:00:00.000Z", notice_state: "screen_only" }], error: null });
     render(<BetaUnsubscribeView token={TOKEN} />);
     fireEvent.click(screen.getByRole("button", { name: "수신거부 / Unsubscribe" }));
     const line = await screen.findByTestId("beta-unsubscribe-email-notice");
     expect(line).toHaveTextContent("이 화면이 처리 결과 안내예요");
     expect(line).not.toHaveTextContent("이메일로도 알려 드려요");
     expect(screen.getByRole("region", { name: "광고성 정보 수신거부 처리 결과" })).toHaveTextContent("철회가 처리되어");
+  });
+
+  it.each([
+    ["emailed", "처리 결과 안내 메일은 이미 보내 드렸어요"],
+    ["email_pending", "이번에 새로 바뀐 것은 없어요"],
+    ["screen_only", "이메일 주소가 남아 있지 않아"],
+  ])("[재검토2 1] 다시 누른 링크(%s)는 기존 통지 상태에 맞게만 안내하고, 새 메일 발송을 약속하지 않는다", async (state, expected) => {
+    useHosted();
+    rpc.mockResolvedValue({ data: [{ status: "already", event_kind: "withdraw", event_at: "2026-10-30T01:00:00.000Z", notice_state: state }], error: null });
+    render(<BetaUnsubscribeView token={TOKEN} />);
+    fireEvent.click(screen.getByRole("button", { name: "수신거부 / Unsubscribe" }));
+    const line = await screen.findByTestId("beta-unsubscribe-email-notice");
+    expect(line).toHaveTextContent(expected);
+    expect(document.body).not.toHaveTextContent("14일 안에 이메일로도 알려 드려요");
   });
 
   it("[시험표 8] 다시 누른 링크는 '이미 처리됨'과 처음 날짜를 그대로 보여 준다", async () => {

@@ -67,8 +67,8 @@ describe("베타 RPC 감싸기", () => {
   });
 
   it("수신거부 결과를 그대로 옮긴다", async () => {
-    const { client, rpc } = clientWith({ data: [{ status: "already", event_kind: "refuse", event_at: "2026-11-01T00:00:00Z", email_notice: false }], error: null });
-    await expect(unsubscribeBetaAds(client, "t".repeat(43))).resolves.toEqual({ status: "already", eventKind: "refuse", eventAt: "2026-11-01T00:00:00Z", emailNotice: false });
+    const { client, rpc } = clientWith({ data: [{ status: "already", event_kind: "refuse", event_at: "2026-11-01T00:00:00Z", notice_state: "emailed" }], error: null });
+    await expect(unsubscribeBetaAds(client, "t".repeat(43))).resolves.toEqual({ status: "already", eventKind: "refuse", eventAt: "2026-11-01T00:00:00Z", noticeState: "emailed" });
     expect(rpc).toHaveBeenCalledWith("unsubscribe_beta_ads", { p_token: "t".repeat(43) });
   });
 

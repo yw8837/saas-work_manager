@@ -8,7 +8,20 @@ import { koreanDate, isWellFormedBetaToken } from "@/lib/beta/rules";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { unsubscribeBetaAds, type BetaUnsubscribeResult } from "@/lib/supabase/beta";
 
-type Outcome = BetaUnsubscribeResult | { status: "error"; eventKind: null; eventAt: null; emailNotice: null };
+type Outcome = BetaUnsubscribeResult | { status: "error"; eventKind: null; eventAt: null; noticeState: null };
+
+/** 처리결과 통지를 메일로 어떻게 하는지 화면에 정확히 말한다. 다시 누른 링크에는 새 발송을 약속하지 않는다. */
+function emailNoticeLine(outcome: BetaUnsubscribeResult): string {
+  if (outcome.noticeState === "screen_only") {
+    return "신청 정보를 보유기간에 따라 이미 지워 이메일 주소가 남아 있지 않아요. 그래서 메일로 따로 알려 드리지 않고, 이 화면이 처리 결과 안내예요.";
+  }
+  if (outcome.status === "already") {
+    return outcome.noticeState === "emailed"
+      ? "처리 결과 안내 메일은 이미 보내 드렸어요. 이번에 새로 바뀐 것은 없어요."
+      : "이미 처리된 수신거부예요. 이번에 새로 바뀐 것은 없어요.";
+  }
+  return "같은 내용을 14일 안에 이메일로도 알려 드려요.";
+}
 
 function FallbackChannel() {
   return (
@@ -29,24 +42,24 @@ export function BetaUnsubscribeView({ token }: { token: string }) {
   const wellFormed = isWellFormedBetaToken(token);
   const [pending, setPending] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(
-    wellFormed ? null : { status: "invalid", eventKind: null, eventAt: null, emailNotice: null },
+    wellFormed ? null : { status: "invalid", eventKind: null, eventAt: null, noticeState: null },
   );
 
   async function unsubscribe() {
     if (preview) {
-      setOutcome({ status: "withdrawn", eventKind: "withdraw", eventAt: new Date().toISOString(), emailNotice: true });
+      setOutcome({ status: "withdrawn", eventKind: "withdraw", eventAt: new Date().toISOString(), noticeState: "email_pending" });
       return;
     }
     const client = getSupabaseBrowserClient();
     if (!client) {
-      setOutcome({ status: "error", eventKind: null, eventAt: null, emailNotice: null });
+      setOutcome({ status: "error", eventKind: null, eventAt: null, noticeState: null });
       return;
     }
     setPending(true);
     try {
       setOutcome(await unsubscribeBetaAds(client, token));
     } catch {
-      setOutcome({ status: "error", eventKind: null, eventAt: null, emailNotice: null });
+      setOutcome({ status: "error", eventKind: null, eventAt: null, noticeState: null });
     } finally {
       setPending(false);
     }
@@ -86,11 +99,7 @@ export function BetaUnsubscribeView({ token }: { token: string }) {
             </dl>
             <p lang="en">Result: processed on {koreanDate(outcome.eventAt)}. We will not send you promotional e-mail.</p>
             {/* 처리결과 통지: 이 화면이 통지다. 주소가 이미 정리됐으면 메일로는 따로 알리지 못한다는 사실을 그대로 말한다. */}
-            <p data-testid="beta-unsubscribe-email-notice">
-              {outcome.emailNotice === false
-                ? "신청 정보를 보유기간에 따라 이미 지워 이메일 주소가 남아 있지 않아요. 그래서 메일로 따로 알려 드리지 않고, 이 화면이 처리 결과 안내예요."
-                : "같은 내용을 14일 안에 이메일로도 알려 드려요."}
-            </p>
+            <p data-testid="beta-unsubscribe-email-notice">{emailNoticeLine(outcome)}</p>
             <p>신청 결과·일정 같은 운영 안내는 광고가 아니라서 신청하신 목적에 따라 따로 보내 드릴 수 있어요.</p>
           </section>
         </div>

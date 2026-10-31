@@ -78,8 +78,13 @@ export type BetaUnsubscribeResult = {
   status: "withdrawn" | "refused" | "already" | "invalid" | "rate_limited";
   eventKind: "refuse" | "withdraw" | null;
   eventAt: string | null;
-  /** 이메일로도 처리 결과를 알릴 수 있는지. false면 주소가 이미 정리돼 이 화면이 유일한 통지다. */
-  emailNotice: boolean | null;
+  /**
+   * 처리결과 통지 상태.
+   * - email_pending: 메일로 보낼 예정(새 의사표시) 또는 아직 보내지 않음(다시 누른 링크)
+   * - emailed: 이미 메일로 보냄(다시 누른 링크)
+   * - screen_only: 주소가 이미 정리돼 화면 통지만 함
+   */
+  noticeState: "email_pending" | "emailed" | "screen_only" | null;
 };
 
 export async function unsubscribeBetaAds(client: SupabaseClient, token: string): Promise<BetaUnsubscribeResult> {
@@ -87,10 +92,10 @@ export async function unsubscribeBetaAds(client: SupabaseClient, token: string):
   if (error) throw new Error("수신거부를 처리하지 못했어요.");
   const row = firstRow<{
     status: BetaUnsubscribeResult["status"]; event_kind: BetaUnsubscribeResult["eventKind"]; event_at: string | null;
-    email_notice: boolean | null;
+    notice_state: BetaUnsubscribeResult["noticeState"];
   }>(data);
   if (!row) throw new Error("수신거부를 처리하지 못했어요.");
-  return { status: row.status, eventKind: row.event_kind, eventAt: row.event_at, emailNotice: row.email_notice ?? null };
+  return { status: row.status, eventKind: row.event_kind, eventAt: row.event_at, noticeState: row.notice_state ?? null };
 }
 
 export type BetaOpsApplication = {

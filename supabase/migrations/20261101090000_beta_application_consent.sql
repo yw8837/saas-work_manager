@@ -220,6 +220,20 @@ as $$
   ), 0);
 $$;
 
+-- 같은 이메일(해시)을 다루는 쓰기는 모두 이 잠금 하나로 줄 세운다:
+-- 신청, 주소 확인, 수신거부(주소 확인·통지 생성), 삭제 요청, 삭제 결과 안내 완료(마지막 주소 삭제), 보유기간 정리.
+-- 잠금 순서 규칙: 행 잠금(for update)이나 행 삭제보다 먼저 잡는다. 여러 주소를 잠그는 경로(정리)는 해시 오름차순으로 잡는다.
+-- 그 밖의 경로는 한 주소만 잠그므로 잠금끼리 서로 기다리는 고리가 생기지 않는다.
+create function ilgam_private.beta_lock_email(p_email_hash text)
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  select pg_advisory_xact_lock(hashtext('beta-email:' || p_email_hash));
+$$;
+
 -- 지금 받는 모집. 모집을 새로 열면 새 migration에서 이 값을 바꾼다(광고 제외는 모집 단위).
 create function ilgam_private.beta_current_cohort()
 returns text
@@ -285,6 +299,7 @@ revoke all on function
   ilgam_private.beta_new_token(),
   ilgam_private.beta_take_call(text, integer, integer),
   ilgam_private.beta_peek_calls(text, integer),
+  ilgam_private.beta_lock_email(text),
   ilgam_private.beta_current_cohort(),
   ilgam_private.beta_ad_status(text),
   ilgam_private.beta_require_operator()
@@ -351,7 +366,7 @@ begin
   -- 2) 전체 예산을 확보한다. 모자라면 거절하고, 이때도 주소별 행은 만들지 않는다
   --    (전체 한도가 찬 뒤 주소를 바꿔 가며 보내도 카운터 행이 늘지 않게. 전체 행은 시간 창마다 1개뿐).
   -- 3) 둘 다 통과했을 때만 주소별 카운터를 센다. 모두 이 트랜잭션 안에서 일어나 함께 커밋된다.
-  perform pg_advisory_xact_lock(hashtext('apply:' || v_hash));
+  perform ilgam_private.beta_lock_email(v_hash);
   if ilgam_private.beta_peek_calls('apply:' || v_hash || ':hour', 3600) >= 3
     or ilgam_private.beta_peek_calls('apply:' || v_hash || ':day', 86400) >= 5 then
     return query select 'rate_limited'::text, null::text, null::timestamptz, null::timestamptz;
@@ -428,17 +443,21 @@ begin
     return query select 'rate_limited'::text, false;
     return;
   end if;
+  perform ilgam_private.beta_lock_email(v_application.email_hash);
   select application.* into v_application
   from public.beta_applications as application
   where application.id = v_application.id
   for update;
+  if not found then
+    return query select 'invalid'::text, false;
+    return;
+  end if;
 
   if v_application.email_confirmed_at is null then
     if v_now > v_application.confirm_expires_at then
       return query select 'expired'::text, false;
       return;
     end if;
-    perform pg_advisory_xact_lock(hashtext(v_application.email_hash));
     update public.beta_applications set email_confirmed_at = v_now where id = v_application.id;
 
     select max(event.occurred_at) into v_negative_at
@@ -484,7 +503,7 @@ $$;
 -- ── 공개 RPC: 수신거부(버튼을 눌렀을 때만 부른다) ────────────────────────────
 
 create function public.unsubscribe_beta_ads(p_token text)
-returns table(status text, event_kind text, event_at timestamptz, email_notice boolean)
+returns table(status text, event_kind text, event_at timestamptz, notice_state text)
 language plpgsql
 volatile
 security definer
@@ -499,7 +518,7 @@ declare
   v_has_address boolean;
 begin
   if coalesce(char_length(p_token), 0) not between 43 and 128 or p_token !~ '^[A-Za-z0-9_-]+$' then
-    return query select 'invalid'::text, null::text, null::timestamptz, null::boolean;
+    return query select 'invalid'::text, null::text, null::timestamptz, null::text;
     return;
   end if;
   -- 무효 토큰은 아무것도 쓰지 않고 돌려보낸다. 호출 제한은 실제로 있는 링크마다 따로 센다.
@@ -507,20 +526,20 @@ begin
   from public.beta_unsubscribe_tokens as token
   where token.token_hash = ilgam_private.beta_token_hash(p_token);
   if v_email_hash is null then
-    return query select 'invalid'::text, null::text, null::timestamptz, null::boolean;
+    return query select 'invalid'::text, null::text, null::timestamptz, null::text;
     return;
   end if;
   if not ilgam_private.beta_take_call('unsubscribe:' || ilgam_private.beta_token_hash(p_token) || ':minute', 60, 10) then
-    return query select 'rate_limited'::text, null::text, null::timestamptz, null::boolean;
+    return query select 'rate_limited'::text, null::text, null::timestamptz, null::text;
     return;
   end if;
 
   -- 같은 링크를 거의 동시에 두 번 눌러도 이력이 두 건 생기지 않게 한다.
-  perform pg_advisory_xact_lock(hashtext(v_email_hash));
+  perform ilgam_private.beta_lock_email(v_email_hash);
   v_status := ilgam_private.beta_ad_status(v_email_hash);
 
   if v_status = 'withdrawn' then
-    select event.kind, event.occurred_at, event.notice_email_unavailable into v_last
+    select event.kind, event.occurred_at, event.notice_email_unavailable, event.notice_emailed_at into v_last
     from public.beta_ad_consent_events as event
     where event.email_hash = v_email_hash and event.kind in ('refuse', 'withdraw')
     order by event.occurred_at desc
@@ -528,7 +547,13 @@ begin
     insert into public.beta_ad_suppressions (email_hash, reason)
     values (v_email_hash, v_last.kind)
     on conflict (email_hash) do nothing;
-    return query select 'already'::text, v_last.kind::text, v_last.occurred_at, not v_last.notice_email_unavailable;
+    -- 다시 누른 링크는 새 통지를 만들지 않는다. 기존 통지의 상태만 돌려준다(새 발송을 약속하지 않게).
+    return query select 'already'::text, v_last.kind::text, v_last.occurred_at,
+      case
+        when v_last.notice_emailed_at is not null then 'emailed'
+        when v_last.notice_email_unavailable then 'screen_only'
+        else 'email_pending'
+      end;
     return;
   end if;
 
@@ -551,7 +576,8 @@ begin
   insert into public.beta_ad_suppressions (email_hash, reason)
   values (v_email_hash, v_kind)
   on conflict (email_hash) do nothing;
-  return query select case when v_kind = 'withdraw' then 'withdrawn' else 'refused' end, v_kind, v_now, v_has_address;
+  return query select case when v_kind = 'withdraw' then 'withdrawn' else 'refused' end, v_kind, v_now,
+    case when v_has_address then 'email_pending' else 'screen_only' end;
 end;
 $$;
 
@@ -835,7 +861,11 @@ begin
     raise exception using errcode = '22023', message = 'application_not_found';
   end if;
 
-  perform pg_advisory_xact_lock(hashtext(v_email_hash));
+  perform ilgam_private.beta_lock_email(v_email_hash);
+  -- 잠금을 잡는 사이 다른 경로(정리 등)가 지웠을 수 있으니 다시 확인한다.
+  if not exists (select 1 from public.beta_applications as application where application.id = p_application_id) then
+    raise exception using errcode = '22023', message = 'application_not_found';
+  end if;
   v_status := ilgam_private.beta_ad_status(v_email_hash);
   if v_status in ('active', 'pending') then
     -- 삭제 요청은 광고 수신 철회로도 기록한다. 화면 표시는 없으니 통지는 운영자가 메일로 보낸다.
@@ -909,11 +939,16 @@ begin
   perform ilgam_private.beta_require_operator();
   select deletion.* into v_deletion
   from public.beta_deletion_requests as deletion
-  where deletion.id = p_deletion_id
-  for update;
+  where deletion.id = p_deletion_id;
   if not found then
     raise exception using errcode = '22023', message = 'deletion_not_found';
   end if;
+  -- 마지막 주소를 지우기 전에, 같은 주소의 수신거부(통지 생성)와 줄을 세운 뒤 조건을 다시 읽는다.
+  perform ilgam_private.beta_lock_email(v_deletion.email_hash);
+  select deletion.* into v_deletion
+  from public.beta_deletion_requests as deletion
+  where deletion.id = p_deletion_id
+  for update;
   if v_deletion.result_emailed_at is not null then
     return v_deletion.result_emailed_at;
   end if;
@@ -940,18 +975,31 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_deleted integer;
+  v_deleted integer := 0;
+  v_count integer;
+  v_email_hash text;
 begin
   perform ilgam_private.beta_require_operator();
+  -- 정리할 주소를 해시 오름차순으로 하나씩 잠근다(잠금 순서를 한 가지로). 잠근 뒤 같은 조건으로 다시 확인하며 지운다.
   -- 그 주소로 아직 보내지 않은 처리결과 통지가 있으면 주소를 잃지 않도록 정리하지 않는다(통지를 보낸 뒤 다시 정리).
-  delete from public.beta_applications as application
-  where application.purge_after is not null and application.purge_after <= clock_timestamp()
-    and not exists (
-      select 1 from public.beta_ad_consent_events as event
-      where event.email_hash = application.email_hash and event.notice_emailed_at is null
-        and not event.notice_email_unavailable
-    );
-  get diagnostics v_deleted = row_count;
+  for v_email_hash in
+    select distinct candidate.email_hash
+    from public.beta_applications as candidate
+    where candidate.purge_after is not null and candidate.purge_after <= clock_timestamp()
+    order by candidate.email_hash
+  loop
+    perform ilgam_private.beta_lock_email(v_email_hash);
+    delete from public.beta_applications as application
+    where application.email_hash = v_email_hash
+      and application.purge_after is not null and application.purge_after <= clock_timestamp()
+      and not exists (
+        select 1 from public.beta_ad_consent_events as event
+        where event.email_hash = application.email_hash and event.notice_emailed_at is null
+          and not event.notice_email_unavailable
+      );
+    get diagnostics v_count = row_count;
+    v_deleted := v_deleted + v_count;
+  end loop;
   return v_deleted;
 end;
 $$;

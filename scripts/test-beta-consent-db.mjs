@@ -152,6 +152,16 @@ try {
       has_function_privilege('anon','ilgam_private.beta_ad_status(text)','execute') as anon_status,
       has_function_privilege('authenticated','ilgam_private.beta_take_call(text,integer,integer)','execute') as auth_take`);
     assert.deepEqual(helper.rows[0], { anon_status: false, auth_take: false });
+    // 내부 도우미(ilgam_private.beta_*)는 전부 anon·authenticated가 실행할 수 없다.
+    const helpers = await db.query(`
+      select p.oid::regprocedure::text as signature,
+        has_function_privilege('anon', p.oid, 'execute') as anon_allowed,
+        has_function_privilege('authenticated', p.oid, 'execute') as auth_allowed
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'ilgam_private' and p.proname like 'beta\\_%'
+      order by 1`);
+    assert.equal(helpers.rows.length, 9, helpers.rows.map((row) => row.signature).join(", "));
+    assert.ok(helpers.rows.every((row) => !row.anon_allowed && !row.auth_allowed), JSON.stringify(helpers.rows));
   });
 
   await check("[시험표 3] 필수 동의를 거부하면 제출할 수 없다", async () => {
@@ -348,8 +358,8 @@ try {
     await apply("test06@example.invalid", { ad: true });
     const row = await latestApplication("test06@example.invalid");
     const result = await unsubscribe(row.unsubscribe_token);
-    assert.deepEqual(Object.keys(result).sort(), ["email_notice", "event_at", "event_kind", "status"]);
-    assert.equal(result.email_notice, true);
+    assert.deepEqual(Object.keys(result).sort(), ["event_at", "event_kind", "notice_state", "status"]);
+    assert.equal(result.notice_state, "email_pending");
     assert.equal(result.status, "withdrawn");
     assert.ok(!JSON.stringify(result).includes("example.invalid"), "응답에 주소가 없다");
   });
@@ -685,7 +695,7 @@ try {
 
     const result = await unsubscribe(row.unsubscribe_token);
     assert.equal(result.status, "withdrawn");
-    assert.equal(result.email_notice, false, "이메일로 따로 알릴 주소가 없음을 화면에 알린다");
+    assert.equal(result.notice_state, "screen_only", "이메일로 따로 알릴 주소가 없음을 화면에 알린다");
     const notice = (await opsNotices()).find((item) => item.kind === "withdraw" && item.occurred_at.getTime() === result.event_at.getTime());
     assert.equal(notice.recipient_email, null);
     assert.equal(notice.email_unavailable, true);
@@ -702,7 +712,94 @@ try {
     // 두 번째 클릭도 같은 결과.
     const second = await unsubscribe(row.unsubscribe_token);
     assert.equal(second.status, "already");
-    assert.equal(second.email_notice, false);
+    assert.equal(second.notice_state, "screen_only");
+  });
+
+  await check("[재검토2 1] 통지까지 끝난 옛 수신거부 링크를 정리 뒤 다시 누르면 already·통지 완료(emailed)로 답하고 새 통지를 만들지 않는다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-rc21@example.invalid";
+    await apply(email, { ad: true });
+    const row = await latestApplication(email);
+    await confirm(row.confirm_token);
+    const first = await unsubscribe(row.unsubscribe_token);
+    assert.equal(first.status, "withdrawn");
+    assert.equal(first.notice_state, "email_pending", "새 철회는 메일로 보낼 예정");
+    // 통지를 보내기 전 재클릭: 이미 처리됨, 새 발송 약속 없음(메일은 처음 처리 때 정한 대로).
+    const beforeEmailed = await unsubscribe(row.unsubscribe_token);
+    assert.equal(beforeEmailed.status, "already");
+    assert.equal(beforeEmailed.notice_state, "email_pending");
+    await markAllNoticesFor(email);
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','beta')", [row.id]);
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'beta_ended',null)", [row.id]);
+    assert.equal(await expireAndPurge(row.id), 1);
+    const eventsBefore = (await db.query("select count(*)::int as n from public.beta_ad_consent_events")).rows[0].n;
+    const again = await unsubscribe(row.unsubscribe_token);
+    assert.equal(again.status, "already");
+    assert.equal(again.notice_state, "emailed", "이미 메일로 통지를 마친 건");
+    assert.equal(again.event_at.getTime(), first.event_at.getTime());
+    assert.equal((await db.query("select count(*)::int as n from public.beta_ad_consent_events")).rows[0].n, eventsBefore);
+  });
+
+  /** 트랜잭션 안에서 SQL을 실행한 뒤 이 세션이 쥔 advisory 잠금 키를 읽고 되돌린다(트랜잭션 잠금은 끝까지 유지된다). */
+  const advisoryKeysDuring = async (role, sub, sql, params = []) => {
+    await db.exec("begin");
+    try {
+      await db.exec(`set local role ${role}`);
+      await db.query("select set_config('request.jwt.claim.sub', $1, true)", [sub ?? ""]);
+      await db.exec("savepoint probe");
+      try {
+        await db.query(sql, params);
+        await db.exec("release savepoint probe");
+      } catch {
+        // 실패하면 그 안에서 잡은 잠금도 풀리므로, 아래 비교에서 키가 없어 시험이 실패한다.
+        await db.exec("rollback to savepoint probe");
+      }
+      await db.exec("reset role");
+      const { rows } = await db.query(
+        "select classid::bigint as c, objid::bigint as o from pg_locks where locktype = 'advisory' and pid = pg_backend_pid() order by 1, 2",
+      );
+      return rows.map((row) => `${row.c}:${row.o}`);
+    } finally {
+      await db.exec("rollback");
+    }
+  };
+  const expectedKey = async (email) => advisoryKeysDuring("postgres", null,
+    "select ilgam_private.beta_lock_email(encode(extensions.digest('ilgamcheck-beta-ad:' || $1, 'sha256'), 'hex'))", [email]);
+
+  await check("[재검토2 2] 신청·확인·수신거부·삭제 요청·삭제 안내 완료·보유기간 정리가 같은 이메일에 같은 잠금 키를 쓴다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-rc22@example.invalid";
+    const key = await expectedKey(email);
+    assert.equal(key.length, 1);
+    assert.deepEqual(await advisoryKeysDuring("anon", null,
+      "select * from public.submit_beta_application($1,'web',true,'2-3','{}','beta',true,true,'beta-apply-v1-2026-11-01')", [email]), key, "신청");
+    await apply(email, { ad: true });
+    const row = await latestApplication(email);
+    assert.deepEqual(await advisoryKeysDuring("anon", null, "select * from public.confirm_beta_email($1)", [row.confirm_token]), key, "주소 확인");
+    assert.deepEqual(await advisoryKeysDuring("anon", null, "select * from public.unsubscribe_beta_ads($1)", [row.unsubscribe_token]), key, "수신거부");
+    assert.deepEqual(await advisoryKeysDuring("authenticated", OPERATOR, "select * from public.beta_ops_delete_application($1)", [row.id]), key, "삭제 요청");
+    await db.query("update public.beta_applications set purge_after = now() - interval '1 day' where id = $1", [row.id]);
+    assert.deepEqual(await advisoryKeysDuring("authenticated", OPERATOR, "select public.beta_ops_purge_expired()"), key, "보유기간 정리");
+    const deletion = await as("authenticated", OPERATOR, "select * from public.beta_ops_delete_application($1)", [row.id]);
+    // 통지가 남아 있으면 함수가 거부하고(저장점과 함께 잠금도 풀린다) 키를 볼 수 없으니, 통지를 먼저 보낸 것으로 표시한다.
+    await markAllNoticesFor(email);
+    assert.deepEqual(await advisoryKeysDuring("authenticated", OPERATOR, "select public.beta_ops_mark_deletion_emailed($1)", [deletion.rows[0].deletion_id]), key, "삭제 안내 완료");
+  });
+
+  await check("[재검토2 2] 보유기간 정리는 잠금을 이메일 해시 순서로 잡는다(여러 주소를 한 번에 정리해도 순서가 한 가지)", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const emails = ["test-rc22-z@example.invalid", "test-rc22-a@example.invalid", "test-rc22-m@example.invalid"];
+    for (const email of emails) await apply(email, { ad: false });
+    const ids = [];
+    for (const email of emails) ids.push((await latestApplication(email)).id);
+    await db.query("update public.beta_applications set purge_after = now() - interval '1 day' where id = any($1::uuid[])", [ids]);
+    const source = await readFile(resolve("supabase/migrations/20261101090000_beta_application_consent.sql"), "utf8");
+    const purge = source.slice(source.indexOf("create function public.beta_ops_purge_expired()"));
+    assert.match(purge.slice(0, 2000), /order by [a-z_.]*email_hash/);
+    assert.match(purge.slice(0, 2000), /beta_lock_email\(/);
+    const keys = await advisoryKeysDuring("authenticated", OPERATOR, "select public.beta_ops_purge_expired()");
+    assert.ok(keys.length >= 3, "정리할 주소마다 잠금");
+    assert.equal(await expireAndPurge(ids[0]), 3);
   });
 
   const failed = results.filter((result) => !result.ok);
