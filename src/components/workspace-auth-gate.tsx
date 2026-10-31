@@ -15,6 +15,7 @@ import { currentPolicyAcceptance } from "@/lib/policies";
 import { nativePlatform } from "@/lib/native/platform";
 import { subscribeNativeAuth, nativeAuthStatus, cancelNativeOAuth } from "@/lib/native/auth-runtime";
 import { NativeOfflineWorkspace } from "./native-offline-workspace";
+import { captureInviteFromLocation, readPendingInvite } from "@/lib/invite-link";
 
 export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   const native = nativePlatform() !== "web";
@@ -25,6 +26,15 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [policyGateStatus, setPolicyGateStatus] = useState<"idle" | "checking" | "required" | "accepted" | "error">("idle");
   const [policyGateError, setPolicyGateError] = useState<string | null>(null);
+  const [inviteReady, setInviteReady] = useState(false);
+
+  // 초대 링크(/today?invite=CODE): 주소에서 바로 지우고 Google 로그인 왕복 동안만 이 탭에 보관한다.
+  useEffect(() => {
+    captureInviteFromLocation();
+    let active = true;
+    queueMicrotask(() => { if (active) setInviteReady(Boolean(readPendingInvite())); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -179,6 +189,11 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           <h1>Google 계정으로 시작하기</h1>
           <p>한 번 로그인하면 내 고객·금액·수정 기록만 따로 저장돼요.</p>
         </div>
+        {inviteReady && (
+          <p className="authInviteNotice" data-testid="invite-ready">
+            초대 링크로 들어오셨어요. 로그인하고 약관에 동의하면 베타 코드가 자동으로 적용돼요.
+          </p>
+        )}
         <form className="authForm" onSubmit={(event) => {
           event.preventDefault();
           void performGoogleLogin();
@@ -198,6 +213,9 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           Google 인증은 Supabase Auth가 처리하며 Google 비밀번호는 일감체크에 저장되지 않아요.
           {' '}<Link href="/terms">이용약관</Link> · <Link href="/privacy">개인정보처리방침</Link>
         </small>
+        <p className="authGuideLinks">
+          처음이라면 <Link href="/guide">사용설명서</Link> · <Link href="/demo/r">고객 화면 체험</Link>
+        </p>
       </section>
     </main>
   );

@@ -1,20 +1,20 @@
 "use client";
 
 import { Archive, Check, ChevronRight, ClipboardList, PackagePlus, Plus, Save, Settings2, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createDomainId, PLAN_PRICES, type OptionTemplate, type PackageTemplate, type TaskTemplate } from "@/lib/domain";
-import { seedPackages } from "@/lib/store";
+import { markFirstRun } from "@/lib/first-run";
+import { INDUSTRY_STARTERS } from "@/lib/store";
 import { formatWon, useWorkspace } from "./workspace-provider";
 import { UpgradeNotice } from "./upgrade-notice";
 
 type CatalogTab = "package" | "option";
 
 /**
- * 기본 제공 패키지를 아직 손대지 않았는지 본다.
- * 예시가 홈페이지 제작이라 다른 업종 사용자는 "내 것이 아니다"라고 느끼기 쉬워,
- * 고쳐 쓰라는 안내를 이때만 보여준다.
+ * 기본 제공(업종 예시 포함) 패키지만 남아 있는지 본다.
+ * 예시 금액을 그대로 실제 주문에 쓰지 않도록, 고쳐 쓰라는 안내를 이때만 보여준다.
  */
-const seedPackageIds = new Set(seedPackages.map((item) => item.id));
+const seedPackageIds = new Set(Object.values(INDUSTRY_STARTERS).flatMap((starter) => starter.packages.map((item) => item.id)));
 
 function usesOnlySeedPackages(packages: PackageTemplate[]): boolean {
   const live = packages.filter((item) => !item.archivedAt);
@@ -91,6 +91,8 @@ function TaskRows({ tasks, onChange }: { tasks: TaskTemplate[]; onChange: (tasks
 export function PackageManager() {
   const { packages, options, savePackage, archivePackage, saveOption, archiveOption, canCreatePackage, canCreateOption, limits } = useWorkspace();
   const [tab, setTab] = useState<CatalogTab>("package");
+  // 첫 실행 체크리스트의 "패키지 확인" 단계는 이 화면을 연 것으로 끝낸다.
+  useEffect(() => { markFirstRun("packagesReviewed"); }, []);
   const [selectedPackageId, setSelectedPackageId] = useState(packages.find((item) => !item.archivedAt)?.id ?? "");
   const [selectedOptionId, setSelectedOptionId] = useState(options.find((item) => !item.archivedAt)?.id ?? "");
   const [packageDraft, setPackageDraft] = useState<PackageTemplate | null>(null);
@@ -167,7 +169,7 @@ export function PackageManager() {
         <p className="seedHint">
           <ClipboardList size={16} />
           <span>
-            지금 보이는 건 <strong>예시 패키지</strong>예요. 디자인·영상·마케팅 어떤 일이든, 내가 파는 조건으로
+            지금 보이는 건 <strong>예시 패키지</strong>예요. 금액도 예시라서, 내가 파는 조건으로
             금액·기간·수정 횟수를 고치거나 지우고 새로 만들어 쓰세요.
           </span>
         </p>
@@ -181,7 +183,7 @@ export function PackageManager() {
       {tab === "package" ? (
         <div className="catalogGrid">
           <aside className="catalogList" aria-label="패키지 목록">
-            <div className="catalogListHead"><strong>홈페이지 제작 패키지</strong>{canCreatePackage && <button type="button" className="smallIconButton" aria-label="새 패키지" onClick={() => { const next = newPackage(); setSelectedPackageId(next.id); setPackageDraft(next); }}><Plus size={16} /></button>}</div>
+            <div className="catalogListHead"><strong>내 판매 패키지</strong>{canCreatePackage && <button type="button" className="smallIconButton" aria-label="새 패키지" onClick={() => { const next = newPackage(); setSelectedPackageId(next.id); setPackageDraft(next); }}><Plus size={16} /></button>}</div>
             <div className="catalogItems">
             {packageList.map((item) => (
               <button type="button" className="catalogListItem" data-active={selectedPackage.id === item.id} key={item.id} onClick={() => selectPackage(item.id)}>

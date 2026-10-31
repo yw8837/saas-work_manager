@@ -2,6 +2,7 @@ import { Route, Routes, useParams, useSearchParams } from "react-router-dom";
 
 import { AppShell } from "@/components/app-shell";
 import { BetaActivationGate } from "@/components/beta-activation-gate";
+import { CustomerRevisionDemo } from "@/components/customer-revision-demo";
 import { FeedbackPanel } from "@/components/feedback-panel";
 import { JobDetail } from "@/components/job-detail";
 import { JobsOverview } from "@/components/jobs-overview";
@@ -12,8 +13,11 @@ import { PolicyPage } from "@/components/policy-page";
 import { PublicRevisionForm } from "@/components/public-revision-form";
 import { SettingsPanel } from "@/components/settings-panel";
 import { TodayDashboard } from "@/components/today-dashboard";
+import { UserGuide } from "@/components/user-guide";
 import { WorkspaceAuthGate } from "@/components/workspace-auth-gate";
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
+
+export { isStandaloneRoutePath, STANDALONE_ROUTE_PATHS } from "@/lib/standalone-routes";
 
 export const SITE_ROUTE_PATHS = [
   "/",
@@ -27,7 +31,18 @@ export const SITE_ROUTE_PATHS = [
   "/r/:token",
   "/privacy",
   "/terms",
+  "/guide",
+  "/demo/r",
 ] as const;
+
+export function StandaloneRoutes() {
+  return (
+    <Routes>
+      <Route path="/guide" element={<UserGuide />} />
+      <Route path="/demo/r" element={<CustomerRevisionDemo />} />
+    </Routes>
+  );
+}
 
 function WorkspaceRoute({ children }: { children: React.ReactNode }) {
   return (

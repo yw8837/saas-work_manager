@@ -1,8 +1,9 @@
 "use client";
 
 import { ArrowRight, BadgeCheck, KeyRound } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
+import { captureInviteFromLocation, clearPendingInvite, peekPendingInvite, readPendingInvite } from "@/lib/invite-link";
 import { Brand } from "./brand";
 import { useWorkspace } from "./workspace-provider";
 
@@ -19,14 +20,68 @@ export function BetaActivationGate({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  // 초대 링크로 받은 코드: 있으면 관문 화면 대신 "적용 중"을 먼저 보여 주고 자동으로 적용한다.
+  const [inviteStatus, setInviteStatus] = useState<"none" | "pending" | "failed">(() => (peekPendingInvite() ? "pending" : "none"));
+  const inviteStarted = useRef(false);
 
   const alreadyCompleted = Boolean(
     settings.betaCodeOnboardingCompletedAt
     || planAccess.source === "beta",
   );
 
-  if (runtimeMode !== "hosted" || (hydrated && (alreadyCompleted || completed))) {
+  useEffect(() => {
+    if (runtimeMode !== "hosted" || !hydrated || inviteStarted.current) return;
+    // 이 컴포넌트가 로그인 관문보다 먼저 효과를 실행할 수 있어 여기서도 주소의 코드를 옮겨 둔다.
+    captureInviteFromLocation();
+    const code = readPendingInvite();
+    if (!code) {
+      if (inviteStatus === "pending") queueMicrotask(() => setInviteStatus("none"));
+      return;
+    }
+    inviteStarted.current = true;
+    if (planAccess.source === "beta") {
+      // 이미 베타 Pro가 켜진 계정이면 다시 적용할 필요가 없다.
+      clearPendingInvite();
+      queueMicrotask(() => setInviteStatus("none"));
+      return;
+    }
+    const fail = (message: string) => {
+      setInviteCode(code);
+      setFeedback(message);
+      setInviteStatus("failed");
+    };
+    void activateInviteCode(code)
+      .then((result) => {
+        clearPendingInvite();
+        if (!result.ok) {
+          fail(result.message);
+          return;
+        }
+        updateSettings({ betaCodeOnboardingCompletedAt: new Date().toISOString() });
+        setCompleted(true);
+        setInviteStatus("none");
+      })
+      .catch(() => {
+        clearPendingInvite();
+        fail("코드를 확인하지 못했어요. 잠시 뒤 다시 시도해주세요.");
+      });
+  }, [activateInviteCode, hydrated, inviteStatus, planAccess.source, runtimeMode, updateSettings]);
+
+  const showGate = inviteStatus === "failed" || !(alreadyCompleted || completed);
+  if (runtimeMode !== "hosted" || (hydrated && inviteStatus === "none" && !showGate)) {
     return children;
+  }
+
+  if (hydrated && inviteStatus === "pending") {
+    return (
+      <main className="authPage">
+        <section className="authCard authLoading" aria-live="polite" data-testid="invite-applying">
+          <Brand />
+          <span className="authSpinner" aria-hidden="true" />
+          <h1>초대 코드를 적용하고 있어요</h1>
+        </section>
+      </main>
+    );
   }
 
   if (!hydrated) {
@@ -44,6 +99,7 @@ export function BetaActivationGate({ children }: { children: ReactNode }) {
   function finishOnboarding() {
     updateSettings({ betaCodeOnboardingCompletedAt: new Date().toISOString() });
     setCompleted(true);
+    setInviteStatus("none");
   }
 
   async function submitCode(event: FormEvent<HTMLFormElement>) {

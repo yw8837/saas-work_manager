@@ -62,6 +62,9 @@ test("고객 수정요청 데모는 원문을 기록하고 공통 로그에 남�
   await expect(page.getByText("이 브라우저에 저장")).toBeVisible();
   await expect(page.getByRole("complementary", { name: "개인정보 처리 안내" })).toBeVisible();
   await expect(page.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
+  // 개인정보 안내는 접혀 있고, 펼치면 원래 문구가 그대로 보인다.
+  await expect(page.getByText(/민감한 내용은 적지 마세요/)).toBeHidden();
+  await page.getByText("개인정보 처리 안내", { exact: true }).click();
   await expect(page.getByText(/민감한 내용은 적지 마세요/)).toBeVisible();
   await page.getByLabel("수정 요청 내용").fill("메인 문구를 조금 더 짧게 바꿔주세요.");
   await page.getByRole("button", { name: "요청 남기기" }).click();

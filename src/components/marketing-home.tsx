@@ -2,10 +2,12 @@ import Link from "next/link";
 import {
   ArrowRight,
   BellRing,
+  Check,
   CheckCircle2,
   ChevronRight,
   Coffee,
   MousePointer2,
+  MousePointerClick,
   PackageCheck,
 } from "lucide-react";
 import { Brand } from "./brand";
@@ -36,6 +38,7 @@ export function MarketingHome() {
           <a href="#workflow">사용 방식</a>
           <a href="#revision">수정 관리</a>
           <a href="#faq">자주 묻는 질문</a>
+          <Link href="/guide">사용설명서</Link>
         </nav>
         <Link href="/today" className="headerDemoLink">
           로그인
@@ -59,10 +62,22 @@ export function MarketingHome() {
                 무료로 시작하기
                 <ArrowRight size={18} />
               </Link>
-              <a href="#workflow" className="secondaryButton">
-                어떻게 편해지나요?
-              </a>
+              <Link href="/demo/r" className="secondaryButton" data-testid="landing-customer-demo">
+                <MousePointerClick size={18} aria-hidden="true" />
+                가입 없이 고객 화면 체험
+              </Link>
             </div>
+            {/* 사실만 적는다: 로그인은 Google만, 결제 기능이 아직 없어 카드를 받지 않는다, 무료 한도는 entitlements 값. */}
+            <ul className="heroReassure" aria-label="시작 조건" data-testid="landing-reassure">
+              <li><Check size={15} aria-hidden="true" /> Google 계정으로 가입</li>
+              <li><Check size={15} aria-hidden="true" /> 카드 등록 없음</li>
+              <li><Check size={15} aria-hidden="true" /> 무료로 동시 {PLAN_LIMITS.free.activeJobs}건 · 누적 {PLAN_LIMITS.free.totalJobs}건</li>
+            </ul>
+            <p className="heroGuideLinks">
+              <a href="#workflow">어떻게 편해지나요?</a>
+              <span aria-hidden="true">·</span>
+              <Link href="/guide" data-testid="landing-guide">그림 사용설명서</Link>
+            </p>
           </div>
 
           <ProductPreview />
@@ -186,6 +201,7 @@ export function MarketingHome() {
           </div>
           <nav aria-label="정책 및 문의">
             <a href="#faq">FAQ</a>
+            <Link href="/guide">사용설명서</Link>
             <Link href="/terms">이용약관</Link>
             <Link href="/privacy">개인정보처리방침</Link>
             {service.supportEmail && <a href={`mailto:${service.supportEmail}`}>문의</a>}

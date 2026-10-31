@@ -1,11 +1,17 @@
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, useLocation } from "react-router-dom";
 import { WorkspaceProvider } from "@/components/workspace-provider";
-import { AppRoutes } from "./routes";
+import { AppRoutes, StandaloneRoutes, isStandaloneRoutePath } from "./routes";
+
+function ShellRoutes() {
+  const { pathname } = useLocation();
+  if (isStandaloneRoutePath(pathname)) return <StandaloneRoutes />;
+  return <WorkspaceProvider><AppRoutes /></WorkspaceProvider>;
+}
 
 export function SiteShell() {
   return (
     <BrowserRouter>
-      <WorkspaceProvider><AppRoutes /></WorkspaceProvider>
+      <ShellRoutes />
     </BrowserRouter>
   );
 }

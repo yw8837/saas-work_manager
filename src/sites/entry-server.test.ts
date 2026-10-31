@@ -133,7 +133,7 @@ describe("Sites Worker entry", () => {
     expect(await response.text()).not.toContain("__ILGAMCHECK_PUBLIC_ENV__");
   });
 
-  it.each(["/r/key", "/r/key.with.dots", "/jobs/job.with.dots", "/auth/callback"])(
+  it.each(["/r/key", "/r/key.with.dots", "/jobs/job.with.dots", "/auth/callback", "/demo/r", "/guide", "/today?invite=TESTCODE"])(
     "preserves the HTML application route %s and its privacy headers",
     async (path) => {
       const response = await worker.fetch(
@@ -153,11 +153,13 @@ describe("Sites Worker entry", () => {
       expect(response.headers.get("referrer-policy")).toBe("no-referrer");
       expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
       expect(response.headers.get("x-robots-tag")).toBe(
-        path.startsWith("/r/") ? "noindex, nofollow, noarchive" : null,
+        path.startsWith("/r/") || path.startsWith("/demo/") ? "noindex, nofollow, noarchive" : null,
       );
       const html = await response.text();
       expect(html).toContain("__ILGAMCHECK_PUBLIC_ENV__");
       expect(html).not.toContain("sb_secret_never_in_navigation");
+      // 초대 링크 코드는 서버가 HTML에 되돌려 쓰지 않는다(no-referrer와 함께 밖으로 새지 않게).
+      expect(html).not.toContain("TESTCODE");
     },
   );
 

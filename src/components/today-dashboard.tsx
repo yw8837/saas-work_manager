@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   AlarmClock,
-  ArrowRight,
   ArrowUpRight,
   BellRing,
   Check,
@@ -11,11 +10,11 @@ import {
   Clock3,
   ExternalLink,
   MessageCircle,
-  PackageCheck,
   Plus,
   RotateCcw,
 } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
+import { FirstRunChecklist } from "./first-run-checklist";
 import { emptyTodaySearch, subscribeTodayLocation, todaySearchSnapshot, updateTodayScope } from "@/lib/today-location";
 import {
   formatShortDate,
@@ -92,7 +91,7 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
 }
 
 export function TodayDashboard() {
-  const { jobs, toggleTask, toggleJobWaiting, resetDemo, alerts, settings, runtimeMode } = useWorkspace();
+  const { jobs, jobsCreatedTotal, toggleTask, toggleJobWaiting, resetDemo, alerts, settings, runtimeMode } = useWorkspace();
   const [completedLabel, setCompletedLabel] = useState<string | null>(null);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const search = useSyncExternalStore(subscribeTodayLocation, todaySearchSnapshot, emptyTodaySearch);
@@ -172,21 +171,10 @@ export function TodayDashboard() {
       </header>
 
       {jobs.length === 0 ? (
-        <section className="firstJobGuide" aria-labelledby="first-job-title">
-          <PackageCheck size={32} aria-hidden="true" />
-          <h2 id="first-job-title">첫 일감부터 정리해 볼까요?</h2>
-          <p>고객과 시작일을 입력하고 패키지를 고르면,<br />마감과 할 일이 함께 만들어져요.</p>
-          <Link href="/jobs/new" className="primaryButton">
-            첫 일감 만들기 <ArrowRight size={18} />
-          </Link>
-          <div className="firstJobSetup">
-            <strong>내 판매 조건에 맞추고 싶다면</strong>
-            <p>기본 패키지의 금액·작업 기간·수정 횟수를 먼저 바꿀 수 있어요.</p>
-            <Link href="/packages" className="inlineLink">패키지 확인하기 <ArrowUpRight size={16} /></Link>
-          </div>
-        </section>
+        <FirstRunChecklist />
       ) : (
         <>
+      {(jobsCreatedTotal ?? jobs.length) <= 1 && <FirstRunChecklist compact />}
       <div className="workspaceScope">
         <label htmlFor="today-job-scope">일감별로 보기</label>
         <select

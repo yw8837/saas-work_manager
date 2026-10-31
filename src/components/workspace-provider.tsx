@@ -38,6 +38,7 @@ import {
   type Task,
 } from "@/lib/domain";
 import {
+  applyIndustryStarter as applyIndustryStarterTo,
   createSeedState,
   loadState,
   localToday,
@@ -50,6 +51,7 @@ import {
   storageKeyForUser,
   type AppSettings,
   type AppState,
+  type Industry,
 } from "@/lib/store";
 import { deriveInAppAlerts, registerIlgamcheckServiceWorker } from "@/lib/notifications";
 import { nativePlatform, nativeApiUrl } from "@/lib/native/platform";
@@ -138,6 +140,8 @@ type WorkspaceContextValue = AppState & {
   archivePackage: (packageId: string) => void;
   saveOption: (template: OptionTemplate) => void;
   archiveOption: (optionId: string) => void;
+  /** 새 작업공간(일감 0건)에서 업종 예시 패키지로 바꿔 끼운다. 실패하면 화면에 쓸 문구를 throw한다. */
+  applyIndustryStarter: (industry: Industry) => void;
   updateJobLinks: (jobId: string, links: JobLink[]) => void;
   createAddon: (jobId: string, input: Omit<CreateAddonInput, "addonId" | "createdAt">) => string;
   confirmAddon: (jobId: string, addonId: string) => void;
@@ -1459,6 +1463,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }));
   }, [commitState]);
 
+  const applyIndustryStarter = useCallback((industry: Industry) => {
+    let failure: Error | null = null;
+    commitState((current) => {
+      try {
+        return { ...current, ...applyIndustryStarterTo(current, industry, PLAN_LIMITS[plan]) };
+      } catch (error) {
+        failure = error instanceof Error ? error : new Error("예시 패키지를 바꾸지 못했어요.");
+        return current;
+      }
+    });
+    if (failure) throw failure;
+  }, [commitState, plan]);
+
   const updateJobLinks = useCallback((jobId: string, links: JobLink[]) => {
     updateJob(jobId, (job) => ({
       ...job,
@@ -1615,6 +1632,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       archivePackage,
       saveOption,
       archiveOption,
+      applyIndustryStarter,
       updateJobLinks,
       createAddon,
       confirmAddon,
@@ -1622,7 +1640,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (
