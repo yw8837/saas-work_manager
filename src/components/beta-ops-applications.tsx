@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BetaPreviewNote, isBetaPreviewMode } from "@/components/beta-public-shell";
 import { Brand } from "@/components/brand";
@@ -24,7 +24,13 @@ import {
 import { hostedBetaOpsBackend, previewBetaOpsBackend, type BetaOpsBackend } from "@/lib/beta/ops-backend";
 import { AD_STATUS_LABELS, NOTICE_KIND_LABELS, koreanDate } from "@/lib/beta/rules";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
-import { BetaNotOperatorError, type BetaOpsApplication, type BetaOpsNotice } from "@/lib/supabase/beta";
+import {
+  BetaNoticesPendingError,
+  BetaNotOperatorError,
+  type BetaOpsApplication,
+  type BetaOpsDeletion,
+  type BetaOpsNotice,
+} from "@/lib/supabase/beta";
 
 type Gate = "loading" | "login_required" | "not_operator" | "ready" | "error";
 
@@ -41,7 +47,8 @@ const SOURCE_LABELS: Record<BetaOpsNotice["source"], string> = {
   deletion_request: "삭제 요청",
 };
 
-function toDraftApplication(application: BetaOpsApplication): DraftApplication {
+/** 결과를 아직 기록하지 않았으면 운영자가 고른(보낼 예정인) 결과로 초안을 만든다. */
+function toDraftApplication(application: BetaOpsApplication, plannedOutcome: BetaOpsApplication["outcome"]): DraftApplication {
   return {
     id: application.id,
     email: application.email,
@@ -51,7 +58,7 @@ function toDraftApplication(application: BetaOpsApplication): DraftApplication {
     createdAt: application.createdAt,
     emailConfirmedAt: application.emailConfirmedAt,
     confirmExpiresAt: application.confirmExpiresAt,
-    outcome: application.outcome,
+    outcome: application.outcome ?? plannedOutcome,
     confirmToken: application.confirmToken,
     unsubscribeToken: application.unsubscribeToken,
   };
@@ -114,22 +121,33 @@ function ConfirmButton({ label, confirmLabel, onConfirm, disabled }: { label: st
   );
 }
 
-function MilestoneControls({ application, onRecord }: {
+type PlannedOutcome = NonNullable<BetaOpsApplication["outcome"]> | "";
+
+function MilestoneControls({ application, planned, onPlan, onRecord }: {
   application: BetaOpsApplication;
+  planned: PlannedOutcome;
+  onPlan: (outcome: PlannedOutcome) => void;
   onRecord: (kind: "result_sent" | "interview_done" | "beta_ended", outcome: BetaOpsApplication["outcome"]) => void;
 }) {
   const choices = outcomeChoices(application);
-  const [outcome, setOutcome] = useState(choices[0]);
   if (!application.resultSentAt) {
+    // 결과는 먼저 골라 초안을 확인하고, Gmail로 실제로 보낸 뒤에만 "보냄"을 기록한다.
+    const selected = planned || (choices.length === 1 ? choices[0] : "");
     return (
       <div className="betaActions">
         <label className="betaInlineSelect">
           <span>결과</span>
-          <select value={outcome} onChange={(event) => setOutcome(event.target.value as typeof outcome)}>
+          <select value={selected} onChange={(event) => onPlan(event.target.value as PlannedOutcome)}>
+            {choices.length > 1 && <option value="">고르기 전(참여 가능 초안)</option>}
             {choices.map((choice) => <option key={choice} value={choice}>{OUTCOME_LABELS[choice]}</option>)}
           </select>
         </label>
-        <ConfirmButton label="결과 안내 보냄 표시" confirmLabel="보낸 것 맞아요" onConfirm={() => onRecord("result_sent", outcome)} />
+        <ConfirmButton
+          label="결과 안내 보냄 표시"
+          confirmLabel="이 결과로 보낸 것 맞아요"
+          disabled={!selected}
+          onConfirm={() => onRecord("result_sent", selected || null)}
+        />
       </div>
     );
   }
@@ -145,8 +163,6 @@ function MilestoneControls({ application, onRecord }: {
   );
 }
 
-type DeletionResult = { email: string; drafts: MailDraft[]; withdrawEventId: string | null };
-
 /** /ops/applications 운영자 화면(로그인 + beta_operator_accounts에 등록된 계정만). 메일은 보내지 않고 초안만 만든다. */
 export function BetaOpsApplications() {
   const preview = useMemo(() => isBetaPreviewMode(), []);
@@ -154,50 +170,93 @@ export function BetaOpsApplications() {
   const [gate, setGate] = useState<Gate>("loading");
   const [applications, setApplications] = useState<BetaOpsApplication[]>([]);
   const [notices, setNotices] = useState<BetaOpsNotice[]>([]);
+  const [deletions, setDeletions] = useState<BetaOpsDeletion[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [interviewScheduleUrl, setInterviewScheduleUrl] = useState("");
   const [betaAccessUrl, setBetaAccessUrl] = useState("");
-  const [deletion, setDeletion] = useState<DeletionResult | null>(null);
+  const [planned, setPlanned] = useState<Record<string, PlannedOutcome>>({});
   // 기한 판정 기준 시각. 렌더 중에 시계를 읽지 않도록 목록을 불러올 때 함께 정한다.
   const [loadedAt, setLoadedAt] = useState(0);
+  // 로그인 계정이 바뀔 때마다 1씩 올린다. 그 전에 보낸 조회의 늦은 응답은 버린다.
+  const generationRef = useRef(0);
+  const userIdRef = useRef<string | null>(null);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
 
+  const clearAll = useCallback(() => {
+    setBackend(null);
+    setApplications([]);
+    setNotices([]);
+    setDeletions([]);
+    setPlanned({});
+    setMessage(null);
+  }, []);
+
   const refresh = useCallback(async (target: BetaOpsBackend) => {
+    const generation = generationRef.current;
     try {
-      const [nextApplications, nextNotices] = await Promise.all([target.listApplications(), target.listNotices()]);
+      const [nextApplications, nextNotices, nextDeletions] = await Promise.all([
+        target.listApplications(), target.listNotices(), target.listDeletions(),
+      ]);
+      if (generation !== generationRef.current) return null;
       setApplications(nextApplications);
       setNotices(nextNotices);
+      setDeletions(nextDeletions);
       setLoadedAt(Date.now());
       setGate("ready");
       return nextApplications;
     } catch (error) {
+      if (generation !== generationRef.current) return null;
       setGate(error instanceof BetaNotOperatorError ? "not_operator" : "error");
       return null;
     }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    async function start() {
-      if (preview) {
-        const target = previewBetaOpsBackend();
-        if (cancelled) return;
+    if (preview) {
+      const target = previewBetaOpsBackend();
+      const timer = window.setTimeout(() => {
         setBackend(target);
-        await refresh(target);
+        void refresh(target);
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+    const client = getSupabaseBrowserClient();
+    if (!client) {
+      const timer = window.setTimeout(() => setGate("error"), 0);
+      return () => window.clearTimeout(timer);
+    }
+    let disposed = false;
+    // 로그인 계정이 정해질 때마다(처음, 로그아웃, 계정 전환) 화면을 먼저 비우고 권한을 다시 확인한다.
+    const adopt = (userId: string | null) => {
+      if (disposed) return;
+      generationRef.current += 1;
+      userIdRef.current = userId;
+      clearAll();
+      if (!userId) {
+        setGate("login_required");
         return;
       }
-      const client = getSupabaseBrowserClient();
-      if (!client) { if (!cancelled) setGate("error"); return; }
-      const { data } = await client.auth.getSession();
-      if (cancelled) return;
-      if (!data.session) { setGate("login_required"); return; }
+      setGate("loading");
       const target = hostedBetaOpsBackend(client);
       setBackend(target);
-      await refresh(target);
-    }
-    void start();
-    return () => { cancelled = true; };
-  }, [preview, refresh]);
+      void refresh(target);
+    };
+    const startedAt = generationRef.current;
+    void client.auth.getSession().then(({ data }) => {
+      // 그 사이 인증 변경 알림이 먼저 왔으면 그 결과가 최신이다.
+      if (generationRef.current === startedAt) adopt(data.session?.user?.id ?? null);
+    });
+    const { data } = client.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user?.id ?? null;
+      if (event !== "SIGNED_OUT" && nextUserId !== null && nextUserId === userIdRef.current) return;
+      adopt(nextUserId);
+    });
+    return () => {
+      disposed = true;
+      generationRef.current += 1;
+      data.subscription.unsubscribe();
+    };
+  }, [preview, refresh, clearAll]);
 
   const now = loadedAt;
   const draftOptions: DraftOptions = { origin, interviewScheduleUrl, betaAccessUrl, now: new Date(now) };
@@ -205,6 +264,7 @@ export function BetaOpsApplications() {
   const expired = applications.filter((application) => application.purgeAfter && new Date(application.purgeAfter).getTime() <= now);
   const adTargets = [...new Set(applications.filter((application) => application.adTarget).map((application) => application.email))];
   const openNotices = notices.filter((notice) => !notice.noticeEmailedAt);
+  const openDeletions = deletions.filter((deletion) => deletion.email && !deletion.resultEmailedAt);
 
   async function run(action: () => Promise<unknown>, done: string) {
     if (!backend) return;
@@ -212,7 +272,9 @@ export function BetaOpsApplications() {
       await action();
       setMessage(done);
     } catch (error) {
-      setMessage(error instanceof BetaNotOperatorError ? error.message : "처리하지 못했어요. 새로고침 뒤 다시 시도해 주세요.");
+      setMessage(error instanceof BetaNotOperatorError || error instanceof BetaNoticesPendingError
+        ? error.message
+        : "처리하지 못했어요. 새로고침 뒤 다시 시도해 주세요.");
     }
     await refresh(backend);
   }
@@ -226,26 +288,6 @@ export function BetaOpsApplications() {
     setMessage(emails.length === 0
       ? "광고 발송 대상이 없어요."
       : await copyText(emails.join(", ")) ? `최신 목록으로 ${emails.length}명을 복사했어요.` : "복사하지 못했어요.");
-  }
-
-  async function deleteApplication(application: BetaOpsApplication) {
-    if (!backend) return;
-    try {
-      const result = await backend.deleteApplication(application.id);
-      const drafts = [buildDeletionDraft(application.email, new Date().toISOString())];
-      if (result.withdrawEventId && result.withdrawAt) {
-        drafts.push(buildNoticeDraft(
-          { eventId: result.withdrawEventId, kind: "withdraw", occurredAt: result.withdrawAt, confirmedAt: null },
-          { email: application.email, unsubscribeToken: null },
-          draftOptions,
-        ));
-      }
-      setDeletion({ email: application.email, drafts, withdrawEventId: result.withdrawEventId });
-      setMessage(`신청 ${result.deletedCount}건을 지웠어요. 아래 결과 안내를 보내 주세요.`);
-    } catch (error) {
-      setMessage(error instanceof BetaNotOperatorError ? error.message : "삭제하지 못했어요.");
-    }
-    await refresh(backend);
   }
 
   const header = (
@@ -294,7 +336,7 @@ export function BetaOpsApplications() {
 
       <section className="betaOpsSection" aria-labelledby="beta-ops-ad">
         <h2 id="beta-ops-ad">광고 발송 대상 {adTargets.length}명</h2>
-        <p className="betaPublicMuted">주소 확인까지 끝난 동의자 중 적격이고 발송금지가 아닌 사람만이에요. 미충족·미선정자는 넣지 않아요(결정 전 기본 동작).</p>
+        <p className="betaPublicMuted">주소 확인까지 끝난 동의자 중 가장 최근 신청이 적격이고, 같은 주소의 어느 신청도 미충족·미선정으로 안내되지 않았고, 발송금지가 아닌 사람만이에요(결정 전 기본 동작).</p>
         <div className="betaActions">
           <button className="compactButton" type="button" onClick={copyAdTargets}>최신 목록으로 다시 불러와 복사</button>
         </div>
@@ -308,7 +350,14 @@ export function BetaOpsApplications() {
             const application = notice.applicationId ? byId.get(notice.applicationId) : undefined;
             const overdue = !notice.noticeEmailedAt && new Date(notice.noticeDueAt).getTime() < now;
             return (
-              <li key={notice.eventId} className="betaOpsItem" data-testid="beta-notice" data-overdue={overdue}>
+              <li
+                key={notice.eventId}
+                className="betaOpsItem"
+                data-testid="beta-notice"
+                data-overdue={overdue}
+                data-kind={notice.kind}
+                data-recipient={notice.recipientEmail ?? ""}
+              >
                 <div className="betaOpsFacts">
                   <strong>{NOTICE_KIND_LABELS[notice.kind]}</strong>
                   <span>{SOURCE_LABELS[notice.source]}</span>
@@ -317,16 +366,16 @@ export function BetaOpsApplications() {
                   <span className={overdue ? "betaOverdue" : undefined}>마감 {koreanDate(notice.noticeDueAt)}</span>
                   <span>{notice.noticeEmailedAt ? `통지 보냄 ${koreanDate(notice.noticeEmailedAt)}` : "통지 안 보냄"}</span>
                 </div>
-                {application ? (
+                {notice.recipientEmail ? (
                   <details>
                     <summary>통지 초안 보기</summary>
                     <DraftCard
-                      draft={buildNoticeDraft(notice, { email: application.email, unsubscribeToken: application.unsubscribeToken }, draftOptions)}
-                      recordEmail={application.email}
+                      draft={buildNoticeDraft(notice, { email: notice.recipientEmail, unsubscribeToken: application?.unsubscribeToken ?? null }, draftOptions)}
+                      recordEmail={notice.recipientEmail}
                     />
                   </details>
                 ) : (
-                  <p className="betaPublicMuted">신청 정보가 지워져 주소가 없어요. 삭제 처리 때 만든 초안으로 보내 주세요.</p>
+                  <p className="betaPublicMuted">통지를 마치고 삭제 결과 안내까지 끝나 주소를 지웠어요.</p>
                 )}
                 {!notice.noticeEmailedAt && (
                   <ConfirmButton label="통지 보냄 표시" confirmLabel="보낸 것 맞아요" onConfirm={() => run(() => backend!.markNoticeEmailed(notice.eventId), "통지 보낸 시각을 남겼어요.")} />
@@ -337,12 +386,31 @@ export function BetaOpsApplications() {
         </ul>
       </section>
 
-      {deletion && (
-        <section className="betaOpsSection" aria-labelledby="beta-ops-deletion" data-testid="beta-deletion-result">
-          <h2 id="beta-ops-deletion">삭제 처리 결과 안내</h2>
-          <p className="betaPublicMuted">인터뷰 메모가 따로 있으면 그것도 지운 뒤 보내 주세요. 이 화면을 벗어나면 주소가 남지 않아요.</p>
-          {deletion.drafts.map((draft) => <DraftCard key={draft.id} draft={draft} recordEmail={deletion.email} />)}
-          <button className="compactButton" type="button" onClick={() => setDeletion(null)}>닫기</button>
+      {openDeletions.length > 0 && (
+        <section className="betaOpsSection" aria-labelledby="beta-ops-deletion">
+          <h2 id="beta-ops-deletion">삭제 처리 안내 {openDeletions.length}건 남음</h2>
+          <p className="betaPublicMuted">
+            신청 정보는 이미 지웠어요. 같은 주소의 처리결과 통지를 먼저 보내고, 마지막으로 삭제 결과 안내를 보낸 뒤 표시하면 남겨 둔 주소도 지워요.
+            인터뷰 메모가 따로 있으면 그것도 지운 뒤 보내 주세요.
+          </p>
+          <ul className="betaOpsList">
+            {openDeletions.map((deletion) => (
+              <li key={deletion.id} className="betaOpsItem" data-testid="beta-deletion">
+                <div className="betaOpsFacts">
+                  <strong>{deletion.email}</strong>
+                  <span>요청 처리 {koreanDate(deletion.requestedAt)}</span>
+                  <span>지운 신청 {deletion.deletedCount}건</span>
+                  <span className={deletion.pendingNotices > 0 ? "betaOverdue" : undefined}>보내지 않은 통지 {deletion.pendingNotices}건</span>
+                </div>
+                <DraftCard draft={buildDeletionDraft(deletion.email!, deletion.requestedAt)} recordEmail={deletion.email!} />
+                <ConfirmButton
+                  label="삭제 결과 안내 보냄 표시"
+                  confirmLabel="보낸 것 맞아요"
+                  onConfirm={() => run(() => backend!.markDeletionEmailed(deletion.id), "삭제 결과 안내를 기록하고 남겨 둔 주소를 지웠어요.")}
+                />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -353,43 +421,52 @@ export function BetaOpsApplications() {
             label={`보유기간 지난 신청 정리 (${expired.length}건)`}
             confirmLabel={`${expired.length}건 지우기`}
             disabled={expired.length === 0}
-            onConfirm={() => run(() => backend!.purgeExpired(), "보유기간이 지난 신청을 정리했어요.")}
+            onConfirm={() => run(() => backend!.purgeExpired(), "보유기간이 지난 신청을 정리했어요. 보내지 않은 통지가 남은 주소는 통지를 보낸 뒤 정리돼요.")}
           />
         </div>
         <ul className="betaOpsList">
-          {applications.map((application) => (
-            <li key={application.id} className="betaOpsItem" data-testid="beta-application">
-              <div className="betaOpsFacts">
-                <strong>{application.email}</strong>
-                <span className={application.eligible ? "betaBadge" : "betaBadge betaBadgeMuted"}>{application.eligible ? "적격" : "기준 미충족"}</span>
-                <span>참여 희망 {optionLabel(PARTICIPATION_OPTIONS, application.participation)}</span>
-                <span data-testid="beta-ad-status">광고 {AD_STATUS_LABELS[application.adStatus]}{application.suppressed ? " · 발송금지" : ""}</span>
-                <span>신청 {koreanDate(application.createdAt)}</span>
-              </div>
-              <div className="betaOpsFacts betaPublicMuted">
-                <span>하는 일 {optionLabel(WORK_TYPE_OPTIONS, application.workType)}</span>
-                <span>패키지 {application.sellsPackages ? "예" : "아니오"}</span>
-                <span>동시 {optionLabel(CONCURRENT_JOB_OPTIONS, application.concurrentJobs)}</span>
-                <span>주문 {application.orderChannels.length ? application.orderChannels.map((channel) => optionLabel(ORDER_CHANNEL_OPTIONS, channel)).join("·") : "적지 않음"}</span>
-                <span>결과 {application.outcome ? `${OUTCOME_LABELS[application.outcome]} (안내 ${koreanDate(application.resultSentAt!)})` : "안내 전"}</span>
-                <span>정리 예정 {application.purgeAfter ? koreanDate(application.purgeAfter) : "미정"}</span>
-              </div>
-              <details>
-                <summary>운영 연락 초안 보기</summary>
-                {buildApplicationDrafts(toDraftApplication(application), draftOptions).map((draft) => (
-                  <DraftCard key={draft.id} draft={draft} recordEmail={application.email} />
-                ))}
-              </details>
-              <MilestoneControls
-                key={`${application.id}:${application.resultSentAt ?? ""}`}
-                application={application}
-                onRecord={(kind, outcome) => run(() => backend!.recordMilestone(application.id, kind, outcome), "기록했어요.")}
-              />
-              <div className="betaActions">
-                <ConfirmButton label="삭제 요청 처리" confirmLabel="같은 주소의 신청을 모두 지우기" onConfirm={() => deleteApplication(application)} />
-              </div>
-            </li>
-          ))}
+          {applications.map((application) => {
+            const plannedOutcome = planned[application.id] ?? "";
+            const draftSource = toDraftApplication(application, plannedOutcome || null);
+            return (
+              <li key={application.id} className="betaOpsItem" data-testid="beta-application">
+                <div className="betaOpsFacts">
+                  <strong>{application.email}</strong>
+                  <span className={application.eligible ? "betaBadge" : "betaBadge betaBadgeMuted"}>{application.eligible ? "적격" : "기준 미충족"}</span>
+                  <span>참여 희망 {optionLabel(PARTICIPATION_OPTIONS, application.participation)}</span>
+                  <span data-testid="beta-ad-status">광고 {AD_STATUS_LABELS[application.adStatus]}{application.suppressed ? " · 발송금지" : ""}</span>
+                  <span>신청 {koreanDate(application.createdAt)}</span>
+                </div>
+                <div className="betaOpsFacts betaPublicMuted">
+                  <span>하는 일 {optionLabel(WORK_TYPE_OPTIONS, application.workType)}</span>
+                  <span>패키지 {application.sellsPackages ? "예" : "아니오"}</span>
+                  <span>동시 {optionLabel(CONCURRENT_JOB_OPTIONS, application.concurrentJobs)}</span>
+                  <span>주문 {application.orderChannels.length ? application.orderChannels.map((channel) => optionLabel(ORDER_CHANNEL_OPTIONS, channel)).join("·") : "적지 않음"}</span>
+                  <span>결과 {application.outcome ? `${OUTCOME_LABELS[application.outcome]} (안내 ${koreanDate(application.resultSentAt!)})` : "안내 전"}</span>
+                  <span>정리 예정 {application.purgeAfter ? koreanDate(application.purgeAfter) : "미정"}</span>
+                </div>
+                <details>
+                  <summary>운영 연락 초안 보기</summary>
+                  {buildApplicationDrafts(draftSource, draftOptions).map((draft) => (
+                    <DraftCard key={draft.id} draft={draft} recordEmail={application.email} />
+                  ))}
+                </details>
+                <MilestoneControls
+                  application={application}
+                  planned={plannedOutcome}
+                  onPlan={(outcome) => setPlanned((current) => ({ ...current, [application.id]: outcome }))}
+                  onRecord={(kind, outcome) => run(() => backend!.recordMilestone(application.id, kind, outcome), "기록했어요.")}
+                />
+                <div className="betaActions">
+                  <ConfirmButton
+                    label="삭제 요청 처리"
+                    confirmLabel="같은 주소의 신청을 모두 지우기"
+                    onConfirm={() => run(() => backend!.deleteApplication(application.id), "신청 정보를 지웠어요. 아래 '삭제 처리 안내'에서 통지와 결과 안내를 보내 주세요.")}
+                  />
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </main>

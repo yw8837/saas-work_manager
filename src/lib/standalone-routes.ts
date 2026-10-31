@@ -8,8 +8,24 @@ export const STANDALONE_ROUTE_PATHS = ["/guide", "/demo/r", "/apply", "/ops/appl
 /** 토큰이 붙는 단독 경로(/apply/confirm/:token, /u/:token). 토큰 한 마디만 허용한다. */
 const STANDALONE_ROUTE_PATTERNS: readonly RegExp[] = [/^\/apply\/confirm\/[^/]+$/, /^\/u\/[^/]+$/];
 
+/** 끝의 / 를 모두 떼어 낸 경로. 화면 판정과 Worker의 검색 차단 헤더 판정이 같은 기준을 쓴다. */
+export function normalizeRoutePath(pathname: string): string {
+  const trimmed = pathname.replace(/\/+$/, "");
+  return trimmed === "" ? "/" : trimmed;
+}
+
+/** 검색 결과에 남기지 않을 경로: 고객 링크·체험 링크·베타 주소 확인·수신거부·운영자 화면. */
+export function isNoindexRoutePath(pathname: string): boolean {
+  const normalized = normalizeRoutePath(pathname);
+  return /^\/r\/[^/]+$/.test(normalized)
+    || /^\/demo(?:\/|$)/.test(normalized)
+    || /^\/apply\/confirm\/[^/]+$/.test(normalized)
+    || /^\/u\/[^/]+$/.test(normalized)
+    || /^\/ops(?:\/|$)/.test(normalized);
+}
+
 export function isStandaloneRoutePath(pathname: string): boolean {
-  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  const normalized = normalizeRoutePath(pathname);
   return (STANDALONE_ROUTE_PATHS as readonly string[]).includes(normalized)
     || STANDALONE_ROUTE_PATTERNS.some((pattern) => pattern.test(normalized));
 }

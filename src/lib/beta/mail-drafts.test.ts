@@ -159,6 +159,8 @@ describe("[시험표 10] 삭제 처리 결과 초안", () => {
     expect(draft.body).toContain("해시");
     expect(draft.body).toContain("증빙을 위해 남깁니다");
     expect(draft.body).toContain("일감체크 계정과 일감 데이터는 이 요청으로 지우지 않습니다");
+    // [리뷰 6] 안내를 보내려고 잠시 남긴 주소도 지운다는 사실을 알린다.
+    expect(draft.body).toContain("잠시 남겨 둔 이메일 주소도 이 안내를 보낸 뒤 지웁니다");
     expect(findDraftProblems(draft, "test10@example.invalid")).toEqual([]);
   });
 });

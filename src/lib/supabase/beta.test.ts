@@ -31,7 +31,7 @@ describe("베타 신청 migration 보안 계약", () => {
 
   it("운영자 함수는 anon에서 빼고 authenticated에만 열며, 함수 안에서 운영자 표를 다시 확인한다", () => {
     expect(sql).toMatch(/public\.beta_ops_purge_expired\(\)\s+from public, anon;/);
-    expect(sql.match(/perform ilgam_private\.beta_require_operator\(\);/g)).toHaveLength(6);
+    expect(sql.match(/perform ilgam_private\.beta_require_operator\(\);/g)).toHaveLength(8);
   });
 
   it("표는 anon·authenticated 직접 접근을 막고, 저장소에 운영자 계정·실제 주소를 넣지 않는다", () => {

@@ -429,10 +429,11 @@ try {
     assert.ok(await latestApplication("test10-other@example.invalid"), "다른 신청자는 지우지 않는다");
     // 이미 보낸 메일의 수신거부 링크는 지운 뒤에도 오류 없이 '이미 처리됨'으로 안내된다.
     assert.equal((await unsubscribe(row.unsubscribe_token)).status, "already");
-    // 지운 신청의 통지 기록은 주소 없이 남는다.
+    // 지운 신청의 통지 기록은 신청과 끊기지만, 통지를 보낼 때까지는 삭제 요청 기록의 주소로 보낼 수 있다(리뷰 6).
     const notice = (await opsNotices()).find((item) => item.event_id === result.rows[0].withdraw_event_id);
     assert.equal(notice.application_id, null);
     assert.equal(notice.source, "deletion_request");
+    assert.equal(notice.recipient_email, email);
   });
 
   await check("[시험표 11] 수신자 대체 ①: A·B가 잇달아 신청해도 링크·상태가 각자 레코드에만 묶인다", async () => {
@@ -477,6 +478,116 @@ try {
     for (let index = 0; index < 3; index += 1) assert.equal((await apply(email)).status, "received");
     assert.equal((await apply(email)).status, "rate_limited");
     assert.equal((await opsApplications()).filter((row) => row.email === email).length, 3);
+  });
+
+  const callsIn = async (bucket) => (await db.query(
+    "select coalesce(sum(calls), 0)::int as calls from public.beta_public_call_counters where bucket = $1",
+    [bucket],
+  )).rows[0].calls;
+
+  await check("[리뷰 2] 주소별 한도에 걸린 신청은 전체 신청 한도를 쓰지 않는다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-r2-apply@example.invalid";
+    for (let index = 0; index < 3; index += 1) assert.equal((await apply(email)).status, "received");
+    for (let index = 0; index < 20; index += 1) assert.equal((await apply(email)).status, "rate_limited");
+    assert.equal(await callsIn("apply:all:hour"), 3);
+  });
+
+  await check("[리뷰 2] 형식만 맞는 무효 토큰을 많이 보내도 정상 주소 확인·수신거부는 막히지 않는다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    await apply("test-r2-link@example.invalid", { ad: true });
+    const row = await latestApplication("test-r2-link@example.invalid");
+    for (let index = 0; index < 130; index += 1) {
+      const fake = `fake${index}`.padEnd(43, "z");
+      assert.equal((await unsubscribe(fake)).status, "invalid");
+      assert.equal((await confirm(fake)).status, "invalid");
+    }
+    assert.deepEqual(await confirm(row.confirm_token), { status: "confirmed", ad_active: true });
+    assert.equal((await unsubscribe(row.unsubscribe_token)).status, "withdrawn");
+  });
+
+  await check("[리뷰 2] 같은 링크를 분당 10번 넘게 누르면 그 링크만 rate_limited, 다른 링크는 그대로", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    await apply("test-r2-hot@example.invalid", { ad: true });
+    await apply("test-r2-cold@example.invalid", { ad: true });
+    const hot = await latestApplication("test-r2-hot@example.invalid");
+    const cold = await latestApplication("test-r2-cold@example.invalid");
+    const statuses = [];
+    for (let index = 0; index < 11; index += 1) statuses.push((await unsubscribe(hot.unsubscribe_token)).status);
+    assert.deepEqual(statuses, ["withdrawn", ...Array(9).fill("already"), "rate_limited"]);
+    assert.equal((await unsubscribe(cold.unsubscribe_token)).status, "withdrawn");
+  });
+
+  await check("[리뷰 5] 같은 주소가 다시 신청해 새 신청이 미선정이면 과거 적격 신청이 있어도 광고 대상이 아니다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-r5@example.invalid";
+    await apply(email, { ad: true });
+    await confirm((await latestApplication(email)).confirm_token);
+    assert.equal((await latestApplication(email)).ad_target, true);
+    await apply(email, { ad: false });
+    const rows = (await opsApplications()).filter((row) => row.email === email);
+    assert.equal(rows.length, 2);
+    const newest = rows.reduce((a, b) => (a.created_at > b.created_at ? a : b));
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','not_selected')", [newest.id]);
+    const after = (await opsApplications()).filter((row) => row.email === email);
+    assert.deepEqual(after.map((row) => row.ad_target), [false, false]);
+  });
+
+  await check("[리뷰 5] 최근 신청이 미충족이면 과거 적격 신청이 있어도 광고 대상이 아니다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-r5-unmatched@example.invalid";
+    await apply(email, { ad: true });
+    await confirm((await latestApplication(email)).confirm_token);
+    await apply(email, { ad: false, sellsPackages: false });
+    const after = (await opsApplications()).filter((row) => row.email === email);
+    assert.deepEqual(after.map((row) => row.ad_target), [false, false]);
+  });
+
+  await check("[리뷰 6] 삭제 요청 전 못 보낸 통지는 삭제 뒤에도 받는 주소가 남고, 통지를 다 보낸 뒤에야 삭제 결과 안내를 끝내며 그때 주소를 지운다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-r6@example.invalid";
+    await apply(email, { ad: true });
+    const row = await latestApplication(email);
+    const result = await as("authenticated", OPERATOR, "select * from public.beta_ops_delete_application($1)", [row.id]);
+    assert.ok(result.rows[0].deletion_id, "삭제 요청 기록 id");
+    assert.equal((await opsApplications()).filter((item) => item.email === email).length, 0);
+
+    const pending = (await opsNotices()).filter((notice) => notice.recipient_email === email);
+    assert.deepEqual(pending.map((notice) => notice.kind).sort(), ["consent", "withdraw"]);
+    assert.ok(pending.every((notice) => notice.notice_emailed_at === null));
+
+    const listDeletions = async () => (await as("authenticated", OPERATOR, "select * from public.beta_ops_list_deletions()")).rows
+      .filter((item) => item.id === result.rows[0].deletion_id);
+    assert.equal((await listDeletions())[0].email, email);
+    await rejects(
+      as("authenticated", OPERATOR, "select public.beta_ops_mark_deletion_emailed($1)", [result.rows[0].deletion_id]),
+      "notices_pending",
+    );
+    for (const notice of pending) {
+      await as("authenticated", OPERATOR, "select public.beta_ops_mark_notice_emailed($1)", [notice.event_id]);
+    }
+    await as("authenticated", OPERATOR, "select public.beta_ops_mark_deletion_emailed($1)", [result.rows[0].deletion_id]);
+    const done = (await listDeletions())[0];
+    assert.equal(done.email, null, "삭제 결과 안내를 보낸 뒤에는 주소를 남기지 않는다");
+    assert.ok(done.result_emailed_at instanceof Date);
+    const raw = await db.query("select count(*)::int as n from public.beta_deletion_requests where email is not null and id = $1", [result.rows[0].deletion_id]);
+    assert.equal(raw.rows[0].n, 0);
+    await rejects(as("anon", null, "select * from public.beta_ops_list_deletions()"), "permission denied");
+  });
+
+  await check("[리뷰 6] 보유기간이 지나도 그 주소로 보내지 않은 통지가 남아 있으면 정리하지 않고, 통지를 보낸 뒤 정리한다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-r6-purge@example.invalid";
+    await apply(email, { ad: true, sellsPackages: false });
+    const row = await latestApplication(email);
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','not_matched')", [row.id]);
+    await db.query("update public.beta_applications set purge_after = now() - interval '1 day' where id = $1", [row.id]);
+    assert.equal((await as("authenticated", OPERATOR, "select public.beta_ops_purge_expired() as count")).rows[0].count, 0);
+    assert.ok(await latestApplication(email));
+    const notice = (await opsNotices()).find((item) => item.recipient_email === email);
+    await as("authenticated", OPERATOR, "select public.beta_ops_mark_notice_emailed($1)", [notice.event_id]);
+    assert.equal((await as("authenticated", OPERATOR, "select public.beta_ops_purge_expired() as count")).rows[0].count, 1);
+    assert.equal(await latestApplication(email), undefined);
   });
 
   const failed = results.filter((result) => !result.ok);

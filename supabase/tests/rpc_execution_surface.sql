@@ -1,4 +1,4 @@
--- Read-only regression test. Expected result: 33 rows, all passed=true.
+-- Read-only regression test. Expected result: 35 rows, all passed=true.
 -- Checks effective privileges, including PUBLIC and role inheritance, not SQL text.
 with expected(signature, anon_allowed, authenticated_allowed) as (
   values
@@ -22,6 +22,8 @@ with expected(signature, anon_allowed, authenticated_allowed) as (
     ('public.beta_ops_mark_notice_emailed(uuid)', false, true),
     ('public.beta_ops_record_milestone(uuid,text,text)', false, true),
     ('public.beta_ops_delete_application(uuid)', false, true),
+    ('public.beta_ops_list_deletions()', false, true),
+    ('public.beta_ops_mark_deletion_emailed(uuid)', false, true),
     ('public.beta_ops_purge_expired()', false, true),
     ('public.handle_new_user()', false, false),
     ('public.protect_revision_request_evidence()', false, false),

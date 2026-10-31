@@ -51,6 +51,13 @@ describe("Sites 셸: 베타 신청·확인·수신거부·운영자 경로", () 
     [`/u/${TOKEN}`, "noindex, nofollow, noarchive"],
     ["/ops/applications", "noindex, nofollow, noarchive"],
     ["/apply", null],
+    // [리뷰 3] 끝에 / 가 붙어도 화면은 같은 경로로 열리므로 검색 차단도 같아야 한다.
+    [`/apply/confirm/${TOKEN}/`, "noindex, nofollow, noarchive"],
+    [`/u/${TOKEN}/`, "noindex, nofollow, noarchive"],
+    [`/u/${TOKEN}//`, "noindex, nofollow, noarchive"],
+    ["/ops/applications/", "noindex, nofollow, noarchive"],
+    ["/r/customer-token/", "noindex, nofollow, noarchive"],
+    ["/apply/", null],
   ])("Worker가 %s HTML에 검색 차단 헤더(%s)를 붙인다", async (path, robots) => {
     const response = await worker.fetch(
       new Request(`https://beta.example.test${path}`, { headers: { Accept: "text/html" } }),

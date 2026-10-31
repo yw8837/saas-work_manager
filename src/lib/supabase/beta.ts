@@ -123,6 +123,18 @@ export type BetaOpsNotice = {
   noticeDueAt: string;
   noticeEmailedAt: string | null;
   applicationId: string | null;
+  /** 통지를 보낼 주소. 신청이 삭제 요청으로 지워졌어도 삭제 결과 안내를 끝낼 때까지는 남아 있다. */
+  recipientEmail: string | null;
+};
+
+export type BetaOpsDeletion = {
+  id: string;
+  /** 삭제 결과 안내를 보냈다고 표시하면 지워진다(null). */
+  email: string | null;
+  requestedAt: string;
+  deletedCount: number;
+  resultEmailedAt: string | null;
+  pendingNotices: number;
 };
 
 export class BetaNotOperatorError extends Error {
@@ -132,10 +144,18 @@ export class BetaNotOperatorError extends Error {
   }
 }
 
+export class BetaNoticesPendingError extends Error {
+  constructor() {
+    super("같은 주소의 처리결과 통지를 먼저 보내고 '통지 보냄 표시'를 남겨 주세요.");
+    this.name = "BetaNoticesPendingError";
+  }
+}
+
 function opsError(error: { message?: string; code?: string }): Error {
   if (error.code === "42501" || error.message?.includes("not_operator") || error.message?.includes("permission denied")) {
     return new BetaNotOperatorError();
   }
+  if (error.message?.includes("notices_pending")) return new BetaNoticesPendingError();
   return new Error("운영 기록을 처리하지 못했어요.");
 }
 
@@ -179,6 +199,7 @@ export async function listBetaApplications(client: SupabaseClient): Promise<Beta
 type NoticeRow = {
   event_id: string; kind: BetaNoticeKind; source: BetaOpsNotice["source"]; occurred_at: string; confirmed_at: string | null;
   notice_shown_at: string | null; notice_due_at: string; notice_emailed_at: string | null; application_id: string | null;
+  recipient_email: string | null;
 };
 
 export async function listBetaNotices(client: SupabaseClient): Promise<BetaOpsNotice[]> {
@@ -194,7 +215,32 @@ export async function listBetaNotices(client: SupabaseClient): Promise<BetaOpsNo
     noticeDueAt: row.notice_due_at,
     noticeEmailedAt: row.notice_emailed_at,
     applicationId: row.application_id,
+    recipientEmail: row.recipient_email,
   }));
+}
+
+type DeletionRow = {
+  id: string; email: string | null; requested_at: string; deleted_count: number;
+  result_emailed_at: string | null; pending_notices: number;
+};
+
+export async function listBetaDeletions(client: SupabaseClient): Promise<BetaOpsDeletion[]> {
+  const { data, error } = await client.rpc("beta_ops_list_deletions");
+  if (error) throw opsError(error);
+  return ((data ?? []) as DeletionRow[]).map((row) => ({
+    id: row.id,
+    email: row.email,
+    requestedAt: row.requested_at,
+    deletedCount: Number(row.deleted_count),
+    resultEmailedAt: row.result_emailed_at,
+    pendingNotices: Number(row.pending_notices),
+  }));
+}
+
+export async function markBetaDeletionEmailed(client: SupabaseClient, deletionId: string): Promise<string> {
+  const { data, error } = await client.rpc("beta_ops_mark_deletion_emailed", { p_deletion_id: deletionId });
+  if (error) throw opsError(error);
+  return String(data);
 }
 
 export async function markBetaNoticeEmailed(client: SupabaseClient, eventId: string): Promise<string> {
@@ -220,17 +266,25 @@ export async function recordBetaMilestone(
   return (data as string | null) ?? null;
 }
 
+export type BetaDeletionReceipt = {
+  deletedCount: number;
+  withdrawEventId: string | null;
+  withdrawAt: string | null;
+  deletionId: string | null;
+};
+
 export async function deleteBetaApplication(
   client: SupabaseClient,
   applicationId: string,
-): Promise<{ deletedCount: number; withdrawEventId: string | null; withdrawAt: string | null }> {
+): Promise<BetaDeletionReceipt> {
   const { data, error } = await client.rpc("beta_ops_delete_application", { p_application_id: applicationId });
   if (error) throw opsError(error);
-  const row = firstRow<{ deleted_count: number; withdraw_event_id: string | null; withdraw_at: string | null }>(data);
+  const row = firstRow<{ deleted_count: number; withdraw_event_id: string | null; withdraw_at: string | null; deletion_id: string | null }>(data);
   return {
     deletedCount: Number(row?.deleted_count ?? 0),
     withdrawEventId: row?.withdraw_event_id ?? null,
     withdrawAt: row?.withdraw_at ?? null,
+    deletionId: row?.deletion_id ?? null,
   };
 }
 

@@ -1,4 +1,5 @@
 import { buildBearerRouteHeaders, buildSecurityHeaders } from "@/lib/security/headers";
+import { isNoindexRoutePath } from "@/lib/standalone-routes";
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
 import {
   ILGAMCHECK_PUBLIC_ENV_KEYS,
@@ -60,10 +61,9 @@ function withSecurityHeaders(
     headers.set(key, value);
   }
   // 고객 링크와 체험 링크, 베타 주소 확인·수신거부·운영자 화면은 검색 결과에 남지 않게 한다.
+  // 끝에 / 가 붙은 주소도 화면은 같은 경로로 열리므로 같은 기준(normalizeRoutePath)으로 판정한다.
   const { pathname } = new URL(request.url);
-  if (/^\/r\/[^/]+$/.test(pathname) || /^\/demo(?:\/|$)/.test(pathname)
-    || /^\/apply\/confirm\/[^/]+$/.test(pathname) || /^\/u\/[^/]+$/.test(pathname)
-    || /^\/ops(?:\/|$)/.test(pathname)) {
+  if (isNoindexRoutePath(pathname)) {
     for (const { key, value } of buildBearerRouteHeaders()) headers.set(key, value);
   }
   return new Response(request.method === "HEAD" ? null : responseBody(response), {

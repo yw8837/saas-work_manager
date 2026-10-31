@@ -70,9 +70,9 @@ try {
   await db.exec(await readFile(resolve("supabase/tests/native_revision_push.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/workspace_job_deletion.sql"), "utf8"));
   const access = await db.query(await readFile(resolve("supabase/tests/rpc_execution_surface.sql"), "utf8"));
-  assert.equal(access.rows.length, 33);
+  assert.equal(access.rows.length, 35);
   assert.ok(access.rows.every((row) => row.passed), JSON.stringify(access.rows.filter((row) => !row.passed)));
-  console.log("PASS: native SQL contract, deletion regression, 33 RPC privilege checks (ephemeral PGlite).");
+  console.log("PASS: native SQL contract, deletion regression, 35 RPC privilege checks (ephemeral PGlite).");
 } catch (error) {
   console.error(`FAIL: ${error.message}`);
   if (error.where) console.error(error.where);

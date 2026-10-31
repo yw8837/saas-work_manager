@@ -72,6 +72,11 @@ test("[시험표 6·8·9] 수신거부 링크: 검색 차단, 열기만 해서�
   await expect(result).toContainText("스튜디오열매");
   expect(page.url()).not.toContain("@");
 
+  // [리뷰 3] 끝에 / 가 붙은 주소도 검색 차단이 붙은 화면으로 열린다.
+  const slashed = await page.goto(`/u/${TOKEN}/`);
+  expect(slashed?.headers()["x-robots-tag"]).toContain("noindex");
+  await expect(page.getByRole("button", { name: "수신거부 / Unsubscribe" })).toBeVisible();
+
   await page.goto("/u/broken");
   const broken = page.getByTestId("beta-unsubscribe-result");
   await expect(broken).toContainText("수신거부는 처리되지 않았어요");

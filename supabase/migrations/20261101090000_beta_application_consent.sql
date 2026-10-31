@@ -88,6 +88,20 @@ create table public.beta_ad_suppressions (
   created_at timestamptz not null default now()
 );
 
+-- 삭제 요청 처리 기록. 신청 정보는 요청을 처리할 때 바로 지운다.
+-- 다만 그 주소로 보내야 할 처리결과 통지·삭제 결과 안내가 남아 있으므로, 안내를 보냈다고 표시할 때까지만
+-- 주소(email)를 이 표에 남기고, 표시하는 순간 지운다(email = null). 해시와 시각만 기록으로 남는다.
+create table public.beta_deletion_requests (
+  id uuid primary key default gen_random_uuid(),
+  email text check (email is null or (char_length(email) between 6 and 254 and email = lower(btrim(email)))),
+  email_hash text not null check (email_hash ~ '^[0-9a-f]{64}$'),
+  requested_at timestamptz not null,
+  deleted_count integer not null,
+  result_emailed_at timestamptz,
+  check ((result_emailed_at is null) = (email is not null))
+);
+create index beta_deletion_requests_email_hash_idx on public.beta_deletion_requests (email_hash);
+
 -- 공개 RPC 호출 제한 카운터(시간 창 단위).
 create table public.beta_public_call_counters (
   bucket text not null,
@@ -102,6 +116,7 @@ alter table public.beta_application_links enable row level security;
 alter table public.beta_unsubscribe_tokens enable row level security;
 alter table public.beta_ad_consent_events enable row level security;
 alter table public.beta_ad_suppressions enable row level security;
+alter table public.beta_deletion_requests enable row level security;
 alter table public.beta_public_call_counters enable row level security;
 
 revoke all on table
@@ -111,6 +126,7 @@ revoke all on table
   public.beta_unsubscribe_tokens,
   public.beta_ad_consent_events,
   public.beta_ad_suppressions,
+  public.beta_deletion_requests,
   public.beta_public_call_counters
 from public, anon, authenticated;
 
@@ -283,10 +299,11 @@ begin
 
   v_hash := ilgam_private.beta_email_hash(v_email);
 
-  -- 전체 시간당 300건, 같은 주소 시간당 3건·하루 5건.
-  if not ilgam_private.beta_take_call('apply:all:hour', 3600, 300)
-    or not ilgam_private.beta_take_call('apply:' || v_hash || ':hour', 3600, 3)
-    or not ilgam_private.beta_take_call('apply:' || v_hash || ':day', 86400, 5) then
+  -- 같은 주소 시간당 3건·하루 5건을 먼저 보고, 통과한 신청만 전체 시간당 300건 예산을 쓴다.
+  -- (주소별 한도에 걸린 반복 신청이 다른 사람의 신청 예산을 소진하지 않게)
+  if not ilgam_private.beta_take_call('apply:' || v_hash || ':hour', 3600, 3)
+    or not ilgam_private.beta_take_call('apply:' || v_hash || ':day', 86400, 5)
+    or not ilgam_private.beta_take_call('apply:all:hour', 3600, 300) then
     return query select 'rate_limited'::text, null::text, null::timestamptz, null::timestamptz;
     return;
   end if;
@@ -342,19 +359,23 @@ begin
     return query select 'invalid'::text, false;
     return;
   end if;
-  if not ilgam_private.beta_take_call('confirm:all:minute', 60, 120) then
-    return query select 'rate_limited'::text, false;
-    return;
-  end if;
-
+  -- 무효 토큰은 아무것도 쓰지 않고 돌려보낸다. 호출 제한은 실제로 있는 링크마다 따로 센다
+  -- (형식만 맞는 무효 토큰을 많이 보내도 다른 사람의 정상 확인이 막히지 않게).
   select application.* into v_application
   from public.beta_applications as application
-  where application.confirm_token_hash = ilgam_private.beta_token_hash(p_token)
-  for update;
+  where application.confirm_token_hash = ilgam_private.beta_token_hash(p_token);
   if not found then
     return query select 'invalid'::text, false;
     return;
   end if;
+  if not ilgam_private.beta_take_call('confirm:' || v_application.confirm_token_hash || ':minute', 60, 10) then
+    return query select 'rate_limited'::text, false;
+    return;
+  end if;
+  select application.* into v_application
+  from public.beta_applications as application
+  where application.id = v_application.id
+  for update;
 
   if v_application.email_confirmed_at is null then
     if v_now > v_application.confirm_expires_at then
@@ -424,16 +445,16 @@ begin
     return query select 'invalid'::text, null::text, null::timestamptz;
     return;
   end if;
-  if not ilgam_private.beta_take_call('unsubscribe:all:minute', 60, 120) then
-    return query select 'rate_limited'::text, null::text, null::timestamptz;
-    return;
-  end if;
-
+  -- 무효 토큰은 아무것도 쓰지 않고 돌려보낸다. 호출 제한은 실제로 있는 링크마다 따로 센다.
   select token.email_hash into v_email_hash
   from public.beta_unsubscribe_tokens as token
   where token.token_hash = ilgam_private.beta_token_hash(p_token);
   if v_email_hash is null then
     return query select 'invalid'::text, null::text, null::timestamptz;
+    return;
+  end if;
+  if not ilgam_private.beta_take_call('unsubscribe:' || ilgam_private.beta_token_hash(p_token) || ':minute', 60, 10) then
+    return query select 'rate_limited'::text, null::text, null::timestamptz;
     return;
   end if;
 
@@ -523,11 +544,14 @@ begin
     application.purge_after,
     state.ad_status,
     state.suppressed,
-    -- 광고 발송 대상: 주소 확인까지 끝난 동의, 발송금지 아님, 적격, 미충족·미선정 아님(D1 결정 전 기본 동작).
+    -- 광고 발송 대상은 신청 행이 아니라 주소(이메일) 단위로 한 번만 계산한다.
+    -- 주소 확인까지 끝난 동의, 발송금지 아님, 그 주소의 가장 최근 신청이 적격,
+    -- 그 주소의 어느 신청도 미충족·미선정으로 결과 안내되지 않음(D1 결정 전 기본 동작).
+    -- 같은 주소의 과거 적격 신청 행이 남아 있어도 새 신청이 미충족·미선정이면 대상이 아니다.
     (state.ad_status = 'active'
       and not state.suppressed
-      and application.eligible
-      and coalesce(application.outcome, '') not in ('not_matched', 'not_selected')),
+      and state.latest_eligible
+      and not state.excluded_by_result),
     link.confirm_token,
     link.unsubscribe_token
   from public.beta_applications as application
@@ -538,7 +562,18 @@ begin
       exists (
         select 1 from public.beta_ad_suppressions as suppression
         where suppression.email_hash = application.email_hash
-      ) as suppressed
+      ) as suppressed,
+      (
+        select latest.eligible from public.beta_applications as latest
+        where latest.email_hash = application.email_hash
+        order by latest.created_at desc, latest.id desc
+        limit 1
+      ) as latest_eligible,
+      exists (
+        select 1 from public.beta_applications as decided
+        where decided.email_hash = application.email_hash
+          and decided.outcome in ('not_matched', 'not_selected')
+      ) as excluded_by_result
   ) as state
   order by application.created_at desc;
 end;
@@ -554,7 +589,8 @@ returns table(
   notice_shown_at timestamptz,
   notice_due_at timestamptz,
   notice_emailed_at timestamptz,
-  application_id uuid
+  application_id uuid,
+  recipient_email text
 )
 language plpgsql
 stable
@@ -573,15 +609,27 @@ begin
     event.notice_shown_at,
     event.notice_due_at,
     event.notice_emailed_at,
-    -- 통지를 보낼 주소: 그 의사표시를 남긴 신청, 없으면(수신거부 링크) 같은 주소의 가장 최근 신청.
-    -- 신청 정보가 지워졌으면 비어 있다.
-    coalesce(event.application_id, (
+    target.application_id,
+    -- 통지를 보낼 주소: 그 의사표시를 남긴 신청, 없으면(수신거부 링크) 같은 주소의 가장 최근 신청,
+    -- 신청 정보가 삭제 요청으로 지워졌으면 삭제 결과 안내를 보낼 때까지 남겨 둔 주소.
+    coalesce(
+      (select application.email from public.beta_applications as application where application.id = target.application_id),
+      (
+        select deletion.email from public.beta_deletion_requests as deletion
+        where deletion.email_hash = event.email_hash and deletion.email is not null
+        order by deletion.requested_at desc
+        limit 1
+      )
+    )
+  from public.beta_ad_consent_events as event
+  cross join lateral (
+    select coalesce(event.application_id, (
       select application.id from public.beta_applications as application
       where application.email_hash = event.email_hash
       order by application.created_at desc
       limit 1
-    ))
-  from public.beta_ad_consent_events as event
+    )) as application_id
+  ) as target
   order by event.occurred_at desc;
 end;
 $$;
@@ -680,22 +728,26 @@ $$;
 
 -- 삭제 요청 처리: 같은 주소의 신청 정보를 모두 지운다. 광고 수신 목록에서 빼고 발송금지 해시는 남긴다.
 -- 동의·철회 증빙은 남긴다(보유 근거 확정 전 기본). 일감체크 계정 데이터는 건드리지 않는다.
+-- 그 주소로 아직 보내지 않은 처리결과 통지(삭제 전 동의 등)와 이번 철회 통지, 삭제 결과 안내를 끝낼 수 있도록
+-- 주소만 beta_deletion_requests에 남긴다. 운영자가 통지를 모두 보내고 삭제 결과 안내를 보냈다고 표시하면 지운다.
 create function public.beta_ops_delete_application(p_application_id uuid)
-returns table(deleted_count integer, withdraw_event_id uuid, withdraw_at timestamptz)
+returns table(deleted_count integer, withdraw_event_id uuid, withdraw_at timestamptz, deletion_id uuid)
 language plpgsql
 volatile
 security definer
 set search_path = ''
 as $$
 declare
+  v_email text;
   v_email_hash text;
   v_status text;
   v_now timestamptz := clock_timestamp();
   v_event_id uuid;
   v_deleted integer;
+  v_deletion_id uuid;
 begin
   perform ilgam_private.beta_require_operator();
-  select application.email_hash into v_email_hash
+  select application.email, application.email_hash into v_email, v_email_hash
   from public.beta_applications as application
   where application.id = p_application_id;
   if v_email_hash is null then
@@ -719,7 +771,80 @@ begin
 
   delete from public.beta_applications as application where application.email_hash = v_email_hash;
   get diagnostics v_deleted = row_count;
-  return query select v_deleted, v_event_id, case when v_event_id is null then null else v_now end;
+  insert into public.beta_deletion_requests (email, email_hash, requested_at, deleted_count)
+  values (v_email, v_email_hash, v_now, v_deleted)
+  returning id into v_deletion_id;
+  return query select v_deleted, v_event_id, case when v_event_id is null then null else v_now end, v_deletion_id;
+end;
+$$;
+
+-- 삭제 요청 기록. 안내를 아직 보내지 않은 건만 주소가 있다.
+create function public.beta_ops_list_deletions()
+returns table(
+  id uuid,
+  email text,
+  requested_at timestamptz,
+  deleted_count integer,
+  result_emailed_at timestamptz,
+  pending_notices integer
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform ilgam_private.beta_require_operator();
+  return query
+  select
+    deletion.id,
+    deletion.email,
+    deletion.requested_at,
+    deletion.deleted_count,
+    deletion.result_emailed_at,
+    (
+      select count(*)::integer from public.beta_ad_consent_events as event
+      where event.email_hash = deletion.email_hash and event.notice_emailed_at is null
+    )
+  from public.beta_deletion_requests as deletion
+  order by deletion.requested_at desc;
+end;
+$$;
+
+-- 삭제 결과 안내를 보냈다고 표시하고 남겨 둔 주소를 지운다.
+-- 같은 주소로 보내야 할 처리결과 통지가 남아 있으면 거부한다(주소를 지우면 통지를 보낼 수 없으므로).
+create function public.beta_ops_mark_deletion_emailed(p_deletion_id uuid)
+returns timestamptz
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_deletion public.beta_deletion_requests%rowtype;
+  v_now timestamptz := clock_timestamp();
+begin
+  perform ilgam_private.beta_require_operator();
+  select deletion.* into v_deletion
+  from public.beta_deletion_requests as deletion
+  where deletion.id = p_deletion_id
+  for update;
+  if not found then
+    raise exception using errcode = '22023', message = 'deletion_not_found';
+  end if;
+  if v_deletion.result_emailed_at is not null then
+    return v_deletion.result_emailed_at;
+  end if;
+  if exists (
+    select 1 from public.beta_ad_consent_events as event
+    where event.email_hash = v_deletion.email_hash and event.notice_emailed_at is null
+  ) then
+    raise exception using errcode = '22023', message = 'notices_pending';
+  end if;
+  update public.beta_deletion_requests
+  set email = null, result_emailed_at = v_now
+  where id = v_deletion.id;
+  return v_now;
 end;
 $$;
 
@@ -735,8 +860,13 @@ declare
   v_deleted integer;
 begin
   perform ilgam_private.beta_require_operator();
+  -- 그 주소로 아직 보내지 않은 처리결과 통지가 있으면 주소를 잃지 않도록 정리하지 않는다(통지를 보낸 뒤 다시 정리).
   delete from public.beta_applications as application
-  where application.purge_after is not null and application.purge_after <= clock_timestamp();
+  where application.purge_after is not null and application.purge_after <= clock_timestamp()
+    and not exists (
+      select 1 from public.beta_ad_consent_events as event
+      where event.email_hash = application.email_hash and event.notice_emailed_at is null
+    );
   get diagnostics v_deleted = row_count;
   return v_deleted;
 end;
@@ -759,6 +889,8 @@ revoke all on function
   public.beta_ops_mark_notice_emailed(uuid),
   public.beta_ops_record_milestone(uuid, text, text),
   public.beta_ops_delete_application(uuid),
+  public.beta_ops_list_deletions(),
+  public.beta_ops_mark_deletion_emailed(uuid),
   public.beta_ops_purge_expired()
 from public, anon;
 grant execute on function
@@ -767,6 +899,8 @@ grant execute on function
   public.beta_ops_mark_notice_emailed(uuid),
   public.beta_ops_record_milestone(uuid, text, text),
   public.beta_ops_delete_application(uuid),
+  public.beta_ops_list_deletions(),
+  public.beta_ops_mark_deletion_emailed(uuid),
   public.beta_ops_purge_expired()
 to authenticated;
 

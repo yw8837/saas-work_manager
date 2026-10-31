@@ -192,6 +192,20 @@ describe("/apply/confirm/[token] 주소 확인 화면", () => {
     expect(rpc).toHaveBeenCalledWith("confirm_beta_email", { p_token: TOKEN });
   });
 
+  it.each([
+    ["네트워크 오류", { data: null, error: { message: "network" } }],
+    ["호출 제한", { data: [{ status: "rate_limited", ad_active: false }], error: null }],
+  ])("[리뷰 4] %s 뒤에도 새로고침 없이 다시 눌러 확인할 수 있다", async (_label, firstResponse) => {
+    useHosted();
+    rpc.mockResolvedValueOnce(firstResponse).mockResolvedValueOnce({ data: [{ status: "confirmed", ad_active: true }], error: null });
+    render(<BetaConfirmView token={TOKEN} />);
+    fireEvent.click(screen.getByRole("button", { name: "주소 확인하기" }));
+    expect(await screen.findByTestId("beta-confirm-result")).toHaveTextContent("지금은 처리하지 못했어요");
+    fireEvent.click(screen.getByRole("button", { name: "다시 확인하기" }));
+    expect(await screen.findByText("광고성 정보(이메일) 수신 동의가 유효해졌어요. 언제든 메일의 수신거부 링크로 철회할 수 있어요.")).toBeInTheDocument();
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
   it("[시험표 8] 만료된 확인 링크는 처리하지 않았다고 알린다", async () => {
     useHosted();
     rpc.mockResolvedValue({ data: [{ status: "expired", ad_active: false }], error: null });

@@ -84,6 +84,12 @@ export function BetaConfirmView({ token }: { token: string }) {
           {(outcome.status === "invalid" || outcome.status === "expired" || outcome.status === "error" || outcome.status === "rate_limited") && (
             <p>도움이 필요하면 {BETA_SENDER.email} 로 회신해 주세요.</p>
           )}
+          {/* 일시 오류(연결 문제·호출 제한)는 새로고침 없이 다시 누를 수 있어야 한다. */}
+          {(outcome.status === "error" || outcome.status === "rate_limited") && (
+            <button className="primaryButton betaSubmit" type="button" onClick={confirm} disabled={pending}>
+              {pending ? "확인하는 중" : "다시 확인하기"}
+            </button>
+          )}
         </div>
       ) : (
         <div className="betaPublicIntro">
