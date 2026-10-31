@@ -1043,6 +1043,7 @@ $$;
 
 -- 오래된 호출 제한 카운터 정리(운영자). 신청 정리와 따로 부르는 별도 트랜잭션이며 이메일 잠금을 잡지 않는다.
 -- 2일 지난 시간 창만, 한 번에 5,000행까지 지우고 남은 수를 돌려준다(남으면 다시 실행).
+-- 남은 수는 실행 시간에 상한을 두려고 5,001개까지만 센다. remaining_rows = 5001이면 '5,000행 넘게 남음'이라는 뜻이다.
 create function public.beta_ops_prune_call_counters()
 returns table(deleted_rows integer, remaining_rows integer)
 language plpgsql
@@ -1067,8 +1068,12 @@ begin
   where counter.bucket = batch.bucket and counter.window_start = batch.window_start;
   get diagnostics v_deleted = row_count;
   select count(*)::integer into v_remaining
-  from public.beta_public_call_counters as counter
-  where counter.window_start < v_cutoff;
+  from (
+    select 1
+    from public.beta_public_call_counters as counter
+    where counter.window_start < v_cutoff
+    limit 5001
+  ) as capped;
   return query select v_deleted, v_remaining;
 end;
 $$;

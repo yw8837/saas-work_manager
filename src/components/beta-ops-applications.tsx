@@ -30,6 +30,7 @@ import {
   type BetaOpsApplication,
   type BetaOpsDeletion,
   type BetaOpsNotice,
+  type BetaPurgeResult,
 } from "@/lib/supabase/beta";
 
 type Gate = "loading" | "login_required" | "not_operator" | "ready" | "error";
@@ -280,6 +281,43 @@ export function BetaOpsApplications() {
     await refresh(backend);
   }
 
+  // 정리 실행: 신청 정리와 호출 기록 정리는 서로 다른 RPC(트랜잭션)다. 결과·오류를 각각 처리해서,
+  // 신청 정리가 끝난 뒤 호출 기록 정리만 실패해도 이미 끝난 신청 정리 결과를 그대로 알린다.
+  async function runCleanup() {
+    if (!backend) return;
+    let purge: BetaPurgeResult;
+    try {
+      purge = await backend.purgeExpired();
+    } catch (error) {
+      setMessage(error instanceof BetaNotOperatorError
+        ? error.message
+        : "신청 정리를 하지 못했어요. 호출 기록 정리도 하지 않았어요. 새로고침 뒤 다시 시도해 주세요.");
+      await refresh(backend);
+      return;
+    }
+    const parts = [
+      `신청 ${purge.deletedCount}건을 정리했어요.`,
+      purge.remainingCount > 0
+        ? `정리 가능한 남은 대상 ${purge.remainingCount}명이 있어요(한 번에 주소 100개까지라 다시 눌러 주세요).`
+        : "",
+      purge.heldCount > 0
+        ? `보내지 않은 통지 때문에 보류된 주소 ${purge.heldCount}명이 있어요(통지를 보낸 뒤 정리돼요).`
+        : "",
+    ];
+    try {
+      const prune = await backend.pruneCallCounters();
+      parts.push(`오래된 호출 기록 ${prune.deletedRows}행을 지웠어요.`);
+      if (prune.remainingRows > 5000) parts.push("남은 기록이 5,000행 넘게 있어요. 다시 눌러 지워 주세요.");
+      else if (prune.remainingRows > 0) parts.push(`남은 ${prune.remainingRows}행은 다시 눌러 지워 주세요.`);
+    } catch (error) {
+      parts.push(error instanceof BetaNotOperatorError
+        ? error.message
+        : "호출 기록 정리는 완료하지 못했어요. 다시 시도해 주세요.");
+    }
+    setMessage(parts.filter(Boolean).join(" "));
+    await refresh(backend);
+  }
+
   async function copyAdTargets() {
     if (!backend) return;
     // 복사 직전에 다시 불러와 방금 수신거부한 사람을 다시 뺀다.
@@ -430,22 +468,7 @@ export function BetaOpsApplications() {
           <ConfirmButton
             label={`정리 실행 (만료 신청 ${expired.length}건 · 2일 지난 호출 기록)`}
             confirmLabel="신청과 오래된 호출 기록 정리하기"
-            onConfirm={() => run(async () => {
-              // 두 정리는 따로 부른다(서로 다른 트랜잭션). 신청 정리가 이메일 잠금을 쥔 채 카운터를 지우지 않게.
-              const purge = await backend!.purgeExpired();
-              const prune = await backend!.pruneCallCounters();
-              return { purge, prune };
-            }, ({ purge, prune }) => [
-              `신청 ${purge.deletedCount}건을 정리했어요.`,
-              purge.remainingCount > 0
-                ? `정리 가능한 남은 대상 ${purge.remainingCount}명이 있어요(한 번에 주소 100개까지라 다시 눌러 주세요).`
-                : "",
-              purge.heldCount > 0
-                ? `보내지 않은 통지 때문에 보류된 주소 ${purge.heldCount}명이 있어요(통지를 보낸 뒤 정리돼요).`
-                : "",
-              `오래된 호출 기록 ${prune.deletedRows}행을 지웠어요.`,
-              prune.remainingRows > 0 ? `남은 ${prune.remainingRows}행은 다시 눌러 지워 주세요.` : "",
-            ].filter(Boolean).join(" "))}
+            onConfirm={() => void runCleanup()}
           />
         </div>
         <ul className="betaOpsList">

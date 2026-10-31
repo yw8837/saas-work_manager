@@ -312,7 +312,7 @@ export type BetaPurgeResult = {
 
 export type BetaCounterPruneResult = {
   deletedRows: number;
-  /** 아직 남은 2일 지난 호출 제한 기록 행 수(한 번에 5,000행까지). */
+  /** 아직 남은 2일 지난 호출 제한 기록 행 수. 5,001개까지만 세므로 5,001이면 '5,000행 넘게 남음'이다. */
   remainingRows: number;
 };
 

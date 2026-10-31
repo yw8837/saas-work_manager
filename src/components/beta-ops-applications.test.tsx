@@ -229,6 +229,72 @@ describe("/ops/applications 운영자 화면", () => {
     expect(rpc).toHaveBeenCalledWith("beta_ops_prune_call_counters");
   });
 
+  function cleanupRpc(purge: () => Promise<RpcResult>, prune: () => Promise<RpcResult>) {
+    const expired = { ...applicationRow("test-cleanup@example.invalid", "app-cleanup"), purge_after: "2026-01-01T00:00:00Z" };
+    return vi.fn((name: string): Promise<RpcResult> => (
+      name === "beta_ops_list_applications" ? Promise.resolve({ data: [expired], error: null })
+        : name === "beta_ops_purge_expired" ? purge()
+          : name === "beta_ops_prune_call_counters" ? prune()
+            : Promise.resolve({ data: [], error: null })
+    ));
+  }
+
+  async function pressCleanup() {
+    fireEvent.click(await screen.findByRole("button", { name: "정리 실행 (만료 신청 1건 · 2일 지난 호출 기록)" }));
+    fireEvent.click(screen.getByRole("button", { name: "신청과 오래된 호출 기록 정리하기" }));
+  }
+
+  it("[재검토5 1] 정리 실행: 둘 다 성공하면 신청 정리 결과와 호출 기록 정리 결과를 함께 알린다", async () => {
+    const rpc = cleanupRpc(
+      async () => ({ data: [{ deleted_count: 1, remaining_count: 0, held_count: 2 }], error: null }),
+      async () => ({ data: [{ deleted_rows: 3, remaining_rows: 0 }], error: null }),
+    );
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    await pressCleanup();
+    const message = await screen.findByText(/신청 1건을 정리했어요/);
+    expect(message).toHaveTextContent("보내지 않은 통지 때문에 보류된 주소 2명");
+    expect(message).toHaveTextContent("오래된 호출 기록 3행을 지웠어요");
+  });
+
+  it("[재검토5 1] 정리 실행: 신청 정리는 성공하고 호출 기록 정리만 실패하면, 신청 결과는 그대로 알리고 호출 기록 정리만 실패했다고 말한다", async () => {
+    const rpc = cleanupRpc(
+      async () => ({ data: [{ deleted_count: 1, remaining_count: 4, held_count: 2 }], error: null }),
+      async () => ({ data: null, error: { message: "canceling statement due to statement timeout" } }),
+    );
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    await pressCleanup();
+    const message = await screen.findByText(/신청 1건을 정리했어요/);
+    expect(message).toHaveTextContent("정리 가능한 남은 대상 4명");
+    expect(message).toHaveTextContent("보내지 않은 통지 때문에 보류된 주소 2명");
+    expect(message).toHaveTextContent("호출 기록 정리는 완료하지 못했어요. 다시 시도해 주세요.");
+    expect(message).not.toHaveTextContent("처리하지 못했어요. 새로고침");
+  });
+
+  it("[재검토5 1] 정리 실행: 신청 정리가 실패하면 그렇게 알리고 호출 기록 정리 RPC는 부르지 않는다", async () => {
+    const rpc = cleanupRpc(
+      async () => ({ data: null, error: { message: "canceling statement due to statement timeout" } }),
+      async () => ({ data: [{ deleted_rows: 3, remaining_rows: 0 }], error: null }),
+    );
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    await pressCleanup();
+    expect(await screen.findByText(/신청 정리를 하지 못했어요/)).toHaveTextContent("호출 기록 정리도 하지 않았어요");
+    expect(rpc).not.toHaveBeenCalledWith("beta_ops_prune_call_counters");
+  });
+
+  it("[재검토5 2] 남은 호출 기록이 5,000행을 넘으면 정확한 수 대신 '5,000행 넘게'로 알린다", async () => {
+    const rpc = cleanupRpc(
+      async () => ({ data: [{ deleted_count: 0, remaining_count: 0, held_count: 0 }], error: null }),
+      async () => ({ data: [{ deleted_rows: 5000, remaining_rows: 5001 }], error: null }),
+    );
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    await pressCleanup();
+    expect(await screen.findByText(/오래된 호출 기록 5000행을 지웠어요/)).toHaveTextContent("남은 기록이 5,000행 넘게 있어요");
+  });
+
   it("[리뷰 7] 결과를 고르기만 해도 그 결과의 초안이 보이고, 보냄 표시는 아직 기록되지 않는다", async () => {
     useLocal();
     render(<BetaOpsApplications />);

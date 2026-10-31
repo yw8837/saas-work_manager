@@ -926,6 +926,22 @@ try {
     assert.doesNotMatch(functionBody("public.beta_ops_purge_expired"), /beta_public_call_counters/);
   });
 
+  await check("[재검토5 2] 호출 기록 정리의 남은 수는 5,001개까지만 센다(실행 시간 상한, 5,001 = '5,000 넘음')", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    await db.exec(`insert into public.beta_public_call_counters (bucket, window_start, calls)
+      select 'old:' || i, now() - interval '3 days', 1 from generate_series(1, 10002) as i`);
+    const runs = [];
+    for (let index = 0; index < 3; index += 1) {
+      runs.push((await as("authenticated", OPERATOR, "select * from public.beta_ops_prune_call_counters()")).rows[0]);
+    }
+    assert.deepEqual(runs, [
+      { deleted_rows: 5000, remaining_rows: 5001 },
+      { deleted_rows: 5000, remaining_rows: 2 },
+      { deleted_rows: 2, remaining_rows: 0 },
+    ]);
+    assert.match(functionBody("public.beta_ops_prune_call_counters"), /limit 5001/);
+  });
+
   const failed = results.filter((result) => !result.ok);
   if (failed.length) {
     console.error(`FAIL: ${failed.length}/${results.length} beta consent DB checks failed.`);
