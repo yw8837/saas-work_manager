@@ -34,7 +34,8 @@
 | `beta_ops_delete_application(uuid)` | X | O(운영자만) | O | 삭제 요청. 신청 정보는 바로 지우고 안내용 주소만 삭제 기록에 남김 |
 | `beta_ops_list_deletions()` | X | O(운영자만) | O | 삭제 요청 기록과 남은 통지 수 |
 | `beta_ops_mark_deletion_emailed(uuid)` | X | O(운영자만) | O | 삭제 결과 안내 보냄 표시. 같은 주소의 통지가 남아 있으면 거부, 표시하면 주소 삭제 |
-| `beta_ops_purge_expired()` | X | O(운영자만) | O | 보유기간 지난 신청 정리. 보내지 않은 통지가 남은 주소는 건너뜀. 한 번에 주소 100개, (deleted_count, remaining_count) 반환, 마지막에 2일 지난 호출 제한 카운터 정리 |
+| `beta_ops_purge_expired()` | X | O(운영자만) | O | 보유기간 지난 신청 정리. 보내지 않은 통지가 남은 주소는 후보에서 먼저 빼고(보류), 정리 가능한 주소만 해시순 100개씩. (deleted_count, remaining_count, held_count) 반환 |
+| `beta_ops_prune_call_counters()` | X | O(운영자만) | O | 2일 지난 호출 제한 기록 정리. 신청 정리와 따로(이메일 잠금 없음), 한 번에 5,000행, (deleted_rows, remaining_rows) 반환 |
 
 모두 `security definer`, `set search_path = ''`. 내부 도우미 9개(`ilgam_private.beta_email_hash`, `beta_token_hash`, `beta_new_token`, `beta_take_call`, `beta_peek_calls`, `beta_lock_email`, `beta_current_cohort`, `beta_ad_status`, `beta_require_operator`)는 anon·authenticated 실행 불가(DB 시험 `[권한] 운영자 RPC는 …`에서 9개 모두 확인). 표 9개(독립 리뷰 반영으로 `beta_deletion_requests`, 재검토 반영으로 `beta_ad_exclusions` 추가)는 anon·authenticated의 select·insert·update·delete 모두 불가(Supabase 기본 ACL을 흉내 낸 PGlite에서 확인).
 
@@ -160,6 +161,27 @@ RED 확인(작업자 보고, 독립 입증 아님): 리뷰 2·5·6 DB 시험 7�
 **3차 판단 정정:** 3차 반영 절(바로 위 '3차 재검토 반영'의 "2번의 한계")은 "한 주소만 잠그므로 잠금끼리 서로 기다리는 고리는 생기지 않는다"고 적었지만, 이는 이메일 잠금만 본 판단이었고 **틀렸다**. 카운터 표의 DELETE·UPSERT 행 잠금까지 넣으면 신청(이메일 → 카운터)과 확인·수신거부(카운터 → 이메일) 사이에 고리가 생길 수 있었다. 이번 수정으로 순서를 하나로 맞췄다.
 
 **남은 한계:** PGlite는 세션이 하나라 실제 두 세션의 교착을 재현하지 못했다. 이번 시험은 함수 본문의 호출 순서(이메일 잠금이 카운터보다 앞), 공개 RPC가 오래된 카운터 행을 지우지 않는 동작, 무효 토큰이 카운터를 쓰지 않는 동작, 정리 배치 한도를 확인한다. 교착이 없다는 결론은 여전히 코드 순서를 읽은 정적 판단이며, 실제 PostgreSQL 두 세션 회귀 시험(재검토가 권한 것)은 하지 않았다. 운영 적용 전 실제 Supabase(또는 로컬 Postgres)에서 두 세션 시험을 하는 것을 권한다.
+
+## 5차 재검토 반영 (Codex, 2026-11-01, 판정 "수정 필요")
+
+원문: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능-재검토4.md`. 판정: 4차 교착은 해결, 정리 배치에서 생긴 새 결함 2건(중간·회귀), 메모 1건.
+작업자(Claude) 보고: 시험을 먼저 만들어 실패를 확인한 뒤 고쳤다(작업자 실행 기록, 독립 입증 아님).
+
+| # | 심각도 | 원인 | 수정 | 시험 이름 |
+|---|---|---|---|---|
+| 1 | 중간(회귀) | 정리 후보를 해시순 100개 먼저 고르고 DELETE에서만 미발송 통지를 검사해, 앞 100주소가 보류면 101번째 정리 가능한 주소에 영원히 닿지 못했다(재검토 재현: 3회 연속 deleted 0, remaining 101) | 미발송 통지가 있는 주소를 후보에서 먼저 뺀 뒤 `ORDER BY email_hash LIMIT 100`. 잠근 뒤 DELETE에서 같은 조건을 다시 검사하는 보호는 유지. `remaining_count`(정리 가능한데 다음 실행 몫)와 `held_count`(통지 때문에 보류)를 나눠 돌려주고 화면 문구도 나눈다 | DB `[재검토4 1] 해시순 앞 100주소가 미발송 통지로 보류돼도, 그 뒤의 정리 가능한 주소는 정리된다(보류·남은 수 구분)`(재검토의 101주소 사례 그대로, 3회 실행) · 단위 `[재검토3 2][재검토4 1] 정리 결과에서 '정리 가능한 남은 대상'과 '통지 때문에 보류된 주소'를 나눠 알린다` |
+| 2 | 중간(회귀) | 오래된 카운터 정리가 신청 정리 함수 안에만 있는데, 그 버튼이 만료 신청 0건이면 비활성이라 화면에서 카운터를 정리할 길이 없었다 | 버튼을 항상 누를 수 있게 하고 이름을 "정리 실행 (만료 신청 N건 · 2일 지난 호출 기록)", 확인 문구를 "신청과 오래된 호출 기록 정리하기"로 바꿨다. 누르면 신청 정리 → 카운터 정리를 차례로(별도 RPC·별도 트랜잭션) 부른다 | 단위 `[재검토4 2] 만료 신청이 0건이어도 정리 버튼을 누를 수 있고, 오래된 호출 기록 정리 RPC까지 부른다` |
+| 3 | 메모 | 카운터 DELETE에 건수 제한·`window_start` 인덱스가 없고, 신청 정리와 같은 트랜잭션이라 이메일 잠금을 쥔 채 오래 지울 수 있었다 | 카운터 정리를 새 운영자 함수 `beta_ops_prune_call_counters()`로 분리(이메일 잠금 없음, 신청 정리 뒤 별도 호출). 한 번에 5,000행까지 지우고 남은 행 수를 돌려준다. `beta_public_call_counters(window_start)` 인덱스 추가. 신청 정리 함수는 카운터를 건드리지 않는다 | DB `[재검토4 3] 오래된 카운터 정리는 신청 정리와 따로(이메일 잠금 없이) 한 번에 5,000행까지 지우고 남은 수를 알려 준다`(5,001행 → 5,000 + 1, 현재 시간 창 보존, 잠금 키 없음, 인덱스·권한 확인), 기존 `[재검토3 1] …운영자 카운터 정리가 지운다…` |
+
+바뀐 기존 시험(설계 변경에 맞춤, 삭제·skip 없음): `[재검토2 2]`는 보류 주소를 이제 잠그지 않으므로 정리 잠금 키를 보기 전에 통지 보냄 표시를 한다. `[재검토3 1]`은 카운터 정리를 새 함수로 부른다. `[재검토3 2]`·`[재검토4 1]`은 앞 시험이 남긴 만료 신청이 숫자에 섞이지 않게 시작 때 정리 예정일을 비운다. 운영자 RPC 계약 시험은 운영자 확인 9개·새 권한 회수 목록에 맞췄다. 권한 회귀는 35 → 36행.
+101주소 시험이 옛 동작을 잡는지: 후보 필터를 일부러 빼면 `[재검토4 1]`만 FAIL, 원본 복구(`cmp` 동일) 뒤 39개 PASS(작업자 보고).
+
+## 한계·운영 안내 (호출 제한 기록)
+
+- 호출 제한 카운터 표(`beta_public_call_counters`)는 **운영자가 "정리 실행"을 누르지 않으면 계속 커진다.** "2일 지난 행" 조건은 자동 만료가 아니라 정리를 실행할 때만 적용된다. 자동 예약은 아직 없다(범위 문서 '하지 않는 것').
+- 크기 추정(재검토 계산): 신청만 보더라도 매시간 서로 다른 주소 300개가 접수되면 주소별 시·일 카운터와 전체 카운터로 **하루 약 14,424행**이 늘 수 있다. 확인·수신거부의 링크별 분 카운터는 별도다. 전체 한도가 찬 뒤 거절되는 새 주소는 카운터 행을 만들지 않는다(재검토 2 보호 유지).
+- 운영 안내: 신청을 받는 동안에는 적어도 며칠에 한 번 "정리 실행"을 누른다. 한 번에 5,000행까지 지우므로 남은 행이 있다고 나오면 다시 누른다. 자동 예약(service_role 예약 작업 등)은 사용자 결정 뒤 다음 단계에서 만든다.
+- 실제 PostgreSQL 두 세션 시험은 이번에도 하지 않았다(PGlite는 세션 하나).
 
 ## 사용자 결정 필요 (Codex 4차 재검토가 정리한 정책·법률 결정 목록, 원문 그대로)
 
@@ -341,3 +363,36 @@ VERIFY_SITES_EXIT=0
 ```
 
 - 정리 결과 문구(남은 정리 대상)는 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과). 실제 PostgreSQL 두 세션 교착 시험은 하지 않았다.
+
+### 5차 재검토 반영 뒤 재검증 (2026-11-01, 출력 원문 발췌)
+
+```
+$ npm run lint            → LINT_EXIT=0
+$ npm run typecheck       → TYPECHECK_EXIT=0
+$ npx vitest run
+ Test Files  137 passed (137)
+      Tests  910 passed (910)
+$ node scripts/test-native-push-db.mjs
+PASS: native SQL contract, deletion regression, 36 RPC privilege checks (ephemeral PGlite).
+NATIVE_DB_EXIT=0
+$ node scripts/test-beta-consent-db.mjs
+PASS: 39 beta consent DB checks (ephemeral PGlite).
+BETA_DB_EXIT=0
+$ npm run check:release
+[release-gate] PASS unit            (910 tests)
+[release-gate] PASS lint
+[release-gate] PASS typecheck
+[release-gate] PASS production dependency audit   (found 0 vulnerabilities)
+[release-gate] PASS local production build
+[e2e-release] PASS desktop/core 14 · desktop/surface 27 · mobile/core 14 · mobile/surface 27
+[release-gate] PASS local production E2E
+[release-gate] PASS hosted fail-closed production build
+[release-gate] PASS unit/lint/typecheck/audit/local E2E/hosted build 전체 게이트 통과.
+CHECK_RELEASE_EXIT=0
+$ npm run build:sites && node scripts/verify-sites-output.mjs
+BUILD_SITES_EXIT=0 (✓ built in 849ms / ✓ built in 47ms)
+Sites output verified
+VERIFY_SITES_EXIT=0
+```
+
+- 정리 버튼·결과 문구 변경은 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과). 스크린샷은 찍지 않았다.
