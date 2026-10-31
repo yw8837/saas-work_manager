@@ -1,0 +1,495 @@
+// 베타 신청·광고 동의·수신거부·처리결과 통지 DB 규칙 시험.
+// 로컬 임시 PostgreSQL(PGlite)에 모든 migration을 적용하고 실제 SQL을 실행한다. 운영 DB 연결·비밀값 없음.
+// 가상 주소(example.invalid)만 쓴다. 시험 이름의 [시험표 N]은 시험계획 v2 시험표 N번째 줄이다.
+import assert from "node:assert/strict";
+import { readFile, readdir } from "node:fs/promises";
+import { resolve } from "node:path";
+import { PGlite } from "@electric-sql/pglite";
+import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
+
+const OPERATOR = "00000000-0000-4000-8000-0000000000a1";
+const STRANGER = "00000000-0000-4000-8000-0000000000b2";
+const VERSION = "beta-apply-v1-2026-11-01";
+
+const db = await PGlite.create({ extensions: { pgcrypto } });
+const results = [];
+
+async function setup() {
+  await db.exec(`
+    create role anon nologin;
+    create role authenticated nologin;
+    create role service_role nologin bypassrls;
+    create schema auth;
+    create schema extensions;
+    grant usage on schema public,auth,extensions to anon,authenticated,service_role;
+    create table auth.users (
+      id uuid primary key, email text, raw_user_meta_data jsonb default '{}',
+      raw_app_meta_data jsonb default '{}', created_at timestamptz default now()
+    );
+    create function auth.uid() returns uuid language sql stable as
+      $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+    create function auth.jwt() returns jsonb language sql stable as
+      $$ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;
+    grant execute on function auth.uid(),auth.jwt() to anon,authenticated,service_role;
+    -- Supabase 기본 ACL처럼 새 표·함수 권한을 anon·authenticated에도 준다.
+    -- migration이 이 권한을 명시적으로 빼는지까지 시험하려는 것이다.
+    alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+    alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
+    create schema cron; create schema net; create schema vault;
+    create table cron.job(jobid bigint,jobname text);
+    create function cron.alter_job(job_id bigint,active boolean) returns void language sql as $$ select $$;
+    create table net.http_request_queue(id bigint, headers jsonb);
+    create table net._http_response(id bigint, content text);
+    grant usage on schema net to public;
+    grant all on net.http_request_queue, net._http_response to public;
+    create table vault.decrypted_secrets(name text, decrypted_secret text);
+    create function cron.schedule(text,text,text) returns bigint language sql as $$ select 1::bigint $$;
+    create function net.http_post(url text, headers jsonb, body jsonb, timeout_milliseconds integer)
+      returns bigint language sql as $$ select 1::bigint $$;
+  `);
+  const migrations = (await readdir(resolve("supabase/migrations"))).filter((p) => p.endsWith(".sql")).sort();
+  for (const migration of migrations) {
+    let sql = await readFile(resolve("supabase/migrations", migration), "utf8");
+    if (migration === "20261023112855_native_push_scheduler.sql") {
+      sql = sql.replace(/^create extension if not exists pg_cron;$/m, "")
+        .replace(/^create extension if not exists pg_net with schema extensions;$/m, "");
+    }
+    try { await db.exec(sql); }
+    catch (error) { throw new Error(`Migration ${migration}: ${error.message}`, { cause: error }); }
+  }
+  await db.exec(`
+    insert into auth.users(id, email) values
+      ('${OPERATOR}', 'operator@example.invalid'),
+      ('${STRANGER}', 'stranger@example.invalid');
+    insert into public.beta_operator_accounts(user_id) values ('${OPERATOR}');
+  `);
+}
+
+/** 역할(anon·authenticated)과 로그인 사용자를 바꿔 SQL을 실행한다. 끝나면 원래 역할로 돌아간다. */
+async function as(role, sub, sql, params = []) {
+  await db.exec(`set role ${role}`);
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [sub ?? ""]);
+  try {
+    return await db.query(sql, params);
+  } finally {
+    await db.exec("reset role");
+    await db.query("select set_config('request.jwt.claim.sub', '', false)");
+  }
+}
+
+async function apply(email, overrides = {}) {
+  const input = {
+    workType: "web", sellsPackages: true, concurrentJobs: "2-3", channels: ["kmong"],
+    participation: "beta", privacy: true, ad: false, version: VERSION, ...overrides,
+  };
+  const { rows } = await as("anon", null, `select * from public.submit_beta_application($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [
+    email, input.workType, input.sellsPackages, input.concurrentJobs, input.channels,
+    input.participation, input.privacy, input.ad, input.version,
+  ]);
+  return rows[0];
+}
+
+async function opsApplications() {
+  return (await as("authenticated", OPERATOR, "select * from public.beta_ops_list_applications()")).rows;
+}
+
+async function opsNotices() {
+  return (await as("authenticated", OPERATOR, "select * from public.beta_ops_list_notices()")).rows;
+}
+
+async function latestApplication(email) {
+  return (await opsApplications()).find((row) => row.email === email);
+}
+
+async function confirm(token) {
+  return (await as("anon", null, "select * from public.confirm_beta_email($1)", [token])).rows[0];
+}
+
+async function unsubscribe(token) {
+  return (await as("anon", null, "select * from public.unsubscribe_beta_ads($1)", [token])).rows[0];
+}
+
+async function rejects(promise, message) {
+  await assert.rejects(promise, (error) => error.message.includes(message));
+}
+
+async function check(name, fn) {
+  try {
+    await fn();
+    results.push({ name, ok: true });
+    console.log(`PASS ${name}`);
+  } catch (error) {
+    results.push({ name, ok: false });
+    console.error(`FAIL ${name}: ${error.message}`);
+  }
+}
+
+try {
+  await setup();
+
+  await check("[권한] 표는 anon·authenticated가 직접 읽거나 쓰지 못한다", async () => {
+    for (const table of [
+      "beta_operator_accounts", "beta_applications", "beta_application_links", "beta_unsubscribe_tokens",
+      "beta_ad_consent_events", "beta_ad_suppressions", "beta_public_call_counters",
+    ]) {
+      for (const role of ["anon", "authenticated"]) {
+        for (const privilege of ["select", "insert", "update", "delete"]) {
+          const { rows } = await db.query(`select has_table_privilege($1, $2, $3) as allowed`, [role, `public.${table}`, privilege]);
+          assert.equal(rows[0].allowed, false, `${role} ${privilege} ${table}`);
+        }
+      }
+    }
+    await rejects(as("anon", null, "select * from public.beta_applications"), "permission denied");
+  });
+
+  await check("[권한] 운영자 RPC는 anon이 실행할 수 없고, 운영자 표에 없는 로그인 계정은 not_operator", async () => {
+    await rejects(as("anon", null, "select * from public.beta_ops_list_applications()"), "permission denied");
+    await rejects(as("authenticated", STRANGER, "select * from public.beta_ops_list_applications()"), "not_operator");
+    await rejects(as("authenticated", STRANGER, "select public.beta_ops_purge_expired()"), "not_operator");
+    await rejects(as("authenticated", null, "select * from public.beta_ops_list_notices()"), "not_operator");
+    const helper = await db.query(`select
+      has_function_privilege('anon','ilgam_private.beta_ad_status(text)','execute') as anon_status,
+      has_function_privilege('authenticated','ilgam_private.beta_take_call(text,integer,integer)','execute') as auth_take`);
+    assert.deepEqual(helper.rows[0], { anon_status: false, auth_take: false });
+  });
+
+  await check("[시험표 3] 필수 동의를 거부하면 제출할 수 없다", async () => {
+    await rejects(apply("test03-a@example.invalid", { privacy: false }), "privacy_consent_required");
+    assert.equal(await latestApplication("test03-a@example.invalid"), undefined);
+  });
+
+  await check("[시험표 3] 선택 항목(주문 받는 곳)을 비우고 광고에 동의하지 않아도 신청된다", async () => {
+    const result = await apply("test03-b@example.invalid", { channels: [], ad: false });
+    assert.equal(result.status, "received");
+    assert.equal(result.ad_event_kind, null);
+    const row = await latestApplication("test03-b@example.invalid");
+    assert.deepEqual(row.order_channels, []);
+    assert.equal(row.ad_status, "none");
+  });
+
+  await check("[시험표 3] 잘못된 입력(주소 형식·선택지·문구 판본)은 저장하지 않는다", async () => {
+    await rejects(apply("not-an-email"), "invalid_beta_application");
+    await rejects(apply("test03-c@example.invalid", { concurrentJobs: "5" }), "invalid_beta_application");
+    await rejects(apply("test03-c@example.invalid", { channels: ["instagram"] }), "invalid_beta_application");
+    await rejects(apply("test03-c@example.invalid", { version: "made-up" }), "invalid_beta_application");
+    assert.equal(await latestApplication("test03-c@example.invalid"), undefined);
+  });
+
+  await check("[시험표 1·2] 참여 희망 3 × 광고 2 × 적격/미충족 12사례: 판정, 통지 기록, 광고 대상", async () => {
+    let index = 0;
+    for (const participation of ["interview", "beta", "both"]) {
+      for (const ad of [true, false]) {
+        for (const eligibleCase of [true, false]) {
+          index += 1;
+          const email = `test-route${String(index).padStart(2, "0")}@example.invalid`;
+          // 미충족 사례는 번갈아 '패키지 판매 아니오'와 '동시 1건'으로 만든다.
+          const overrides = eligibleCase
+            ? { sellsPackages: true, concurrentJobs: index % 2 ? "2-3" : "4+" }
+            : index % 2 ? { sellsPackages: false, concurrentJobs: "4+" } : { sellsPackages: true, concurrentJobs: "1" };
+          const result = await apply(email, { participation, ad, workType: index % 3 ? "design" : "other", ...overrides });
+          assert.equal(result.status, "received");
+          // 광고 동의 의사표시는 적격 여부와 상관없이 처리결과 통지 대상이다.
+          assert.equal(result.ad_event_kind, ad ? "consent" : null);
+          const row = await latestApplication(email);
+          assert.equal(row.eligible, eligibleCase, email);
+          assert.equal(row.participation, participation);
+          if (ad) {
+            const { rows } = await db.query(
+              "select application.confirm_token from public.beta_application_links application join public.beta_applications a on a.id = application.application_id where a.email = $1",
+              [email],
+            );
+            assert.equal((await confirm(rows[0].confirm_token)).status, "confirmed");
+          }
+          const confirmed = await latestApplication(email);
+          // 광고 대상은 적격 + 광고 동의 + 주소 확인일 때만. 미충족이면 동의해도 대상이 아니다(D1 기본 동작).
+          assert.equal(confirmed.ad_target, ad && eligibleCase, `${email} ad_target`);
+          assert.equal(confirmed.ad_status, ad ? "active" : "none");
+        }
+      }
+    }
+    const notices = await opsNotices();
+    const routeNotices = notices.filter((notice) => notice.kind === "consent" && notice.source === "apply_form");
+    assert.ok(routeNotices.length >= 6);
+  });
+
+  await check("[시험표 2] 적격이어도 미선정으로 결과 안내를 보내면 광고 대상에서 빠지고 1개월 뒤 정리 대상이 된다", async () => {
+    await apply("test02-selected@example.invalid", { ad: true });
+    const before = await latestApplication("test02-selected@example.invalid");
+    await confirm(before.confirm_token);
+    assert.equal((await latestApplication("test02-selected@example.invalid")).ad_target, true);
+    const { rows } = await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','not_selected') as purge_after", [before.id]);
+    const after = await latestApplication("test02-selected@example.invalid");
+    assert.equal(after.ad_target, false);
+    assert.equal(after.outcome, "not_selected");
+    const diff = await db.query("select $2::timestamptz + interval '1 month' = $1::timestamptz as ok", [rows[0].purge_after, after.result_sent_at]);
+    assert.equal(diff.rows[0].ok, true);
+  });
+
+  await check("[시험표 2] 미충족 신청은 결과를 '조건과 맞지 않음'으로만 기록할 수 있다", async () => {
+    await apply("test02-unmatched@example.invalid", { sellsPackages: false });
+    const row = await latestApplication("test02-unmatched@example.invalid");
+    await rejects(as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','beta')", [row.id]), "invalid_outcome");
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','not_matched')", [row.id]);
+    assert.equal((await latestApplication("test02-unmatched@example.invalid")).outcome, "not_matched");
+  });
+
+  await check("[보관] 인터뷰만 6개월·베타 종료 후 6개월로 정리 예정일을 계산하고, 지난 것만 정리한다", async () => {
+    await apply("test-keep-interview@example.invalid", { participation: "interview" });
+    await apply("test-keep-beta@example.invalid", { participation: "both" });
+    const interview = await latestApplication("test-keep-interview@example.invalid");
+    const beta = await latestApplication("test-keep-beta@example.invalid");
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','interview')", [interview.id]);
+    assert.equal((await latestApplication("test-keep-interview@example.invalid")).purge_after, null);
+    const done = await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'interview_done',null) as at", [interview.id]);
+    const interviewAfter = await latestApplication("test-keep-interview@example.invalid");
+    assert.equal(
+      (await db.query("select $2::timestamptz + interval '6 months' = $1::timestamptz as ok", [done.rows[0].at, interviewAfter.interview_done_at])).rows[0].ok,
+      true,
+    );
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'result_sent','beta')", [beta.id]);
+    await rejects(as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'interview_done',null)", [beta.id]), "invalid_milestone");
+    await as("authenticated", OPERATOR, "select public.beta_ops_record_milestone($1,'beta_ended',null)", [beta.id]);
+    assert.notEqual((await latestApplication("test-keep-beta@example.invalid")).purge_after, null);
+
+    // 기한이 지난 한 건만 만든다(시간을 앞당기는 대신 기한을 과거로 옮긴다).
+    await db.query("update public.beta_applications set purge_after = now() - interval '1 day' where email = 'test-keep-interview@example.invalid'");
+    const purged = await as("authenticated", OPERATOR, "select public.beta_ops_purge_expired() as count");
+    assert.equal(purged.rows[0].count, 1);
+    assert.equal(await latestApplication("test-keep-interview@example.invalid"), undefined);
+    assert.ok(await latestApplication("test-keep-beta@example.invalid"));
+  });
+
+  await check("[시험표 4] 신규 미동의 / 기존 동의 유지 / 철회 후 재신청: 체크하지 않은 재신청은 상태를 덮어쓰지 않는다", async () => {
+    const email = "test04@example.invalid";
+    await apply(email, { ad: false });
+    assert.equal((await latestApplication(email)).ad_status, "none");
+
+    await apply(email, { ad: true });
+    const consented = await latestApplication(email);
+    assert.equal(consented.ad_status, "pending");
+    await confirm(consented.confirm_token);
+    assert.equal((await latestApplication(email)).ad_status, "active");
+
+    // 기존 동의 + 이번에는 체크 안 함 → 동의 유지(철회로 보지 않는다).
+    await apply(email, { ad: false });
+    assert.equal((await latestApplication(email)).ad_status, "active");
+
+    const withdrawn = await unsubscribe(consented.unsubscribe_token);
+    assert.equal(withdrawn.status, "withdrawn");
+    assert.equal((await latestApplication(email)).ad_status, "withdrawn");
+
+    // 철회 뒤 체크 없이 재신청 → 철회 그대로.
+    await db.exec("delete from public.beta_public_call_counters");
+    await apply(email, { ad: false });
+    assert.equal((await latestApplication(email)).ad_status, "withdrawn");
+    // 철회 뒤에 옛 확인 링크를 다시 눌러도 동의가 되살아나지 않는다.
+    assert.equal((await confirm(consented.confirm_token)).ad_active, false);
+    assert.equal((await latestApplication(email)).ad_status, "withdrawn");
+
+    // 새로 체크해야만 동의(확인 대기)로, 주소 확인 뒤에야 유효로 돌아온다.
+    await apply(email, { ad: true });
+    const renewed = await latestApplication(email);
+    assert.equal(renewed.ad_status, "pending");
+    assert.equal(renewed.suppressed, true);
+    assert.equal(renewed.ad_target, false);
+    const result = await confirm(renewed.confirm_token);
+    assert.deepEqual(result, { status: "confirmed", ad_active: true });
+    const restored = await latestApplication(email);
+    assert.equal(restored.ad_status, "active");
+    assert.equal(restored.suppressed, false);
+    assert.equal(restored.ad_target, true);
+
+    // 이미 유효한 사람이 다시 체크해도 '확인 대기'로 내려가지 않는다.
+    await db.exec("delete from public.beta_public_call_counters");
+    assert.equal((await apply(email, { ad: true })).ad_event_kind, "consent");
+    assert.equal((await latestApplication(email)).ad_status, "active");
+  });
+
+  await check("[시험표 5] 동의·거부·철회마다 통지 기록 1건: 의사표시 시각, 화면 표시 시각, 14일 마감, 이메일 통지 표시", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const consentEmail = "test05-consent@example.invalid";
+    const submitted = await apply(consentEmail, { ad: true });
+    assert.equal(submitted.ad_event_kind, "consent");
+    assert.equal(
+      (await db.query("select $2::timestamptz + interval '14 days' = $1::timestamptz as ok", [submitted.ad_notice_due_at, submitted.ad_event_at])).rows[0].ok,
+      true,
+    );
+    const consentRow = await latestApplication(consentEmail);
+    // 아직 동의한 적 없는 주소의 수신거부 = 거부.
+    const refuseEmail = "test05-refuse@example.invalid";
+    await apply(refuseEmail, { ad: false });
+    const refuseRow = await latestApplication(refuseEmail);
+    const refused = await unsubscribe(refuseRow.unsubscribe_token);
+    assert.equal(refused.status, "refused");
+    const withdrawn = await unsubscribe(consentRow.unsubscribe_token);
+    assert.equal(withdrawn.status, "withdrawn");
+
+    const notices = await opsNotices();
+    const mine = notices.filter((notice) => [consentRow.id, refuseRow.id].includes(notice.application_id));
+    assert.deepEqual(mine.map((notice) => notice.kind).sort(), ["consent", "refuse", "withdraw"]);
+    for (const notice of mine) {
+      assert.ok(notice.occurred_at instanceof Date);
+      assert.ok(notice.notice_shown_at instanceof Date, "화면 표시 시각");
+      assert.equal(notice.notice_due_at.getTime() - notice.occurred_at.getTime(), 14 * 24 * 3600 * 1000);
+      assert.equal(notice.notice_emailed_at, null);
+    }
+    const target = mine.find((notice) => notice.kind === "withdraw");
+    const marked = await as("authenticated", OPERATOR, "select public.beta_ops_mark_notice_emailed($1) as at", [target.event_id]);
+    const again = await as("authenticated", OPERATOR, "select public.beta_ops_mark_notice_emailed($1) as at", [target.event_id]);
+    assert.equal(marked.rows[0].at.getTime(), again.rows[0].at.getTime(), "두 번 눌러도 처음 시각을 유지");
+    // 체크하지 않은 신청은 의사표시가 아니라서 통지 기록이 생기지 않는다.
+    const unchecked = await apply("test05-none@example.invalid", { ad: false });
+    assert.equal(unchecked.ad_event_kind, null);
+  });
+
+  await check("[시험표 6] 로그인하지 않은 상태(anon)로 수신거부가 추가 개인정보 없이 처리된다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    await apply("test06@example.invalid", { ad: true });
+    const row = await latestApplication("test06@example.invalid");
+    const result = await unsubscribe(row.unsubscribe_token);
+    assert.deepEqual(Object.keys(result).sort(), ["event_at", "event_kind", "status"]);
+    assert.equal(result.status, "withdrawn");
+    assert.ok(!JSON.stringify(result).includes("example.invalid"), "응답에 주소가 없다");
+  });
+
+  await check("[시험표 7] 수신거부 직후 다음 광고 대상 목록에서 바로 빠진다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test07@example.invalid";
+    await apply(email, { ad: true });
+    const row = await latestApplication(email);
+    await confirm(row.confirm_token);
+    assert.equal((await latestApplication(email)).ad_target, true);
+    await unsubscribe(row.unsubscribe_token);
+    const after = await latestApplication(email);
+    assert.equal(after.ad_target, false);
+    assert.equal(after.suppressed, true);
+    // 운영 연락 목록(신청 정보)은 그대로 남는다. 운영 안내는 목적에 따라 따로 보낸다.
+    assert.equal(after.email, email);
+  });
+
+  await check("[시험표 8] 같은 링크 재클릭은 같은 결과, 무효·형식 오류 링크는 오류 없이 invalid, 만료된 확인 링크는 expired", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test08@example.invalid";
+    await apply(email, { ad: true });
+    const row = await latestApplication(email);
+    const first = await unsubscribe(row.unsubscribe_token);
+    const second = await unsubscribe(row.unsubscribe_token);
+    assert.equal(first.status, "withdrawn");
+    assert.equal(second.status, "already");
+    assert.equal(second.event_kind, first.event_kind);
+    assert.equal(second.event_at.getTime(), first.event_at.getTime());
+    const events = await db.query("select count(*)::int as n from public.beta_ad_consent_events where kind='withdraw' and application_id is null and email_hash = (select email_hash from public.beta_applications where email = $1 limit 1)", [email]);
+    assert.equal(events.rows[0].n, 1, "재클릭으로 이력이 두 번 쌓이지 않는다");
+
+    for (const token of ["", "short", "x".repeat(43), "a".repeat(43) + "<script>", "' or 1=1 --".padEnd(50, "a")]) {
+      assert.equal((await unsubscribe(token)).status, "invalid", token);
+      assert.equal((await confirm(token)).status, "invalid", token);
+    }
+
+    await apply("test08-expired@example.invalid", { ad: true });
+    const expired = await latestApplication("test08-expired@example.invalid");
+    await db.query("update public.beta_applications set confirm_expires_at = now() - interval '1 second' where id = $1", [expired.id]);
+    assert.deepEqual(await confirm(expired.confirm_token), { status: "expired", ad_active: false });
+    assert.equal((await latestApplication("test08-expired@example.invalid")).ad_status, "pending");
+
+    await apply("test08-twice@example.invalid", { ad: true });
+    const twice = await latestApplication("test08-twice@example.invalid");
+    assert.deepEqual(await confirm(twice.confirm_token), { status: "confirmed", ad_active: true });
+    assert.deepEqual(await confirm(twice.confirm_token), { status: "already_confirmed", ad_active: true });
+  });
+
+  await check("[시험표 9] 링크를 여는 것만으로는 처리되지 않는다: 토큰으로 상태를 읽는 공개 함수가 없다", async () => {
+    const { rows } = await db.query(`
+      select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and (p.proname like '%beta%')
+        and has_function_privilege('anon', p.oid, 'execute')
+      order by 1`);
+    // 공개 함수는 처리 3개뿐이고, 각각 버튼을 눌렀을 때만 부른다(화면은 GET에서 부르지 않는다).
+    assert.deepEqual(rows.map((row) => row.proname), ["confirm_beta_email", "submit_beta_application", "unsubscribe_beta_ads"]);
+  });
+
+  await check("[시험표 10] 삭제 요청: 같은 주소의 신청 정보는 지우고, 발송금지 해시와 동의·철회 증빙은 남기고, 다른 사람은 그대로", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test10@example.invalid";
+    await apply(email, { ad: true, participation: "interview" });
+    await apply(email, { ad: false, participation: "beta" });
+    await apply("test10-other@example.invalid", { ad: true });
+    const row = await latestApplication(email);
+    const result = await as("authenticated", OPERATOR, "select * from public.beta_ops_delete_application($1)", [row.id]);
+    assert.equal(result.rows[0].deleted_count, 2);
+    assert.ok(result.rows[0].withdraw_event_id, "광고 동의가 있었으면 철회로 기록");
+    assert.equal((await opsApplications()).filter((item) => item.email === email).length, 0);
+    const leftovers = await db.query(`
+      select
+        (select count(*)::int from public.beta_application_links l where not exists (select 1 from public.beta_applications a where a.id = l.application_id)) as orphan_links,
+        (select count(*)::int from public.beta_ad_suppressions where email_hash = encode(extensions.digest('ilgamcheck-beta-ad:' || $1, 'sha256'), 'hex')) as suppressed,
+        (select count(*)::int from public.beta_ad_consent_events where email_hash = encode(extensions.digest('ilgamcheck-beta-ad:' || $1, 'sha256'), 'hex')) as evidence,
+        (select count(*)::int from public.beta_ad_suppressions s where s.email_hash = $1) as raw_address_rows`, [email]);
+    assert.deepEqual(leftovers.rows[0], { orphan_links: 0, suppressed: 1, evidence: 2, raw_address_rows: 0 });
+    assert.ok(await latestApplication("test10-other@example.invalid"), "다른 신청자는 지우지 않는다");
+    // 이미 보낸 메일의 수신거부 링크는 지운 뒤에도 오류 없이 '이미 처리됨'으로 안내된다.
+    assert.equal((await unsubscribe(row.unsubscribe_token)).status, "already");
+    // 지운 신청의 통지 기록은 주소 없이 남는다.
+    const notice = (await opsNotices()).find((item) => item.event_id === result.rows[0].withdraw_event_id);
+    assert.equal(notice.application_id, null);
+    assert.equal(notice.source, "deletion_request");
+  });
+
+  await check("[시험표 11] 수신자 대체 ①: A·B가 잇달아 신청해도 링크·상태가 각자 레코드에만 묶인다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    await apply("test-a@example.invalid", { ad: true, participation: "interview" });
+    await apply("test-b@example.invalid", { ad: true, participation: "beta" });
+    const a = await latestApplication("test-a@example.invalid");
+    const b = await latestApplication("test-b@example.invalid");
+    assert.notEqual(a.confirm_token, b.confirm_token);
+    assert.notEqual(a.unsubscribe_token, b.unsubscribe_token);
+    await confirm(a.confirm_token);
+    assert.equal((await latestApplication("test-a@example.invalid")).ad_status, "active");
+    assert.equal((await latestApplication("test-b@example.invalid")).ad_status, "pending", "A의 확인이 B를 바꾸지 않는다");
+    await unsubscribe(b.unsubscribe_token);
+    assert.equal((await latestApplication("test-a@example.invalid")).ad_status, "active", "B의 수신거부가 A를 바꾸지 않는다");
+    assert.equal((await latestApplication("test-b@example.invalid")).ad_status, "withdrawn");
+  });
+
+  await check("[시험표 12] 수신자 대체 ②: 남의 주소로 광고 동의해도 확인 전에는 유효가 아니고, 신청 응답에 확인 토큰이 없다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const result = await apply("test-c@example.invalid", { ad: true });
+    assert.deepEqual(Object.keys(result).sort(), ["ad_event_at", "ad_event_kind", "ad_notice_due_at", "status"]);
+    const row = await latestApplication("test-c@example.invalid");
+    assert.ok(!JSON.stringify(result).includes(row.confirm_token));
+    assert.equal(row.ad_status, "pending");
+    assert.equal(row.ad_target, false);
+    assert.equal(row.email_confirmed_at, null);
+    // 주소 주인은 확인하지 않고 바로 거부할 수 있다(추가 개인정보 없이).
+    assert.equal((await unsubscribe(row.unsubscribe_token)).status, "withdrawn");
+    assert.equal((await latestApplication("test-c@example.invalid")).ad_target, false);
+    // 거부한 뒤 (아직 누르지 않았던) 확인 링크를 눌러도 동의가 되살아나지 않는다.
+    assert.deepEqual(await confirm(row.confirm_token), { status: "confirmed", ad_active: false });
+    const after = await latestApplication("test-c@example.invalid");
+    assert.equal(after.ad_status, "withdrawn");
+    assert.equal(after.suppressed, true);
+    assert.equal(after.ad_target, false);
+  });
+
+  await check("[호출 제한] 같은 주소는 시간당 3건까지, 넘으면 저장하지 않고 rate_limited", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-rate@example.invalid";
+    for (let index = 0; index < 3; index += 1) assert.equal((await apply(email)).status, "received");
+    assert.equal((await apply(email)).status, "rate_limited");
+    assert.equal((await opsApplications()).filter((row) => row.email === email).length, 3);
+  });
+
+  const failed = results.filter((result) => !result.ok);
+  if (failed.length) {
+    console.error(`FAIL: ${failed.length}/${results.length} beta consent DB checks failed.`);
+    process.exitCode = 1;
+  } else {
+    console.log(`PASS: ${results.length} beta consent DB checks (ephemeral PGlite).`);
+  }
+} catch (error) {
+  console.error(`FAIL: ${error.message}`);
+  if (error.where) console.error(error.where);
+  process.exitCode = 1;
+} finally {
+  await db.close();
+}
