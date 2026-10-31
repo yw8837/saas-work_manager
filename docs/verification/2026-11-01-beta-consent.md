@@ -34,7 +34,7 @@
 | `beta_ops_delete_application(uuid)` | X | O(운영자만) | O | 삭제 요청. 신청 정보는 바로 지우고 안내용 주소만 삭제 기록에 남김 |
 | `beta_ops_list_deletions()` | X | O(운영자만) | O | 삭제 요청 기록과 남은 통지 수 |
 | `beta_ops_mark_deletion_emailed(uuid)` | X | O(운영자만) | O | 삭제 결과 안내 보냄 표시. 같은 주소의 통지가 남아 있으면 거부, 표시하면 주소 삭제 |
-| `beta_ops_purge_expired()` | X | O(운영자만) | O | 보유기간 지난 신청 정리. 보내지 않은 통지가 남은 주소는 건너뜀 |
+| `beta_ops_purge_expired()` | X | O(운영자만) | O | 보유기간 지난 신청 정리. 보내지 않은 통지가 남은 주소는 건너뜀. 한 번에 주소 100개, (deleted_count, remaining_count) 반환, 마지막에 2일 지난 호출 제한 카운터 정리 |
 
 모두 `security definer`, `set search_path = ''`. 내부 도우미 9개(`ilgam_private.beta_email_hash`, `beta_token_hash`, `beta_new_token`, `beta_take_call`, `beta_peek_calls`, `beta_lock_email`, `beta_current_cohort`, `beta_ad_status`, `beta_require_operator`)는 anon·authenticated 실행 불가(DB 시험 `[권한] 운영자 RPC는 …`에서 9개 모두 확인). 표 9개(독립 리뷰 반영으로 `beta_deletion_requests`, 재검토 반영으로 `beta_ad_exclusions` 추가)는 anon·authenticated의 select·insert·update·delete 모두 불가(Supabase 기본 ACL을 흉내 낸 PGlite에서 확인).
 
@@ -142,9 +142,35 @@ RED 확인(작업자 보고, 독립 입증 아님): 리뷰 2·5·6 DB 시험 7�
 | 3 | 낮음 | 검증 기록이 새 화면 분기를 E2E로도 확인한 것처럼 적었다 | "새 분기는 단위 시험으로만, E2E는 기존 흐름 회귀 통과"로 고쳤다 | 문서 |
 | 4 | 낮음 | 검증 기록의 내부 도우미 수가 6개였다(실제 9개) | 9개 이름을 적고, DB 시험이 9개 모두 anon·authenticated 실행 불가인지 확인하게 했다 | DB `[권한] 운영자 RPC는 anon이 실행할 수 없고, …`(9개 확인 추가) |
 
-**2번의 한계:** PGlite는 세션 하나라 실제로 두 세션이 겹치는 경합은 재현하지 못했다. 시험은 (가) 각 경로가 트랜잭션 안에서 쥐는 advisory 잠금 키가 같은지(`pg_locks`), (나) 정리 함수가 해시 순서로 잠그는지, (다) 잠금 뒤 조건 재확인 동작(미발송 통지가 있으면 정리·삭제 안내 완료 거부)을 확인한다. 실제 Supabase에서의 다중 세션 부하·교착 시험은 하지 않았다. 잠금 순서 규칙: 한 경로가 여러 주소를 잠그는 곳은 정리뿐이고 해시 오름차순이며, 나머지는 한 주소만 잠그므로 잠금끼리 서로 기다리는 고리는 생기지 않는다고 판단했다(정적 분석).
+**2번의 한계:** PGlite는 세션 하나라 실제로 두 세션이 겹치는 경합은 재현하지 못했다. 시험은 (가) 각 경로가 트랜잭션 안에서 쥐는 advisory 잠금 키가 같은지(`pg_locks`), (나) 정리 함수가 해시 순서로 잠그는지, (다) 잠금 뒤 조건 재확인 동작(미발송 통지가 있으면 정리·삭제 안내 완료 거부)을 확인한다. 실제 Supabase에서의 다중 세션 부하·교착 시험은 하지 않았다. 잠금 순서 규칙: 한 경로가 여러 주소를 잠그는 곳은 정리뿐이고 해시 오름차순이며, 나머지는 한 주소만 잠그므로 잠금끼리 서로 기다리는 고리는 생기지 않는다고 판단했다(정적 분석). **(4차 재검토에서 정정: 이 판단은 카운터 표의 DELETE·UPSERT를 빠뜨려 틀렸다. 아래 '4차 재검토 반영' 참고.)**
 
 그대로 둔 것: ③ 주소 없는 철회·거부의 이메일 통지(판단 27번 법률 검토 질문), `beta_ad_exclusions` 보관 기한, 미완료 삭제 기록의 주소 보관 상한·실패 종료 절차, 미발송 통지 때문에 신청 정리를 미루는 정책(판단 26·28번). 모두 사용자·법률 결정 대기다.
+
+## 4차 재검토 반영 (Codex, 2026-11-01, 판정 "수정 필요")
+
+원문: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능-재검토3.md`. 판정: 3차 4건 모두 해결, 공유 잠금 도입으로 생긴 새 교착 경로 1건(중간·회귀), 메모 2건.
+작업자(Claude) 보고: 시험을 먼저 만들어 실패를 확인한 뒤 고쳤다(작업자 실행 기록, 독립 입증 아님).
+
+| # | 심각도 | 원인 | 수정 | 시험 이름 |
+|---|---|---|---|---|
+| 1 | 중간(회귀) | 신청은 "이메일 잠금 → 카운터", 주소 확인·수신거부는 "카운터 → 이메일 잠금" 순서였다. `beta_take_call`이 매번 2일 지난 카운터 행을 DELETE해서 카운터 이름이 달라도 같은 행을 두고 다툴 수 있어, 같은 이메일의 신청과 확인·수신거부가 겹치면 교착(40P01)이 날 수 있었다(3차에서 이메일 잠금 키를 하나로 통일하면서 생긴 회귀) | (가) 주소 확인·수신거부도 유효 토큰으로 이메일을 알아낸 뒤 이메일 잠금을 카운터보다 먼저 잡는다. 모든 경로가 "이메일 잠금 → 카운터 → 행 잠금·삭제" 순서다. (나) 오래된 카운터 정리를 `beta_take_call`(공개 RPC 경로)에서 빼서 운영자 정리 `beta_ops_purge_expired`의 마지막 단계로 옮겼다(2일 지난 시간 창만 지우므로 공개 요청이 쓰는 현재 행과 겹치지 않음). 무효 토큰은 여전히 이메일 잠금·카운터 전에 끝난다. 잠금 순서 규칙을 migration 머리 주석에 적었다 | DB `[재검토3 1] 신청·주소 확인·수신거부는 모두 이메일 잠금을 카운터(beta_take_call)보다 먼저 잡는다`(함수 본문의 호출 순서 검사), `[재검토3 1] 공개 RPC는 오래된 카운터를 지우지 않고(경합 제거), 운영자 정리가 지운다. 무효 토큰은 여전히 카운터를 쓰지 않는다`, 기존 `[리뷰 2] 형식만 맞는 무효 토큰을 많이 보내도 …`(회귀 없음) |
+| 2 | 메모(성능) | 보유기간 정리가 후보 이메일 잠금을 함수 끝까지 쥐어, 후보가 많으면 공개 요청 대기가 길어질 수 있었다 | 한 번에 주소 100개까지만 처리하고(해시 오름차순), 남은 정리 대상 주소 수를 함께 돌려준다(`deleted_count`, `remaining_count`). 운영자 화면은 "남은 정리 대상 N명이 있어요 … 다시 눌러 주세요"를 보여 준다 | DB `[재검토3 2] 보유기간 정리는 한 번에 주소 100개까지만 처리하고 남은 수를 알려 준다`(101개 → 100 + 1) · 단위 `[재검토3 2] 보유기간 정리가 한 번에 다 못 지우면 남은 정리 대상이 있다고 알린다` |
+| 3 | 문서 | 3차 반영 절의 "교착 없음" 판단이 카운터 DELETE·UPSERT를 빠뜨렸다 | 아래 정정과 '사용자 결정 필요' 절 추가, 방침 초안에 법률 검토 대상 반영 | 문서 |
+
+**3차 판단 정정:** 3차 반영 절(바로 위 '3차 재검토 반영'의 "2번의 한계")은 "한 주소만 잠그므로 잠금끼리 서로 기다리는 고리는 생기지 않는다"고 적었지만, 이는 이메일 잠금만 본 판단이었고 **틀렸다**. 카운터 표의 DELETE·UPSERT 행 잠금까지 넣으면 신청(이메일 → 카운터)과 확인·수신거부(카운터 → 이메일) 사이에 고리가 생길 수 있었다. 이번 수정으로 순서를 하나로 맞췄다.
+
+**남은 한계:** PGlite는 세션이 하나라 실제 두 세션의 교착을 재현하지 못했다. 이번 시험은 함수 본문의 호출 순서(이메일 잠금이 카운터보다 앞), 공개 RPC가 오래된 카운터 행을 지우지 않는 동작, 무효 토큰이 카운터를 쓰지 않는 동작, 정리 배치 한도를 확인한다. 교착이 없다는 결론은 여전히 코드 순서를 읽은 정적 판단이며, 실제 PostgreSQL 두 세션 회귀 시험(재검토가 권한 것)은 하지 않았다. 운영 적용 전 실제 Supabase(또는 로컬 Postgres)에서 두 세션 시험을 하는 것을 권한다.
+
+## 사용자 결정 필요 (Codex 4차 재검토가 정리한 정책·법률 결정 목록, 원문 그대로)
+
+- 주소 정리 뒤 화면 통지만 허용할지, 통지용 최소 이메일 주소를 보관할지와 그 근거·기간
+- 광고 제외 기록·발송금지 해시·동의 및 철회 증빙·수신거부 토큰의 보유 근거와 종료 기준
+- 미완료 삭제 요청의 이메일 보관 상한과 발송 실패 종료 절차
+- 미발송 통지 때문에 신청 정보 전체의 보관을 연장하는 정책과 최소 정보 보관 방식
+- 광고 미체크의 의사표시 해석, 주소 확인 전 동의 통지 발송, 광고 목적 안내와 수신 동의의 단일 체크 방식
+- 개인정보처리방침 확정·게시, Supabase·Gmail 위탁 및 국외 이전, 접속 기록 고지
+- 전송자 명칭·사업자명·문의 창구의 정합성
+- [방침 초안:29·42] 에 보관 연장·이메일 통지 불가 경계 반영 → 이번에 `docs/beta-apply-privacy-draft.md` 2절·4절에 '법률 검토 대상'으로 반영했다
 
 ## 못 한 것·한계
 
@@ -282,3 +308,36 @@ VERIFY_SITES_EXIT=0
 ```
 
 - 이번에 바뀐 수신거부 재클릭 문구는 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과). 스크린샷은 찍지 않았다.
+
+### 4차 재검토 반영 뒤 재검증 (2026-11-01, 출력 원문 발췌)
+
+```
+$ npm run lint            → LINT_EXIT=0
+$ npm run typecheck       → TYPECHECK_EXIT=0
+$ npx vitest run
+ Test Files  137 passed (137)
+      Tests  909 passed (909)
+$ node scripts/test-native-push-db.mjs
+PASS: native SQL contract, deletion regression, 35 RPC privilege checks (ephemeral PGlite).
+NATIVE_DB_EXIT=0
+$ node scripts/test-beta-consent-db.mjs
+PASS: 37 beta consent DB checks (ephemeral PGlite).
+BETA_DB_EXIT=0
+$ npm run check:release
+[release-gate] PASS unit            (909 tests)
+[release-gate] PASS lint
+[release-gate] PASS typecheck
+[release-gate] PASS production dependency audit   (found 0 vulnerabilities)
+[release-gate] PASS local production build
+[e2e-release] PASS desktop/core 14 · desktop/surface 27 · mobile/core 14 · mobile/surface 27
+[release-gate] PASS local production E2E
+[release-gate] PASS hosted fail-closed production build
+[release-gate] PASS unit/lint/typecheck/audit/local E2E/hosted build 전체 게이트 통과.
+CHECK_RELEASE_EXIT=0
+$ npm run build:sites && node scripts/verify-sites-output.mjs
+BUILD_SITES_EXIT=0 (✓ built in 793ms / ✓ built in 44ms)
+Sites output verified
+VERIFY_SITES_EXIT=0
+```
+
+- 정리 결과 문구(남은 정리 대상)는 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과). 실제 PostgreSQL 두 세션 교착 시험은 하지 않았다.
