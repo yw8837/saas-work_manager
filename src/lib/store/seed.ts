@@ -1,5 +1,6 @@
 import {
   addCalendarDays,
+  completeRevision,
   composeJob,
   recordRevision,
   updateTaskStatus,
@@ -201,14 +202,19 @@ export function createSeedState(referenceDate = localToday()): AppState {
     "waiting",
     `${shiftDate(referenceDate, -2)}T09:20:00.000Z`,
   );
-  const withRevision = recordRevision(withWaiting, {
-    revisionId: "revision_seed_mora_1",
-    source: "public",
-    clientLabel: "김담당",
-    body: "첫 화면 메인 문구를 신제품 중심으로 바꿔주세요.",
-    referenceUrl: "https://example.com/reference",
-    submittedAt: `${shiftDate(referenceDate, -1)}T11:30:00.000Z`,
-  }).job;
+  // 예시는 "어제 받은 요청을 고쳐서 1회를 썼다"는 상태다. 수정 횟수는 '수정 완료' 때 쓰므로 완료까지 처리해 둔다.
+  const withRevision = completeRevision(
+    recordRevision(withWaiting, {
+      revisionId: "revision_seed_mora_1",
+      source: "public",
+      clientLabel: "김담당",
+      body: "첫 화면 메인 문구를 신제품 중심으로 바꿔주세요.",
+      referenceUrl: "https://example.com/reference",
+      submittedAt: `${shiftDate(referenceDate, -1)}T11:30:00.000Z`,
+    }).job,
+    "revision_seed_mora_1",
+    `${shiftDate(referenceDate, -1)}T15:00:00.000Z`,
+  );
 
   const deluxe = composeJob({
     jobId: "job_seed_damda",

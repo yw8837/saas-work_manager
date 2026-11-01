@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PublicRevisionUnavailable, PublicRevisionView } from "./public-revision-view";
@@ -33,6 +33,63 @@ describe("고객 링크 화면", () => {
     fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));
     await waitFor(() => expect(screen.getByTestId("revision-next-step")).toHaveTextContent("평소 연락하던 방법으로 답해 드려요"));
     expect(screen.getByTestId("revision-next-step")).toHaveTextContent("남은 포함 수정은 1회예요");
+    expect(screen.getByRole("status")).toHaveTextContent("포함 수정 1회로 접수됐어요.");
+  });
+
+  // 수정 횟수는 접수가 아니라 작업자가 수정을 마칠 때 쓴다. 질문만 하려는 고객이 횟수를 걱정하지 않게 제출 전에 알린다.
+  it("제출 전에 '먼저 접수되고 수정을 마치면 1회', 질문·답은 평소 대화창이라고 알려 준다", () => {
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    const notice = screen.getByTestId("revision-how-it-counts");
+    expect(notice).toHaveTextContent("먼저 접수되고, 작업자가 수정을 마치면 그때 포함 수정 1회로 세요.");
+    expect(notice).toHaveTextContent("질문은 평소 대화창으로 해 주시고, 답도 평소 연락하던 방법으로 드려요.");
+    expect(notice).not.toHaveTextContent("접수되는 즉시");
+    // 안내는 입력란보다 먼저 나온다.
+    expect(notice.compareDocumentPosition(screen.getByLabelText("수정 요청 내용")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it.each([
+    ["포함 수정을 다 쓴 링크", { included: 2, used: 2, remaining: 0 }],
+    ["처음부터 포함 수정이 0회인 링크", { included: 0, used: 0, remaining: 0 }],
+  ])("%s에서는 제출 전에 추가 작업으로 따로 협의한다고 알려 준다", (_, counts) => {
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={counts} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    const notice = screen.getByTestId("revision-how-it-counts");
+    expect(notice).toHaveTextContent("남은 포함 수정이 없어서, 새 요청은 작업자가 추가 작업으로 따로 협의해요.");
+    expect(notice).not.toHaveTextContent("포함 수정 1회로 세요");
+  });
+
+  it("확인 대기 건수가 있으면 남은 수정 아래에 보여 주고, 없으면 그리지 않는다", () => {
+    const { unmount } = render(<PublicRevisionView title="로고" packageName="Standard" revision={{ ...revision, pending: 2 }} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.getByTestId("revision-pending")).toHaveTextContent("확인 대기 2건");
+    unmount();
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={{ ...revision, pending: 0 }} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.queryByTestId("revision-pending")).not.toBeInTheDocument();
+  });
+
+  it("아직 받지 못한 시작 전 자료를 이름만 목록으로 보여 주고, 비어 있으면 그리지 않는다", () => {
+    const { unmount } = render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} intakePending={["참고 이미지 2~3장", "원하는 색"]} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    const intake = screen.getByTestId("revision-intake-pending");
+    expect(within(intake).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["참고 이미지 2~3장", "원하는 색"]);
+    expect(intake).toHaveTextContent("평소 대화창으로 보내 주세요.");
+    unmount();
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} intakePending={[]} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.queryByTestId("revision-intake-pending")).not.toBeInTheDocument();
+  });
+
+  it("지금 서버(확인 대기 영수증)면 '접수했고 수정을 마치면 1회'라고 알려 준다", async () => {
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={{ included: 3, used: 1, remaining: 2 }} badgeLabel="체험" footnote="안내" onSubmit={vi.fn().mockResolvedValue("pending")} />);
+    fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "글자를 키워주세요" } });
+    fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("요청을 접수했어요. 작업자가 수정을 마치면 그때 포함 수정 1회로 세요."));
+    expect(screen.getByTestId("revision-next-step")).toHaveTextContent("작업자가 요청을 확인하고 평소 연락하던 방법으로 답해 드려요. 남은 포함 수정은 2회예요.");
+  });
+
+  it("남은 수정이 없을 때 확인 대기로 접수되면 '1회로 센다'고 약속하지 않고 추가 작업 확인을 먼저 알려 준다", async () => {
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={{ included: 1, used: 1, remaining: 0 }} badgeLabel="체험" footnote="안내" onSubmit={vi.fn().mockResolvedValue("pending")} />);
+    fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "한 번 더 고쳐 주세요" } });
+    fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));
+    await waitFor(() => expect(screen.getByTestId("revision-next-step")).toHaveTextContent("추가 작업으로 진행할지 작업자가 먼저 확인하고 알려 드려요."));
+    expect(screen.getByRole("status")).toHaveTextContent("요청을 접수했어요. 남은 포함 수정이 없어서, 추가 작업으로 진행할지 작업자가 먼저 알려 드려요.");
+    expect(screen.getByRole("status")).not.toHaveTextContent("포함 수정 1회로 세요");
   });
 
   it("개인정보 안내는 접어 두되 문구는 그대로 있고, 방침 링크는 늘 보인다", () => {

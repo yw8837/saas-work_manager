@@ -365,6 +365,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .revisionCopy ul { display: grid; gap: 11px; padding: 0; margin: 28px 0 0; list-style: none; color: #e0e2e6; }
 .revisionCopy li { display: flex; align-items: center; gap: 9px; }
 .revisionCopy li svg { color: var(--mint); }
+.revisionCopy > p.revisionNote { margin: 22px 0 0; font-size: 13px; }
 .revisionPanel { overflow: hidden; color: var(--ink); background: white; border-radius: var(--radius-lg); }
 .revisionPanel > header { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px 24px; border-bottom: 1px solid var(--line); }
 .revisionPanel header span, .revisionPanel header strong { display: block; }
@@ -398,6 +399,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .faqChevron { flex: 0 0 auto; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--canvas); color: var(--muted); transition: transform .2s ease, background .16s ease, color .16s ease; }
 .faqItem[open] .faqChevron { transform: rotate(90deg); background: var(--blue-soft); color: var(--blue); }
 .faqItem p { margin: 0; padding: 2px 20px 20px; color: var(--ink-soft); font-size: 14px; line-height: 1.72; }
+.faqItem p:not(:last-child) { padding-bottom: 10px; }
 
 .finalCta { padding: 88px max(40px, calc((100vw - 1120px)/2)); display: flex; align-items: center; justify-content: space-between; gap: 32px; color: #fdece2; background: var(--coral); }
 .finalCta p { margin-bottom: 10px; color: #fbdccd; }
@@ -746,6 +748,19 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .revisionRevertNote { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 500; }
 .revisionRevertButton { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; padding: 0; color: var(--muted); font-size: 11px; font-weight: 500; }
 .revisionRevertButton:hover { color: var(--blue); }
+.usageBadge.pending { color: var(--amber); background: var(--amber-soft); }
+.intakeSection .sectionHint { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.intakeList { display: grid; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+.intakeToggle { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; text-align: left; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+.intakeToggle[data-received="true"] { color: var(--muted); background: var(--canvas); }
+.intakeToggle[data-received="true"] > span { text-decoration: line-through; }
+.intakeToggle svg { color: var(--green, #2f8f5b); flex: none; }
+.intakeToggle small { margin-left: auto; color: var(--muted); font-size: 11px; }
+.intakeCircle { flex: none; width: 16px; height: 16px; border: 1.5px solid var(--line-strong); border-radius: 50%; }
+.revisionRowActions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.revisionRowActions .compactButton { min-height: 32px; font-size: 12px; }
+.revisionRowActions .revisionRevertButton { margin-top: 0; min-height: 32px; }
+.revisionPendingNote { color: var(--amber); font-weight: 600; }
 .revisionRevertForm { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
 .revisionRevertForm input { flex: 1 1 180px; min-height: 34px; padding: 0 10px; font-size: 12px; }
 .addonRowActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
@@ -1474,6 +1489,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .guideOutro { margin-top: 24px; padding: 32px; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .guideOutro h2 { margin: 0 0 8px; font-size: 22px; }
 .guideOutro p { margin: 0 0 18px; color: var(--ink-soft); }
+.guideOutro p:last-child { margin-bottom: 0; }
 .guideOutro .primaryButton { min-height: 48px; gap: 7px; }
 .guideFooter { max-width: 1040px; margin: 0 auto; padding: 24px; display: flex; flex-wrap: wrap; gap: 6px 20px; color: var(--muted); border-top: 1px solid var(--line); font-size: 13px; }
 .guideFooter a { min-height: 44px; display: inline-flex; align-items: center; }
@@ -1535,6 +1551,8 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .publicRevisionNextStep { margin: 18px 0 14px; padding: 12px 14px; text-align: left; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius); }
 .publicRevisionNextStep strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 13px; }
 .publicRevisionNextStep p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }
+.publicRevisionIntake { border-color: var(--amber); background: var(--amber-soft); }
+.publicRevisionIntake ul { margin: 2px 0 6px; padding-left: 18px; color: var(--ink); font-size: 14px; line-height: 1.6; }
 .publicRevisionEmpty .publicRevisionHeader { justify-content: center; padding-bottom: 8px; border-bottom: 0; }
 .publicRevisionEmptyIcon { display: grid; place-items: center; width: 52px; height: 52px; margin: 12px auto 0; color: var(--muted); background: var(--canvas); border-radius: 50%; }
 .publicRevisionAbout { margin: 0; font-size: 13px; }

@@ -1,11 +1,14 @@
 import {
+  completeRevision,
   composeJob,
   getRevisionSummary,
   recordRevision,
+  toggleIntakeItem,
   type Job,
   type OptionTemplate,
   type PackageTemplate,
   type RevisionSummary,
+  type RevisionUsage,
 } from "@/lib/domain";
 
 /**
@@ -42,6 +45,7 @@ export const SAMPLE_PACKAGES: PackageTemplate[] = [
       { taskKey: "color", title: "색상·흑백 변형 정리", relativeDay: 5, order: 2 },
       { taskKey: "deliver", title: "최종 파일 전달", relativeDay: 7, order: 3 },
     ],
+    intakeItems: ["로고에 넣을 상호명·영문 표기", "참고 이미지 2~3장", "꼭 쓰고 싶은 색이나 피하고 싶은 색"],
   },
   {
     id: "pkg_sample_logo_deluxe",
@@ -110,7 +114,7 @@ export function sampleToday(now = new Date()): string {
 
 /**
  * STANDARD 로고 + 원본 파일 옵션 = 300,000원, 8일, 수정 3회.
- * 사흘 전에 시작했고 고객 링크로 수정 1회를 이미 썼다.
+ * 사흘 전에 시작했고, 어제 고객 링크로 받은 요청을 작업자가 고쳐서 '수정 완료'로 1회를 썼다.
  */
 export function createSampleOrder(referenceDate = sampleToday()): Job {
   const startDate = shiftDate(referenceDate, -3);
@@ -124,13 +128,16 @@ export function createSampleOrder(referenceDate = sampleToday()): Job {
     options: [SAMPLE_OPTIONS[0]],
     now: `${startDate}T01:00:00.000Z`,
   });
-  return recordRevision(composed, {
+  const received = recordRevision(composed, {
     source: "public",
     clientLabel: SAMPLE_CLIENT_LABEL,
     body: SAMPLE_FIRST_REVISION,
     revisionId: "revision_sample_first",
     submittedAt: `${shiftDate(referenceDate, -1)}T06:20:00.000Z`,
   }).job;
+  const completed = completeRevision(received, "revision_sample_first", `${shiftDate(referenceDate, -1)}T09:00:00.000Z`);
+  // 상호명은 시작할 때 받았고, 참고 이미지·색상은 아직 못 받은 상태로 둔다(고객 화면에 남은 자료가 보이게).
+  return toggleIntakeItem(completed, `${SAMPLE_ORDER_ID}_intake_1`, `${startDate}T02:00:00.000Z`);
 }
 
 export type CustomerDemoState = {
@@ -173,13 +180,13 @@ export function viewCustomerDemo(state: CustomerDemoState): CustomerDemoView {
 
 /**
  * 실제 고객 링크와 같은 규칙으로 요청을 기록한다.
- * 남은 횟수가 있으면 1회 차감, 다 썼으면 추가 작업 검토로 넘어간다.
+ * 접수만으로는 횟수를 쓰지 않고 확인 대기로 남는다(작업자가 수정을 마칠 때 1회를 쓴다).
  * 메모리 안의 상태만 바꾸며 어떤 저장소나 네트워크도 부르지 않는다.
  */
 export function submitCustomerDemoRevision(
   state: CustomerDemoState,
   input: { body: string; clientLabel?: string; submittedAt?: string },
-): { state: CustomerDemoState; usage: "used" | "extra_scope" } {
+): { state: CustomerDemoState; usage: RevisionUsage } {
   if (input.body.trim().length < 2) {
     throw new Error("수정 요청 내용을 두 글자 이상 적어주세요.");
   }

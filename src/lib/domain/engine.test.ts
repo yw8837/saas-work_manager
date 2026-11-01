@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   cancelAddon,
+  completeRevision,
   composeJob,
   confirmAddon,
   createAddon,
   DomainValidationError,
   getRevisionSummary,
+  markRevisionExtraScope,
+  normalizeIntakeLabels,
+  pendingIntakeLabels,
   recordRevision,
+  toggleIntakeItem,
   revertRevision,
   toggleJobCompletion,
   updateTaskStatus,
@@ -164,14 +169,17 @@ describe("composeJob", () => {
 });
 
 describe("revision intake", () => {
-  it("고객 링크와 수동 기록을 같은 로그·카운터로 처리하고 0회에서는 추가작업으로 보낸다", () => {
-    let job = composeJob({
-      jobId: "job_revision",
+  function revisionJob(revisionLimit: number, jobId = "job_revision") {
+    return composeJob({
+      jobId,
       clientLabel: "수정 고객",
       startDate: "2026-08-01",
-      package: { ...packageTemplate, revisionLimit: 1 },
+      package: { ...packageTemplate, revisionLimit },
     });
+  }
 
+  it("고객 링크와 수동 기록은 같은 로그로 접수되고, 접수만으로는 횟수를 쓰지 않는다(확인 대기)", () => {
+    let job = revisionJob(1);
     const publicResult = recordRevision(job, {
       revisionId: "revision_public",
       source: "public",
@@ -188,133 +196,152 @@ describe("revision intake", () => {
     });
     job = manualResult.job;
 
-    expect(publicResult.revision.usage).toBe("used");
-    expect(manualResult.revision.usage).toBe("extra_scope");
-    expect(manualResult.revision.sequence).toBeNull();
-    expect(getRevisionSummary(job)).toEqual({ included: 1, used: 1, remaining: 0, extraScope: 1 });
+    expect(publicResult.revision).toMatchObject({ usage: "pending", status: "new", sequence: null });
+    expect(publicResult.receipt.usage).toBe("pending");
+    expect(manualResult.revision.usage).toBe("pending");
+    expect(getRevisionSummary(job)).toEqual({ included: 1, used: 0, remaining: 1, extraScope: 0, pending: 2 });
     expect(job.revisions.map((revision) => revision.source)).toEqual(["public", "manual"]);
   });
 
-  it("수정 횟수를 되돌려도 요청 원문은 지우지 않는다", () => {
-    const job = composeJob({
-      jobId: "job_revert",
-      clientLabel: "되돌림 고객",
-      startDate: "2026-08-01",
-      package: { ...packageTemplate, revisionLimit: 1 },
-    });
-    const recorded = recordRevision(job, {
-      revisionId: "revision_to_revert",
-      source: "public",
-      body: "잘못 접수했어요.",
-    }).job;
-    const reverted = revertRevision(recorded, "revision_to_revert", "고객이 오접수 확인");
+  it("작업자가 '수정 완료'를 누르면 그때 1회를 쓰고 회차 번호를 붙인다", () => {
+    let job = recordRevision(revisionJob(3), { revisionId: "r1", source: "public", body: "글자를 키워주세요." }).job;
+    job = completeRevision(job, "r1", "2026-08-03T00:00:00.000Z");
 
-    expect(reverted.revisions[0].body).toBe("잘못 접수했어요.");
-    expect(reverted.revisions[0].revertReason).toBe("고객이 오접수 확인");
-    expect(getRevisionSummary(reverted).remaining).toBe(1);
+    expect(job.revisions[0]).toMatchObject({ usage: "used", status: "done", sequence: 1, completedAt: "2026-08-03T00:00:00.000Z" });
+    expect(getRevisionSummary(job)).toMatchObject({ used: 1, remaining: 2, pending: 0 });
+    expect(() => completeRevision(job, "r1")).toThrow(DomainValidationError);
   });
 
-  it("사유 없이 되돌려도 원문과 회차 복구는 똑같이 동작한다", () => {
-    const job = composeJob({
-      jobId: "job_revert_no_reason",
-      clientLabel: "사유 없는 되돌림",
-      startDate: "2026-08-01",
-      package: { ...packageTemplate, revisionLimit: 2 },
-    });
-    const recorded = recordRevision(job, {
-      revisionId: "revision_no_reason",
+  it("남은 포함 수정이 없으면 '수정 완료'를 막고, 추가 작업으로만 처리할 수 있다", () => {
+    let job = recordRevision(revisionJob(1), { revisionId: "r1", source: "public", body: "첫 요청" }).job;
+    job = completeRevision(job, "r1");
+    job = recordRevision(job, { revisionId: "r2", source: "public", body: "둘째 요청" }).job;
+
+    expect(() => completeRevision(job, "r2")).toThrow(expect.objectContaining({ code: "REVISION_LIMIT_REACHED" }));
+    job = markRevisionExtraScope(job, "r2");
+
+    expect(job.revisions[1]).toMatchObject({ usage: "extra_scope", status: "extra_scope", sequence: null });
+    expect(getRevisionSummary(job)).toMatchObject({ used: 1, remaining: 0, extraScope: 1, pending: 0 });
+    // 확인 대기가 아닌 요청은 다시 추가 작업으로 바꾸지 않는다.
+    expect(() => markRevisionExtraScope(job, "r1")).toThrow(DomainValidationError);
+  });
+
+  it("이미 고친 뒤 적는 수동 기록은 접수와 동시에 '수정 완료'로 1회를 쓴다", () => {
+    const result = recordRevision(revisionJob(2), {
+      revisionId: "manual_done",
       source: "manual",
       channel: "kakao",
-      body: "중복으로 두 번 접수했어요.",
+      body: "전화로 받은 문구 수정, 반영 완료",
+      submittedAt: "2026-08-04T00:00:00.000Z",
+      completed: true,
+    });
+
+    expect(result.revision).toMatchObject({ usage: "used", status: "done", sequence: 1, completedAt: "2026-08-04T00:00:00.000Z" });
+    expect(result.receipt.usage).toBe("used");
+    expect(result.receipt.summary.remaining).toBe(1);
+    // 남은 횟수가 없으면 완료 기록 자체를 막는다.
+    const full = completeRevision(recordRevision(revisionJob(1), { revisionId: "x", source: "public", body: "요청" }).job, "x");
+    expect(() => recordRevision(full, { source: "manual", channel: "kakao", body: "또 고침", completed: true })).toThrow(DomainValidationError);
+  });
+
+  it("확인 대기 요청을 반려하면 원문은 남고 횟수는 그대로다", () => {
+    const recorded = recordRevision(revisionJob(1, "job_reject"), {
+      revisionId: "question",
+      source: "public",
+      body: "이건 질문인데요, 폰트 이름이 뭐예요?",
     }).job;
-    expect(getRevisionSummary(recorded).remaining).toBe(1);
+    const rejected = revertRevision(recorded, "question", "질문이라 대화창으로 답함");
 
-    const reverted = revertRevision(recorded, "revision_no_reason");
+    expect(rejected.revisions[0]).toMatchObject({ body: "이건 질문인데요, 폰트 이름이 뭐예요?", revertReason: "질문이라 대화창으로 답함", status: "void", usage: "pending" });
+    expect(getRevisionSummary(rejected)).toMatchObject({ used: 0, remaining: 1, pending: 0 });
+    expect(() => completeRevision(rejected, "question")).toThrow(DomainValidationError);
+  });
 
-    expect(reverted.revisions[0].body).toBe("중복으로 두 번 접수했어요.");
+  it("수정 완료로 셌던 요청을 되돌리면 그 1회가 빠지고 원문은 남는다(사유는 선택)", () => {
+    let job = recordRevision(revisionJob(2, "job_revert"), { revisionId: "done_1", source: "manual", channel: "kakao", body: "중복으로 두 번 기록했어요." }).job;
+    job = completeRevision(job, "done_1");
+    expect(getRevisionSummary(job).remaining).toBe(1);
+
+    const reverted = revertRevision(job, "done_1");
+
+    expect(reverted.revisions[0].body).toBe("중복으로 두 번 기록했어요.");
     expect(reverted.revisions[0].revertReason).toBeUndefined();
     expect(reverted.revisions[0].revertedAt).toBeTruthy();
     expect(reverted.revisions[0].status).toBe("void");
     expect(getRevisionSummary(reverted).remaining).toBe(2);
+    expect(() => revertRevision(reverted, "done_1", "또 되돌림")).toThrow(DomainValidationError);
   });
 
-  it("이미 되돌린 수정은 다시 되돌리지 못한다", () => {
-    const job = composeJob({
-      jobId: "job_double_revert",
-      clientLabel: "중복 되돌림",
-      startDate: "2026-08-01",
-      package: packageTemplate,
-    });
-    const recorded = recordRevision(job, { revisionId: "rev_once", source: "public", body: "요청" }).job;
-    const reverted = revertRevision(recorded, "rev_once", "오접수");
+  it("되돌려도 추가 작업 요청을 저절로 포함 수정으로 바꾸지 않고, 작업자가 '수정 완료'로 정한다", () => {
+    let job = recordRevision(revisionJob(1, "job_no_regrade"), { revisionId: "first", source: "public", body: "오접수된 요청" }).job;
+    job = completeRevision(job, "first");
+    job = recordRevision(job, { revisionId: "second", source: "public", body: "진짜 요청" }).job;
+    job = markRevisionExtraScope(job, "second");
 
-    expect(() => revertRevision(reverted, "rev_once", "또 오접수")).toThrow(DomainValidationError);
-  });
+    job = revertRevision(job, "first", "오접수");
+    expect(getRevisionSummary(job)).toMatchObject({ used: 0, remaining: 1, extraScope: 1 });
+    expect(job.revisions.find((item) => item.id === "second")?.usage).toBe("extra_scope");
 
-  it("한도를 넘겨 접수된 추가작업 요청도 되돌릴 수 있다", () => {
-    let job = composeJob({
-      jobId: "job_revert_extra",
-      clientLabel: "초과 고객",
-      startDate: "2026-08-01",
-      package: { ...packageTemplate, revisionLimit: 1 },
-    });
-    job = recordRevision(job, { revisionId: "used_1", source: "public", body: "한도 안 요청" }).job;
-    job = recordRevision(job, { revisionId: "extra_1", source: "public", body: "한도 넘은 요청" }).job;
-
-    const before = getRevisionSummary(job);
-    expect(before.extraScope).toBe(1);
-
-    // 오접수는 한도 안이든 밖이든 똑같이 되돌릴 수 있어야 한다.
-    const reverted = revertRevision(job, "extra_1", "중복 접수");
-    const after = getRevisionSummary(reverted);
-
-    expect(after.extraScope).toBe(0);
-    // 한도를 소모하지 않았으므로 남은 횟수는 그대로다.
-    expect(after.remaining).toBe(before.remaining);
-    // 원문은 지우지 않는다.
-    expect(reverted.revisions.find((item) => item.id === "extra_1")?.body).toBe("한도 넘은 요청");
-    expect(reverted.revisions.find((item) => item.id === "extra_1")?.revertReason).toBe("중복 접수");
-  });
-
-  it("한도 안 수정을 되돌리면 뒤에 밀렸던 추가작업이 한도 안으로 들어온다", () => {
-    let job = composeJob({
-      jobId: "job_regrade",
-      clientLabel: "재판정 고객",
-      startDate: "2026-08-01",
-      package: { ...packageTemplate, revisionLimit: 1 },
-    });
-    job = recordRevision(job, { revisionId: "used_1", source: "public", body: "오접수된 요청" }).job;
-    job = recordRevision(job, { revisionId: "extra_1", source: "public", body: "진짜 첫 요청" }).job;
-    expect(getRevisionSummary(job).extraScope).toBe(1);
-
-    // 작업자 실수로 잡힌 1회차를 되돌리면, 그 뒤 요청이 추가금으로 남으면 안 된다.
-    job = revertRevision(job, "used_1", "오접수");
-
-    const summary = getRevisionSummary(job);
-    expect(summary.used).toBe(1);
-    expect(summary.extraScope).toBe(0);
-    expect(summary.remaining).toBe(0);
-
-    const promoted = job.revisions.find((item) => item.id === "extra_1")!;
+    job = completeRevision(job, "second");
+    const promoted = job.revisions.find((item) => item.id === "second")!;
     expect(promoted.usage).toBe("used");
-    expect(promoted.status).toBe("new");
     // 회차 번호는 되돌린 1번을 다시 쓰지 않는다.
     expect(promoted.sequence).toBe(2);
+    expect(getRevisionSummary(job)).toMatchObject({ used: 1, remaining: 0, extraScope: 0 });
   });
 
-  it("수정 되돌림 뒤에도 이미 쓴 회차 번호를 다시 사용하지 않는다", () => {
-    let job = composeJob({
-      jobId: "job_sequence",
-      clientLabel: "회차 고객",
-      startDate: "2026-08-01",
-      package: { ...packageTemplate, revisionLimit: 3 },
-    });
-    job = recordRevision(job, { revisionId: "r1", source: "public", body: "첫 요청" }).job;
-    job = recordRevision(job, { revisionId: "r2", source: "public", body: "둘째 요청" }).job;
+  it("추가 작업으로 분류한 요청을 되돌려도 남은 횟수는 그대로다", () => {
+    let job = recordRevision(revisionJob(1, "job_revert_extra"), { revisionId: "extra_1", source: "public", body: "범위 밖 요청" }).job;
+    job = markRevisionExtraScope(job, "extra_1");
+    const reverted = revertRevision(job, "extra_1", "중복 접수");
+
+    expect(getRevisionSummary(reverted)).toMatchObject({ extraScope: 0, remaining: 1 });
+    expect(reverted.revisions[0].body).toBe("범위 밖 요청");
+    expect(reverted.revisions[0].revertReason).toBe("중복 접수");
+  });
+
+  it("되돌린 뒤에도 이미 쓴 회차 번호를 다시 쓰지 않는다", () => {
+    let job = revisionJob(3, "job_sequence");
+    for (const id of ["r1", "r2"]) {
+      job = completeRevision(recordRevision(job, { revisionId: id, source: "public", body: `${id} 요청` }).job, id);
+    }
     job = revertRevision(job, "r1", "오접수");
-    job = recordRevision(job, { revisionId: "r3", source: "public", body: "셋째 요청" }).job;
+    job = completeRevision(recordRevision(job, { revisionId: "r3", source: "public", body: "셋째 요청" }).job, "r3");
 
     expect(job.revisions.map((item) => item.sequence)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("시작 전 받을 자료", () => {
+  it("패키지 목록을 정리해서(공백·빈 줄·중복 제거, 60자, 10개) 일감에 복사한다", () => {
+    const labels = ["  로고 원본 파일 ", "", "로고 원본 파일", "가".repeat(80), ...Array.from({ length: 12 }, (_, index) => `참고 이미지 ${index + 1}`)];
+    const job = composeJob({ jobId: "job_intake", clientLabel: "자료 고객", startDate: "2026-08-01", package: { ...packageTemplate, intakeItems: labels } });
+
+    expect(job.intakeItems).toHaveLength(10);
+    expect(job.intakeItems?.[0]).toEqual({ id: "job_intake_intake_1", label: "로고 원본 파일" });
+    expect(job.intakeItems?.[1].label).toBe("가".repeat(60));
+    expect(pendingIntakeLabels(job)).toHaveLength(10);
+  });
+
+  it("목록이 없는 패키지는 일감에 필드를 만들지 않는다", () => {
+    const job = composeJob({ jobId: "job_no_intake", clientLabel: "고객", startDate: "2026-08-01", package: packageTemplate });
+    expect(job).not.toHaveProperty("intakeItems");
+    expect(pendingIntakeLabels(job)).toEqual([]);
+  });
+
+  it("받음을 체크하면 고객에게 보일 목록에서 빠지고, 다시 누르면 돌아온다", () => {
+    const job = composeJob({ jobId: "job_toggle", clientLabel: "고객", startDate: "2026-08-01", package: { ...packageTemplate, intakeItems: ["상호명", "참고 이미지"] } });
+    const received = toggleIntakeItem(job, "job_toggle_intake_1", "2026-08-02T00:00:00.000Z");
+
+    expect(received.intakeItems?.[0].receivedAt).toBe("2026-08-02T00:00:00.000Z");
+    expect(pendingIntakeLabels(received)).toEqual(["참고 이미지"]);
+    expect(pendingIntakeLabels(toggleIntakeItem(received, "job_toggle_intake_1"))).toEqual(["상호명", "참고 이미지"]);
+    expect(toggleIntakeItem(job, "없는_항목")).toBe(job);
+  });
+
+  it("문자열이 아닌 값은 버린다", () => {
+    expect(normalizeIntakeLabels(["가", 3, null, { label: "나" }, "다"])).toEqual(["가", "다"]);
+    expect(normalizeIntakeLabels("가")).toEqual([]);
   });
 });
 

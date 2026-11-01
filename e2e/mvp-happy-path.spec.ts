@@ -73,6 +73,23 @@ test("고객 수정요청 데모는 원문을 기록하고 공통 로그에 남�
   await page.goto("/jobs/job_seed_mora");
   await expect(page.getByText("메인 문구를 조금 더 짧게 바꿔주세요.")).toBeVisible();
   await expect(page.getByText(/고객 수정 링크/).first()).toBeVisible();
+
+  // 접수만으로는 횟수를 쓰지 않는다(예시 일감: 포함 3회 중 1회 사용).
+  const row = page.locator(".revisionLogRow").filter({ hasText: "메인 문구를 조금 더 짧게 바꿔주세요." });
+  await expect(row.locator(".usageBadge")).toHaveText("확인 대기");
+  await expect(page.getByRole("heading", { name: "수정 2회 남음" })).toBeVisible();
+  await expect(page.getByTestId("revision-pending-count")).toContainText("확인 대기 1건");
+
+  // 작업자가 고친 뒤 '수정 완료'를 누르면 그때 1회를 쓰고 회차가 붙는다.
+  await row.getByRole("button", { name: "수정 완료" }).click();
+  await expect(row.locator(".usageBadge")).toHaveText("2회차");
+  await expect(page.getByRole("heading", { name: "수정 1회 남음" })).toBeVisible();
+  await expect(page.getByTestId("revision-pending-count")).toHaveCount(0);
+
+  // 고객 링크에도 바로 반영된다.
+  await page.goto("/r/demo-mora-revision");
+  await expect(page.getByTestId("revision-remaining")).toHaveText("1");
+  await expect(page.getByTestId("revision-pending")).toHaveCount(0);
 });
 
 test("일감 완료와 재진행은 기존 업무 상태를 보존한다", async ({ page }) => {

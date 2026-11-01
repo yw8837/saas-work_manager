@@ -32,7 +32,16 @@ export interface PackageTemplate {
   durationDays: number;
   revisionLimit: number;
   tasks: TaskTemplate[];
+  /** 작업을 시작하기 전에 고객에게 받을 자료 이름(최대 10개). 아직 못 받은 것은 고객 링크에 그대로 보인다. */
+  intakeItems?: string[];
   archivedAt?: string;
+}
+
+/** 일감마다 복사되는 '시작 전 받을 자료' 한 줄. 받은 시각이 있으면 받은 것이다. */
+export interface IntakeItem {
+  id: string;
+  label: string;
+  receivedAt?: string;
 }
 
 export interface OptionTemplate {
@@ -69,9 +78,17 @@ export interface Task {
 export type RevisionStatus = "new" | "seen" | "done" | "extra_scope" | "void";
 
 /**
+ * pending: 접수됐지만 작업자가 아직 처리하지 않음(횟수를 쓰지 않는다).
+ * used: 작업자가 '수정 완료'를 눌러 포함 수정 1회를 씀.
+ * extra_scope: 작업자가 추가 작업으로 분류함(예전 규칙에서는 한도를 넘겨 접수된 요청).
+ */
+export type RevisionUsage = "pending" | "used" | "extra_scope";
+
+/**
  * 고객 링크와 작업자 수동 접수가 공유하는 하나의 수정 로그다.
- * `usage` is immutable business meaning; a reversal is recorded separately
- * through the `revertedAt`/`revertReason` audit fields without deleting text.
+ * 수정 횟수는 접수가 아니라 작업자가 수정을 마칠 때 쓴다. `usage`는 pending에서
+ * used/extra_scope로 한 번만 바뀌고, 되돌림은 원문을 지우지 않고
+ * `revertedAt`/`revertReason` 감사 필드로 남긴다.
  */
 export interface Revision {
   id: string;
@@ -82,9 +99,11 @@ export interface Revision {
   body: string;
   referenceUrl?: string;
   status: RevisionStatus;
-  usage: "used" | "extra_scope";
+  usage: RevisionUsage;
   sequence: number | null;
   submittedAt: string;
+  /** 작업자가 '수정 완료'를 누른 시각. 이때 포함 수정 1회를 쓴다. */
+  completedAt?: string;
   revertedAt?: string;
   revertReason?: string;
 }
@@ -142,6 +161,8 @@ export interface Job {
   revisions: Revision[];
   addons: Addon[];
   links: JobLink[];
+  /** 패키지의 '시작 전 받을 자료'를 일감을 만들 때 복사한 것. 없던 저장본에서는 비어 있다. */
+  intakeItems?: IntakeItem[];
   revisionPortalToken: string;
   revisionPortalEnabled: boolean;
   status: JobStatus;
@@ -169,6 +190,8 @@ export interface RecordRevisionInput {
   referenceUrl?: string;
   revisionId?: string;
   submittedAt?: string;
+  /** 작업자가 이미 고친 뒤 적는 수동 기록이면 true. 접수와 동시에 '수정 완료'로 1회를 쓴다. */
+  completed?: boolean;
 }
 
 export interface RevisionSummary {
@@ -176,6 +199,8 @@ export interface RevisionSummary {
   used: number;
   remaining: number;
   extraScope: number;
+  /** 접수됐지만 작업자가 아직 처리하지 않은 요청 수(횟수에 들어가지 않음). */
+  pending: number;
 }
 
 export interface RevisionReceipt {

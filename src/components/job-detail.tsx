@@ -72,6 +72,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     runtimeMode,
     saveStatus,
     toggleTask,
+    toggleIntake,
     toggleJobWaiting,
     completeJob,
     deleteJob,
@@ -79,6 +80,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
     rotateRevisionPortalToken,
     recordRevision,
     revertRevision,
+    completeRevision,
+    markRevisionExtraScope,
     updateJobLinks,
     createAddon,
     confirmAddon,
@@ -159,6 +162,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
     );
   }
 
+  const intakeItems = job.intakeItems ?? [];
+  const intakeReceived = intakeItems.filter((item) => item.receivedAt).length;
   const waitingTask = job.tasks.find((task) => task.status === "waiting");
   const doneTasks = job.tasks.filter((task) => task.status === "done").length;
   const progress = Math.round((doneTasks / Math.max(job.tasks.length, 1)) * 100);
@@ -167,12 +172,39 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const portalEnabled = job.status === "active" && job.revisionPortalEnabled;
   const portalSynced = runtimeMode === "local" || saveStatus === "saved";
 
+  // 메신저·전화로 받은 요청을 적는다. 기본은 확인 대기, 이미 고쳤으면 '수정 완료로 기록'으로 바로 1회를 쓴다.
+  const saveManualRevision = (completed: boolean) => {
+    if (!revisionBody.trim()) return;
+    try {
+      recordRevision(job.id, revisionBody, channel, completed);
+      setRevisionBody("");
+      setRevisionOpen(false);
+    } catch (error) {
+      setDetailFeedback(error instanceof Error ? error.message : "수정 요청을 기록하지 못했어요.");
+    }
+  };
+
   const handleRevision = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!revisionBody.trim()) return;
-    recordRevision(job.id, revisionBody, channel);
-    setRevisionBody("");
-    setRevisionOpen(false);
+    saveManualRevision(false);
+  };
+
+  const handleCompleteRevision = (revisionId: string) => {
+    try {
+      completeRevision(job.id, revisionId);
+      setDetailFeedback("수정 완료로 1회를 썼어요. 고객 링크에도 남은 횟수가 바로 반영돼요.");
+    } catch (error) {
+      setDetailFeedback(error instanceof Error ? error.message : "수정 완료로 처리하지 못했어요.");
+    }
+  };
+
+  const handleExtraScopeRevision = (revisionId: string) => {
+    try {
+      markRevisionExtraScope(job.id, revisionId);
+      setDetailFeedback("추가 작업으로 분류했어요. 금액·기간은 아래 추가요청에 기록하세요.");
+    } catch (error) {
+      setDetailFeedback(error instanceof Error ? error.message : "추가 작업으로 분류하지 못했어요.");
+    }
   };
 
   const portalLink = revisionPortalUrl(
@@ -265,11 +297,17 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const submitRevert = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!revertTargetId) return;
+    const usage = job.revisions.find((item) => item.id === revertTargetId)?.usage;
     try {
       revertRevision(job.id, revertTargetId, revertReason);
       setRevertTargetId(null);
       setRevertReason("");
-      setDetailFeedback("수정 요청을 되돌렸어요. 원문은 그대로 두고 횟수만 복구했어요.");
+      // 횟수가 돌아오는 것은 '수정 완료'로 센(used) 요청뿐이다. 추가 작업 요청은 원래 횟수를 쓰지 않았다.
+      setDetailFeedback(usage === "pending"
+        ? "요청을 반려했어요. 원문은 남기고 횟수는 쓰지 않았어요."
+        : usage === "used"
+          ? "수정 요청을 되돌렸어요. 원문은 그대로 두고 사용 횟수에서 뺐어요."
+          : "추가 작업 요청을 되돌렸어요. 원문은 그대로 두었고 남은 횟수는 바뀌지 않아요.");
     } catch (error) {
       setDetailFeedback(error instanceof Error ? error.message : "수정 요청을 되돌리지 못했어요.");
     }
@@ -405,6 +443,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           clientLabel={job.clientLabel}
           title={job.title}
           included={revision.included}
+          remaining={revision.remaining}
           ready={portalEnabled && portalSynced}
           pendingMessage={portalEnabled ? "저장이 끝나면 보낼 수 있어요. 상단에 저장 완료가 표시될 때까지 잠시만 기다려 주세요." : "고객 수정 링크가 꺼져 있어요. 아래 고객 수정 요청 링크 카드에서 켜면 보낼 수 있어요."}
           localOnly={runtimeMode === "local"}
@@ -487,6 +526,36 @@ export function JobDetail({ jobId }: { jobId: string }) {
             </div>
           </section>
 
+          {intakeItems.length > 0 && (
+            <section className="contentSection intakeSection" aria-labelledby="intake-title" data-testid="intake-section">
+              <div className="sectionHeadingRow">
+                <div>
+                  <h2 id="intake-title">시작 전 받을 자료</h2>
+                  <p className="sectionHint">{intakeReceived}/{intakeItems.length} 받음 · 아직 못 받은 것은 고객 링크에도 보여요</p>
+                </div>
+              </div>
+              <ul className="intakeList">
+                {intakeItems.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className="intakeToggle"
+                      data-received={Boolean(item.receivedAt)}
+                      aria-pressed={Boolean(item.receivedAt)}
+                      onClick={() => toggleIntake(job.id, item.id)}
+                      disabled={job.status !== "active"}
+                      data-testid={`intake-toggle-${item.id}`}
+                    >
+                      {item.receivedAt ? <CheckCircle2 size={16} /> : <span className="intakeCircle" aria-hidden="true" />}
+                      <span>{item.label}</span>
+                      {item.receivedAt && <small>받음</small>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <section id="revisions" className="contentSection jobRevisionSection" ref={revisionSectionRef}>
             <div className="sectionHeadingRow">
               <div>
@@ -501,7 +570,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
                 aria-expanded={revisionOpen}
                 aria-controls="revision-entry-form"
               >
-                <RotateCcw size={15} /> 수정 사용 기록
+                <RotateCcw size={15} /> 수정 요청 기록
               </button>
             </div>
 
@@ -517,8 +586,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
                       <ChevronDown size={15} />
                     </span>
                   </label>
-                  <span className={revision.remaining === 0 ? "revisionImpact extra" : "revisionImpact"}>
-                    {revision.remaining > 0 ? `저장하면 ${revision.remaining - 1}회 남아요` : "한도 초과 · 추가 작업 검토로 기록"}
+                  <span className={revision.remaining === 0 ? "revisionImpact extra" : "revisionImpact"} data-testid="revision-impact">
+                    {revision.remaining > 0 ? "확인 대기로 기록 · 고친 뒤 1회 사용" : "남은 수정 없음 · 기록 뒤 추가 작업으로"}
                   </span>
                 </div>
                 <label className="revisionTextField">
@@ -534,7 +603,16 @@ export function JobDetail({ jobId }: { jobId: string }) {
                 </label>
                 <div className="revisionFormActions">
                   <button type="button" className="textOnlyButton" onClick={() => setRevisionOpen(false)}>취소</button>
-                  <button type="submit" className="primaryButton compactSubmit"><Check size={16} /> 기록하기</button>
+                  <button
+                    type="button"
+                    className="compactButton"
+                    onClick={() => saveManualRevision(true)}
+                    disabled={revision.remaining === 0}
+                    data-testid="record-revision-done"
+                  >
+                    <CheckCircle2 size={15} /> 수정 완료로 기록
+                  </button>
+                  <button type="submit" className="primaryButton compactSubmit"><Check size={16} /> 요청으로 기록</button>
                 </div>
               </form>
             )}
@@ -542,8 +620,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
             <div className="revisionLogList">
               {[...job.revisions].reverse().map((item) => {
                 const reverted = Boolean(item.revertedAt);
-                // 오접수는 한도 안이든 초과분이든 똑같이 되돌릴 수 있다.
+                const pending = item.usage === "pending";
+                // 끝난 일감의 기록은 흔들지 않는다. 진행 중이면 반려·되돌리기·완료·분류를 할 수 있다.
                 const canRevert = job.status === "active" && !reverted;
+                const canComplete = canRevert && item.usage !== "used";
+                const revertLabel = pending ? "반려" : "되돌리기";
                 return (
                   <article className="revisionLogRow" key={item.id} data-reverted={reverted}>
                     <span className={item.source === "public" ? "timelineDot customer" : "timelineDot manual"} />
@@ -554,33 +635,57 @@ export function JobDetail({ jobId }: { jobId: string }) {
                       <p>{item.body}</p>
                       {reverted && (
                         <span className="revisionRevertNote" data-testid={`revert-note-${item.id}`}>
-                          <Undo2 size={13} /> 되돌린 요청{item.revertReason ? ` · ${item.revertReason}` : " · 사유 없음"}
+                          <Undo2 size={13} /> {pending ? "반려한 요청" : "되돌린 요청"}{item.revertReason ? ` · ${item.revertReason}` : " · 사유 없음"}
                         </span>
                       )}
                       {canRevert && revertTargetId !== item.id && (
-                        <button
-                          type="button"
-                          className="textOnlyButton revisionRevertButton"
-                          onClick={() => {
-                            setRevertTargetId(item.id);
-                            setRevertReason("");
-                          }}
-                          data-testid={`revert-revision-${item.id}`}
-                        >
-                          <Undo2 size={13} /> 되돌리기
-                        </button>
+                        <div className="revisionRowActions">
+                          {canComplete && (
+                            <button
+                              type="button"
+                              className="compactButton emphasized"
+                              onClick={() => handleCompleteRevision(item.id)}
+                              disabled={revision.remaining === 0}
+                              title={revision.remaining === 0 ? "남은 포함 수정이 없어요. 추가 작업으로 처리하세요." : undefined}
+                              data-testid={`complete-revision-${item.id}`}
+                            >
+                              <CheckCircle2 size={14} /> 수정 완료
+                            </button>
+                          )}
+                          {pending && (
+                            <button
+                              type="button"
+                              className="compactButton"
+                              onClick={() => handleExtraScopeRevision(item.id)}
+                              data-testid={`extra-revision-${item.id}`}
+                            >
+                              <Plus size={14} /> 추가 작업으로
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="textOnlyButton revisionRevertButton"
+                            onClick={() => {
+                              setRevertTargetId(item.id);
+                              setRevertReason("");
+                            }}
+                            data-testid={`revert-revision-${item.id}`}
+                          >
+                            <Undo2 size={13} /> {revertLabel}
+                          </button>
+                        </div>
                       )}
                       {canRevert && revertTargetId === item.id && (
                         <form className="revisionRevertForm" onSubmit={submitRevert}>
                           <input
-                            aria-label="되돌림 사유"
+                            aria-label={pending ? "반려 사유" : "되돌림 사유"}
                             value={revertReason}
                             onChange={(event) => setRevertReason(event.target.value)}
-                            placeholder="되돌린 이유 (선택) · 예: 중복 접수"
+                            placeholder={pending ? "반려 이유 (선택) · 예: 질문이라 대화창으로 답함" : "되돌린 이유 (선택) · 예: 중복 접수"}
                             autoFocus
                           />
                           <button type="submit" className="compactButton emphasized" data-testid={`revert-submit-${item.id}`}>
-                            <Undo2 size={14} /> 되돌리기
+                            <Undo2 size={14} /> {revertLabel}
                           </button>
                           <button type="button" className="textOnlyButton" onClick={() => setRevertTargetId(null)}>취소</button>
                         </form>
@@ -589,11 +694,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
                     <span
                       className={reverted
                         ? "usageBadge reverted"
-                        : item.usage === "extra_scope" ? "usageBadge extra" : "usageBadge"}
+                        : item.usage === "extra_scope" ? "usageBadge extra" : pending ? "usageBadge pending" : "usageBadge"}
+                      data-testid={`revision-badge-${item.id}`}
                     >
                       {reverted
-                        ? "되돌림"
-                        : item.usage === "extra_scope" ? "추가 작업 검토" : `${item.sequence}회차`}
+                        ? pending ? "반려" : "되돌림"
+                        : item.usage === "extra_scope" ? "추가 작업" : pending ? "확인 대기" : `${item.sequence}회차`}
                     </span>
                   </article>
                 );
@@ -650,12 +756,15 @@ export function JobDetail({ jobId }: { jobId: string }) {
             <div className="revisionMeter" aria-label={`수정 ${revision.used}회 사용, ${revision.remaining}회 남음`}>
               {Array.from({ length: revision.included }, (_, index) => <span key={index} data-used={index < revision.used} />)}
             </div>
-            <p>한도를 넘은 요청은 내용은 보존하고 추가 작업 검토로 따로 표시해요.</p>
+            {revision.pending > 0 && (
+              <p className="revisionPendingNote" data-testid="revision-pending-count">확인 대기 {revision.pending}건 · 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회를 써요</p>
+            )}
+            <p>남은 수정이 없으면 &lsquo;추가 작업으로&rsquo;를 눌러 금액·기간을 따로 협의하세요.</p>
           </section>
 
           <section className="sideSection portalLinkSection">
             <h2>고객 수정 요청 링크</h2>
-            <p>고객이 폼에 남기면 요청 내용과 횟수가 자동으로 기록돼요.</p>
+            <p>고객이 링크에 남긴 요청은 먼저 확인 대기로 들어와요. 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회를 쓰고, 질문·중복은 반려하면 횟수를 쓰지 않아요.</p>
             <div className="portalStatus" data-enabled={portalEnabled} role="status" aria-live="polite">
               <span />
               {portalEnabled ? portalSynced ? "링크 켜짐" : "링크 동기화 중" : job.status === "completed" ? "일감 완료 · 링크 잠김" : portalSynced ? "링크 꺼짐" : "링크 동기화 중"}

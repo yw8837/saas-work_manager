@@ -8,7 +8,7 @@ import {
   PublicRevisionView,
 } from "@/components/public-revision-view";
 import { getRevisionSummary, useWorkspace } from "@/components/workspace-provider";
-import { customerDueLabel, customerProgressOf, customerStageFromProgress, type CustomerProgress } from "@/lib/domain";
+import { customerDueLabel, customerProgressOf, customerStageFromProgress, pendingIntakeLabels, type CustomerProgress } from "@/lib/domain";
 import { localToday } from "@/lib/store";
 import {
   getHostedPublicRevisionSummary,
@@ -67,10 +67,16 @@ export function PublicRevisionForm({ token }: { token: string }) {
       setHostedSummary((current) => current ? {
         ...current,
         used: result.usage === "used" ? current.used + 1 : current.used,
+        // 지금 규칙에서는 접수가 확인 대기로 쌓인다. 대기 건수를 모르는 옛 서버면 그대로 둔다.
+        pending: result.usage === "pending" && current.pending !== undefined ? current.pending + 1 : current.pending,
         remaining: result.remaining,
         // 방금 남긴 요청도 되돌리지 않은 요청이라 진행 단계가 '수정'으로 바뀐다.
         hasOpenRevision: current.tasksTotal === undefined ? current.hasOpenRevision : true,
       } : current);
+      // 링크를 연 사이 작업자가 다른 요청을 '수정 완료'했을 수 있다. 처음 읽은 값으로 계산한 숫자 대신 서버 요약으로 맞춘다.
+      void getHostedPublicRevisionSummary(client, token)
+        .then((fresh) => { if (fresh) setHostedSummary(fresh); })
+        .catch(() => undefined);
       return result.usage;
     }
     const result = recordPublicRevision(token, content, name);
@@ -112,6 +118,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
       title={title}
       packageName={packageName}
       revision={revision}
+      intakePending={hostedSummary ? hostedSummary.intakePending : pendingIntakeLabels(localJob!)}
       workerName={workerName}
       dueLabel={dueDate ? customerDueLabel(dueDate, localToday()) : undefined}
       stage={progress ? customerStageFromProgress(progress) : undefined}

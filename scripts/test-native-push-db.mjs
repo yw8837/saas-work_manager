@@ -69,10 +69,11 @@ try {
   assert.deepEqual(nonceAcl.rows,[{anon_denied:true,auth_denied:true,server_only:true}]);
   await db.exec(await readFile(resolve("supabase/tests/native_revision_push.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/workspace_job_deletion.sql"), "utf8"));
+  await db.exec(await readFile(resolve("supabase/tests/revision_pending_submit.sql"), "utf8"));
   const access = await db.query(await readFile(resolve("supabase/tests/rpc_execution_surface.sql"), "utf8"));
   assert.equal(access.rows.length, 36);
   assert.ok(access.rows.every((row) => row.passed), JSON.stringify(access.rows.filter((row) => !row.passed)));
-  console.log("PASS: native SQL contract, deletion regression, 36 RPC privilege checks (ephemeral PGlite).");
+  console.log("PASS: native SQL contract, deletion regression, pending revision submit, 36 RPC privilege checks (ephemeral PGlite).");
 } catch (error) {
   console.error(`FAIL: ${error.message}`);
   if (error.where) console.error(error.where);

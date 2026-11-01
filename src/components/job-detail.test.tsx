@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
-import { DomainValidationError, composeJob, createAddon, confirmAddon, recordRevision, revertRevision, type PackageTemplate } from "@/lib/domain";
+import { DomainValidationError, completeRevision, composeJob, createAddon, confirmAddon, markRevisionExtraScope, recordRevision, revertRevision, toggleIntakeItem, type PackageTemplate } from "@/lib/domain";
 import { JobDetail } from "./job-detail";
 import { useWorkspace } from "./workspace-provider";
 
@@ -39,6 +39,10 @@ function baseJob() {
 }
 
 const revertRevisionSpy = vi.fn();
+const completeRevisionSpy = vi.fn();
+const markExtraScopeSpy = vi.fn();
+const recordRevisionSpy = vi.fn();
+const toggleIntakeSpy = vi.fn();
 const cancelAddonSpy = vi.fn();
 const createAddonSpy = vi.fn();
 const confirmAddonSpy = vi.fn();
@@ -50,13 +54,16 @@ function renderDetail(job = baseJob()) {
     runtimeMode: "local",
     saveStatus: "saved",
     toggleTask: vi.fn(),
+    toggleIntake: toggleIntakeSpy,
     toggleJobWaiting: vi.fn(),
     completeJob: vi.fn(),
     deleteJob: vi.fn(),
     setRevisionPortalEnabled: vi.fn(),
     rotateRevisionPortalToken: vi.fn(),
-    recordRevision: vi.fn(),
+    recordRevision: recordRevisionSpy,
     revertRevision: revertRevisionSpy,
+    completeRevision: completeRevisionSpy,
+    markRevisionExtraScope: markExtraScopeSpy,
     updateJobLinks: vi.fn(),
     createAddon: createAddonSpy,
     confirmAddon: confirmAddonSpy,
@@ -68,6 +75,10 @@ function renderDetail(job = baseJob()) {
 beforeEach(() => {
   device.platform = "web";
   revertRevisionSpy.mockReset();
+  completeRevisionSpy.mockReset();
+  markExtraScopeSpy.mockReset();
+  recordRevisionSpy.mockReset();
+  toggleIntakeSpy.mockReset();
   cancelAddonSpy.mockReset();
   createAddonSpy.mockReset();
   confirmAddonSpy.mockReset();
@@ -154,27 +165,127 @@ describe("JobDetail 수정 되돌리기", () => {
     }).job;
   }
 
-  it("타임라인에서 사유를 적어 되돌리기를 호출한다", () => {
-    renderDetail(jobWithRevision());
-
-    fireEvent.click(screen.getByTestId("revert-revision-revision_ui"));
-    fireEvent.change(screen.getByLabelText("되돌림 사유"), { target: { value: "중복 접수" } });
-    fireEvent.click(screen.getByTestId("revert-submit-revision_ui"));
-
-    expect(revertRevisionSpy).toHaveBeenCalledWith("job_detail", "revision_ui", "중복 접수");
+  // 고객 화면·안내가 "작업이 진행 중이면…"이라고 조건을 다는 근거. 끝난 일감의 기록은 흔들지 않는다.
+  it("완료된 일감에서는 반려·되돌리기·수정 완료 버튼을 내주지 않는다", () => {
+    renderDetail({ ...jobWithRevision(), status: "completed" as const });
+    expect(screen.getByText("메인 문구 교체 부탁드려요.")).toBeInTheDocument();
+    expect(screen.queryByTestId("revert-revision-revision_ui")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("complete-revision-revision_ui")).not.toBeInTheDocument();
   });
 
-  it("되돌린 요청은 원문을 지우지 않고 되돌림 배지와 사유를 함께 보여준다", () => {
-    const reverted = revertRevision(jobWithRevision(), "revision_ui", "중복 접수", "2026-08-03T00:00:00.000Z");
-    renderDetail(reverted);
+  it("새 요청은 '확인 대기'로 보이고, 수정 완료·추가 작업으로·반려를 고를 수 있다", () => {
+    renderDetail(jobWithRevision());
 
-    // 원문은 그대로 남는다.
-    expect(screen.getByText("메인 문구 교체 부탁드려요.")).toBeInTheDocument();
-    expect(screen.getByTestId("revert-note-revision_ui")).toHaveTextContent("되돌린 요청 · 중복 접수");
-    expect(screen.getByText("되돌림")).toBeInTheDocument();
-    // 되돌린 뒤에는 되돌리기 버튼이 사라지고 남은 횟수가 복구된다.
-    expect(screen.queryByTestId("revert-revision-revision_ui")).not.toBeInTheDocument();
+    expect(screen.getByTestId("revision-badge-revision_ui")).toHaveTextContent("확인 대기");
+    expect(screen.getByTestId("revision-pending-count")).toHaveTextContent("확인 대기 1건");
+    // 접수만으로는 횟수를 쓰지 않는다.
     expect(screen.getByRole("heading", { name: "수정 2회 남음" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("complete-revision-revision_ui"));
+    expect(completeRevisionSpy).toHaveBeenCalledWith("job_detail", "revision_ui");
+    fireEvent.click(screen.getByTestId("extra-revision-revision_ui"));
+    expect(markExtraScopeSpy).toHaveBeenCalledWith("job_detail", "revision_ui");
+  });
+
+  it("확인 대기 요청은 사유를 적어 반려한다(횟수를 쓰지 않음)", () => {
+    renderDetail(jobWithRevision());
+
+    expect(screen.getByTestId("revert-revision-revision_ui")).toHaveTextContent("반려");
+    fireEvent.click(screen.getByTestId("revert-revision-revision_ui"));
+    fireEvent.change(screen.getByLabelText("반려 사유"), { target: { value: "질문이라 대화창으로 답함" } });
+    fireEvent.click(screen.getByTestId("revert-submit-revision_ui"));
+
+    expect(revertRevisionSpy).toHaveBeenCalledWith("job_detail", "revision_ui", "질문이라 대화창으로 답함");
+    expect(screen.getByText("요청을 반려했어요. 원문은 남기고 횟수는 쓰지 않았어요.")).toBeInTheDocument();
+  });
+
+  it("반려한 요청은 원문을 남기고 '반려' 배지와 사유를 보여 준다", () => {
+    renderDetail(revertRevision(jobWithRevision(), "revision_ui", "질문", "2026-08-03T00:00:00.000Z"));
+
+    expect(screen.getByText("메인 문구 교체 부탁드려요.")).toBeInTheDocument();
+    expect(screen.getByTestId("revert-note-revision_ui")).toHaveTextContent("반려한 요청 · 질문");
+    expect(screen.getByTestId("revision-badge-revision_ui")).toHaveTextContent("반려");
+    expect(screen.getByRole("heading", { name: "수정 2회 남음" })).toBeInTheDocument();
+  });
+
+  it("수정 완료로 센 요청은 회차를 보이고, 되돌리면 되돌림 배지와 사유가 남고 1회가 돌아온다", () => {
+    const done = completeRevision(jobWithRevision(), "revision_ui", "2026-08-02T10:00:00.000Z");
+    const { unmount } = renderDetail(done);
+    expect(screen.getByTestId("revision-badge-revision_ui")).toHaveTextContent("1회차");
+    expect(screen.getByRole("heading", { name: "수정 1회 남음" })).toBeInTheDocument();
+    // 이미 센 요청에는 수정 완료·추가 작업 버튼이 없고 되돌리기만 있다.
+    expect(screen.queryByTestId("complete-revision-revision_ui")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("extra-revision-revision_ui")).not.toBeInTheDocument();
+    expect(screen.getByTestId("revert-revision-revision_ui")).toHaveTextContent("되돌리기");
+    unmount();
+
+    renderDetail(revertRevision(done, "revision_ui", "중복 접수", "2026-08-03T00:00:00.000Z"));
+    expect(screen.getByTestId("revert-note-revision_ui")).toHaveTextContent("되돌린 요청 · 중복 접수");
+    expect(screen.getByTestId("revision-badge-revision_ui")).toHaveTextContent("되돌림");
+    expect(screen.getByRole("heading", { name: "수정 2회 남음" })).toBeInTheDocument();
+  });
+
+  it("추가 작업 요청을 되돌리면 '사용 횟수에서 뺐다'가 아니라 횟수가 그대로라고 알려 준다", () => {
+    renderDetail(markRevisionExtraScope(jobWithRevision(), "revision_ui", "2026-08-02T05:00:00.000Z"));
+    expect(screen.getByTestId("revision-badge-revision_ui")).toHaveTextContent("추가 작업");
+    fireEvent.click(screen.getByTestId("revert-revision-revision_ui"));
+    fireEvent.click(screen.getByTestId("revert-submit-revision_ui"));
+    expect(screen.getByText("추가 작업 요청을 되돌렸어요. 원문은 그대로 두었고 남은 횟수는 바뀌지 않아요.")).toBeInTheDocument();
+  });
+
+  it("남은 포함 수정이 없으면 '수정 완료'를 막고 추가 작업으로 안내한다", () => {
+    let job = jobWithRevision();
+    for (const id of ["done_a", "done_b"]) {
+      job = completeRevision(recordRevision(job, { revisionId: id, source: "public", body: `${id} 요청` }).job, id);
+    }
+    renderDetail(job);
+
+    expect(screen.getByRole("heading", { name: "수정 0회 남음" })).toBeInTheDocument();
+    expect(screen.getByTestId("complete-revision-revision_ui")).toBeDisabled();
+    expect(screen.getByTestId("extra-revision-revision_ui")).toBeEnabled();
+  });
+
+  it("메신저로 받은 요청은 '요청으로 기록'(대기) 또는 '수정 완료로 기록'(바로 1회)으로 적는다", () => {
+    renderDetail();
+    fireEvent.click(screen.getByTestId("record-revision"));
+    expect(screen.getByTestId("revision-impact")).toHaveTextContent("확인 대기로 기록 · 고친 뒤 1회 사용");
+    fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "전화로 받은 문구 수정" } });
+    fireEvent.click(screen.getByTestId("record-revision-done"));
+    expect(recordRevisionSpy).toHaveBeenCalledWith("job_detail", "전화로 받은 문구 수정", "kakao", true);
+
+    fireEvent.click(screen.getByTestId("record-revision"));
+    fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "카톡으로 받은 요청" } });
+    fireEvent.click(screen.getByRole("button", { name: /요청으로 기록/ }));
+    expect(recordRevisionSpy).toHaveBeenLastCalledWith("job_detail", "카톡으로 받은 요청", "kakao", false);
+  });
+});
+
+describe("JobDetail 시작 전 받을 자료", () => {
+  it("패키지에 목록이 있으면 받음 개수와 체크 버튼을 보여 주고, 누르면 받음을 바꾼다", () => {
+    const job = toggleIntakeItem(
+      composeJob({
+        jobId: "job_detail",
+        revisionPortalToken: "token_detail",
+        clientLabel: "상세 고객",
+        startDate: "2026-08-01",
+        package: { ...template, intakeItems: ["상호명", "참고 이미지"] },
+        now: "2026-08-01T00:00:00.000Z",
+      }),
+      "job_detail_intake_1",
+      "2026-08-01T01:00:00.000Z",
+    );
+    renderDetail(job);
+
+    const section = screen.getByTestId("intake-section");
+    expect(section).toHaveTextContent("1/2 받음");
+    expect(screen.getByTestId("intake-toggle-job_detail_intake_1")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByTestId("intake-toggle-job_detail_intake_2"));
+    expect(toggleIntakeSpy).toHaveBeenCalledWith("job_detail", "job_detail_intake_2");
+  });
+
+  it("목록이 없으면 구획을 그리지 않는다", () => {
+    renderDetail();
+    expect(screen.queryByTestId("intake-section")).not.toBeInTheDocument();
   });
 });
 

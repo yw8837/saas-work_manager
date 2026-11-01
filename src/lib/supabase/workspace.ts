@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { normalizeAppState, type AppState } from "@/lib/store";
-import type { Job } from "@/lib/domain";
+import type { Job, RevisionUsage } from "@/lib/domain";
 
 export type HostedWorkspaceDocument = {
   state: AppState;
@@ -22,11 +22,16 @@ export type PublicRevisionSummary = {
   tasksDone?: number;
   hasOpenRevision?: boolean;
   workerName?: string;
+  /** 아래는 20261101140000 migration 뒤에만 채워진다. 접수됐지만 작업자가 아직 처리하지 않은 요청 수. */
+  pending?: number;
+  /** 작업자가 정한 '시작 전 받을 자료' 중 아직 받지 못한 것의 이름. */
+  intakePending?: string[];
 };
 
 export type PublicRevisionReceipt = {
   requestId: string;
-  usage: "used" | "extra_scope";
+  /** migration 전 DB는 used/extra_scope, 뒤에는 pending(확인 대기)을 돌려준다. */
+  usage: RevisionUsage;
   sequence: number | null;
   submittedAt: string;
   remaining: number;
@@ -273,6 +278,8 @@ export async function getHostedPublicRevisionSummary(
       tasks_done: number;
       has_open_revision: boolean;
       worker_name: string | null;
+      pending_requests?: number | null;
+      intake_pending?: unknown;
     }>(view.data);
     return row ? {
       jobKey: row.job_key,
@@ -286,6 +293,11 @@ export async function getHostedPublicRevisionSummary(
       tasksDone: Number(row.tasks_done),
       hasOpenRevision: Boolean(row.has_open_revision),
       workerName: row.worker_name ?? undefined,
+      // 이전 판 함수에는 이 열이 없다. 없으면 비워 두고 화면은 그 줄을 그리지 않는다.
+      pending: row.pending_requests == null ? undefined : Number(row.pending_requests),
+      intakePending: Array.isArray(row.intake_pending)
+        ? row.intake_pending.filter((label): label is string => typeof label === "string" && label.trim() !== "").slice(0, 20)
+        : undefined,
     } : null;
   }
   // 새 함수가 아직 없는 DB(migration 적용 전)에서는 기존 요약 함수로 되돌아간다.
@@ -329,7 +341,7 @@ export async function submitHostedPublicRevision(
 
   const row = firstRow<{
     request_id: string;
-    usage: "used" | "extra_scope";
+    usage: RevisionUsage;
     sequence: number | null;
     submitted_at: string;
     remaining: number;

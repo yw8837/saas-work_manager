@@ -6,6 +6,7 @@ import { Info, RotateCcw } from "lucide-react";
 
 import { PublicRevisionView } from "@/components/public-revision-view";
 import { customerProgressOf, customerStageOf } from "@/lib/domain/customer-stage";
+import { pendingIntakeLabels } from "@/lib/domain";
 import {
   createCustomerDemoState,
   SAMPLE_WORKER_NAME,
@@ -82,6 +83,7 @@ export function CustomerRevisionDemo({ initialState }: { initialState?: Customer
       title={view.title}
       packageName={view.packageName}
       revision={view.revision}
+      intakePending={pendingIntakeLabels(state.order)}
       workerName={SAMPLE_WORKER_NAME}
       dueLabel={`${view.daysLeft}일 남음`}
       stage={customerStageOf(state.order)}

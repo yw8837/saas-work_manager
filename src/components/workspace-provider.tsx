@@ -19,9 +19,12 @@ import {
   jobLimitReached,
   normalizeInviteCode,
   PLAN_LIMITS,
+  completeRevision as applyCompletedRevision,
+  markRevisionExtraScope as applyExtraScopeRevision,
   recordRevision as appendRevision,
   resolvePlanAccess,
   revertRevision as applyRevertedRevision,
+  toggleIntakeItem as applyIntakeToggle,
   toggleJobCompletion,
   updateTaskStatus,
   BETA_GRANT_DAYS,
@@ -35,6 +38,7 @@ import {
   type PlanAccess,
   type PlanLimits,
   type RevisionChannel,
+  type RevisionUsage,
   type Task,
 } from "@/lib/domain";
 import {
@@ -123,19 +127,26 @@ type WorkspaceContextValue = AppState & {
   deleteAccount: () => Promise<void>;
   createJob: (input: CreateJobInput) => string;
   toggleTask: (jobId: string, taskId: string) => void;
+  /** '시작 전 받을 자료'를 받음/안 받음으로 바꾼다. 받은 것은 고객 링크 목록에서 빠진다. */
+  toggleIntake: (jobId: string, itemId: string) => void;
   toggleJobWaiting: (jobId: string) => void;
   completeJob: (jobId: string) => void;
   deleteJob: (jobId: string) => void;
   setRevisionPortalEnabled: (jobId: string, enabled: boolean) => void;
   rotateRevisionPortalToken: (jobId: string) => string | null;
-  recordRevision: (jobId: string, content: string, channel?: RevisionChannel) => void;
-  /** 중복·오접수를 원문 삭제 없이 되돌려 남은 횟수를 복구한다. 사유는 선택. */
+  /** 작업자가 받은 요청을 기록한다. `completed`면 이미 고친 것으로 보고 바로 1회를 쓴다. */
+  recordRevision: (jobId: string, content: string, channel?: RevisionChannel, completed?: boolean) => void;
+  /** 확인 대기 요청을 반려하거나, 센 요청을 원문 삭제 없이 되돌린다. 사유는 선택. */
   revertRevision: (jobId: string, revisionId: string, reason?: string) => void;
+  /** 작업자가 수정을 마쳤을 때 포함 수정 1회를 쓴다. 남은 횟수가 없으면 도메인 오류를 던진다. */
+  completeRevision: (jobId: string, revisionId: string) => void;
+  /** 확인 대기 요청을 추가 작업으로 분류한다(횟수를 쓰지 않음). */
+  markRevisionExtraScope: (jobId: string, revisionId: string) => void;
   recordPublicRevision: (
     token: string,
     content: string,
     clientLabel?: string,
-  ) => { jobId: string; usage: "used" | "extra_scope" } | null;
+  ) => { jobId: string; usage: RevisionUsage } | null;
   savePackage: (template: PackageTemplate) => void;
   archivePackage: (packageId: string) => void;
   saveOption: (template: OptionTemplate) => void;
@@ -175,6 +186,52 @@ function stateWithoutRevisionEvidence(state: AppState): string {
       updatedAt: "",
     })),
   });
+}
+
+/**
+ * 저장 충돌 때 "서버가 바뀐 것이 고객 링크로 새 요청이 붙은 것뿐인가"를 판정한다.
+ * 기존 기록이 하나라도 바뀌었으면(다른 기기의 '수정 완료'·반려·추가 작업 분류) 추가만 있는 경우가 아니다.
+ * 그런 변경을 '추가만'으로 보면 새 id만 붙이는 경로가 다른 기기의 완료를 오래된 확인 대기로 덮어쓴다.
+ */
+export function isPublicRevisionAppendOnly(previous: AppState, remote: AppState): boolean {
+  if (stateWithoutRevisionEvidence(remote) !== stateWithoutRevisionEvidence(previous)) return false;
+  const previousJobs = new Map(previous.jobs.map((job) => [job.id, job]));
+  return remote.jobs.every((remoteJob) => {
+    const previousJob = previousJobs.get(remoteJob.id);
+    if (!previousJob) return false;
+    const remoteById = new Map(remoteJob.revisions.map((revision) => [revision.id, revision]));
+    return previousJob.revisions.every((revision) => {
+      const remoteRevision = remoteById.get(revision.id);
+      return remoteRevision !== undefined && JSON.stringify(remoteRevision) === JSON.stringify(revision);
+    });
+  });
+}
+
+/**
+ * 합친 결과가 수정 횟수 규칙을 깨면(포함 한도 초과, 회차 번호 중복) 그 일감 경로를 돌려준다.
+ * 두 기기가 서로 다른 요청을 각각 '수정 완료'로 처리하면 필드 단위 합치기는 충돌 없이 둘 다 받아들여
+ * 한도를 넘길 수 있다. 원래부터 깨져 있던 기록 때문에 저장이 막히지 않도록 공통 조상(base)과 서버본(remote) 중 가장 나쁜 정도와
+ * 비교하고, 초과 횟수나 겹친 회차 수가 그보다 늘어난 경우만 고른다(원래 깨진 일감이라도 새로 늘어난 위반은 막는다).
+ * 이 기기 화면은 기준에 넣지 않는다. 엔진은 한도를 넘는 완료나 겹친 회차를 만들지 않으므로, 화면에만 있는 위반은
+ * 충돌을 멈출 때 다른 기기 기록을 붙이는 과정에서 생긴 것이고, 그걸 '원래 있던 위반'으로 인정하면 다음 합치기가 그대로 저장한다.
+ */
+function revisionInvariantConflicts(base: AppState, remote: AppState, merged: AppState): string[] {
+  const violations = (job: Job | undefined) => {
+    if (!job) return { excess: 0, duplicates: 0 };
+    const live = job.revisions.filter((revision) => !revision.revertedAt && revision.usage === "used");
+    const sequences = live.map((revision) => revision.sequence).filter((value): value is number => typeof value === "number");
+    return { excess: Math.max(0, live.length - job.revisionLimit), duplicates: sequences.length - new Set(sequences).size };
+  };
+  const byId = (state: AppState) => new Map(state.jobs.map((job) => [job.id, job]));
+  const inputs = [byId(base), byId(remote)];
+  return merged.jobs
+    .filter((job) => {
+      const after = violations(job);
+      const before = inputs.map((jobs) => violations(jobs.get(job.id)));
+      return after.excess > Math.max(...before.map((item) => item.excess))
+        || after.duplicates > Math.max(...before.map((item) => item.duplicates));
+    })
+    .map((job) => `workspace.jobs[${job.id}].revisions`);
 }
 
 const HOSTED_DRAFT_SCHEMA_VERSION = 1;
@@ -287,7 +344,22 @@ export function mergeConcurrentWorkspaceState(
   remote: AppState,
 ): WorkspaceMergeResult {
   const merged = mergeWorkspaceValue(base, local, remote, "workspace");
-  return { state: merged.value as AppState, conflicts: [...new Set(merged.conflicts)] };
+  const state = merged.value as AppState;
+  return {
+    state,
+    conflicts: [...new Set([...merged.conflicts, ...revisionInvariantConflicts(base, remote, state)])],
+  };
+}
+
+/**
+ * 저장이 버전 충돌로 거부됐을 때 서버본과 이 기기 저장본을 합친다.
+ * 고객 링크로 새 요청만 붙었으면 새 기록만 붙이고, 아니면 3갈래로 합친다.
+ * 다른 기기가 '수정 완료로 기록'한 수동 기록도 새 id라서 '추가만'으로 보이므로, 어느 경로든 수정 횟수 규칙을 다시 검사한다.
+ */
+export function resolveHostedSaveConflict(previous: AppState, local: AppState, remote: AppState): WorkspaceMergeResult {
+  if (!isPublicRevisionAppendOnly(previous, remote)) return mergeConcurrentWorkspaceState(previous, local, remote);
+  const state = mergeRemoteRevisionEvidence(local, remote);
+  return { state, conflicts: revisionInvariantConflicts(previous, remote, state) };
 }
 
 /** A queued owner snapshot may be old, but immutable public revision evidence must never be removed. */
@@ -537,8 +609,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const operation = saveChainRef.current.then(async () => {
       if (isStaleSession()) return;
       if (hostedConflictRef.current) throw new Error(hostedConflictRef.current);
+      // 큐에서 기다리는 동안 앞선 저장이 다른 기기의 변경(예: '수정 완료')을 합쳐 화면에 반영했을 수 있다.
+      // 넣을 때 찍어 둔 `next`를 그대로 보내면 그 변경을 되돌리므로, 지금 화면 상태(`next`와 그 뒤 편집 포함)를 보낸다.
+      const snapshot = stateRef.current;
       let stateToSave = preserveQueuedRevisionEvidence(
-        next,
+        snapshot,
         stateRef.current,
         lastSyncedStateRef.current,
       );
@@ -551,47 +626,46 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const remote = await loadHostedWorkspace(client, ownerId);
         if (isStaleSession()) return;
         const previous = lastSyncedStateRef.current;
-        const publicRevisionOnly = remote
-          && previous
-          && stateWithoutRevisionEvidence(remote.state) === stateWithoutRevisionEvidence(previous);
         if (!remote || !previous) throw error;
 
-        if (publicRevisionOnly) {
-          stateToSave = mergeRemoteRevisionEvidence(stateToSave, remote.state);
-        } else {
-          const merged = mergeConcurrentWorkspaceState(previous, stateToSave, remote.state);
-          if (merged.conflicts.length) {
-            const message = "다른 기기와 같은 항목을 수정해 자동 병합을 멈췄어요. 이 기기의 편집은 보존됐으며 새로고침해 다시 시도할 수 있어요.";
-            hostedConflictRef.current = message;
-            remoteVersionRef.current = remote.documentVersion;
-            lastSyncedStateRef.current = remote.state;
-            const visible = preserveQueuedRevisionEvidence(stateRef.current, stateRef.current, remote.state);
-            setCurrentState(visible);
-            const draft = readHostedDraft(ownerId);
-            writeHostedDraft(
-              ownerId,
-              visible,
-              draft?.baseVersion ?? remote.documentVersion,
-              draft?.baseState ?? previous,
-              message,
-            );
-            throw new Error(message);
-          }
-          stateToSave = merged.state;
+        const merged = resolveHostedSaveConflict(previous, stateToSave, remote.state);
+        // 서버 응답을 기다리는 동안 이 기기에 새로 생긴 기록(예: '수정 완료로 기록')도 붙인다.
+        // 붙인 뒤의 최종본을 다시 검사해야 그 기록이 수정 횟수 검사를 건너뛰지 않는다.
+        const latestLocal = stateRef.current;
+        const finalState = preserveQueuedRevisionEvidence(merged.state, latestLocal, remote.state);
+        const conflicts = merged.conflicts.length
+          ? merged.conflicts
+          : revisionInvariantConflicts(previous, remote.state, finalState);
+        if (conflicts.length) {
+          const message = "다른 기기와 같은 항목을 수정해 자동 병합을 멈췄어요. 이 기기의 편집은 보존됐으며 새로고침해 다시 시도할 수 있어요.";
+          hostedConflictRef.current = message;
+          remoteVersionRef.current = remote.documentVersion;
+          lastSyncedStateRef.current = remote.state;
+          const visible = preserveQueuedRevisionEvidence(stateRef.current, stateRef.current, remote.state);
+          setCurrentState(visible);
+          const draft = readHostedDraft(ownerId);
+          writeHostedDraft(
+            ownerId,
+            visible,
+            draft?.baseVersion ?? remote.documentVersion,
+            draft?.baseState ?? previous,
+            message,
+          );
+          throw new Error(message);
         }
-
-        stateToSave = preserveQueuedRevisionEvidence(stateToSave, stateRef.current, remote.state);
-        remoteVersionRef.current = remote.documentVersion;
-        const saved = await saveHostedWorkspace(client, stateToSave, remoteVersionRef.current);
+        stateToSave = finalState;
+        // 버전 기준은 재시도 저장이 성공한 뒤에만 올린다. 먼저 올렸다가 저장이 실패하면, 다음 큐 저장이
+        // 서버본을 합치지 않은 화면을 새 버전으로 보내 다른 기기 변경을 덮어쓴다.
+        const saved = await saveHostedWorkspace(client, stateToSave, remote.documentVersion);
         if (isStaleSession()) return;
         remoteVersionRef.current = saved.documentVersion;
       }
 
       if (isStaleSession()) return;
-      await syncHostedRevisionPortals(client, stateToSave.jobs);
-      if (isStaleSession()) return;
+      // 문서 저장이 성공한 순간부터 그 내용이 서버 기준이다. 링크 동기화가 실패하더라도 다음 큐 저장이
+      // 이 기준 위에서 출발해야, 합쳐 넣은 다른 기기 변경(예: '수정 완료')을 되돌리지 않는다.
       lastSyncedStateRef.current = stateToSave;
-      const rebasedVisible = mergeConcurrentWorkspaceState(next, stateRef.current, stateToSave);
+      const rebasedVisible = mergeConcurrentWorkspaceState(snapshot, stateRef.current, stateToSave);
       if (rebasedVisible.conflicts.length) {
         const message = "저장 대기 중 다른 기기와 같은 항목이 바뀌어 후속 편집 자동 저장을 멈췄어요. 이 기기의 편집은 보존됐어요.";
         hostedConflictRef.current = message;
@@ -601,17 +675,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         throw new Error(message);
       }
 
-      hostedConflictRef.current = null;
-      saveFailureRef.current = null;
       const visible = rebasedVisible.state;
       if (!jsonEqual(visible, stateRef.current)) setCurrentState(visible);
       saveState(visible, undefined, storageKeyForUser(ownerId));
+      await syncHostedRevisionPortals(client, stateToSave.jobs);
+      if (isStaleSession()) return;
+      hostedConflictRef.current = null;
+      saveFailureRef.current = null;
       void saveNativeOfflineSnapshot(ownerId, stateToSave, new Date().toISOString()).catch(() => undefined);
       if (sequence === saveSequenceRef.current) {
         clearHostedDraft(ownerId);
         setSaveStatus("saved");
       } else {
-        writeHostedDraft(ownerId, visible, remoteVersionRef.current, stateToSave);
+        // 링크 동기화를 기다리는 사이 새 편집이 있었을 수 있어 그 시점 화면을 남긴다.
+        writeHostedDraft(ownerId, stateRef.current, remoteVersionRef.current, stateToSave);
       }
     });
 
@@ -1186,6 +1263,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const base = draft?.baseState ?? lastSyncedStateRef.current ?? remote.state;
         const merged = mergeConcurrentWorkspaceState(base, stateRef.current, remote.state);
         const stateToSave = preserveQueuedRevisionEvidence(merged.state, stateRef.current, remote.state);
+        // 같은 항목 충돌은 이 기기 편집을 따르지만, 두 기기의 완료를 합쳐 한도를 넘기거나 회차가 겹치는 건 고를 수 없다.
+        if (revisionInvariantConflicts(base, remote.state, stateToSave).length) {
+          throw new Error("두 기기에서 각각 '수정 완료'를 눌러 포함 수정 횟수를 넘었거나 회차가 겹쳐요. 한쪽 완료를 되돌린 뒤 다시 시도하거나 서버본을 쓰세요.");
+        }
         const saved = await saveHostedWorkspace(client, stateToSave, remote.documentVersion);
         if (hostedOwnerRef.current !== ownerId) return;
         await syncHostedRevisionPortals(client, stateToSave.jobs);
@@ -1298,6 +1379,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [updateJob],
   );
 
+  const toggleIntake = useCallback(
+    (jobId: string, itemId: string) => {
+      updateJob(jobId, (job) => (job.status === "active" ? applyIntakeToggle(job, itemId) : job));
+    },
+    [updateJob],
+  );
+
   const toggleJobWaiting = useCallback(
     (jobId: string) => {
       updateJob(jobId, (job) => {
@@ -1367,11 +1455,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [updateJob]);
 
   const recordRevision = useCallback(
-    (jobId: string, content: string, channel: RevisionChannel = "kakao") => {
+    (jobId: string, content: string, channel: RevisionChannel = "kakao", completed = false) => {
       if (!content.trim()) return;
       updateJob(jobId, (job) =>
         job.status === "active"
-          ? appendRevision(job, { source: "manual", channel, body: content }).job
+          ? appendRevision(job, { source: "manual", channel, body: content, completed }).job
           : job,
       );
     },
@@ -1387,10 +1475,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [updateJob],
   );
 
+  // 끝난 일감의 기록은 흔들지 않는다(되돌리기와 같은 조건). 화면 가드만으로는 오래된 탭을 막지 못한다.
+  const completeRevision = useCallback(
+    (jobId: string, revisionId: string) => {
+      updateJob(jobId, (job) =>
+        job.status === "active" ? applyCompletedRevision(job, revisionId) : job,
+      );
+    },
+    [updateJob],
+  );
+
+  const markRevisionExtraScope = useCallback(
+    (jobId: string, revisionId: string) => {
+      updateJob(jobId, (job) =>
+        job.status === "active" ? applyExtraScopeRevision(job, revisionId) : job,
+      );
+    },
+    [updateJob],
+  );
+
   const recordPublicRevision = useCallback(
     (token: string, content: string, clientLabel?: string) => {
       if (!content.trim()) return null;
-      let receipt: { jobId: string; usage: "used" | "extra_scope" } | null = null;
+      let receipt: { jobId: string; usage: RevisionUsage } | null = null;
       commitState((current) => {
         const job = current.jobs.find(
           (item) =>
@@ -1620,6 +1727,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       deleteAccount,
       createJob,
       toggleTask,
+      toggleIntake,
       toggleJobWaiting,
       completeJob,
       deleteJob,
@@ -1627,6 +1735,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       rotateRevisionPortalToken,
       recordRevision,
       revertRevision,
+      completeRevision,
+      markRevisionExtraScope,
       recordPublicRevision,
       savePackage,
       archivePackage,
@@ -1640,7 +1750,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (

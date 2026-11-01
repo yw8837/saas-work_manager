@@ -36,6 +36,34 @@ describe("고객 링크 공개 RPC(get_workspace_revision_view)", () => {
   });
 });
 
+describe("수정 완료 때 차감 migration(20261101140000)", () => {
+  const pendingSql = readFileSync(
+    resolve(process.cwd(), "supabase/migrations/20261101140000_revision_pending_and_intake.sql"),
+    "utf8",
+  );
+
+  it("공개 제출은 확인 대기로만 기록하고 접수할 때 횟수를 세지 않는다", () => {
+    expect(pendingSql).toContain("'usage', 'pending'");
+    expect(pendingSql).toContain("check (usage in ('pending', 'used', 'extra_scope'))");
+    expect(pendingSql).not.toContain("then 'used' else 'extra_scope'");
+  });
+
+  it("다시 만든 고객 조회 함수도 좁게 열고, 금액·연락처·할 일 이름은 내보내지 않는다", () => {
+    // 같은 파일의 제출 함수는 고객이 적은 이름(clientLabel)을 원래대로 기록하므로, 조회 함수 부분만 본다.
+    const viewSql = pendingSql.slice(pendingSql.indexOf("create function public.get_workspace_revision_view"));
+    expect(viewSql.length).toBeGreaterThan(100);
+    expect(viewSql).toContain("security definer");
+    expect(viewSql).toContain("set search_path = ''");
+    expect(viewSql).toContain("grant execute on function public.get_workspace_revision_view(text) to anon, authenticated");
+    expect(viewSql).toContain("revoke all on function public.get_workspace_revision_view(text) from public");
+    expect(viewSql).not.toMatch(/'amount'|'estimatedCost'|'margin'|'clientLabel'|'links'/);
+    expect(viewSql).not.toMatch(/task ->> 'title'/);
+    // 받을 자료는 이름만, 개수·길이를 잘라서 내보낸다.
+    expect(viewSql).toContain("left(btrim(item ->> 'label'), 80)");
+    expect(viewSql).toContain("limit 20");
+  });
+});
+
 describe("getHostedPublicRevisionSummary", () => {
   it("새 함수가 있으면 마감·진행·이름까지 읽는다", async () => {
     const { client, rpc } = clientWith({
@@ -66,6 +94,22 @@ describe("getHostedPublicRevisionSummary", () => {
     expect(summary).toEqual({ jobKey: "job_1", title: "랜딩", packageName: "기본", included: 3, used: 1, remaining: 2 });
     expect(summary?.tasksTotal).toBeUndefined();
     expect(rpc).toHaveBeenNthCalledWith(2, "get_workspace_revision_summary", { p_token: token });
+  });
+
+  it("새 판 함수의 확인 대기 건수와 아직 못 받은 자료 이름을 읽고, 이상한 값은 버린다", async () => {
+    const { client } = clientWith({
+      get_workspace_revision_view: {
+        data: [{
+          job_key: "job_1", title: "랜딩", package_name: "기본", included: 3, used: 1, remaining: 2,
+          due_date: null, tasks_total: 4, tasks_done: 2, has_open_revision: true, worker_name: null,
+          pending_requests: 2, intake_pending: ["참고 이미지", "", 3, "  "],
+        }],
+        error: null,
+      },
+    });
+    const summary = await getHostedPublicRevisionSummary(client, token);
+    expect(summary?.pending).toBe(2);
+    expect(summary?.intakePending).toEqual(["참고 이미지"]);
   });
 
   it("꺼진 링크는 null", async () => {

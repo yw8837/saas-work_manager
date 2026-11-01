@@ -63,6 +63,7 @@ test("3·5·1번: 첫 실행 체크리스트 → 업종 예시 → 첫 일감 �
   const message = await page.evaluate(() => navigator.clipboard.readText());
   expect(message).toContain("리뉴얼 첫 고객님");
   expect(message).toContain(link);
+  expect(message).toContain("제가 수정을 마칠 때마다 1회씩 세요.");
   expect(message).not.toMatch(/\d원|₩/);
 
   const [preview] = await Promise.all([context.waitForEvent("page"), page.getByTestId("send-preview").click()]);
@@ -120,12 +121,20 @@ test("2번: 고객 링크 화면은 남은 수정을 크게, 개인정보 안내
   await expect(page.getByTestId("revision-progress")).toContainText(/할 일 \d+개 중 \d+개 완료/);
   await expect(page.getByText(/민감한 내용은 적지 마세요/)).toBeHidden();
   await expect(page.getByRole("link", { name: "개인정보처리방침" })).toBeVisible();
+  // 수정 횟수는 작업자가 수정을 마칠 때 쓴다는 것과 답이 오는 곳을, 입력하기 전에 보여 준다.
+  await expect(page.getByTestId("revision-how-it-counts")).toBeVisible();
+  await expect(page.getByTestId("revision-how-it-counts")).toContainText("작업자가 수정을 마치면 그때 포함 수정 1회로 세요");
   await noHorizontalOverflow(page);
 
   await page.getByLabel("수정 요청 내용").fill("리뉴얼 E2E 요청");
   await page.getByRole("button", { name: "요청 남기기" }).click();
+  await expect(page.getByRole("status")).toContainText("요청을 접수했어요");
   await expect(page.getByTestId("revision-next-step")).toContainText("다음에 일어나는 일");
-  await expect(page.getByTestId("revision-next-step")).toContainText("남은 포함 수정은 1회예요");
+  // 접수만으로는 횟수를 쓰지 않는다.
+  await expect(page.getByTestId("revision-next-step")).toContainText("남은 포함 수정은 2회예요");
+  await page.getByRole("button", { name: "다른 요청 남기기" }).click();
+  await expect(page.getByTestId("revision-remaining")).toHaveText("2");
+  await expect(page.getByTestId("revision-pending")).toContainText("확인 대기 1건");
 
   await page.goto("/r/not-a-real-link");
   await expect(page.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeVisible();
