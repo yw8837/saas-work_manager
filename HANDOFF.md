@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-11-01 (Cloudflare 독립 배포 경로 준비 브랜치)
+마지막 갱신: 2026-11-01 (Cloudflare Preview 배포·로그인 확인, 운영 이전 전)
 
 ## 제품 한 줄
 
@@ -12,10 +12,11 @@
 
 ## 지금 상태
 
-### 2026-11-01 GPT Sites 독립 배포 경로 준비 (운영 전환 전)
+### 2026-11-01 Cloudflare Preview 검증 (운영 전환 전)
 
 - `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md`와 `scripts/cloudflare-deploy.mjs`에 Claude도 실행할 수 있는 OpenNext→Cloudflare Worker Preview/운영 배포 경로를 추가했다. Preview와 production은 서로 다른 Worker 이름을 쓰며, 기본 명령은 배포 없는 dry-run이다. 운영 적용은 깨끗한 `main == origin/main`과 명시적 ACK를 요구한다.
-- 별도 worktree에서 `npm ci`, OpenNext 빌드, Wrangler dry-run 통과. 기존 OpenNext 1.20.2는 Next 16.4 런타임에서 모든 경로 500을 냈고, 1.20.12로 올린 뒤 로컬 Worker `/`·`/guide`·`/demo/r` HTTP 200을 확인했다. 가짜 Supabase로 검사한 `/api/health`는 설정 미완료 503이다. 실제 Worker·서버 secret·OAuth·도메인은 아직 이전하지 않았다. 자체 도메인이라도 현재 호스팅은 Sites이다. 준비/이전/롤백 순서는 위 문서 참조.
+- PR #22를 CI 통과 후 `main`에 병합했다(`5ff7eaa`). 별도 깨끗한 clone에서 `ilgamcheck-preview.bsfire1237.workers.dev` Worker를 실제 배포하고 서버 비밀키를 Preview Worker secret에만 등록했다. 가입 플래그를 켠 재배포 후 `/api/health`와 `npm run smoke:remote` 통과. Supabase Auth에 정확한 Preview `/today`·`/settings` 복귀 주소를 더했고 기존 Google 계정으로 Preview `/today` 복귀, 저장·실시간 연결 표시를 확인했다. 이 계정의 일감은 0건이라 일감 생성·고객 요청 저장까지 통과한 것은 아니다. 자체 도메인의 실제 호스트는 여전히 Sites다. 준비/이전/롤백 순서는 위 문서 참조.
+- 운영 Worker 최초 생성에서 배포 스크립트가 가입 `false`와 `true`를 동시에 요구하는 모순을 발견했다. `codex/cloudflare-bootstrap-flag` 브랜치에서 회귀 테스트를 실패→통과로 고쳤다. PR·CI 통과 후 clean `main`에서만 운영 Worker를 만든다. 운영 secret 등록은 사용자 승인, DNS 전환은 전체 레코드 대조 후 승인 범위 안에서만 진행한다.
 - `claude/guide-demo-link`는 PR #18로 병합 완료. #19·#20도 병합. 열린 #1·#17·#21 중 즉시 병합 대상은 없다. #21은 광고 동의의 과거 확인 링크 상태 안내가 최신 이력과 다를 수 있어 수정·재검증이 필요하다. 클로드 공유 우편함에 재현 순서를 전달했다.
 
 ### 2026-10-31 개발 의존성 감사 17개 → 0개 (재배포 불필요)
@@ -182,9 +183,9 @@
 
 ### Cloudflare 호스팅 독립 전환
 
-1. 이 브랜치의 검사·리뷰·PR 병합 후, 실제 공개 환경값을 별도 worktree의 `.env.local`에만 준비하고 Preview Worker를 최초 생성한다. 운영 Sites를 건드리지 않는다.
-2. Supabase service-role secret을 Worker secret으로 등록하고 Preview `/api/health`, Google 로그인 복귀, 일감·고객 수정 흐름을 실제 테스트 계정으로 확인한다. PR #21 기능의 DB/정책 게이트는 별도로 해결한다.
-3. 도메인 zone/DNS·TLS·OAuth·모바일 링크·롤백을 사전 검토한 뒤 운영 DNS 전환 여부를 결정한다. 현재 운영 주소를 곧바로 바꾸지 않는다.
+1. `codex/cloudflare-bootstrap-flag`의 테스트·리뷰·CI 통과 후 병합한다. 운영 Worker `ilgamcheck`를 clean `main`에서 신규 가입 끔으로 생성하고 승인된 서버 secret을 등록한 뒤 가입 켬으로 재배포·health 검사한다. 기존 Sites 도메인은 아직 건드리지 않는다.
+2. Preview의 Google 로그인 복귀는 확인했다. 전용 테스트 계정으로 일감 등록·고객 수정 흐름을 확인한다. PR #21 기능의 DB/정책 게이트는 별도 처리한다.
+3. 예스닉의 전체 DNS 레코드를 백업하고 Cloudflare zone과 하나씩 대조한다. 포트폴리오·메일 영향과 롤백을 확인한 뒤에만 네임서버 및 Worker Custom Domain을 전환하고 TLS·OAuth·모바일 링크를 재검증한다.
 
 ### 배포 후 남은 확인 (2026-10-31)
 
