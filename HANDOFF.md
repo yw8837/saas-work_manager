@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-11-01 (Cloudflare Preview 배포·로그인 확인, 운영 이전 전)
+마지막 갱신: 2026-11-01 (Cloudflare 운영 도메인 전환·로그인 확인)
 
 ## 제품 한 줄
 
@@ -11,6 +11,13 @@
 차별점은 고객용 수정요청 링크다. 그래서 서버(Supabase)는 유지한다. 로컬 전용으로 바꾸지 않는다.
 
 ## 지금 상태
+
+### 2026-11-01 Cloudflare 운영 전환
+
+- PR #23의 bootstrap 플래그 수정이 CI 통과 후 `main`에 병합됐다(`57a4eff`). 깨끗한 `main`에서 운영 Worker `ilgamcheck`를 생성하고 Supabase 서버 키를 Worker secret에만 등록했다. 가입 플래그를 켠 최종 배포 버전은 `7ce18edc-57ae-41d1-ad6c-2028584d545e`다.
+- `studioyeolmae.com`의 예스닉 DNS 28개를 비공개 스테이션 기록과 대조해 Cloudflare로 옮겼다. 예스닉 네임서버를 `arvind.ns.cloudflare.com`·`violet.ns.cloudflare.com`으로 변경했고 Cloudflare zone 활성화를 확인했다. `ilgam`의 이전 Sites CNAME **한 건만** Cloudflare zone에서 제거하고 운영 Worker Custom Domain에 `ilgam.studioyeolmae.com`을 연결했다. 다른 Sites·Pages·Tistory·Daum MX 레코드는 유지했다.
+- `npm run smoke:remote -- https://ilgam.studioyeolmae.com`이 health, 주요 경로, 보안 헤더, PWA 파일을 통과했다. Google 로그인은 기존 `bsfire1237@gmail.com` 계정으로 `/today` 복귀, 실시간 연결·저장됨, 누적 생성 1건을 확인했다. 포트폴리오·www·블로그·Pages 하위 주소와 Daum MX는 확인했다. `expat` 루트는 404여서 별도 확인이 필요하다. 전용 테스트 계정의 일감 생성·고객 요청 쓰기와 모바일 실기기는 아직 검증하지 않았다.
+- 배포·DNS·롤백 절차와 남은 검증은 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 참조. Cloudflare 대시보드에서 수동 배포가 아니라 저장소의 명령으로 Claude도 `main` 기준 재배포할 수 있다. 도메인 캐시는 리졸버별로 전파 시간이 다르다.
 
 ### 2026-11-01 Cloudflare Preview 검증 (운영 전환 전)
 
@@ -183,9 +190,9 @@
 
 ### Cloudflare 호스팅 독립 전환
 
-1. `codex/cloudflare-bootstrap-flag`의 테스트·리뷰·CI 통과 후 병합한다. 운영 Worker `ilgamcheck`를 clean `main`에서 신규 가입 끔으로 생성하고 승인된 서버 secret을 등록한 뒤 가입 켬으로 재배포·health 검사한다. 기존 Sites 도메인은 아직 건드리지 않는다.
-2. Preview의 Google 로그인 복귀는 확인했다. 전용 테스트 계정으로 일감 등록·고객 수정 흐름을 확인한다. PR #21 기능의 DB/정책 게이트는 별도 처리한다.
-3. 예스닉의 전체 DNS 레코드를 백업하고 Cloudflare zone과 하나씩 대조한다. 포트폴리오·메일 영향과 롤백을 확인한 뒤에만 네임서버 및 Worker Custom Domain을 전환하고 TLS·OAuth·모바일 링크를 재검증한다.
+1. 운영 Worker와 대표 도메인 전환은 완료됐다. 다음 제품 배포는 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번 절차를 사용한다. PR 검사·리뷰 후 깨끗한 `main`에서 배포하고 원격 smoke와 사용자 흐름을 확인한다. GPT Sites에 다시 push하지 않는다.
+2. 전용 테스트 계정으로 일감 등록·고객 수정 요청·재로그인 쓰기 흐름을 검증한다. PR #21 기능의 DB/정책 게이트는 별도 처리한다. 실제 사용자 데이터에 시험 레코드를 남기지 않는다.
+3. 모바일 앱 딥링크·공개 링크를 Android 실기기에서 확인한다. 도메인 캐시 전파와 다른 호스트·Daum 메일의 운영 상태를 재점검한다. `expat` 루트 404는 DNS 레코드가 같아도 서비스 자체 상태를 확인해야 한다.
 
 ### 배포 후 남은 확인 (2026-10-31)
 
