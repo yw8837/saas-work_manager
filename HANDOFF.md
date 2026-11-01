@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-10-31
+마지막 갱신: 2026-11-01 (Cloudflare 독립 배포 경로 준비 브랜치)
 
 ## 제품 한 줄
 
@@ -11,6 +11,12 @@
 차별점은 고객용 수정요청 링크다. 그래서 서버(Supabase)는 유지한다. 로컬 전용으로 바꾸지 않는다.
 
 ## 지금 상태
+
+### 2026-11-01 GPT Sites 독립 배포 경로 준비 (운영 전환 전)
+
+- `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md`와 `scripts/cloudflare-deploy.mjs`에 Claude도 실행할 수 있는 OpenNext→Cloudflare Worker Preview/운영 배포 경로를 추가했다. Preview와 production은 서로 다른 Worker 이름을 쓰며, 기본 명령은 배포 없는 dry-run이다. 운영 적용은 깨끗한 `main == origin/main`과 명시적 ACK를 요구한다.
+- 별도 worktree에서 `npm ci`, OpenNext 빌드, Wrangler dry-run 통과. 기존 OpenNext 1.20.2는 Next 16.4 런타임에서 모든 경로 500을 냈고, 1.20.12로 올린 뒤 로컬 Worker `/`·`/guide`·`/demo/r` HTTP 200을 확인했다. 가짜 Supabase로 검사한 `/api/health`는 설정 미완료 503이다. 실제 Worker·서버 secret·OAuth·도메인은 아직 이전하지 않았다. 자체 도메인이라도 현재 호스팅은 Sites이다. 준비/이전/롤백 순서는 위 문서 참조.
+- `claude/guide-demo-link`는 PR #18로 병합 완료. #19·#20도 병합. 열린 #1·#17·#21 중 즉시 병합 대상은 없다. #21은 광고 동의의 과거 확인 링크 상태 안내가 최신 이력과 다를 수 있어 수정·재검증이 필요하다. 클로드 공유 우편함에 재현 순서를 전달했다.
 
 ### 2026-10-31 개발 의존성 감사 17개 → 0개 (재배포 불필요)
 
@@ -173,6 +179,12 @@
 - 2026-09-30: 코드의 기본 운영 주소를 `https://ilgam.studioyeolmae.com`으로 바꿨다(링크 미리보기 등). DNS는 연결됨. 남은 일: ChatGPT Sites에 다시 배포, 새 주소 HTTPS·로그인 확인, Supabase Auth Site URL/Redirect URLs를 supabase/config.toml과 같게 맞추기.
 
 ## 다음 작업
+
+### Cloudflare 호스팅 독립 전환
+
+1. 이 브랜치의 검사·리뷰·PR 병합 후, 실제 공개 환경값을 별도 worktree의 `.env.local`에만 준비하고 Preview Worker를 최초 생성한다. 운영 Sites를 건드리지 않는다.
+2. Supabase service-role secret을 Worker secret으로 등록하고 Preview `/api/health`, Google 로그인 복귀, 일감·고객 수정 흐름을 실제 테스트 계정으로 확인한다. PR #21 기능의 DB/정책 게이트는 별도로 해결한다.
+3. 도메인 zone/DNS·TLS·OAuth·모바일 링크·롤백을 사전 검토한 뒤 운영 DNS 전환 여부를 결정한다. 현재 운영 주소를 곧바로 바꾸지 않는다.
 
 ### 배포 후 남은 확인 (2026-10-31)
 
