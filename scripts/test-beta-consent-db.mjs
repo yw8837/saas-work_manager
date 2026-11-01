@@ -410,6 +410,76 @@ try {
     assert.deepEqual(await confirm(twice.confirm_token), { status: "already_confirmed", ad_active: true });
   });
 
+  await check("[재검토 11/1 Codex] 확인 결과 ad_active는 신청 건이 아니라 주소 전체 기준(실제 발송 판정과 같음): 철회 뒤 새 신청으로 다시 동의하면 옛 링크도 '유효'", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-cx-history@example.invalid";
+    // 발송 판정(ad_status)과 확인 화면 값(ad_active)이 늘 같은지 매 단계 대조한다.
+    const sameAsSendRule = async (result, expected) => {
+      assert.equal(result.ad_active, expected);
+      assert.equal((await latestApplication(email)).ad_status === "active", expected, "ad_status와 ad_active가 다르다");
+    };
+
+    // C1 신청·동의·확인 → 철회.
+    await apply(email, { ad: true });
+    const first = await latestApplication(email);
+    await sameAsSendRule(await confirm(first.confirm_token), true);
+    assert.equal((await unsubscribe(first.unsubscribe_token)).status, "withdrawn");
+    await sameAsSendRule(await confirm(first.confirm_token), false);
+
+    // C2 신청·다시 동의·확인.
+    await apply(email, { ad: true });
+    const second = await latestApplication(email);
+    assert.notEqual(second.id, first.id);
+    assert.deepEqual(await confirm(second.confirm_token), { status: "confirmed", ad_active: true });
+    const afterSecond = await latestApplication(email);
+    assert.equal(afterSecond.ad_status, "active");
+    assert.equal(afterSecond.ad_target, true);
+
+    // 옛 C1 링크: 신청 건 기준이었다면 false("보내지 않아요")지만 실제 발송 대상이다. 화면도 '유효'여야 한다.
+    const reopened = await confirm(first.confirm_token);
+    assert.equal(reopened.status, "already_confirmed");
+    await sameAsSendRule(reopened, true);
+
+    // 광고에 체크하지 않은 새 신청 C3를 확인해도 주소의 유효한 동의를 그대로 알려 준다(철회로 보지 않는다).
+    await db.exec("delete from public.beta_public_call_counters");
+    await apply(email, { ad: false });
+    const third = await latestApplication(email);
+    const thirdResult = await confirm(third.confirm_token);
+    assert.equal(thirdResult.status, "confirmed");
+    await sameAsSendRule(thirdResult, true);
+
+    // 다시 철회하면 어느 링크를 열어도 '유효하지 않음'.
+    assert.equal((await unsubscribe(second.unsubscribe_token)).status, "withdrawn");
+    for (const token of [first.confirm_token, second.confirm_token, third.confirm_token]) {
+      await sameAsSendRule(await confirm(token), false);
+    }
+  });
+
+  await check("[재검토 11/1 Codex] 확인 대기 동의만 있으면 다른 신청을 확인해도 '유효' 아님, 만료 링크는 처리하지 않고 주소 상태도 알려 주지 않는다", async () => {
+    await db.exec("delete from public.beta_public_call_counters");
+    const email = "test-cx-pending@example.invalid";
+    // P1: 광고 동의했지만 확인 안 함(확인 대기). P2: 광고 미체크 신청을 확인.
+    await apply(email, { ad: true });
+    const pending = await latestApplication(email);
+    await apply(email, { ad: false });
+    const plain = await latestApplication(email);
+    assert.deepEqual(await confirm(plain.confirm_token), { status: "confirmed", ad_active: false });
+    assert.equal((await latestApplication(email)).ad_status, "pending");
+
+    // P1 링크가 만료돼도 처리하지 않고, 주소 상태는 여전히 확인 대기(false).
+    await db.query("update public.beta_applications set confirm_expires_at = now() - interval '1 second' where id = $1", [pending.id]);
+    assert.deepEqual(await confirm(pending.confirm_token), { status: "expired", ad_active: false });
+    assert.equal((await latestApplication(email)).ad_status, "pending");
+
+    // 다른 신청 P3로 동의·확인해 주소가 유효해져도, 만료된 P1 링크는 처리하지 않고 주소 상태도 돌려주지 않는다(정보 최소화, 10차 재검토).
+    await apply(email, { ad: true });
+    const renewed = await latestApplication(email);
+    assert.deepEqual(await confirm(renewed.confirm_token), { status: "confirmed", ad_active: true });
+    assert.deepEqual(await confirm(pending.confirm_token), { status: "expired", ad_active: false });
+    const pendingRow = (await opsApplications()).find((row) => row.id === pending.id);
+    assert.equal(pendingRow.email_confirmed_at, null, "만료 링크는 주소 확인을 처리하지 않는다");
+  });
+
   await check("[시험표 9] 링크를 여는 것만으로는 처리되지 않는다: 토큰으로 상태를 읽는 공개 함수가 없다", async () => {
     const { rows } = await db.query(`
       select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace

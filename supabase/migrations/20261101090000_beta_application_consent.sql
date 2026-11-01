@@ -421,6 +421,10 @@ end;
 $$;
 
 -- ── 공개 RPC: 주소 확인(버튼을 눌렀을 때만 부른다) ───────────────────────────
+-- ad_active는 이 신청 건이 아니라 이 주소 전체 이력 기준(beta_ad_status = 'active')이다(confirmed·already_confirmed).
+-- 실제 발송 대상 판정과 같은 기준이어야 옛 링크를 다시 열었을 때 화면 안내가 실제와 어긋나지 않는다.
+-- expired·invalid·rate_limited는 처리하지 않았고 주소 상태도 알려 주지 않으므로 항상 false다
+-- (만료된 링크가 주소 상태를 계속 조회하는 수단으로 남지 않게. 화면도 이 값을 쓰지 않는다).
 
 create function public.confirm_beta_email(p_token text)
 returns table(status text, ad_active boolean)
@@ -488,25 +492,12 @@ begin
       delete from public.beta_ad_suppressions where email_hash = v_application.email_hash;
     end if;
     return query select 'confirmed'::text,
-      exists (
-        select 1 from public.beta_ad_consent_events as event
-        where event.application_id = v_application.id and event.kind = 'consent'
-          and event.confirmed_at is not null
-          and (v_negative_at is null or event.occurred_at > v_negative_at)
-      );
+      ilgam_private.beta_ad_status(v_application.email_hash) = 'active';
     return;
   end if;
 
-  select max(event.occurred_at) into v_negative_at
-  from public.beta_ad_consent_events as event
-  where event.email_hash = v_application.email_hash and event.kind in ('refuse', 'withdraw');
   return query select 'already_confirmed'::text,
-    exists (
-      select 1 from public.beta_ad_consent_events as event
-      where event.application_id = v_application.id and event.kind = 'consent'
-        and event.confirmed_at is not null
-        and (v_negative_at is null or event.occurred_at > v_negative_at)
-    );
+    ilgam_private.beta_ad_status(v_application.email_hash) = 'active';
 end;
 $$;
 

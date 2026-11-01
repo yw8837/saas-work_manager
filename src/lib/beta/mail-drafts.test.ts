@@ -66,6 +66,9 @@ describe("[시험표 1] 6경로(참여 희망 × 광고 O/X) 적격자 운영 �
       expect(draft.body).toContain("본인이 신청하지 않으셨다면");
       if (ad) {
         expect(draft.body).toContain(`${OPTIONS.origin}/apply/confirm/${CONFIRM}`);
+        // [재검토 11/1 Codex] 같은 주소의 다른 유효 동의가 있을 수 있어 이번 동의의 효력만 말한다.
+        expect(draft.body).toContain("누르지 않으시면 이번 동의는 효력이 없습니다.");
+        expect(draft.body).not.toContain("광고성 메일을 보내지 않습니다");
         expect(draft.body).toContain(`${OPTIONS.origin}/u/${UNSUBSCRIBE}`);
         expect(draft.body).toContain("If you do not wish to receive promotional e-mail");
       } else {
@@ -116,8 +119,8 @@ describe("[시험표 2] 6경로 × 기준 미충족 12사례", () => {
 describe("[시험표 5] 처리결과 통지 초안(v1 형식)", () => {
   it.each([
     ["consent", "동의", "동의가 등록되었습니다."],
-    ["refuse", "거부", "거부가 처리되어 앞으로 광고성 이메일을 보내지 않습니다."],
-    ["withdraw", "철회", "철회가 처리되어 앞으로 광고성 이메일을 보내지 않습니다."],
+    ["refuse", "거부", "- 처리 결과: 2026-11-01의 수신 거부가 처리되었습니다. 이후 다시 동의하지 않으시면 광고성 이메일을 보내지 않습니다."],
+    ["withdraw", "철회", "- 처리 결과: 2026-11-01의 수신 철회가 처리되었습니다. 이후 다시 동의하지 않으시면 광고성 이메일을 보내지 않습니다."],
   ] as const)("%s: 전송자·의사표시·날짜·결과가 들어 있고 광고가 섞이지 않는다", (kind, label, result) => {
     const draft = buildNoticeDraft(
       { eventId: `event-${kind}`, kind, occurredAt: "2026-10-31T16:30:00.000Z", confirmedAt: "2026-11-01T00:00:00.000Z" },
@@ -135,13 +138,26 @@ describe("[시험표 5] 처리결과 통지 초안(v1 형식)", () => {
     expect(findDraftProblems(draft, "test05@example.invalid")).toEqual([]);
   });
 
-  it("확인 전 동의 통지는 '주소 확인 전에는 광고를 보내지 않는다'를 함께 알린다", () => {
+  it.each(["refuse", "withdraw"] as const)("[재검토10 1] %s 통지 초안은 '앞으로 보내지 않는다'고 단정하지 않는다(통지 전 재동의·확인한 사람에게도 틀리지 않게)", (kind) => {
+    // 재현 순서(10차): C1 확인 → 철회(통지 미발송) → C2 재동의·확인(주소 active) → 운영자 화면에서 옛 철회 통지 초안.
+    // 초안 함수는 현재 주소 상태를 받지 않으므로, 문구 자체가 당시 처리 사실과 조건만 말해야 한다.
+    const draft = buildNoticeDraft(
+      { eventId: `event-old-${kind}`, kind, occurredAt: "2026-10-31T16:30:00.000Z", confirmedAt: null },
+      { email: "test05@example.invalid", unsubscribeToken: null },
+      OPTIONS,
+    );
+    expect(draft.body).not.toContain("앞으로 광고성 이메일을 보내지 않습니다");
+    expect(draft.body).toContain("이후 다시 동의하지 않으시면 광고성 이메일을 보내지 않습니다.");
+  });
+
+  it("[재검토 11/1 Codex] 확인 전 동의 통지는 '확인 전까지 이번 동의는 효력이 없다'를 알리고, 주소 전체에 광고를 안 보낸다고 단정하지 않는다", () => {
     const draft = buildNoticeDraft(
       { eventId: "event-pending", kind: "consent", occurredAt: "2026-10-31T02:00:00.000Z", confirmedAt: null },
       { email: "test05@example.invalid", unsubscribeToken: UNSUBSCRIBE },
       OPTIONS,
     );
-    expect(draft.body).toContain("메일 주소 확인 버튼을 누르시기 전까지는 광고성 메일을 보내지 않습니다.");
+    expect(draft.body).toContain("- 처리 결과: 동의가 등록되었습니다. 메일 주소 확인 버튼을 누르시기 전까지 이번 동의는 효력이 없습니다.");
+    expect(draft.body).not.toContain("광고성 메일을 보내지 않습니다");
   });
 
   it("통지 마감은 의사표시일부터 14일", () => {
@@ -158,6 +174,11 @@ describe("[시험표 10] 삭제 처리 결과 초안", () => {
     expect(draft.body).toContain("- 지운 것: 신청 정보");
     expect(draft.body).toContain("해시");
     expect(draft.body).toContain("증빙을 위해 남깁니다");
+    // [재검토11 1] 재현: C1 동의·확인 → 삭제(안내 미발송) → C2 재동의·확인(발송금지 해제) → 옛 삭제 안내 초안.
+    // 초안은 현재 상태를 모르므로 '지금도 발송금지'로 단정하지 않고 당시 등록 사실과 해제 조건만 말한다.
+    expect(draft.body).toContain("삭제 처리 당시, 다시 광고를 보내지 않도록 주소를 알아볼 수 없게 바꾼 값(해시)을 발송금지 목록에 등록했습니다.");
+    expect(draft.body).toContain("이후 광고 수신에 다시 동의하고 주소 확인을 마치시면 발송금지는 해제됩니다.");
+    expect(draft.body).not.toContain("발송금지 목록에 남깁니다");
     expect(draft.body).toContain("일감체크 계정과 일감 데이터는 이 요청으로 지우지 않습니다");
     // [리뷰 6] 안내를 보내려고 잠시 남긴 주소도 지운다는 사실을 알린다.
     expect(draft.body).toContain("잠시 남겨 둔 이메일 주소도 이 안내를 보낸 뒤 지웁니다");

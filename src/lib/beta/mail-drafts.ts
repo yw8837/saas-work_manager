@@ -78,7 +78,7 @@ function adLines(application: DraftApplication, options: DraftOptions, includeCo
   if (confirmUsable) {
     lines.push(
       "[광고성 정보 수신 동의 확인]",
-      "신청하실 때 광고성 정보(이메일) 수신에도 동의하셨습니다. 이 동의는 아래 링크를 열고 '확인' 버튼을 누르셔야 유효해집니다. 누르지 않으시면 광고성 메일을 보내지 않습니다.",
+      "신청하실 때 광고성 정보(이메일) 수신에도 동의하셨습니다. 이 동의는 아래 링크를 열고 '확인' 버튼을 누르셔야 유효해집니다. 누르지 않으시면 이번 동의는 효력이 없습니다.",
       confirmLink(options.origin, application.confirmToken!),
       "",
     );
@@ -202,8 +202,10 @@ export function buildNoticeDraft(
   const label = notice.kind === "consent" ? "동의" : notice.kind === "refuse" ? "거부" : "철회";
   const result = notice.kind === "consent"
     ? "동의가 등록되었습니다."
-      + (notice.confirmedAt ? "" : " 메일 주소 확인 버튼을 누르시기 전까지는 광고성 메일을 보내지 않습니다.")
-    : `${label}가 처리되어 앞으로 광고성 이메일을 보내지 않습니다.`;
+      // 같은 주소에 이미 유효한 동의가 있을 수 있어 '광고를 보내지 않는다'로 단정하지 않고 이번 동의의 효력만 말한다.
+      + (notice.confirmedAt ? "" : " 메일 주소 확인 버튼을 누르시기 전까지 이번 동의는 효력이 없습니다.")
+    // 통지는 의사표시 뒤 최대 14일 안에 보내므로 그사이 다시 동의했을 수 있다. 당시 처리 사실과 조건만 말한다(10차 재검토).
+    : `${koreanDate(notice.occurredAt)}의 수신 ${label}가 처리되었습니다. 이후 다시 동의하지 않으시면 광고성 이메일을 보내지 않습니다.`;
   const change = notice.kind === "consent"
     ? recipient.unsubscribeToken
       ? `수신거부 링크(${unsubscribeLink(options.origin, recipient.unsubscribeToken)}) 또는 이 메일에 회신`
@@ -243,7 +245,8 @@ export function buildDeletionDraft(email: string, deletedAt: string): MailDraft 
       `요청하신 신청 정보 삭제를 ${koreanDate(deletedAt)}에 마쳤습니다.`,
       "",
       "- 지운 것: 신청 정보(이메일, 하는 일, 패키지 판매 여부, 동시 진행 건수, 주문 받는 곳, 참여 희망)",
-      "- 남긴 것: 다시 광고를 보내지 않도록 주소를 알아볼 수 없게 바꾼 값(해시)만 발송금지 목록에 남깁니다. 광고 수신 동의·철회 기록(일시·문구 판본)은 증빙을 위해 남깁니다.",
+      // 안내는 삭제 뒤 늦게 보낼 수 있고 그사이 다시 동의·확인하면 발송금지가 풀린다. 당시 처리 사실과 해제 조건만 말한다(11차 재검토).
+      "- 남긴 것: 삭제 처리 당시, 다시 광고를 보내지 않도록 주소를 알아볼 수 없게 바꾼 값(해시)을 발송금지 목록에 등록했습니다. 이후 광고 수신에 다시 동의하고 주소 확인을 마치시면 발송금지는 해제됩니다. 광고 수신 동의·철회 기록(일시·문구 판본)은 증빙을 위해 남깁니다.",
       "- 일감체크 계정과 일감 데이터는 이 요청으로 지우지 않습니다. 지우시려면 계정 삭제를 따로 요청해 주세요.",
       "- 이 안내를 보내려고 잠시 남겨 둔 이메일 주소도 이 안내를 보낸 뒤 지웁니다.",
       "",

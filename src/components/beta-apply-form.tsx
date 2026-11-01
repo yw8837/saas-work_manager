@@ -120,7 +120,7 @@ export function BetaApplyForm() {
               <div><dt>전송자</dt><dd>{BETA_SENDER.name}</dd></div>
               <div><dt>의사표시</dt><dd>광고성 정보(이메일) 수신 동의</dd></div>
               <div><dt>일자</dt><dd>{koreanDate(completed.adEvent.at)}</dd></div>
-              <div><dt>처리 결과</dt><dd>동의가 접수되었습니다. 주소 확인 뒤 유효합니다. 운영자가 보내는 메일의 확인 버튼을 누르시기 전까지는 광고성 메일을 보내지 않습니다.</dd></div>
+              <div><dt>처리 결과</dt><dd>동의가 접수되었습니다. 주소 확인 뒤 유효합니다. 운영자가 보내는 메일의 확인 버튼을 누르시기 전까지 이번 동의는 효력이 없습니다.</dd></div>
             </dl>
             <p>
               같은 내용을 {koreanDate(completed.adEvent.dueAt)}까지 이메일로도 알려 드려요.

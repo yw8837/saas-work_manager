@@ -47,6 +47,7 @@ test("[시험표 3·5] 신청 미리보기: 필수 동의 없이는 제출되지
   const notice = page.getByTestId("beta-ad-notice");
   await expect(notice).toContainText("광고성 정보(이메일) 수신 동의");
   await expect(notice).toContainText("주소 확인 뒤 유효합니다");
+  await expect(notice).toContainText("확인 버튼을 누르시기 전까지 이번 동의는 효력이 없습니다");
   await expect(notice).toContainText(/\d{4}-\d{2}-\d{2}/);
   // 완료 화면에 신청 내용(하는 일·건수)을 다시 보여 주지 않는다.
   await expect(page.locator("main")).not.toContainText("4건 이상");
@@ -90,8 +91,10 @@ test("[시험표 9·12] 주소 확인 링크: 검색 차단, 버튼을 눌러야
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
   await expect(page.getByTestId("beta-confirm-result")).toHaveCount(0);
   await expect(page.getByRole("region", { name: "본인이 신청하지 않았다면" })).toContainText("수신거부 링크");
+  await expect(page.locator("main")).toContainText("누르지 않으면 이번 신청의 동의는 효력이 없어요");
   await page.getByRole("button", { name: "주소 확인하기" }).click();
   await expect(page.getByTestId("beta-confirm-result")).toContainText("주소를 확인했어요");
+  await expect(page.getByTestId("beta-confirm-result")).toContainText("이 주소의 광고성 정보(이메일) 수신 동의는 지금 유효해요");
 });
 
 test("[시험표 13] 운영자 화면 미리보기: 초안은 링크를 채우기 전엔 복사가 막히고, 채우면 치환 안 된 값 없이 가로로 넘치지 않는다", async ({ page }) => {

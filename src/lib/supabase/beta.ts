@@ -63,6 +63,7 @@ export async function submitBetaApplication(
 
 export type BetaConfirmResult = {
   status: "confirmed" | "already_confirmed" | "expired" | "invalid" | "rate_limited";
+  /** 이 주소의 광고 수신 동의가 지금 유효한지(주소 전체 이력 기준, 발송 대상 판정과 같다). 이 신청 건만의 상태가 아니다. */
   adActive: boolean;
 };
 

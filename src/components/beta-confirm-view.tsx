@@ -10,22 +10,23 @@ import { confirmBetaEmail, type BetaConfirmResult } from "@/lib/supabase/beta";
 
 type Outcome = BetaConfirmResult | { status: "error"; adActive: false };
 
+// adActive는 이 신청 건이 아니라 이 주소 전체 기준이다(옛 링크를 다시 열어도 실제 발송 판정과 같은 말을 한다).
+const AD_ACTIVE = "이 주소의 광고성 정보(이메일) 수신 동의는 지금 유효해요. 언제든 메일의 수신거부 링크로 철회할 수 있어요.";
+const AD_INACTIVE = "이 주소에는 지금 유효한 광고성 정보 수신 동의가 없어서 광고성 메일은 보내지 않아요.";
+
 const MESSAGES: Record<Outcome["status"], { title: string; body: (adActive: boolean) => string }> = {
   confirmed: {
     title: "주소를 확인했어요",
-    body: (adActive) => adActive
-      ? "광고성 정보(이메일) 수신 동의가 유효해졌어요. 언제든 메일의 수신거부 링크로 철회할 수 있어요."
-      : "광고성 정보 수신 동의가 철회돼 있거나 없어서 광고성 메일은 보내지 않아요.",
+    body: (adActive) => adActive ? AD_ACTIVE : AD_INACTIVE,
   },
   already_confirmed: {
     title: "이미 확인된 주소예요",
-    body: (adActive) => adActive
-      ? "광고성 정보(이메일) 수신 동의는 유효한 상태예요."
-      : "광고성 정보 수신 동의가 철회돼 있거나 없어서 광고성 메일은 보내지 않아요.",
+    body: (adActive) => adActive ? AD_ACTIVE : AD_INACTIVE,
   },
   expired: {
     title: "확인 기간이 지난 링크예요",
-    body: () => "이 링크로는 처리하지 않았어요. 광고성 정보 수신 동의는 유효하지 않은 상태로 남아요. 다시 받으시려면 신청 페이지에서 새로 신청해 주세요.",
+    // 이 링크로 처리하지 않았다는 것만 말한다. 같은 주소의 다른 신청 동의가 유효할 수 있어 주소 전체 상태는 단정하지 않는다.
+    body: () => "이 링크로는 주소 확인도, 이 신청의 광고성 정보 수신 동의 확인도 처리하지 않았어요. 새로 확인하시려면 신청 페이지에서 다시 신청해 주세요.",
   },
   invalid: {
     title: "확인할 수 없는 링크예요",
@@ -96,7 +97,7 @@ export function BetaConfirmView({ token }: { token: string }) {
           <h1>이메일 주소 확인</h1>
           <p>
             일감체크 신청 때 광고성 정보(이메일) 수신에 동의하셨다면, 아래 버튼을 눌러야 그 동의가 유효해져요.
-            누르지 않으면 광고성 메일을 보내지 않아요.
+            누르지 않으면 이번 신청의 동의는 효력이 없어요.
           </p>
           <button className="primaryButton betaSubmit" type="button" onClick={confirm} disabled={pending}>
             {pending ? "확인하는 중" : "주소 확인하기"}

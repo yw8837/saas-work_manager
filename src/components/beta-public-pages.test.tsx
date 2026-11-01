@@ -103,6 +103,9 @@ describe("/apply 신청 화면", () => {
     expect(notice).toHaveTextContent("의사표시광고성 정보(이메일) 수신 동의");
     expect(notice).toHaveTextContent("일자2026-11-01");
     expect(notice).toHaveTextContent("주소 확인 뒤 유효합니다");
+    // 같은 주소에 이미 유효한 동의가 있을 수 있어 '광고를 보내지 않는다'고 단정하지 않고 이번 동의의 효력만 말한다.
+    expect(notice).toHaveTextContent("확인 버튼을 누르시기 전까지 이번 동의는 효력이 없습니다");
+    expect(notice).not.toHaveTextContent("광고성 메일을 보내지 않습니다");
     expect(notice).toHaveTextContent("2026-11-15까지 이메일로도");
   });
 
@@ -223,9 +226,28 @@ describe("/apply/confirm/[token] 주소 확인 화면", () => {
     render(<BetaConfirmView token={TOKEN} />);
     expect(rpc).not.toHaveBeenCalled();
     expect(screen.getByRole("region", { name: "본인이 신청하지 않았다면" })).toHaveTextContent("수신거부 링크");
+    // 확인 전 안내도 이번 신청의 동의 효력만 말한다(같은 주소의 다른 유효 동의가 있을 수 있음).
+    expect(screen.getByText(/누르지 않으면 이번 신청의 동의는 효력이 없어요/)).toBeInTheDocument();
+    expect(screen.queryByText(/누르지 않으면 광고성 메일을 보내지 않아요/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "주소 확인하기" }));
-    expect(await screen.findByTestId("beta-confirm-result")).toHaveTextContent("광고성 정보(이메일) 수신 동의가 유효해졌어요");
+    expect(await screen.findByTestId("beta-confirm-result")).toHaveTextContent("이 주소의 광고성 정보(이메일) 수신 동의는 지금 유효해요");
     expect(rpc).toHaveBeenCalledWith("confirm_beta_email", { p_token: TOKEN });
+  });
+
+  it.each([
+    ["confirmed", true, "주소를 확인했어요", "이 주소의 광고성 정보(이메일) 수신 동의는 지금 유효해요"],
+    ["confirmed", false, "주소를 확인했어요", "이 주소에는 지금 유효한 광고성 정보 수신 동의가 없어서 광고성 메일은 보내지 않아요"],
+    ["already_confirmed", true, "이미 확인된 주소예요", "이 주소의 광고성 정보(이메일) 수신 동의는 지금 유효해요"],
+    ["already_confirmed", false, "이미 확인된 주소예요", "이 주소에는 지금 유효한 광고성 정보 수신 동의가 없어서 광고성 메일은 보내지 않아요"],
+  ] as const)("[재검토 11/1 Codex] %s · 주소 동의 %s: 결과 안내는 서버가 준 주소 전체 상태(ad_active)를 그대로 따른다", async (status, adActive, title, body) => {
+    useHosted();
+    rpc.mockResolvedValue({ data: [{ status, ad_active: adActive }], error: null });
+    render(<BetaConfirmView token={TOKEN} />);
+    fireEvent.click(screen.getByRole("button", { name: "주소 확인하기" }));
+    const result = await screen.findByTestId("beta-confirm-result");
+    expect(result).toHaveAttribute("data-status", status);
+    expect(result).toHaveTextContent(title);
+    expect(result).toHaveTextContent(body);
   });
 
   it.each([
@@ -238,17 +260,20 @@ describe("/apply/confirm/[token] 주소 확인 화면", () => {
     fireEvent.click(screen.getByRole("button", { name: "주소 확인하기" }));
     expect(await screen.findByTestId("beta-confirm-result")).toHaveTextContent("지금은 처리하지 못했어요");
     fireEvent.click(screen.getByRole("button", { name: "다시 확인하기" }));
-    expect(await screen.findByText("광고성 정보(이메일) 수신 동의가 유효해졌어요. 언제든 메일의 수신거부 링크로 철회할 수 있어요.")).toBeInTheDocument();
+    expect(await screen.findByText("이 주소의 광고성 정보(이메일) 수신 동의는 지금 유효해요. 언제든 메일의 수신거부 링크로 철회할 수 있어요.")).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledTimes(2);
   });
 
-  it("[시험표 8] 만료된 확인 링크는 처리하지 않았다고 알린다", async () => {
+  it.each([false, true])("[시험표 8][재검토 11/1 Codex] 만료된 확인 링크는 처리하지 않았다고만 알리고 주소 전체 동의 상태는 단정하지 않는다(주소 동의 %s)", async (adActive) => {
     useHosted();
-    rpc.mockResolvedValue({ data: [{ status: "expired", ad_active: false }], error: null });
+    rpc.mockResolvedValue({ data: [{ status: "expired", ad_active: adActive }], error: null });
     render(<BetaConfirmView token={TOKEN} />);
     fireEvent.click(screen.getByRole("button", { name: "주소 확인하기" }));
     const result = await screen.findByTestId("beta-confirm-result");
     expect(result).toHaveTextContent("확인 기간이 지난 링크예요");
-    expect(result).toHaveTextContent("처리하지 않았어요");
+    expect(result).toHaveTextContent("이 링크로는 주소 확인도, 이 신청의 광고성 정보 수신 동의 확인도 처리하지 않았어요");
+    expect(result).not.toHaveTextContent("유효하지 않은 상태");
+    expect(result).not.toHaveTextContent("보내지 않아요");
+    expect(result).not.toHaveTextContent("지금 유효해요");
   });
 });
