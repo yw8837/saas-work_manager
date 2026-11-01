@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
-import { composeJob, type PackageTemplate } from "@/lib/domain";
+import { completeRevision, composeJob, recordRevision, type PackageTemplate } from "@/lib/domain";
 import { JobDetail } from "./job-detail";
 import { useWorkspace } from "./workspace-provider";
 
@@ -22,17 +22,20 @@ const template: PackageTemplate = {
   tasks: [{ taskKey: "brief", title: "브리프 확인", relativeDay: 0, order: 0 }],
 };
 
-function job(enabled = true) {
-  return {
-    ...composeJob({ jobId: "job_send", revisionPortalToken: "token_send", clientLabel: "보내기 고객", startDate: "2026-10-30", package: template, now: "2026-10-30T00:00:00.000Z" }),
-    revisionPortalEnabled: enabled,
-  };
+function job(enabled = true, usedRevisions = 0) {
+  let composed = composeJob({ jobId: "job_send", revisionPortalToken: "token_send", clientLabel: "보내기 고객", startDate: "2026-10-30", package: template, now: "2026-10-30T00:00:00.000Z" });
+  // 수정 횟수는 작업자가 '수정 완료'를 눌러야 쓰인다. 접수만 한 요청은 남은 횟수를 줄이지 않는다.
+  for (let index = 0; index < usedRevisions; index += 1) {
+    const recorded = recordRevision(composed, { source: "public", body: `수정 요청 ${index + 1}`, submittedAt: `2026-10-31T0${index}:00:00.000Z` });
+    composed = completeRevision(recorded.job, recorded.revision.id, `2026-10-31T0${index}:30:00.000Z`);
+  }
+  return { ...composed, revisionPortalEnabled: enabled };
 }
 
-function renderAt(url: string, options: { runtimeMode?: "local" | "hosted"; saveStatus?: "saved" | "saving"; enabled?: boolean } = {}) {
+function renderAt(url: string, options: { runtimeMode?: "local" | "hosted"; saveStatus?: "saved" | "saving"; enabled?: boolean; usedRevisions?: number } = {}) {
   jsdom.reconfigure({ url });
   vi.mocked(useWorkspace).mockReturnValue({
-    jobs: [job(options.enabled ?? true)],
+    jobs: [job(options.enabled ?? true, options.usedRevisions ?? 0)],
     hydrated: true,
     runtimeMode: options.runtimeMode ?? "hosted",
     saveStatus: options.saveStatus ?? "saved",
@@ -59,6 +62,20 @@ describe("일감 저장 직후 상세", () => {
   it("체크리스트에서 온 ?send=1도 같은 안내를 띄운다", () => {
     renderAt("https://ilgam.example/jobs/job_send?send=1");
     expect(screen.getByTestId("send-to-client-banner")).toBeInTheDocument();
+  });
+
+  // 일감의 실제 남은 횟수가 카톡 문구까지 전달돼야 다 쓴 주문에 "1회씩 세요"라고 보내지 않는다.
+  it("포함 수정을 다 쓴 일감이면 카톡 문구가 추가 작업으로 따로 말한다고 쓴다", () => {
+    renderAt("https://ilgam.example/jobs/job_send?send=1", { usedRevisions: 2 });
+    const preview = screen.getByText((_, element) => element?.tagName === "PRE");
+    expect(preview).toHaveTextContent("포함된 수정 2회를 모두 써서, 새 요청은 추가 작업으로 따로 말씀드릴게요.");
+    expect(preview).not.toHaveTextContent("1회씩 세요");
+  });
+
+  it("남은 수정이 있는 일감이면 카톡 문구가 '수정을 마칠 때마다 1회씩 세요'라고 쓴다", () => {
+    renderAt("https://ilgam.example/jobs/job_send?send=1", { usedRevisions: 1 });
+    const preview = screen.getByText((_, element) => element?.tagName === "PRE");
+    expect(preview).toHaveTextContent("제가 수정을 마칠 때마다 1회씩 세요.");
   });
 
   it("표시가 없으면 띄우지 않는다", () => {

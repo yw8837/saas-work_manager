@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { pendingIntakeLabels } from "@/lib/domain";
 import {
   SAMPLE_CLIENT_LABEL,
   SAMPLE_ORDER_TITLE,
@@ -26,22 +27,26 @@ describe("체험 링크 예시 주문", () => {
     expect(viewCustomerDemo(createCustomerDemoState("2027-02-28")).daysLeft).toBe(5);
   });
 
-  it("요청을 남기면 남은 횟수가 1회씩 줄고, 다 쓰면 추가 작업 검토로 넘어간다", () => {
+  it("요청을 남기면 확인 대기로 쌓이고, 작업자가 수정을 마치기 전에는 남은 횟수가 줄지 않는다", () => {
     let state = createCustomerDemoState("2026-10-30");
+    expect(viewCustomerDemo(state).revision).toMatchObject({ used: 1, remaining: 2, pending: 0 });
 
     const first = submitCustomerDemoRevision(state, { body: "메뉴판 글씨를 키워주세요.", clientLabel: "김담당" });
-    expect(first.usage).toBe("used");
-    expect(viewCustomerDemo(first.state).revision).toMatchObject({ used: 2, remaining: 1 });
+    expect(first.usage).toBe("pending");
+    expect(viewCustomerDemo(first.state).revision).toMatchObject({ used: 1, remaining: 2, pending: 1 });
     state = first.state;
 
     const second = submitCustomerDemoRevision(state, { body: "배경색을 더 밝게 해주세요." });
-    expect(second.usage).toBe("used");
-    expect(viewCustomerDemo(second.state).revision).toMatchObject({ used: 3, remaining: 0 });
-
     const third = submitCustomerDemoRevision(second.state, { body: "간판용 가로형도 만들어주세요." });
-    expect(third.usage).toBe("extra_scope");
-    expect(viewCustomerDemo(third.state).revision).toMatchObject({ used: 3, remaining: 0, extraScope: 1 });
+    expect(third.usage).toBe("pending");
+    expect(viewCustomerDemo(third.state).revision).toMatchObject({ used: 1, remaining: 2, pending: 3, extraScope: 0 });
     expect(third.state.submitted).toBe(3);
+  });
+
+  it("예시 주문은 첫 요청을 '수정 완료'로 처리했고, 시작 전 자료 중 2개를 아직 못 받은 상태다", () => {
+    const order = createSampleOrder("2026-10-30");
+    expect(order.revisions[0]).toMatchObject({ usage: "used", status: "done", sequence: 1 });
+    expect(pendingIntakeLabels(order)).toEqual(["참고 이미지 2~3장", "꼭 쓰고 싶은 색이나 피하고 싶은 색"]);
   });
 
   it("원래 상태를 바꾸지 않는다(새로고침 전 되돌리기용)", () => {

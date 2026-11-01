@@ -17,6 +17,7 @@ export function SendToClientBanner({
   clientLabel,
   title,
   included,
+  remaining,
   ready,
   pendingMessage,
   localOnly,
@@ -26,6 +27,8 @@ export function SendToClientBanner({
   clientLabel: string;
   title: string;
   included: number;
+  /** 지금 남은 포함 수정. 다 쓴 주문에 "1회로 세요"라고 보내지 않으려고 받는다. */
+  remaining?: number;
   /** 링크가 켜져 있고 서버 저장까지 끝났을 때만 보낼 수 있다. */
   ready: boolean;
   /** ready가 아닐 때 보여 줄 이유. */
@@ -37,7 +40,7 @@ export function SendToClientBanner({
   const [copied, setCopied] = useState<CopyTarget | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
   const linkInputRef = useRef<HTMLInputElement>(null);
-  const message = clientShareMessage({ clientLabel, title, included, link });
+  const message = clientShareMessage({ clientLabel, title, included, remaining, link });
 
   const copy = async (target: CopyTarget) => {
     if (!ready) return;

@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
+import { completeRevision, recordRevision } from "@/lib/domain";
 import { createSeedState } from "@/lib/store";
 
 type AuthEvent = "INITIAL_SESSION" | "SIGNED_IN" | "SIGNED_OUT";
@@ -148,7 +149,10 @@ function deferred<T>() {
 }
 
 function Probe() {
-  const { jobs, authStatus, saveStatus, realtimeStatus, realtimeError, updateSettings, signInWithGoogle, signOut } = useWorkspace();
+  const {
+    jobs, authStatus, saveStatus, realtimeStatus, realtimeError, updateSettings, signInWithGoogle, signOut,
+    recordRevision: recordJobRevision, completeRevision: completeJobRevision,
+  } = useWorkspace();
   return (
     <div>
       <span data-testid="workspace-owner">{jobs[0]?.clientLabel}</span>
@@ -160,6 +164,9 @@ function Probe() {
         try { updateSettings({ morningDigestEnabled: false }); }
         catch (error) { hosted.rejectedEdit(error); }
       }}>edit workspace</button>
+      <button type="button" onClick={() => updateSettings({ morningDigestTime: "08:30" })}>edit digest time</button>
+      <button type="button" onClick={() => recordJobRevision(jobs[0].id, "직접 고친 수정", "kakao", true)}>record done manually</button>
+      <button type="button" onClick={() => completeJobRevision(jobs[0].id, "rev_here")}>complete here</button>
       <button type="button" onClick={() => void signInWithGoogle()}>google login</button>
       <button type="button" onClick={() => void signInWithGoogle("/settings")}>google reauth</button>
       <button type="button" onClick={() => void signOut().catch(() => undefined)}>logout</button>
@@ -500,6 +507,176 @@ describe("hosted auth activation", () => {
     expect(screen.getByTestId("workspace-owner")).toHaveTextContent("remote-new-workspace");
     view.unmount();
     expect(mobile.stopResume).toHaveBeenCalledOnce();
+  });
+
+  type SavedState = HostedDocument["state"];
+  const liveUsed = (state: SavedState) => state.jobs[0].revisions.filter((item) => !item.revertedAt && item.usage === "used").length;
+  const usageOf = (state: SavedState, revisionId: string) => state.jobs[0].revisions.find((item) => item.id === revisionId)?.usage;
+
+  /**
+   * 첫 일감에 확인 대기 요청을 넣은 서버 문서로 로그인한다. 가짜 서버는 실제처럼 기대 버전이 다르면 충돌로 거부하고,
+   * 성공하면 버전을 올려 그 문서를 서버본으로 삼는다. `hold`는 다음 저장 응답을 잠시 붙잡고, `failAt`은 n번째 저장을 실패시킨다.
+   */
+  async function signInWithPendingRevisions(revisionLimit: number, revisionIds: string[]) {
+    const initial = remote(7);
+    let job = { ...initial.state.jobs[0], revisionLimit };
+    for (const revisionId of revisionIds) {
+      job = recordRevision(job, { revisionId, source: "public", body: revisionId, submittedAt: "2026-08-15T01:00:00.000Z" }).job;
+    }
+    initial.state.jobs[0] = job;
+    const server = { state: initial.state, version: initial.documentVersion, accepted: [] as SavedState[] };
+    const saved: SavedState[] = [];
+    const failAt = new Map<number, Error>();
+    let gate: Promise<void> | null = null;
+    hosted.load.mockImplementation(async () => ({ state: structuredClone(server.state), documentVersion: server.version, updatedAt: "" }));
+    hosted.sync.mockResolvedValue(undefined);
+    hosted.save.mockImplementation(async (_client: unknown, state: SavedState, expectedVersion: number) => {
+      const index = saved.push(structuredClone(state)) - 1;
+      const held = gate;
+      gate = null;
+      if (held) await held;
+      const failure = failAt.get(index);
+      if (failure) throw failure;
+      if (expectedVersion !== server.version) throw Object.assign(new Error("version conflict"), { name: "HostedWorkspaceConflictError" });
+      server.version += 1;
+      server.state = structuredClone(state);
+      server.accepted.push(server.state);
+      return { documentVersion: server.version, updatedAt: "" };
+    });
+    let view = render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+    const activate = async () => {
+      await act(async () => hosted.authCallback?.("INITIAL_SESSION", session("owner-a")));
+      await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("signed_in"));
+      await waitFor(() => expect(hosted.realtimeCallback).not.toBeNull());
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    };
+    await activate();
+    return {
+      server,
+      saved,
+      failAt,
+      hold() {
+        const release = deferred<void>();
+        gate = release.promise;
+        return () => release.resolve();
+      },
+      /** 같은 브라우저 저장소(캐시·보존 초안)를 그대로 두고 새로고침한 것처럼 다시 띄운다. */
+      async reload() {
+        view.unmount();
+        view = render(<WorkspaceProvider><Probe /></WorkspaceProvider>);
+        await activate();
+      },
+      /** 다른 기기가 '수정 완료로 기록'한 새 수동 기록을 저장해 서버 문서가 한 버전 앞서 있다. */
+      addManualDoneOnAnotherDevice() {
+        const next = structuredClone(server.state);
+        next.jobs[0] = recordRevision(next.jobs[0], { revisionId: "rev_manual_other", source: "manual", channel: "kakao", body: "다른 기기 수동 완료", submittedAt: "2026-08-15T02:00:00.000Z", completed: true }).job;
+        server.state = next;
+        server.version += 1;
+      },
+      /** 다른 기기가 그 요청을 '수정 완료'로 저장해 서버 문서가 한 버전 앞서 있다. */
+      completeOnAnotherDevice(revisionId: string) {
+        const next = structuredClone(server.state);
+        next.jobs[0] = completeRevision(next.jobs[0], revisionId, "2026-08-15T02:00:00.000Z");
+        server.state = next;
+        server.version += 1;
+      },
+    };
+  }
+
+  // Codex 5차 P1: 첫 저장의 충돌 재시도가 다른 기기의 '수정 완료'를 합쳐 저장해도,
+  // 그 전에 큐에 들어간 두 번째 저장이 찍어 둔 옛 스냅샷(확인 대기)을 그대로 저장하면 완료가 사라진다.
+  // Codex 6차 P1: 문서 저장은 됐는데 링크 동기화가 실패해도 같은 일이 생기면 안 된다.
+  // 재시도 저장 자체가 실패한 경우에도, 다음 저장은 서버본을 다시 합쳐야 한다.
+  it.each([
+    ["the conflict retry succeeds", "none"],
+    ["portal sync fails after the document save", "sync"],
+    ["the conflict retry save fails", "retry"],
+  ])("keeps another device's revision completion through a second queued save (%s)", async (_, failure) => {
+    const fake = await signInWithPendingRevisions(3, ["rev_other_device"]);
+    fake.completeOnAnotherDevice("rev_other_device");
+    const before = fake.saved.length;
+    const acceptedBefore = fake.server.accepted.length;
+    if (failure === "sync") hosted.sync.mockRejectedValueOnce(new Error("portal sync failed"));
+    if (failure === "retry") fake.failAt.set(before + 1, new Error("network failed"));
+
+    const release = fake.hold();
+    fireEvent.click(screen.getByRole("button", { name: "edit workspace" }));
+    await waitFor(() => expect(fake.saved).toHaveLength(before + 1));
+    // 첫 저장이 서버 응답을 기다리는 동안 두 번째 편집이 큐에 들어간다.
+    fireEvent.click(screen.getByRole("button", { name: "edit digest time" }));
+    await act(async () => release());
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("saved"));
+
+    expect(usageOf(fake.server.state, "rev_other_device")).toBe("used");
+    // 서버가 받아들인 저장 가운데 완료를 확인 대기로 되돌린 것이 없어야 한다(충돌로 거부된 시도는 서버에 안 남는다).
+    expect(fake.server.accepted.slice(acceptedBefore).map((state) => usageOf(state, "rev_other_device"))).not.toContain("pending");
+    expect(fake.server.state.settings).toMatchObject({ morningDigestEnabled: false, morningDigestTime: "08:30" });
+  });
+
+  // Codex 6차 P2: 첫 저장 응답을 기다리는 동안 적은 '수정 완료로 기록'이 검사 뒤에 붙어 한도를 넘긴 채 저장되면 안 된다.
+  it("checks a manual completed record added while the first save waits instead of saving over the limit", async () => {
+    // 예시 일감은 이미 1회를 썼다. 한도 2에 확인 대기 1건.
+    const fake = await signInWithPendingRevisions(2, ["rev_other_device"]);
+    fake.completeOnAnotherDevice("rev_other_device");
+    const before = fake.saved.length;
+
+    const release = fake.hold();
+    fireEvent.click(screen.getByRole("button", { name: "edit workspace" }));
+    await waitFor(() => expect(fake.saved).toHaveLength(before + 1));
+    fireEvent.click(screen.getByRole("button", { name: "record done manually" }));
+    await act(async () => release());
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("error"));
+
+    expect(fake.saved.slice(before).every((state) => liveUsed(state) <= state.jobs[0].revisionLimit)).toBe(true);
+    expect(liveUsed(fake.server.state)).toBe(2);
+  });
+
+  // Codex 6차 P2: 두 기기의 서로 다른 완료로 멈춘 뒤 '이 기기 편집으로 재시도'가 한도 초과본을 저장하면 안 된다.
+  it("does not let the keep-this-device recovery save two devices' completions over the limit", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const fake = await signInWithPendingRevisions(2, ["rev_here", "rev_other_device"]);
+    fake.completeOnAnotherDevice("rev_other_device");
+    const before = fake.saved.length;
+
+    fireEvent.click(screen.getByRole("button", { name: "complete here" }));
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("error"));
+    expect(fake.saved).toHaveLength(before + 1);
+
+    const loadsBefore = hosted.load.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "이 기기 편집으로 재시도" }));
+    await waitFor(() => expect(hosted.load.mock.calls.length).toBeGreaterThan(loadsBefore));
+    await waitFor(() => expect(screen.getByTestId("save-status")).not.toHaveTextContent("saving"));
+
+    expect(fake.saved.slice(before).every((state) => liveUsed(state) <= state.jobs[0].revisionLimit)).toBe(true);
+    expect(liveUsed(fake.server.state)).toBe(2);
+    expect(screen.getByTestId("save-status")).toHaveTextContent("error");
+  });
+
+  // Codex 7차 P2: 양쪽 기기가 각각 '수정 완료로 기록'을 새로 추가하면 자동 저장은 멈추지만, 화면 보존 과정에서
+  // 이 기기 화면이 한도 초과가 된다. 그 뒤 '이 기기 편집으로 재시도'나 새로고침 복구가 그 상태를 저장하면 안 된다.
+  it.each(["keep-this-device retry", "reload recovery"])("does not save over the limit after both devices add a manual completed record (%s)", async (path) => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    // 예시 일감은 이미 1회를 썼다. 한도 2.
+    const fake = await signInWithPendingRevisions(2, []);
+    fake.addManualDoneOnAnotherDevice();
+    const acceptedBefore = fake.server.accepted.length;
+
+    fireEvent.click(screen.getByRole("button", { name: "record done manually" }));
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("error"));
+    expect(fake.server.accepted).toHaveLength(acceptedBefore);
+
+    if (path === "keep-this-device retry") {
+      const loadsBefore = hosted.load.mock.calls.length;
+      fireEvent.click(screen.getByRole("button", { name: "이 기기 편집으로 재시도" }));
+      await waitFor(() => expect(hosted.load.mock.calls.length).toBeGreaterThan(loadsBefore));
+      await waitFor(() => expect(screen.getByTestId("save-status")).not.toHaveTextContent("saving"));
+    } else {
+      await fake.reload();
+    }
+
+    expect(fake.server.accepted.slice(acceptedBefore).every((state) => liveUsed(state) <= state.jobs[0].revisionLimit)).toBe(true);
+    expect(liveUsed(fake.server.state)).toBe(2);
+    expect(screen.getByTestId("save-status")).toHaveTextContent("error");
   });
 
   it("does not let a rejected owner A recovery overwrite owner A with owner B state", async () => {

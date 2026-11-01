@@ -33,7 +33,7 @@ describe("CustomerRevisionDemo", () => {
     fetchSpy.mockClear();
   });
 
-  it("체험 표시와 예시 주문을 보여주고, 요청을 남기면 브라우저 메모리에서만 차감한다", async () => {
+  it("체험 표시와 예시 주문을 보여주고, 요청을 남기면 브라우저 메모리에서만 확인 대기로 쌓는다", async () => {
     render(<CustomerRevisionDemo initialState={createCustomerDemoState("2026-10-30")} />);
 
     expect(screen.getByRole("note")).toHaveTextContent("체험용 예시 화면이에요");
@@ -53,19 +53,24 @@ describe("CustomerRevisionDemo", () => {
     fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("수정 요청을 남겼어요"));
-    expect(screen.getByTestId("demo-revision-usage")).toHaveTextContent("3회 중 2회 사용");
+    expect(screen.getByRole("status")).toHaveTextContent("요청을 접수했어요. 작업자가 수정을 마치면 그때 포함 수정 1회로 세요.");
+    // 접수만으로는 횟수를 쓰지 않는다.
+    expect(screen.getByTestId("demo-revision-usage")).toHaveTextContent("3회 중 1회 사용");
     expect(screen.getByTestId("revision-next-step")).toHaveTextContent("다음에 일어나는 일");
-    expect(screen.getByTestId("revision-next-step")).toHaveTextContent("남은 포함 수정은 1회예요");
+    expect(screen.getByTestId("revision-next-step")).toHaveTextContent("남은 포함 수정은 2회예요");
 
     fireEvent.click(screen.getByRole("button", { name: "다른 요청 남기기" }));
-    expect(screen.getByTestId("revision-remaining")).toHaveTextContent("1");
+    expect(screen.getByTestId("revision-remaining")).toHaveTextContent("2");
+    expect(screen.getByTestId("revision-pending")).toHaveTextContent("확인 대기 1건");
 
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(setItemSpy).not.toHaveBeenCalled();
   });
 
-  it("횟수를 다 쓰면 실제 링크처럼 추가 작업 검토로 접수하고, 처음 상태로 되돌릴 수 있다", async () => {
+  it("아직 못 받은 시작 전 자료를 보여 주고, 요청을 여러 번 남긴 뒤 처음 상태로 되돌릴 수 있다", async () => {
     render(<CustomerRevisionDemo initialState={createCustomerDemoState("2026-10-30")} />);
+    expect(screen.getByTestId("revision-intake-pending")).toHaveTextContent("참고 이미지 2~3장");
+    expect(screen.getByTestId("revision-intake-pending")).not.toHaveTextContent("상호명");
 
     for (const body of ["첫 번째 수정", "두 번째 수정"]) {
       fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: body } });
@@ -73,15 +78,11 @@ describe("CustomerRevisionDemo", () => {
       await waitFor(() => expect(screen.getByRole("status")).toBeInTheDocument());
       fireEvent.click(screen.getByRole("button", { name: "다른 요청 남기기" }));
     }
-    expect(screen.getByTestId("revision-remaining")).toHaveTextContent("0");
-
-    fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "범위 밖 요청" } });
-    fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("추가 작업 검토 요청"));
-    expect(screen.getByTestId("revision-next-step")).toHaveTextContent("추가 작업으로 진행할지");
+    expect(screen.getByTestId("revision-pending")).toHaveTextContent("확인 대기 2건");
 
     fireEvent.click(screen.getByRole("button", { name: /처음 상태로/ }));
     expect(screen.getByTestId("demo-revision-usage")).toHaveTextContent("3회 중 1회 사용");
+    expect(screen.queryByTestId("revision-pending")).not.toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

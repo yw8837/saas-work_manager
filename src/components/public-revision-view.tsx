@@ -6,6 +6,7 @@ import { Check, CheckCircle2, LockKeyhole, Send, ShieldCheck } from "lucide-reac
 
 import { Brand } from "@/components/brand";
 import { CUSTOMER_STAGE_LABELS, type CustomerStage } from "@/lib/domain/customer-stage";
+import type { RevisionUsage } from "@/lib/domain/types";
 import { getPublicServiceConfig } from "@/lib/policies";
 
 /**
@@ -64,12 +65,16 @@ export function PublicRevisionUnavailable({ message }: { message: string }) {
   );
 }
 
-export type PublicRevisionUsage = "used" | "extra_scope";
+/** pending: 확인 대기(지금 규칙). used/extra_scope는 migration 전 서버가 돌려주는 옛 영수증이다. */
+export type PublicRevisionUsage = RevisionUsage;
 
 export type PublicRevisionViewProps = {
   title: string;
   packageName: string;
-  revision: { included: number; used: number; remaining: number };
+  /** pending은 접수됐지만 작업자가 아직 처리하지 않은 요청 수. 모르면 비워 둔다. */
+  revision: { included: number; used: number; remaining: number; pending?: number };
+  /** 작업자가 정한 '시작 전 받을 자료' 중 아직 받지 못한 것의 이름. 없으면 그리지 않는다. */
+  intakePending?: string[];
   /** 작업자(가게) 이름. 서버가 내려 주지 않는 실제 링크에서는 비워 둔다. */
   workerName?: string;
   /** 마감 표시(예: "11월 6일 · 7일 남음"). 모르면 비워 둔다. */
@@ -91,6 +96,7 @@ export function PublicRevisionView({
   title,
   packageName,
   revision,
+  intakePending,
   workerName,
   dueLabel,
   stage,
@@ -134,13 +140,21 @@ export function PublicRevisionView({
           <div className="revisionReceipt" role="status">
             <CheckCircle2 size={36} />
             <h1>수정 요청을 남겼어요</h1>
-            <p>{receipt === "used" ? "작업자에게 요청 내용과 접수 시각이 기록됐어요." : "포함된 수정 횟수를 넘어 추가 작업 검토 요청으로 기록됐어요."}</p>
+            <p>
+              {receipt === "pending"
+                ? revision.remaining > 0
+                  ? "요청을 접수했어요. 작업자가 수정을 마치면 그때 포함 수정 1회로 세요."
+                  : "요청을 접수했어요. 남은 포함 수정이 없어서, 추가 작업으로 진행할지 작업자가 먼저 알려 드려요."
+                : receipt === "used"
+                  ? "포함 수정 1회로 접수됐어요. 요청 내용과 접수 시각이 작업자에게 기록됐어요."
+                  : "포함된 수정 횟수를 넘어 추가 작업 검토 요청으로 기록됐어요."}
+            </p>
             <div className="publicRevisionNextStep" data-testid="revision-next-step">
               <strong>다음에 일어나는 일</strong>
               <p>
-                {receipt === "used"
-                  ? "작업자가 요청을 확인하고 평소 연락하던 방법으로 답해 드려요."
-                  : "추가 작업으로 진행할지, 작업자가 먼저 확인하고 알려 드려요."}
+                {receipt === "extra_scope" || (receipt === "pending" && revision.remaining === 0)
+                  ? "남은 포함 수정이 없어서, 추가 작업으로 진행할지 작업자가 먼저 확인하고 알려 드려요."
+                  : "작업자가 요청을 확인하고 평소 연락하던 방법으로 답해 드려요."}
                 {" "}남은 포함 수정은 {revision.remaining}회예요.
               </p>
             </div>
@@ -160,6 +174,9 @@ export function PublicRevisionView({
                 <dt>남은 수정</dt>
                 <dd><strong data-testid="revision-remaining">{revision.remaining}</strong><span>회</span></dd>
                 <dd className="publicRevisionFactSub">전체 {revision.included}회 중 {revision.used}회 사용</dd>
+                {(revision.pending ?? 0) > 0 && (
+                  <dd className="publicRevisionFactSub" data-testid="revision-pending">확인 대기 {revision.pending}건</dd>
+                )}
               </div>
               {dueLabel && (
                 <div className="publicRevisionDue">
@@ -186,6 +203,27 @@ export function PublicRevisionView({
             {stage !== undefined && progress && progress.total > 0 && (
               <p className="customerStageProgress" data-testid="revision-progress">할 일 {progress.total}개 중 {progress.done}개 완료</p>
             )}
+
+            {intakePending && intakePending.length > 0 && (
+              <div className="publicRevisionNextStep publicRevisionIntake" data-testid="revision-intake-pending">
+                <strong>작업을 시작하려면 아직 필요한 자료</strong>
+                <ul>
+                  {intakePending.map((label, index) => <li key={`${index}-${label}`}>{label}</li>)}
+                </ul>
+                <p>평소 대화창으로 보내 주세요. 받으면 작업자가 이 목록에서 지워요.</p>
+              </div>
+            )}
+
+            {/* 수정 횟수는 접수가 아니라 작업자가 수정을 마칠 때 쓴다(engine.ts completeRevision). 질문만 하려다 횟수를 걱정하지 않도록 제출 전에 알린다. */}
+            <div className="publicRevisionNextStep" data-testid="revision-how-it-counts">
+              <strong>요청을 남기면</strong>
+              <p>
+                {revision.remaining > 0
+                  ? "먼저 접수되고, 작업자가 수정을 마치면 그때 포함 수정 1회로 세요."
+                  : "남은 포함 수정이 없어서, 새 요청은 작업자가 추가 작업으로 따로 협의해요."}
+                {" "}질문은 평소 대화창으로 해 주시고, 답도 평소 연락하던 방법으로 드려요.
+              </p>
+            </div>
 
             <form className="publicRevisionFields" onSubmit={submit}>
               <label>
