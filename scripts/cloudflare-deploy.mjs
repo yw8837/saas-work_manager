@@ -46,8 +46,8 @@ export function parseCloudflareDeployArgs(argv) {
   return { target, apply, bootstrap, worker: WORKERS[target] };
 }
 
-export function cloudflareBuildEnvIssues(env, target) {
-  const checkedEnv = target === "preview"
+export function cloudflareBuildEnvIssues(env, target, { bootstrap = false } = {}) {
+  const checkedEnv = target === "preview" || bootstrap
     ? { ...env, NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true" }
     : env;
   const issues = collectDeployEnvIssues(checkedEnv, { requireServiceRole: false });
@@ -133,7 +133,7 @@ function assertWorkerSecret(root, env, worker) {
 
 export function runCloudflareDeploy({ root = process.cwd(), argv = process.argv.slice(2), env = process.env } = {}) {
   const options = parseCloudflareDeployArgs(argv);
-  const issues = cloudflareBuildEnvIssues(env, options.target);
+  const issues = cloudflareBuildEnvIssues(env, options.target, { bootstrap: options.bootstrap });
   if (issues.length) throw new Error(`공개 빌드 환경 미준비: ${issues.join(" / ")}`);
   if (options.apply && options.target === "production") {
     if (env.ILGAMCHECK_CLOUDFLARE_DEPLOY_ACK !== "DEPLOY_ilgamcheck_FROM_main") {
