@@ -237,9 +237,10 @@ RED 확인(작업자 보고, 독립 입증 아님): 리뷰 2·5·6 DB 시험 7�
 | 11차 | P2 | 삭제 처리 결과 초안 "발송금지 목록에 남깁니다" → 안내 전 재동의·확인으로 발송금지가 풀린 사람에게 틀림 | "삭제 처리 당시 … 발송금지 목록에 등록했습니다. 이후 광고 수신에 다시 동의하고 주소 확인을 마치시면 발송금지는 해제됩니다." | `[시험표 10]` 기대값 추가(`[재검토11 1]`) |
 | 12차 | P2 | 방침 초안 1절 "확인 전에는 광고를 보내지 않는다" | "각 신청에서 새로 받은 … 동의는 … 확인 뒤에만 유효. 확인 전에는 이번 신청의 동의가 효력을 갖지 않으며, 같은 주소의 기존 유효한 동의는 유지"(같은 종류로 2절 발송금지 문장에 해제 조건도 더함) | 문서(시험 없음) |
 
-- 새 DB 시험 2개는 수정 전 migration(`6fa9e5a`)으로 돌리면 2개 모두 실패하고, 수정 뒤 통과한다(Claude 실행).
+- 새 DB 시험 중 주소 전체 상태 시험(`[재검토 11/1 Codex] 확인 결과 ad_active는 …`)은 수정 전 migration(`6fa9e5a`)에서 실패하고 수정 뒤 통과한다. 확인 대기·만료 시험은 기존 동작을 지키는 회귀 시험이라 수정 전후 모두 통과한다(Claude 재실행: 수정 전 `FAIL: 1/42`. 처음에 "2개 모두 실패"라고 적었던 것은 만료 동작을 되돌리기 전의 실행 결과였다 — 13차 재검토 P3로 정정).
 - 그대로 둔 것: 수신거부 버튼 화면의 "처리되어 앞으로 광고성 이메일을 보내지 않습니다"는 누른 순간의 결과라 맞다(10~12차 Codex 같은 판단).
 - 저장소 밖: 스테이션 양식 `과제/1-콜드메일/양식/처리결과통지.md`·`v2/처리결과통지.md` 19행에 옛 철회 문구가 남아 있다(공동 문서라 이번에 고치지 않음, 사용자·Codex에 알림).
+- **13차 재검토(Codex, 대상 `49e06eb` = 수정 커밋 `a63d618` + main `038029c` 병합) 판정 "병합 가능"**(원문 `스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능-재검토12.md`). 방침 24·31행이 실제 DB 동작(C1 유효 동의 유지, 삭제 때 발송금지 등록·재동의 확인 때 해제)과 맞음을 재현, 같은 종류 잔여·새 코드 결함 없음, HANDOFF 병합 해결에서 main 내용 누락 없음. P3 1건(위 수정 전 실패 시험 수)은 이 절에서 정정했다.
 
 ## 한계·운영 안내 (호출 제한 기록)
 
@@ -266,8 +267,8 @@ RED 확인(작업자 보고, 독립 입증 아님): 리뷰 2·5·6 DB 시험 7�
 - List-Unsubscribe 헤더: Gmail 수동 발송이라 불가(범위 문서 "하지 않는 것").
 - 보유기간 정리 자동 예약 없음(운영자 버튼만).
 - DB 규칙은 PGlite로만 시험했다. 실제 Supabase(PostgREST·Auth·기본 ACL)에서의 통합 확인은 migration 적용 뒤 필요하다.
-- 운영 DB migration·운영자 등록·Sites 배포·병합은 하지 않았다(사용자 승인 대상). push·PR #21은 사용자 지시로 했다.
-- 범위 문서 완료 기준의 "독립 리뷰, PR(CI 통과)": 독립 리뷰는 9번(9번째 "병합 가능"), PR은 #21로 열었고 CI 결과는 PR에서 확인한다.
+- 운영 DB migration·운영자 등록·운영 배포·병합은 하지 않았다(사용자 승인 대상). push·PR #21은 사용자 지시로 했고, 이후 main 충돌 해결·수정 push는 PR 자동 수정(사용자가 켬)과 사용자 지시("여기서 고쳐")로 했다. 운영 호스팅은 2026-11-01부터 Cloudflare Worker다(HANDOFF "Cloudflare 운영 전환" 절).
+- 범위 문서 완료 기준의 "독립 리뷰, PR(CI 통과)": 독립 리뷰는 13번(9차 "병합 가능" 뒤 15:27 재검토로 다시 열려 13차에서 "병합 가능"), PR은 #21이고 CI 결과는 PR에서 확인한다.
 
 ## 검증 명령과 결과 (2026-11-01, Windows 로컬, 출력 원문 발췌)
 
@@ -546,4 +547,24 @@ PASS: 40 beta consent DB checks (ephemeral PGlite).
 CHECK_RELEASE_EXIT=0
 BUILD_SITES_EXIT=0
 Sites output verified
+```
+
+### 15:27·10~13차 반영 뒤 재검증 (2026-11-01, Claude 직접 실행, 대상 `49e06eb`, 출력 원문 발췌)
+
+```
+NPM_CI_EXIT=0
+LINT_EXIT=0
+TYPECHECK_EXIT=0
+PASS: native SQL contract, deletion regression, 36 RPC privilege checks (ephemeral PGlite).
+PASS: 42 beta consent DB checks (ephemeral PGlite).
+ Test Files  138 passed (138)
+      Tests  931 passed (931)
+  ok  3 [desktop] › e2e\beta-apply.spec.ts:88:1 › [시험표 9·12] 주소 확인 링크: 검색 차단, 버튼을 눌러야 처리, 본인이 아니면 거부·삭제 방법 안내
+  ok  3 [mobile] › e2e\beta-apply.spec.ts:88:1 › [시험표 9·12] 주소 확인 링크: 검색 차단, 버튼을 눌러야 처리, 본인이 아니면 거부·삭제 방법 안내
+[e2e-release] PASS all tests / 4 isolated browser batches
+[release-gate] PASS unit/lint/typecheck/audit/local E2E/hosted build 전체 게이트 통과.
+CHECK_RELEASE_EXIT=0
+BUILD_SITES_EXIT=0
+Sites output verified
+수정 전 migration(6fa9e5a)으로 새 DB 시험: FAIL 1/42 (주소 전체 상태 시험만 실패)
 ```
