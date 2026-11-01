@@ -34,6 +34,8 @@ export interface PackageTemplate {
   tasks: TaskTemplate[];
   /** 작업을 시작하기 전에 고객에게 받을 자료 이름(최대 10개). 아직 못 받은 것은 고객 링크에 그대로 보인다. */
   intakeItems?: string[];
+  /** 작업을 시작하기 전에 고객에게 물을 짧은 질문(최대 5개). 고객이 쓰는 말로 적고, 카톡 문구에 들어간다. */
+  briefQuestions?: string[];
   archivedAt?: string;
 }
 
@@ -42,6 +44,15 @@ export interface IntakeItem {
   id: string;
   label: string;
   receivedAt?: string;
+}
+
+/** 일감마다 복사되는 '착수 전 질문' 하나. 답은 고객이 평소 대화창으로 보내고, 작업자는 받았다고 체크만 한다. */
+export interface BriefQuestion {
+  id: string;
+  question: string;
+  answeredAt?: string;
+  /** 작업자가 남기는 한 줄 메모(선택). 작업자 문서에만 있고 고객 화면으로 나가지 않는다. */
+  note?: string;
 }
 
 export interface OptionTemplate {
@@ -163,6 +174,8 @@ export interface Job {
   links: JobLink[];
   /** 패키지의 '시작 전 받을 자료'를 일감을 만들 때 복사한 것. 없던 저장본에서는 비어 있다. */
   intakeItems?: IntakeItem[];
+  /** 패키지의 '착수 전 질문'을 일감을 만들 때 복사한 것. 없던 저장본에서는 비어 있다. */
+  briefQuestions?: BriefQuestion[];
   revisionPortalToken: string;
   revisionPortalEnabled: boolean;
   status: JobStatus;

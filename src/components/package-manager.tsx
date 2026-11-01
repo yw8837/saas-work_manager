@@ -2,7 +2,7 @@
 
 import { Archive, Check, ChevronRight, ClipboardList, PackagePlus, Plus, Save, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createDomainId, INTAKE_ITEM_LIMIT, normalizeIntakeLabels, PLAN_PRICES, type OptionTemplate, type PackageTemplate, type TaskTemplate } from "@/lib/domain";
+import { BRIEF_QUESTION_LIMIT, createDomainId, DEFAULT_BRIEF_QUESTIONS, INTAKE_ITEM_LIMIT, normalizeBriefQuestions, normalizeIntakeLabels, PLAN_PRICES, type OptionTemplate, type PackageTemplate, type TaskTemplate } from "@/lib/domain";
 import { markFirstRun } from "@/lib/first-run";
 import { INDUSTRY_STARTERS } from "@/lib/store";
 import { formatWon, useWorkspace } from "./workspace-provider";
@@ -124,9 +124,11 @@ export function PackageManager() {
 
   const saveCurrentPackage = () => {
     const intakeItems = normalizeIntakeLabels(selectedPackage.intakeItems);
+    const briefQuestions = normalizeBriefQuestions(selectedPackage.briefQuestions);
     const normalized = {
       ...selectedPackage,
       intakeItems: intakeItems.length > 0 ? intakeItems : undefined,
+      briefQuestions: briefQuestions.length > 0 ? briefQuestions : undefined,
       name: selectedPackage.name.trim() || "이름 없는 패키지",
       tasks: selectedPackage.tasks
         .filter((task) => task.title.trim())
@@ -220,6 +222,27 @@ export function PackageManager() {
                   data-testid="package-intake-items"
                 />
               </label>
+              {/* 고객이 원하는 결과를 처음부터 말로 정리하기 어려워서, 업무 용어 없이 묻는 짧은 질문. 카톡 문구에 들어간다. */}
+              <label className="catalogFullField">
+                <span>착수 전 질문 <small>한 줄에 하나 · 최대 {BRIEF_QUESTION_LIMIT}개 · 고객에게 보내는 카톡 문구에 들어가요</small></span>
+                <textarea
+                  rows={3}
+                  value={(selectedPackage.briefQuestions ?? []).join("\n")}
+                  onChange={(event) => setPackageDraft({ ...selectedPackage, briefQuestions: event.target.value.split("\n") })}
+                  placeholder="예: 이 작업으로 가장 하고 싶은 일은 무엇인가요?"
+                  data-testid="package-brief-questions"
+                />
+              </label>
+              {(selectedPackage.briefQuestions ?? []).every((question) => !question.trim()) && (
+                <button
+                  type="button"
+                  className="quietButton catalogFullField"
+                  onClick={() => setPackageDraft({ ...selectedPackage, briefQuestions: [...DEFAULT_BRIEF_QUESTIONS] })}
+                  data-testid="package-brief-defaults"
+                >
+                  기본 질문 3개 넣기
+                </button>
+              )}
             </div>
             <TaskRows tasks={selectedPackage.tasks} onChange={(tasks) => setPackageDraft({ ...selectedPackage, tasks })} />
             <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentPackage} data-testid="save-package"><Save size={16} /> 패키지 저장</button>{!packageDraft && <button type="button" className="quietButton" onClick={() => { if (window.confirm("이 패키지를 새 일감 선택 목록에서 보관할까요? 기존 일감은 바뀌지 않아요.")) { archivePackage(selectedPackage.id); flashSaved("패키지를 보관했어요."); } }}><Archive size={16} /> 보관</button>}</div>

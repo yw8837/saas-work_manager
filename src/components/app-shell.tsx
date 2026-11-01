@@ -16,6 +16,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BETA_GRANT_DAYS, type InAppAlertKind } from "@/lib/domain";
 import { getPublicEnvironmentValue } from "@/lib/public-environment";
 import { Brand } from "./brand";
+import { ProfileMenu } from "./profile-menu";
 import { useWorkspace } from "./workspace-provider";
 import "@/styles/workspace.css";
 
@@ -53,7 +54,7 @@ function pageContext(pathname: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { jobs, alerts, runtimeMode, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, planAccess } = useWorkspace();
+  const { jobs, alerts, runtimeMode, saveStatus, saveError, realtimeStatus, realtimeError, planAccess } = useWorkspace();
   const [alertOpen, setAlertOpen] = useState(false);
   const alertButtonRef = useRef<HTMLButtonElement>(null);
   const alertPopoverRef = useRef<HTMLElement>(null);
@@ -176,9 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Bell size={19} />
               {alerts.length > 0 && <span className="notificationDot" aria-hidden="true" />}
             </button>
-            <span className="avatar" aria-label={userEmail ? `${userEmail} 계정` : "내 워크스페이스 계정"} title={userEmail ?? "내 워크스페이스"}>
-              {(userEmail?.[0] ?? "용").toUpperCase()}
-            </span>
+            <ProfileMenu />
           </div>
           {alertOpen && (
             <section className="alertPopover" id="workspace-alerts" ref={alertPopoverRef} aria-label="현재 알림">

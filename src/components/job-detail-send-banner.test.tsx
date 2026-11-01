@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
@@ -94,5 +94,77 @@ describe("일감 저장 직후 상세", () => {
     fireEvent.click(screen.getByRole("button", { name: "고객에게 보내기 안내 닫기" }));
     expect(screen.queryByTestId("send-to-client-banner")).not.toBeInTheDocument();
     expect(window.location.search).toBe("?list=%2Fjobs%3Ffilter%3Dactive");
+  });
+});
+
+// 무기 2 '시작 안내 한 방': 받을 자료와 착수 전 질문을 카톡 문구 하나로 보내고, 작업자는 옮겨 적지 않고 체크만 한다.
+describe("시작 전 받을 자료·착수 전 질문", () => {
+  const briefTemplate: PackageTemplate = {
+    ...template,
+    intakeItems: ["로고 원본 파일"],
+    briefQuestions: ["이 작업으로 가장 하고 싶은 일은 무엇인가요?", "참고 예시가 있나요?"],
+  };
+
+  function renderBrief(url: string, answerFirst = false) {
+    jsdom.reconfigure({ url });
+    const toggleBriefQuestion = vi.fn();
+    const updateBriefNote = vi.fn();
+    let composed = composeJob({ jobId: "job_send", revisionPortalToken: "token_send", clientLabel: "보내기 고객", startDate: "2026-10-30", package: briefTemplate, now: "2026-10-30T00:00:00.000Z" });
+    if (answerFirst) composed = toggleBriefQuestion_(composed);
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [{ ...composed, revisionPortalEnabled: true }],
+      hydrated: true,
+      runtimeMode: "hosted",
+      saveStatus: "saved",
+      toggleBriefQuestion,
+      updateBriefNote,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<JobDetail jobId="job_send" />);
+    return { toggleBriefQuestion, updateBriefNote };
+  }
+
+  function toggleBriefQuestion_(composed: ReturnType<typeof composeJob>) {
+    return { ...composed, briefQuestions: composed.briefQuestions!.map((item, index) => (index === 0 ? { ...item, answeredAt: "2026-10-30T01:00:00.000Z" } : item)) };
+  }
+
+  it("보내기 카톡 문구에 아직 못 받은 자료와 질문이 들어가고, 답 받은 질문은 빠진다", () => {
+    renderBrief("https://ilgam.example/jobs/job_send?send=1");
+    const preview = screen.getByText((_, element) => element?.tagName === "PRE");
+    expect(preview).toHaveTextContent("[보내 주실 자료] - 로고 원본 파일 [알려 주실 것] 1. 이 작업으로 가장 하고 싶은 일은 무엇인가요? 2. 참고 예시가 있나요?");
+    cleanup();
+    renderBrief("https://ilgam.example/jobs/job_send?send=1", true);
+    const answered = screen.getByText((_, element) => element?.tagName === "PRE");
+    expect(answered).toHaveTextContent("[알려 주실 것] 1. 참고 예시가 있나요?");
+    expect(answered).not.toHaveTextContent("가장 하고 싶은 일");
+  });
+
+  it("질문 체크는 답 받음으로 저장하고, 메모는 칸을 벗어날 때만 저장한다", () => {
+    const { toggleBriefQuestion, updateBriefNote } = renderBrief("https://ilgam.example/jobs/job_send");
+    expect(screen.getByTestId("brief-section")).toHaveTextContent("0/2 답 받음");
+    fireEvent.click(screen.getByTestId("brief-toggle-job_send_brief_1"));
+    expect(toggleBriefQuestion).toHaveBeenCalledWith("job_send", "job_send_brief_1");
+    const note = screen.getByTestId("brief-note-job_send_brief_2");
+    fireEvent.change(note, { target: { value: "인스타 계정 참고" } });
+    expect(updateBriefNote).not.toHaveBeenCalled();
+    fireEvent.blur(note);
+    expect(updateBriefNote).toHaveBeenCalledWith("job_send", "job_send_brief_2", "인스타 계정 참고");
+  });
+
+  it("남은 것 다시 보내기는 인사와 남은 자료·질문만 복사하고, 복사가 막히면 문구를 그대로 보여 준다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderBrief("https://ilgam.example/jobs/job_send");
+    fireEvent.click(screen.getByTestId("start-reminder-copy"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(writeText.mock.calls[0][0]).toBe(
+      "안녕하세요, 보내기 고객님.\n작업을 시작하기 전에 아래 내용만 이 대화로 보내 주세요. 모르는 건 '모름'이라고 적어 주셔도 괜찮아요.\n[보내 주실 자료]\n- 로고 원본 파일\n[알려 주실 것]\n1. 이 작업으로 가장 하고 싶은 일은 무엇인가요?\n2. 참고 예시가 있나요?",
+    );
+    await waitFor(() => expect(screen.getByTestId("start-reminder-copy")).toHaveTextContent("복사했어요"));
+
+    cleanup();
+    writeText.mockRejectedValueOnce(new Error("blocked"));
+    renderBrief("https://ilgam.example/jobs/job_send");
+    fireEvent.click(screen.getByTestId("start-reminder-copy"));
+    await waitFor(() => expect(screen.getByTestId("start-reminder-text")).toHaveValue(writeText.mock.calls[0][0]));
   });
 });
