@@ -73,7 +73,7 @@ export function StartChecklist({
                   {item.answeredAt && <small>답 받음</small>}
                 </button>
                 <BriefNoteInput
-                  key={`${item.id}:${item.note ?? ""}`}
+                  key={item.id}
                   initial={item.note ?? ""}
                   disabled={!active}
                   label={`${item.question} 답 메모`}
@@ -100,7 +100,10 @@ export function StartChecklist({
   );
 }
 
-/** 입력 중에는 저장하지 않고, 칸을 벗어날 때 바뀐 경우에만 저장한다. */
+/**
+ * 입력 중에는 저장하지 않고, 칸을 벗어날 때 바뀐 경우에만 저장한다.
+ * 다른 기기가 같은 질문의 메모를 저장해도, 이 칸에서 쓰는 중이면 쓰던 글을 덮어쓰지 않는다(칸을 새로 만들지 않음).
+ */
 function BriefNoteInput({
   initial,
   disabled,
@@ -115,6 +118,13 @@ function BriefNoteInput({
   onCommit: (note: string) => void;
 }) {
   const [value, setValue] = useState(initial);
+  const [syncedInitial, setSyncedInitial] = useState(initial);
+  const [dirty, setDirty] = useState(false);
+  // 저장된 메모가 바뀌었고 이 칸에서 고치는 중이 아니면 새 값을 보여 준다.
+  if (initial !== syncedInitial) {
+    setSyncedInitial(initial);
+    if (!dirty) setValue(initial);
+  }
   return (
     <input
       className="briefNote"
@@ -123,8 +133,12 @@ function BriefNoteInput({
       placeholder="답 메모(선택)"
       aria-label={label}
       disabled={disabled}
-      onChange={(event) => setValue(event.target.value)}
+      onChange={(event) => {
+        setValue(event.target.value);
+        setDirty(true);
+      }}
       onBlur={() => {
+        setDirty(false);
         if (value.trim() !== initial.trim()) onCommit(value);
       }}
       data-testid={testId}
