@@ -16,6 +16,7 @@
     "cloudflare:preview:bootstrap": "node scripts/cloudflare-deploy.mjs --target preview --apply --bootstrap",
     "cloudflare:preview:deploy": "node scripts/cloudflare-deploy.mjs --target preview --apply",
     "cloudflare:production:check": "node scripts/cloudflare-deploy.mjs --target production --dry-run",
+    "cloudflare:production:bootstrap": "node scripts/cloudflare-deploy.mjs --target production --apply --bootstrap",
     "cloudflare:production:deploy": "node scripts/cloudflare-deploy.mjs --target production --apply",
     "start": "next start",
     "lint": "eslint .",

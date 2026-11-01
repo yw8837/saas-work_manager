@@ -23,9 +23,12 @@ it("기본 명령은 preview 읽기 전용 검사다", () => {
   assert.throws(() => parseCloudflareDeployArgs(["--target", "other"]));
   assert.throws(() => parseCloudflareDeployArgs(["--target", "preview", "--target", "production"]));
   assert.throws(() => parseCloudflareDeployArgs(["--apply", "--apply"]));
-  assert.throws(() => parseCloudflareDeployArgs(["--target", "production", "--apply", "--bootstrap"]));
+  assert.throws(() => parseCloudflareDeployArgs(["--target", "production", "--bootstrap"]));
   assert.deepEqual(parseCloudflareDeployArgs(["--apply", "--bootstrap"]), {
     target: "preview", apply: true, bootstrap: true, worker: "ilgamcheck-preview",
+  });
+  assert.deepEqual(parseCloudflareDeployArgs(["--target", "production", "--apply", "--bootstrap"]), {
+    target: "production", apply: true, bootstrap: true, worker: "ilgamcheck",
   });
 });
 

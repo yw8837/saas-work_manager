@@ -40,8 +40,8 @@ export function parseCloudflareDeployArgs(argv) {
       throw new Error("사용법: cloudflare-deploy.mjs [--target preview|production] [--dry-run|--apply]");
     }
   }
-  if (bootstrap && (target !== "preview" || !apply)) {
-    throw new Error("--bootstrap은 preview --apply에서만 허용합니다.");
+  if (bootstrap && !apply) {
+    throw new Error("--bootstrap은 --apply와 함께만 허용합니다.");
   }
   return { target, apply, bootstrap, worker: WORKERS[target] };
 }
@@ -142,7 +142,7 @@ export function runCloudflareDeploy({ root = process.cwd(), argv = process.argv.
     assertProductionSource(root, env);
   }
   if (options.bootstrap && env.NEXT_PUBLIC_BETA_SIGNUP_ENABLED !== "false") {
-    throw new Error("최초 Worker 생성은 신규 가입을 끈 preview에서만 허용합니다.");
+    throw new Error("최초 Worker 생성은 신규 가입을 끈 상태에서만 허용합니다.");
   }
   if (options.apply && !options.bootstrap) assertWorkerSecret(root, env, options.worker);
 
