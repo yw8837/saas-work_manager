@@ -263,7 +263,7 @@ const slides: Slide[] = [
     key: "revision",
     caption: "링크든 메신저든 모든 수정 요청이 한 타임라인에 쌓여요",
     render: () => (
-      <Scene title="수정 요청 기록" live="자동 카운트" active="일감">
+      <Scene title="수정 요청 기록" live="완료 기준 카운트" active="일감">
         <div className="sceneHeading">
           <div>
             <span>오로라 스튜디오</span>
@@ -282,7 +282,7 @@ const slides: Slide[] = [
               <small>고객 링크 · 어제 오후 4:12</small>
               <strong>메인 비주얼을 조금 더 밝게</strong>
             </div>
-            <span className="ppEventTag">자동 −1</span>
+            <span className="ppEventTag">완료 −1</span>
           </div>
           <div className="ppEvent manual">
             <span className="ppEventIcon">
@@ -292,13 +292,13 @@ const slides: Slide[] = [
               <small>카카오톡 · 오늘 오전 9:40</small>
               <strong>회사소개 문구 교체</strong>
             </div>
-            <span className="ppEventTag">수동 기록</span>
+            <span className="ppEventTag">확인 대기</span>
           </div>
         </div>
         <div className="ppRemain">
           <span>남은 수정</span>
           <strong>1회</strong>
-          <span className="ppRemainBadge">초과 시 추가 작업</span>
+          <span className="ppRemainBadge">초과 시 추가 작업 검토</span>
         </div>
       </Scene>
     ),

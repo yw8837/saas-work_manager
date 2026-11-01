@@ -49,9 +49,12 @@ test("고객 체험 링크는 검색에 막혀 있고, 요청을 남겨도 서�
   await page.getByRole("button", { name: /요청 남기기/ }).click();
 
   await expect(page.getByRole("status")).toContainText("수정 요청을 남겼어요");
-  await expect(page.getByTestId("demo-revision-usage")).toHaveText("3회 중 2회 사용");
+  // 수정 횟수는 작업자가 수정을 마칠 때 쓴다. 접수만으로는 사용 횟수·남은 횟수가 그대로다.
+  await expect(page.getByRole("status")).toContainText("요청을 접수했어요");
+  await expect(page.getByTestId("demo-revision-usage")).toHaveText("3회 중 1회 사용");
   await page.getByRole("button", { name: "다른 요청 남기기" }).click();
-  await expect(page.getByTestId("revision-remaining")).toHaveText("1");
+  await expect(page.getByTestId("revision-remaining")).toHaveText("2");
+  await expect(page.getByTestId("revision-pending")).toHaveText("확인 대기 1건");
 
   const stored = await page.evaluate(() => Object.keys(localStorage));
   expect(stored).toEqual([]);

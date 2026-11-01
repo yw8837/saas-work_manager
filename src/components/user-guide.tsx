@@ -32,7 +32,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     short: "패키지 저장",
     tryIt: { href: "/packages", label: "내 패키지 고치기" },
     title: "자주 파는 패키지를 한 번만 저장해요",
-    body: "BASIC·STANDARD·DELUXE처럼 금액, 기간, 수정 횟수, 기본 할 일을 묶어 둬요.",
+    body: "BASIC·STANDARD·DELUXE처럼 금액, 기간, 수정 횟수, 기본 할 일을 묶어 둬요. 시작 전에 고객에게 받을 자료도 적어 두면, 아직 못 받은 것이 고객 링크에 보여요.",
     image: { src: "/guide/02-packages.webp", alt: "BASIC, STANDARD, DELUXE 로고 패키지가 금액과 수정 횟수와 함께 보이는 패키지 화면", width: 750, height: 1520 },
   },
   {
@@ -48,16 +48,16 @@ export const GUIDE_STEPS: GuideStep[] = [
     short: "링크 보내기",
     tryIt: { href: "/demo/r", label: "고객 화면 직접 눌러 보기" },
     title: "고객에게 수정요청 링크를 보내요",
-    body: "일감을 저장하면 바로 뜨는 보내기 안내에서 링크나 카톡에 붙일 문구를 복사해 보내요. 고객은 로그인 없이 열어요.",
+    body: "일감을 저장하면 바로 뜨는 보내기 안내에서 링크나 카톡에 붙일 문구를 복사해 평소 대화창으로 보내요. 자동으로 보내지지는 않아요. 고객은 로그인 없이 열고, 답은 평소처럼 대화창으로 해요.",
     image: { src: "/guide/04-send-link.webp", alt: "일감을 저장한 직후 링크 복사, 카톡 문구 복사, 고객 화면 미리보기 버튼이 보이는 보내기 안내", width: 750, height: 1520 },
   },
   {
     id: "revisions",
-    short: "수정 자동 기록",
+    short: "수정 완료 때 차감",
     tryIt: { href: "/demo/r", label: "요청 남겨 보기" },
-    title: "고객 요청은 자동으로 기록·차감돼요",
-    body: "고객이 링크로 남긴 요청은 원문과 시각이 수정 로그에 쌓이고 남은 횟수가 1회 줄어요.",
-    image: { src: "/guide/05-revisions.webp", alt: "고객 링크로 들어온 수정 요청 두 건과 남은 수정 횟수가 보이는 수정 요청 로그", width: 750, height: 1520 },
+    title: "요청은 확인 대기로 들어오고, 수정을 마치면 1회를 써요",
+    body: "고객이 링크로 남긴 요청은 원문과 시각이 수정 로그에 '확인 대기'로 쌓여요. 고친 뒤 '수정 완료'를 누르면 그때 1회가 빠지고, 질문·중복은 '반려', 범위 밖이면 '추가 작업으로'를 눌러요.",
+    image: { src: "/guide/05-revisions.webp", alt: "수정 완료로 센 1회차 요청과 수정 완료·추가 작업으로·반려 버튼이 있는 확인 대기 요청이 보이는 수정 요청 로그", width: 750, height: 1520 },
   },
   {
     id: "addon",
@@ -132,6 +132,12 @@ export function UserGuide() {
             </li>
           ))}
         </ol>
+
+        {/* 구현된 것과 아직 안 되는 것을 섞지 않는다. 기준: docs/design/revision-count-and-customer-link.md */}
+        <section className="guideOutro" aria-labelledby="guide-not-yet-title" data-testid="guide-not-yet">
+          <h2 id="guide-not-yet-title">아직 안 되는 것</h2>
+          <p>플랫폼·메신저의 주문과 대화를 자동으로 가져오지 않아요. 주문은 직접 등록하고 링크도 직접 보내요. 고객에게 자동으로 답장하지 않고, 고객이 결과를 확인한 뒤에 차감하는 방식과 웹에서 새 요청 알림도 아직 준비 전이에요.</p>
+        </section>
 
         <section className="guideOutro">
           <h2>고객 쪽 화면이 궁금하면</h2>

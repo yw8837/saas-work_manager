@@ -2,7 +2,7 @@
 
 import { Archive, Check, ChevronRight, ClipboardList, PackagePlus, Plus, Save, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createDomainId, PLAN_PRICES, type OptionTemplate, type PackageTemplate, type TaskTemplate } from "@/lib/domain";
+import { createDomainId, INTAKE_ITEM_LIMIT, normalizeIntakeLabels, PLAN_PRICES, type OptionTemplate, type PackageTemplate, type TaskTemplate } from "@/lib/domain";
 import { markFirstRun } from "@/lib/first-run";
 import { INDUSTRY_STARTERS } from "@/lib/store";
 import { formatWon, useWorkspace } from "./workspace-provider";
@@ -123,8 +123,10 @@ export function PackageManager() {
   };
 
   const saveCurrentPackage = () => {
+    const intakeItems = normalizeIntakeLabels(selectedPackage.intakeItems);
     const normalized = {
       ...selectedPackage,
+      intakeItems: intakeItems.length > 0 ? intakeItems : undefined,
       name: selectedPackage.name.trim() || "이름 없는 패키지",
       tasks: selectedPackage.tasks
         .filter((task) => task.title.trim())
@@ -207,6 +209,17 @@ export function PackageManager() {
               <label><span>기본 기간 (일)</span><input type="number" min="0" value={selectedPackage.durationDays} onChange={(event) => setPackageDraft({ ...selectedPackage, durationDays: numeric(event.target.value) })} /></label>
               <label><span>포함 수정 (회)</span><input type="number" min="0" value={selectedPackage.revisionLimit} onChange={(event) => setPackageDraft({ ...selectedPackage, revisionLimit: numeric(event.target.value) })} /></label>
               <label><span>예상 원가 (원)</span><input type="number" min="0" value={selectedPackage.estimatedCost} onChange={(event) => setPackageDraft({ ...selectedPackage, estimatedCost: numeric(event.target.value) })} /></label>
+              {/* 한 줄에 하나. 저장할 때 빈 줄·중복을 빼고 최대 개수까지만 남긴다. 고객 링크에 그대로 보이니 연락처·금액은 적지 않는다. */}
+              <label className="catalogFullField">
+                <span>시작 전 받을 자료 <small>한 줄에 하나 · 최대 {INTAKE_ITEM_LIMIT}개 · 고객 링크에 보여요</small></span>
+                <textarea
+                  rows={3}
+                  value={(selectedPackage.intakeItems ?? []).join("\n")}
+                  onChange={(event) => setPackageDraft({ ...selectedPackage, intakeItems: event.target.value.split("\n") })}
+                  placeholder={"예: 로고에 넣을 상호명·영문 표기\n참고 이미지 2~3장"}
+                  data-testid="package-intake-items"
+                />
+              </label>
             </div>
             <TaskRows tasks={selectedPackage.tasks} onChange={(tasks) => setPackageDraft({ ...selectedPackage, tasks })} />
             <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentPackage} data-testid="save-package"><Save size={16} /> 패키지 저장</button>{!packageDraft && <button type="button" className="quietButton" onClick={() => { if (window.confirm("이 패키지를 새 일감 선택 목록에서 보관할까요? 기존 일감은 바뀌지 않아요.")) { archivePackage(selectedPackage.id); flashSaved("패키지를 보관했어요."); } }}><Archive size={16} /> 보관</button>}</div>

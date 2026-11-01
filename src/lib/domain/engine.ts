@@ -26,6 +26,8 @@ export class DomainValidationError extends Error {
       | "DUPLICATE_TASK_KEY"
       | "REVISION_NOT_FOUND"
       | "REVISION_ALREADY_REVERTED"
+      | "REVISION_NOT_OPEN"
+      | "REVISION_LIMIT_REACHED"
       | "ADDON_NOT_FOUND"
       | "ADDON_ALREADY_CONFIRMED"
       | "ADDON_ALREADY_CANCELLED",
@@ -260,6 +262,47 @@ function composeTasks(
  * 선택 옵션 순서와 무관하게 같은 일감을 만든다.
  * 원본 템플릿은 깊은 스냅샷으로 복사되므로 이후 편집해도 기존 일감은 변하지 않는다.
  */
+export const INTAKE_ITEM_LIMIT = 10;
+export const INTAKE_LABEL_MAX = 60;
+
+/**
+ * '시작 전 받을 자료' 이름을 정리한다. 빈 줄·중복은 빼고, 이름은 60자, 목록은 10개까지.
+ * 이름은 고객 링크에 그대로 보이므로 작업자가 적은 글자만 쓴다.
+ */
+export function normalizeIntakeLabels(labels: unknown): string[] {
+  if (!Array.isArray(labels)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of labels) {
+    if (typeof raw !== "string") continue;
+    const label = raw.trim().slice(0, INTAKE_LABEL_MAX);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    result.push(label);
+    if (result.length === INTAKE_ITEM_LIMIT) break;
+  }
+  return result;
+}
+
+/** 받은 자료를 체크하거나 다시 '아직 안 받음'으로 돌린다. */
+export function toggleIntakeItem(job: Job, itemId: string, now = new Date().toISOString()): Job {
+  if (!job.intakeItems?.some((item) => item.id === itemId)) return job;
+  return {
+    ...job,
+    intakeItems: job.intakeItems.map((item) => {
+      if (item.id !== itemId) return item;
+      if (item.receivedAt) return { id: item.id, label: item.label };
+      return { ...item, receivedAt: now };
+    }),
+    updatedAt: now,
+  };
+}
+
+/** 고객 링크에 보여 줄, 아직 받지 못한 자료 이름. */
+export function pendingIntakeLabels(job: Pick<Job, "intakeItems">): string[] {
+  return (job.intakeItems ?? []).filter((item) => !item.receivedAt).map((item) => item.label);
+}
+
 export function composeJob(input: ComposeJobInput): Job {
   assertText(input.clientLabel, "고객 별칭");
   parseISODate(input.startDate);
@@ -284,8 +327,12 @@ export function composeJob(input: ComposeJobInput): Job {
     input.package.revisionLimit +
     options.reduce((total, option) => total + option.revisionLimitDelta, 0);
   const calculatedDueDate = addCalendarDays(input.startDate, durationDays);
+  const intakeLabels = normalizeIntakeLabels(input.package.intakeItems);
 
   return {
+    ...(intakeLabels.length > 0
+      ? { intakeItems: intakeLabels.map((label, index) => ({ id: `${jobId}_intake_${index + 1}`, label })) }
+      : {}),
     id: jobId,
     clientLabel: input.clientLabel.trim(),
     title: input.title?.trim() || `${input.clientLabel.trim()} · ${input.package.name}`,
@@ -322,42 +369,80 @@ function isLiveRevision(revision: Revision): boolean {
 }
 
 export function getRevisionSummary(job: Pick<Job, "revisionLimit" | "revisions">): RevisionSummary {
-  const used = job.revisions.filter(
-    (revision) => isLiveRevision(revision) && revision.usage === "used",
-  ).length;
+  const countLive = (usage: Revision["usage"]) =>
+    job.revisions.filter((revision) => isLiveRevision(revision) && revision.usage === usage).length;
+  const used = countLive("used");
   return {
     included: job.revisionLimit,
     used,
     remaining: Math.max(0, job.revisionLimit - used),
-    extraScope: job.revisions.filter(
-      (revision) => isLiveRevision(revision) && revision.usage === "extra_scope",
-    ).length,
+    extraScope: countLive("extra_scope"),
+    pending: countLive("pending"),
   };
 }
 
-/**
- * 되돌리기로 한도가 풀리면, 그 뒤에 추가작업으로 잡혀 있던 기록이 순서대로 한도 안으로 들어온다.
- * 이걸 안 하면 되돌린 뒤 새로 온 요청만 무료가 되고, 먼저 온 요청이 계속 추가금으로 남는 역전이 생긴다.
- */
-function regradeRevisions(revisions: Revision[], revisionLimit: number): Revision[] {
-  let used = revisions.filter(
-    (revision) => isLiveRevision(revision) && revision.usage === "used",
-  ).length;
-  // 회차 번호는 되돌린 뒤에도 다시 쓰지 않는다. 이미 쓴 번호 위에서만 이어 붙인다.
-  let nextSequence = Math.max(0, ...revisions.map((revision) => revision.sequence ?? 0));
+function findOpenRevision(job: Job, revisionId: string): Revision {
+  const target = job.revisions.find((revision) => revision.id === revisionId);
+  if (!target) {
+    throw new DomainValidationError("수정 요청을 찾을 수 없어요.", "REVISION_NOT_FOUND");
+  }
+  if (target.revertedAt) {
+    throw new DomainValidationError("반려하거나 되돌린 요청이에요.", "REVISION_ALREADY_REVERTED");
+  }
+  return target;
+}
 
-  return revisions.map((revision) => {
-    if (!isLiveRevision(revision) || revision.usage !== "extra_scope") return revision;
-    if (used >= revisionLimit) return revision;
-    used += 1;
-    nextSequence += 1;
-    return {
-      ...revision,
-      usage: "used" as const,
-      sequence: nextSequence,
-      status: revision.status === "extra_scope" ? ("new" as const) : revision.status,
-    };
-  });
+/**
+ * 작업자가 수정을 마치면 포함 수정 1회를 쓴다(접수만으로는 쓰지 않는다).
+ * 추가 작업으로 분류했던 요청도 남은 횟수가 있으면 포함 수정으로 마칠 수 있다.
+ * 회차 번호는 되돌린 뒤에도 다시 쓰지 않도록 지금까지 붙은 번호 다음을 쓴다.
+ */
+export function completeRevision(
+  job: Job,
+  revisionId: string,
+  completedAt = new Date().toISOString(),
+): Job {
+  const target = findOpenRevision(job, revisionId);
+  if (target.usage === "used") {
+    throw new DomainValidationError("이미 수정 완료로 센 요청이에요.", "REVISION_NOT_OPEN");
+  }
+  if (getRevisionSummary(job).remaining <= 0) {
+    throw new DomainValidationError(
+      "남은 포함 수정이 없어요. 추가 작업으로 처리해 주세요.",
+      "REVISION_LIMIT_REACHED",
+    );
+  }
+  const nextSequence = Math.max(0, ...job.revisions.map((item) => item.sequence ?? 0)) + 1;
+  return {
+    ...job,
+    revisions: job.revisions.map((revision) =>
+      revision.id === revisionId
+        ? { ...revision, usage: "used" as const, status: "done" as const, sequence: nextSequence, completedAt }
+        : revision,
+    ),
+    updatedAt: completedAt,
+  };
+}
+
+/** 확인 대기 요청을 포함 수정이 아닌 추가 작업으로 분류한다. 횟수는 쓰지 않는다. */
+export function markRevisionExtraScope(
+  job: Job,
+  revisionId: string,
+  markedAt = new Date().toISOString(),
+): Job {
+  const target = findOpenRevision(job, revisionId);
+  if (target.usage !== "pending") {
+    throw new DomainValidationError("확인 대기 중인 요청만 추가 작업으로 바꿀 수 있어요.", "REVISION_NOT_OPEN");
+  }
+  return {
+    ...job,
+    revisions: job.revisions.map((revision) =>
+      revision.id === revisionId
+        ? { ...revision, usage: "extra_scope" as const, status: "extra_scope" as const }
+        : revision,
+    ),
+    updatedAt: markedAt,
+  };
 }
 
 /**
@@ -375,7 +460,11 @@ function shiftDeadlineTasks(job: Job, durationDaysDelta: number): Task[] {
   });
 }
 
-/** 고객 링크/수동 접수 모두가 호출하는 단일 수정 카운터 경로. */
+/**
+ * 고객 링크/수동 접수 모두가 호출하는 단일 접수 경로.
+ * 접수만으로는 수정 횟수를 쓰지 않는다(확인 대기). 작업자가 이미 고친 뒤 적는 수동 기록만
+ * `completed`로 받아 바로 '수정 완료' 처리한다.
+ */
 export function recordRevision(
   job: Job,
   input: RecordRevisionInput,
@@ -385,12 +474,8 @@ export function recordRevision(
     throw new DomainValidationError("수동 기록은 접수 채널을 골라주세요.", "INVALID_INPUT");
   }
 
-  const before = getRevisionSummary(job);
   const submittedAt = input.submittedAt ?? new Date().toISOString();
-  const countsAsRevision = before.remaining > 0;
-  const nextSequence =
-    Math.max(0, ...job.revisions.map((item) => item.sequence ?? 0)) + 1;
-  const revision: Revision = {
+  const pending: Revision = {
     id: input.revisionId ?? createDomainId("revision"),
     jobId: job.id,
     source: input.source,
@@ -398,17 +483,19 @@ export function recordRevision(
     clientLabel: input.clientLabel?.trim() || undefined,
     body: input.body.trim(),
     referenceUrl: input.referenceUrl?.trim() || undefined,
-    status: countsAsRevision ? "new" : "extra_scope",
-    usage: countsAsRevision ? "used" : "extra_scope",
-    sequence: countsAsRevision ? nextSequence : null,
+    status: "new",
+    usage: "pending",
+    sequence: null,
     submittedAt,
   };
 
-  const nextJob: Job = {
+  const received: Job = {
     ...job,
-    revisions: [...job.revisions, revision],
+    revisions: [...job.revisions, pending],
     updatedAt: submittedAt,
   };
+  const nextJob = input.completed ? completeRevision(received, pending.id, submittedAt) : received;
+  const revision = nextJob.revisions.find((item) => item.id === pending.id)!;
   const summary = getRevisionSummary(nextJob);
 
   return {
@@ -572,7 +659,9 @@ export function cancelAddon(job: Job, addonId: string, cancelledAt = new Date().
 }
 
 /**
- * 되돌림은 원문을 지우지 않고 감사 필드만 남겨 횟수를 복구한다.
+ * 반려(확인 대기 요청)와 되돌림(이미 센 요청)은 원문을 지우지 않고 감사 필드만 남긴다.
+ * 수정 완료로 셌던 요청을 되돌리면 그 1회가 사용 횟수에서 빠진다.
+ * 추가 작업으로 분류된 다른 요청을 저절로 포함 수정으로 바꾸지는 않는다(작업자가 '수정 완료'로 정한다).
  * 사유는 선택이다. 비워두면 되돌린 사실만 남는다.
  */
 export function revertRevision(
@@ -582,30 +671,20 @@ export function revertRevision(
   revertedAt = new Date().toISOString(),
 ): Job {
   const revertReason = reason?.trim();
-  const target = job.revisions.find((revision) => revision.id === revisionId);
-  // 오접수는 한도 안(used)이든 한도를 넘긴 추가작업(extra_scope)이든 똑같이 되돌릴 수 있다.
-  // 남은 횟수 복구는 getRevisionSummary가 usage에 따라 알아서 계산한다.
-  if (!target) {
-    throw new DomainValidationError("되돌릴 수정 기록을 찾을 수 없어요.", "REVISION_NOT_FOUND");
-  }
-  if (target.revertedAt) {
-    throw new DomainValidationError("이미 되돌린 수정 기록이에요.", "REVISION_ALREADY_REVERTED");
-  }
-
-  const reverted = job.revisions.map((revision) =>
-    revision.id === revisionId
-      ? {
-          ...revision,
-          revertedAt,
-          ...(revertReason ? { revertReason } : {}),
-          status: "void" as const,
-        }
-      : revision,
-  );
+  findOpenRevision(job, revisionId);
 
   return {
     ...job,
-    revisions: regradeRevisions(reverted, job.revisionLimit),
+    revisions: job.revisions.map((revision) =>
+      revision.id === revisionId
+        ? {
+            ...revision,
+            revertedAt,
+            ...(revertReason ? { revertReason } : {}),
+            status: "void" as const,
+          }
+        : revision,
+    ),
     updatedAt: revertedAt,
   };
 }
