@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-11-01
+마지막 갱신: 2026-11-01 (베타 신청 브랜치에 main의 Cloudflare 독립 배포 경로 PR #22 병합)
 
 ## 제품 한 줄
 
@@ -18,7 +18,14 @@
 - 화면: `/apply`(신청), `/apply/confirm/[token]`(주소 확인, 버튼으로만 처리), `/u/[token]`(수신거부, 한글·영문), `/ops/applications`(운영자). 넷 다 WorkspaceProvider 없이 뜨는 단독 경로이고 Sites 셸에도 있다. 확인·수신거부·운영자 화면은 noindex.
 - DB: migration `20261101090000_beta_application_consent.sql`(공개 RPC 3개 + 운영자 RPC 9개, 표 9개 직접 접근 차단. 독립 리뷰 7건·재검토 3건·3차 4건·4차 3건·5차 3건·6차 2건·7차 1건·8차 2건 반영, 9차 재검토 판정 "병합 가능"(2026-11-01, 마지막 커밋 `9b044f0` 기준). 호출 제한 기록은 운영자 화면 '정리 실행'으로만 지워지니 신청 기간에 며칠마다 눌러야 함). **운영 DB 미적용.** 적용 뒤 운영자 계정은 사용자가 `insert into public.beta_operator_accounts(user_id) values ('<본인 auth.users id>');`로 등록한다(저장소에는 넣지 않음).
 - 검증·대응표·판단한 것·한계: `docs/verification/2026-11-01-beta-consent.md`. 개인정보처리방침 추가 문구 초안(법률 검토 대상): `docs/beta-apply-privacy-draft.md`.
-- 남은 일: PR #21 CI 확인 → 사용자 병합 승인 → 운영 DB migration·운영자 등록·Sites 배포(모두 사용자 승인 뒤). 방침 문구 법률 검토·게시. 전송자 명칭 "스튜디오열매" vs 저장소 사업자 정보 "열매스튜디오" 확인. 토큰 원문 보관·이메일 해시 비밀 키(HMAC) 여부 결정(검증 기록 판단 26). 로컬 백업: `D:/SaaS/01_일감체크/release-artifacts/branch-backup/`(git bundle, 기준 `e83bd63`).
+- Codex 2026-11-01 15:27 재검토(9차 뒤): 주소 확인 RPC(`confirm_beta_email`)가 `ad_active`를 그 신청 건의 동의만 보고 돌려줘, 이메일 전체 이력으로 정하는 실제 발송 판정(`beta_ad_status`)과 어긋날 수 있다(철회 뒤 새 신청으로 다시 동의하고 옛 확인 링크를 열면 "보내지 않아요"로 안내). 만료 문구도 같은 이유로 단정하면 안 된다. 코드로 확인됨, **미수정**(사용자 결정 대기).
+- 남은 일: 위 동의 안내 불일치 수정(사용자 결정) → 사용자 병합 승인 → 운영 DB migration·운영자 등록·배포(모두 사용자 승인 뒤). PR #21 CI `verify`는 `e71ad79`에서 통과. 방침 문구 법률 검토·게시. 전송자 명칭 "스튜디오열매" vs 저장소 사업자 정보 "열매스튜디오" 확인. 토큰 원문 보관·이메일 해시 비밀 키(HMAC) 여부 결정(검증 기록 판단 26). 로컬 백업: `D:/SaaS/01_일감체크/release-artifacts/branch-backup/`(git bundle, 기준 `e83bd63`).
+
+### 2026-11-01 GPT Sites 독립 배포 경로 준비 (운영 전환 전)
+
+- `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md`와 `scripts/cloudflare-deploy.mjs`에 Claude도 실행할 수 있는 OpenNext→Cloudflare Worker Preview/운영 배포 경로를 추가했다. Preview와 production은 서로 다른 Worker 이름을 쓰며, 기본 명령은 배포 없는 dry-run이다. 운영 적용은 깨끗한 `main == origin/main`과 명시적 ACK를 요구한다.
+- 별도 worktree에서 `npm ci`, OpenNext 빌드, Wrangler dry-run 통과. 기존 OpenNext 1.20.2는 Next 16.4 런타임에서 모든 경로 500을 냈고, 1.20.12로 올린 뒤 로컬 Worker `/`·`/guide`·`/demo/r` HTTP 200을 확인했다. 가짜 Supabase로 검사한 `/api/health`는 설정 미완료 503이다. 실제 Worker·서버 secret·OAuth·도메인은 아직 이전하지 않았다. 자체 도메인이라도 현재 호스팅은 Sites이다. 준비/이전/롤백 순서는 위 문서 참조.
+- `claude/guide-demo-link`는 PR #18로 병합 완료. #19·#20도 병합. 열린 #1·#17·#21 중 즉시 병합 대상은 없다. #21은 광고 동의의 과거 확인 링크 상태 안내가 최신 이력과 다를 수 있어 수정·재검증이 필요하다. 클로드 공유 우편함에 재현 순서를 전달했다.
 
 ### 2026-10-31 개발 의존성 감사 17개 → 0개 (재배포 불필요)
 
@@ -181,6 +188,12 @@
 - 2026-09-30: 코드의 기본 운영 주소를 `https://ilgam.studioyeolmae.com`으로 바꿨다(링크 미리보기 등). DNS는 연결됨. 남은 일: ChatGPT Sites에 다시 배포, 새 주소 HTTPS·로그인 확인, Supabase Auth Site URL/Redirect URLs를 supabase/config.toml과 같게 맞추기.
 
 ## 다음 작업
+
+### Cloudflare 호스팅 독립 전환
+
+1. 이 브랜치의 검사·리뷰·PR 병합 후, 실제 공개 환경값을 별도 worktree의 `.env.local`에만 준비하고 Preview Worker를 최초 생성한다. 운영 Sites를 건드리지 않는다.
+2. Supabase service-role secret을 Worker secret으로 등록하고 Preview `/api/health`, Google 로그인 복귀, 일감·고객 수정 흐름을 실제 테스트 계정으로 확인한다. PR #21 기능의 DB/정책 게이트는 별도로 해결한다.
+3. 도메인 zone/DNS·TLS·OAuth·모바일 링크·롤백을 사전 검토한 뒤 운영 DNS 전환 여부를 결정한다. 현재 운영 주소를 곧바로 바꾸지 않는다.
 
 ### 배포 후 남은 확인 (2026-10-31)
 
