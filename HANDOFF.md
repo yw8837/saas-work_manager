@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-11-01 (베타 신청 브랜치에 main의 Cloudflare 독립 배포 경로 PR #22 병합)
+마지막 갱신: 2026-11-01 (Cloudflare 운영 도메인 전환·로그인 확인 / 베타 신청 브랜치에 main 병합)
 
 ## 제품 한 줄
 
@@ -19,12 +19,20 @@
 - DB: migration `20261101090000_beta_application_consent.sql`(공개 RPC 3개 + 운영자 RPC 9개, 표 9개 직접 접근 차단. 독립 리뷰 7건·재검토 3건·3차 4건·4차 3건·5차 3건·6차 2건·7차 1건·8차 2건 반영, 9차 재검토 판정 "병합 가능"(2026-11-01, 마지막 커밋 `9b044f0` 기준). 호출 제한 기록은 운영자 화면 '정리 실행'으로만 지워지니 신청 기간에 며칠마다 눌러야 함). **운영 DB 미적용.** 적용 뒤 운영자 계정은 사용자가 `insert into public.beta_operator_accounts(user_id) values ('<본인 auth.users id>');`로 등록한다(저장소에는 넣지 않음).
 - 검증·대응표·판단한 것·한계: `docs/verification/2026-11-01-beta-consent.md`. 개인정보처리방침 추가 문구 초안(법률 검토 대상): `docs/beta-apply-privacy-draft.md`.
 - Codex 2026-11-01 15:27 재검토(9차 뒤): 주소 확인 RPC(`confirm_beta_email`)가 `ad_active`를 그 신청 건의 동의만 보고 돌려줘, 이메일 전체 이력으로 정하는 실제 발송 판정(`beta_ad_status`)과 어긋날 수 있었다. 사용자 "여기서 고쳐"로 **수정함**: 확인 결과는 주소 기준, 만료는 처리 사실만, 같은 종류 단정(신청 완료 화면·확인 요청·동의/철회 통지·삭제 안내 초안·방침 초안)도 사용자 승인으로 고침. Codex 10~12차 반영, 상세는 검증 기록 "9차 뒤 재검토(15:27)와 10~12차 반영" 절. 스테이션 양식 `처리결과통지.md`(v1·v2) 19행의 옛 철회 문구는 저장소 밖이라 그대로다.
-- 남은 일: 사용자 병합 승인 → 운영 DB migration·운영자 등록·배포(모두 사용자 승인 뒤). 방침 문구 법률 검토·게시. 전송자 명칭 "스튜디오열매" vs 저장소 사업자 정보 "열매스튜디오" 확인. 토큰 원문 보관·이메일 해시 비밀 키(HMAC) 여부 결정(검증 기록 판단 26). 로컬 백업: `D:/SaaS/01_일감체크/release-artifacts/branch-backup/`(git bundle, 기준 `e83bd63`).
+- 남은 일: 사용자 병합 승인 → 운영 DB migration·운영자 등록·배포(모두 사용자 승인 뒤). 운영은 이제 Cloudflare Worker(아래 절, `main` 기준 명령 배포)라 병합만으로는 배포되지 않지만, 병합 뒤 **다음 운영 배포 전에 migration을 먼저** 적용해야 `/apply`가 동작한다. 방침 문구 법률 검토·게시. 전송자 명칭 "스튜디오열매" vs 저장소 사업자 정보 "열매스튜디오" 확인. 토큰 원문 보관·이메일 해시 비밀 키(HMAC) 여부 결정(검증 기록 판단 26). 로컬 백업: `D:/SaaS/01_일감체크/release-artifacts/branch-backup/`(git bundle, 기준 `e83bd63`).
 
-### 2026-11-01 GPT Sites 독립 배포 경로 준비 (운영 전환 전)
+### 2026-11-01 Cloudflare 운영 전환
+
+- PR #23의 bootstrap 플래그 수정이 CI 통과 후 `main`에 병합됐다(`57a4eff`). 깨끗한 `main`에서 운영 Worker `ilgamcheck`를 생성하고 Supabase 서버 키를 Worker secret에만 등록했다. 가입 플래그를 켠 최종 배포 버전은 `7ce18edc-57ae-41d1-ad6c-2028584d545e`다.
+- `studioyeolmae.com`의 예스닉 DNS 28개를 비공개 스테이션 기록과 대조해 Cloudflare로 옮겼다. 예스닉 네임서버를 `arvind.ns.cloudflare.com`·`violet.ns.cloudflare.com`으로 변경했고 Cloudflare zone 활성화를 확인했다. `ilgam`의 이전 Sites CNAME **한 건만** Cloudflare zone에서 제거하고 운영 Worker Custom Domain에 `ilgam.studioyeolmae.com`을 연결했다. 다른 Sites·Pages·Tistory·Daum MX 레코드는 유지했다.
+- `npm run smoke:remote -- https://ilgam.studioyeolmae.com`이 health, 주요 경로, 보안 헤더, PWA 파일을 통과했다. Google 로그인은 기존 `bsfire1237@gmail.com` 계정으로 `/today` 복귀, 실시간 연결·저장됨, 누적 생성 1건을 확인했다. 포트폴리오·www·블로그·Pages 하위 주소와 Daum MX는 확인했다. `expat` 루트는 404여서 별도 확인이 필요하다. 전용 테스트 계정의 일감 생성·고객 요청 쓰기와 모바일 실기기는 아직 검증하지 않았다.
+- 배포·DNS·롤백 절차와 남은 검증은 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 참조. Cloudflare 대시보드에서 수동 배포가 아니라 저장소의 명령으로 Claude도 `main` 기준 재배포할 수 있다. 도메인 캐시는 리졸버별로 전파 시간이 다르다.
+
+### 2026-11-01 Cloudflare Preview 검증 (운영 전환 전)
 
 - `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md`와 `scripts/cloudflare-deploy.mjs`에 Claude도 실행할 수 있는 OpenNext→Cloudflare Worker Preview/운영 배포 경로를 추가했다. Preview와 production은 서로 다른 Worker 이름을 쓰며, 기본 명령은 배포 없는 dry-run이다. 운영 적용은 깨끗한 `main == origin/main`과 명시적 ACK를 요구한다.
-- 별도 worktree에서 `npm ci`, OpenNext 빌드, Wrangler dry-run 통과. 기존 OpenNext 1.20.2는 Next 16.4 런타임에서 모든 경로 500을 냈고, 1.20.12로 올린 뒤 로컬 Worker `/`·`/guide`·`/demo/r` HTTP 200을 확인했다. 가짜 Supabase로 검사한 `/api/health`는 설정 미완료 503이다. 실제 Worker·서버 secret·OAuth·도메인은 아직 이전하지 않았다. 자체 도메인이라도 현재 호스팅은 Sites이다. 준비/이전/롤백 순서는 위 문서 참조.
+- PR #22를 CI 통과 후 `main`에 병합했다(`5ff7eaa`). 별도 깨끗한 clone에서 `ilgamcheck-preview.bsfire1237.workers.dev` Worker를 실제 배포하고 서버 비밀키를 Preview Worker secret에만 등록했다. 가입 플래그를 켠 재배포 후 `/api/health`와 `npm run smoke:remote` 통과. Supabase Auth에 정확한 Preview `/today`·`/settings` 복귀 주소를 더했고 기존 Google 계정으로 Preview `/today` 복귀, 저장·실시간 연결 표시를 확인했다. 이 계정의 일감은 0건이라 일감 생성·고객 요청 저장까지 통과한 것은 아니다. 자체 도메인의 실제 호스트는 여전히 Sites다. 준비/이전/롤백 순서는 위 문서 참조.
+- 운영 Worker 최초 생성에서 배포 스크립트가 가입 `false`와 `true`를 동시에 요구하는 모순을 발견했다. `codex/cloudflare-bootstrap-flag` 브랜치에서 회귀 테스트를 실패→통과로 고쳤다. PR·CI 통과 후 clean `main`에서만 운영 Worker를 만든다. 운영 secret 등록은 사용자 승인, DNS 전환은 전체 레코드 대조 후 승인 범위 안에서만 진행한다.
 - `claude/guide-demo-link`는 PR #18로 병합 완료. #19·#20도 병합. 열린 #1·#17·#21 중 즉시 병합 대상은 없다. #21은 광고 동의의 과거 확인 링크 상태 안내가 최신 이력과 다를 수 있어 수정·재검증이 필요하다. 클로드 공유 우편함에 재현 순서를 전달했다.
 
 ### 2026-10-31 개발 의존성 감사 17개 → 0개 (재배포 불필요)
@@ -191,9 +199,9 @@
 
 ### Cloudflare 호스팅 독립 전환
 
-1. 이 브랜치의 검사·리뷰·PR 병합 후, 실제 공개 환경값을 별도 worktree의 `.env.local`에만 준비하고 Preview Worker를 최초 생성한다. 운영 Sites를 건드리지 않는다.
-2. Supabase service-role secret을 Worker secret으로 등록하고 Preview `/api/health`, Google 로그인 복귀, 일감·고객 수정 흐름을 실제 테스트 계정으로 확인한다. PR #21 기능의 DB/정책 게이트는 별도로 해결한다.
-3. 도메인 zone/DNS·TLS·OAuth·모바일 링크·롤백을 사전 검토한 뒤 운영 DNS 전환 여부를 결정한다. 현재 운영 주소를 곧바로 바꾸지 않는다.
+1. 운영 Worker와 대표 도메인 전환은 완료됐다. 다음 제품 배포는 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번 절차를 사용한다. PR 검사·리뷰 후 깨끗한 `main`에서 배포하고 원격 smoke와 사용자 흐름을 확인한다. GPT Sites에 다시 push하지 않는다.
+2. 전용 테스트 계정으로 일감 등록·고객 수정 요청·재로그인 쓰기 흐름을 검증한다. PR #21 기능의 DB/정책 게이트는 별도 처리한다. 실제 사용자 데이터에 시험 레코드를 남기지 않는다.
+3. 모바일 앱 딥링크·공개 링크를 Android 실기기에서 확인한다. 도메인 캐시 전파와 다른 호스트·Daum 메일의 운영 상태를 재점검한다. `expat` 루트 404는 DNS 레코드가 같아도 서비스 자체 상태를 확인해야 한다.
 
 ### 배포 후 남은 확인 (2026-10-31)
 

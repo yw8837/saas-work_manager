@@ -42,6 +42,9 @@ it("preview와 production origin이 혼동되면 중단한다", () => {
     ...baseEnv, NEXT_PUBLIC_BETA_SIGNUP_ENABLED: "true",
     NEXT_PUBLIC_SITE_ORIGIN: "https://ilgam.studioyeolmae.com",
   }, "production"), []);
+  assert.deepEqual(cloudflareBuildEnvIssues({
+    ...baseEnv, NEXT_PUBLIC_SITE_ORIGIN: "https://ilgam.studioyeolmae.com",
+  }, "production", { bootstrap: true }), []);
 });
 
 it("서버 비밀키는 빌드 환경에 넣지 않고 Worker secret으로 분리한다", () => {
