@@ -365,6 +365,104 @@ describe("/ops/applications 운영자 화면", () => {
     expect(screen.queryByTestId("beta-ops-last-result")).toBeNull();
   });
 
+  /** 지연시킬 수 있는 응답. release(...)를 부를 때까지 끝나지 않는다. */
+  function deferred() {
+    let release: (value: RpcResult) => void = () => undefined;
+    const promise = new Promise<RpcResult>((resolve) => { release = resolve; });
+    return { promise, release };
+  }
+
+  it("[재검토7 1] 정리 RPC를 기다리는 사이 로그아웃하면, 늦게 온 성공 응답이 결과를 다시 띄우거나 다음 RPC를 부르지 않는다", async () => {
+    const purge = deferred();
+    const rpc = failingRefreshRpc({
+      beta_ops_purge_expired: () => purge.promise,
+      beta_ops_prune_call_counters: async () => ({ data: null, error: { message: "statement timeout" } }),
+    });
+    const { auth } = hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    await pressCleanup();
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("beta_ops_purge_expired"));
+    act(() => auth.listener?.("SIGNED_OUT", null));
+    expect(await screen.findByTestId("beta-ops-gate")).toHaveTextContent("로그인이 필요해요.");
+    const listCallsBefore = rpc.mock.calls.filter(([name]) => name === "beta_ops_list_applications").length;
+    await act(async () => { purge.release({ data: [{ deleted_count: 7, remaining_count: 9, held_count: 11 }], error: null }); });
+    expect(screen.getByTestId("beta-ops-gate")).toHaveTextContent("로그인이 필요해요.");
+    expect(screen.queryByTestId("beta-ops-last-result")).toBeNull();
+    expect(document.body).not.toHaveTextContent("신청 7건을 정리했어요.");
+    expect(rpc).not.toHaveBeenCalledWith("beta_ops_prune_call_counters");
+    expect(rpc.mock.calls.filter(([name]) => name === "beta_ops_list_applications").length).toBe(listCallsBefore);
+  });
+
+  it("[재검토7 1] 통지 보냄 표시를 기다리는 사이 다른 계정으로 바뀌면, 이전 계정의 완료 문구가 새 계정 화면에 나오지 않는다", async () => {
+    const mark = deferred();
+    const notice = {
+      event_id: "event-late", kind: "consent", source: "apply_form", occurred_at: "2026-11-01T00:00:00Z",
+      confirmed_at: null, notice_shown_at: "2026-11-01T00:00:00Z", notice_due_at: "2026-11-15T00:00:00Z",
+      notice_emailed_at: null, application_id: "app-late", recipient_email: "test-late-a@example.invalid", email_unavailable: false,
+    };
+    let listCalls = 0;
+    const rpc = vi.fn((name: string): Promise<RpcResult> => {
+      if (name === "beta_ops_list_applications") {
+        listCalls += 1;
+        return Promise.resolve(listCalls === 1
+          ? { data: [applicationRow("test-late-a@example.invalid", "app-late")], error: null }
+          : { data: [applicationRow("test-b-view@example.invalid", "app-b")], error: null });
+      }
+      if (name === "beta_ops_list_notices") return Promise.resolve({ data: listCalls === 1 ? [notice] : [], error: null });
+      if (name === "beta_ops_mark_notice_emailed") return mark.promise;
+      return Promise.resolve({ data: [], error: null });
+    });
+    const { auth } = hostedClient({ user: { id: "operator-a" } }, rpc);
+    render(<BetaOpsApplications />);
+    const item = await screen.findByTestId("beta-notice");
+    fireEvent.click(within(item).getByRole("button", { name: "통지 보냄 표시" }));
+    fireEvent.click(within(item).getByRole("button", { name: "보낸 것 맞아요" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("beta_ops_mark_notice_emailed", expect.anything()));
+    act(() => auth.listener?.("SIGNED_IN", { user: { id: "operator-b" } }));
+    expect(await screen.findByText("test-b-view@example.invalid")).toBeInTheDocument();
+    await act(async () => { mark.release({ data: "2026-11-01T01:00:00Z", error: null }); });
+    expect(document.body).not.toHaveTextContent("통지 보낸 시각을 남겼어요.");
+    expect(screen.queryByTestId("beta-ops-last-result")).toBeNull();
+    expect(screen.getByText("test-b-view@example.invalid")).toBeInTheDocument();
+  });
+
+  it("[재검토7 1] 정리 두 단계 사이에 계정이 바뀌면, 호출 기록 정리 RPC를 부르지 않고 결과도 띄우지 않는다", async () => {
+    const purge = deferred();
+    const rpc = cleanupRpc(
+      () => purge.promise,
+      async () => ({ data: [{ deleted_rows: 3, remaining_rows: 0 }], error: null }),
+    );
+    const { auth } = hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    await pressCleanup();
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("beta_ops_purge_expired"));
+    act(() => auth.listener?.("SIGNED_IN", { user: { id: "operator-2" } }));
+    await act(async () => { purge.release({ data: [{ deleted_count: 1, remaining_count: 0, held_count: 0 }], error: null }); });
+    expect(rpc).not.toHaveBeenCalledWith("beta_ops_prune_call_counters");
+    expect(document.body).not.toHaveTextContent("신청 1건을 정리했어요.");
+  });
+
+  it("[재검토7 2] 작업 자체가 실패하고 목록 갱신도 실패하면, '목록만' 실패했다고 단정하지 않는다", async () => {
+    const notice = {
+      event_id: "event-fail", kind: "consent", source: "apply_form", occurred_at: "2026-11-01T00:00:00Z",
+      confirmed_at: null, notice_shown_at: "2026-11-01T00:00:00Z", notice_due_at: "2026-11-15T00:00:00Z",
+      notice_emailed_at: null, application_id: "app-refresh", recipient_email: "test-refresh@example.invalid", email_unavailable: false,
+    };
+    const rpc = failingRefreshRpc({
+      beta_ops_list_notices: async () => ({ data: [notice], error: null }),
+      beta_ops_mark_notice_emailed: async () => ({ data: null, error: { message: "network down" } }),
+    });
+    hostedClient({ user: { id: "operator-1" } }, rpc);
+    render(<BetaOpsApplications />);
+    const item = await screen.findByTestId("beta-notice");
+    fireEvent.click(within(item).getByRole("button", { name: "통지 보냄 표시" }));
+    fireEvent.click(within(item).getByRole("button", { name: "보낸 것 맞아요" }));
+    expect(await screen.findByTestId("beta-ops-last-result")).toHaveTextContent("처리하지 못했어요.");
+    const gate = screen.getByTestId("beta-ops-gate");
+    expect(gate).toHaveTextContent("목록 갱신에도 실패했어요. 위 작업 결과를 확인한 뒤 목록을 다시 불러와 주세요.");
+    expect(gate).not.toHaveTextContent("목록만");
+  });
+
   it("[리뷰 7] 결과를 고르기만 해도 그 결과의 초안이 보이고, 보냄 표시는 아직 기록되지 않는다", async () => {
     useLocal();
     render(<BetaOpsApplications />);

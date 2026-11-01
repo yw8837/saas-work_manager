@@ -198,6 +198,19 @@ RED 확인(작업자 보고, 독립 입증 아님): 리뷰 2·5·6 DB 시험 7�
 | 1 | P2 | 작업 뒤 목록을 다시 불러오다 실패하면 화면이 오류 화면(`gate="error"`)으로 일찍 빠지는데, 작업 결과 메시지는 정상 화면에서만 그려져 이미 끝난 작업 결과가 가려졌다. 정리 실행뿐 아니라 같은 `run()` → `refresh()` 흐름인 통지 보냄 표시·삭제 요청 처리·삭제 안내 완료·결과 기록도 같은 문제였다 | 오류 화면에서도 같은 로그인 세션에서 받은 작업 결과를 먼저 보여 주고(`beta-ops-last-result`), 그 아래에 "운영 기록을 불러오지 못했어요. 방금 한 작업은 위와 같이 처리됐고, 목록만 다시 불러오지 못했어요."와 "목록 다시 불러오기" 버튼을 따로 보여 준다. 모든 작업이 같은 메시지 상태를 쓰므로 한 번에 고쳐진다. 로그아웃·계정 전환 때 결과를 지우는 동작(`clearAll`)은 그대로이고, 로그인 필요·운영자 아님 화면에는 결과를 보여 주지 않는다 | 단위 `[재검토6] 신청 정리 성공 → 호출 기록 정리 실패 → 목록 다시 불러오기 실패여도, 완료된 정리 결과와 목록 갱신 실패를 둘 다 보여 준다`, `[재검토6] 통지 보냄 표시처럼 다른 작업도, 뒤이은 목록 갱신이 실패해도 완료 결과를 보여 준다`, `[재검토6] 남아 있던 작업 결과는 계정이 바뀌면 지운다(1차 1번 회귀 금지)` |
 
 한계: 작업 결과는 화면 메모리에만 있어 브라우저를 새로고침하면 사라진다(DB에 남는 기록 — 삭제 수는 신청 목록, 통지·삭제 기록은 각 목록 — 은 다시 불러오면 볼 수 있다). 화면 문구는 단위 시험으로만 확인했다(E2E는 기존 흐름 회귀 통과).
+(위 표의 오류 화면 문구 "목록만 다시 불러오지 못했어요"는 8차 재검토 2번에 따라 바뀌었다. 아래 절 참고.)
+
+## 8차 재검토 반영 (Codex, 2026-11-01, 판정 "수정 필요")
+
+원문: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능-재검토7.md`. 판정: 7차 1건 해결(다섯 작업 경로 모두 실제 컴포넌트로 확인). 새로 2건.
+이번 반영은 구현 에이전트가 주간 사용량 한도로 멈춰서 **Claude(메인 세션)가 직접** 고쳤다. 새 시험 4개를 수정 전 코드(`a5f289e`의 화면 파일)로 돌려 4개 모두 실패하는 것을 확인했고, 수정 뒤 24개 모두 통과했다(작업자 실행 기록, 독립 입증 아님).
+
+| # | 심각도 | 원인 | 수정 | 시험 이름 |
+|---|---|---|---|---|
+| 1 | P2 | 작업 RPC를 기다리는 사이 로그아웃·계정 전환이 있으면, 늦게 온 응답이 이전 계정의 결과를 새 화면(로그인 필요 화면·다른 계정의 오류 화면)에 다시 띄웠다. `run()`·`runCleanup()`에 작업 시작 세대 검사가 없었고, 뒤이은 `refresh()`가 호출 순간의 세대를 저장해 이전 작업의 조회를 새 세대로 취급했다. 세대 검사 누락과 로그인 화면이 오류 화면으로 덮이는 동작은 기존 결함, 결과 재노출은 7차 반영으로 더해진 것(재검토 판정) | 작업 시작 때 세대를 저장하고 모든 `await` 뒤(메시지 저장·다음 RPC·목록 조회 전)에 현재 세대와 비교해 다르면 아무것도 하지 않고 끝낸다(`isStale`). `refresh(target, startedGeneration)`로 작업 시작 세대를 넘겨, 세대가 다르면 조회 자체를 하지 않는다. `copyAdTargets`도 같은 규칙 | `[재검토7 1] 정리 RPC를 기다리는 사이 로그아웃하면, 늦게 온 성공 응답이 결과를 다시 띄우거나 다음 RPC를 부르지 않는다`, `[재검토7 1] 통지 보냄 표시를 기다리는 사이 다른 계정으로 바뀌면, 이전 계정의 완료 문구가 새 계정 화면에 나오지 않는다`, `[재검토7 1] 정리 두 단계 사이에 계정이 바뀌면, 호출 기록 정리 RPC를 부르지 않고 결과도 띄우지 않는다` |
+| 2 | P3 | 오류 화면의 결과 유지 조건이 성공·실패를 가리지 않아, 작업 자체가 실패해도 "방금 한 작업은 위와 같이 처리됐고, 목록만 다시 불러오지 못했어요"라고 실패 범위를 잘못 말했다 | 공통 문구를 "목록 갱신에도 실패했어요. 위 작업 결과를 확인한 뒤 목록을 다시 불러와 주세요."로 바꿔 실패 범위를 단정하지 않는다 | `[재검토7 2] 작업 자체가 실패하고 목록 갱신도 실패하면, '목록만' 실패했다고 단정하지 않는다` |
+
+한계: 늦은 응답 차단은 화면 쪽 처리다. 이미 서버에서 끝난 작업(예: 정리 RPC가 지운 신청)은 되돌리지 않으며, 같은 운영자가 다시 로그인해 목록을 불러오면 결과가 반영된 목록을 본다.
 
 ## 한계·운영 안내 (호출 제한 기록)
 
@@ -480,4 +493,27 @@ $ npm run build:sites && node scripts/verify-sites-output.mjs
 BUILD_SITES_EXIT=0 (✓ built in 750ms / ✓ built in 52ms)
 Sites output verified
 VERIFY_SITES_EXIT=0
+```
+
+### 8차 재검토 반영 뒤 재검증 (2026-11-01, Claude 직접 실행, 출력 원문 발췌)
+
+```
+LINT_EXIT=0
+TYPECHECK_EXIT=0
+ Test Files  137 passed (137)
+      Tests  921 passed (921)
+PASS: native SQL contract, deletion regression, 36 RPC privilege checks (ephemeral PGlite).
+PASS: 40 beta consent DB checks (ephemeral PGlite).
+[release-gate] PASS unit
+[release-gate] PASS lint
+[release-gate] PASS typecheck
+[release-gate] PASS production dependency audit
+[release-gate] PASS local production build
+[e2e-release] PASS desktop/core · desktop/surface · mobile/core · mobile/surface (통과 수 14 27 14 27)
+[release-gate] PASS local production E2E
+[release-gate] PASS hosted fail-closed production build
+[release-gate] PASS unit/lint/typecheck/audit/local E2E/hosted build 전체 게이트 통과.
+CHECK_RELEASE_EXIT=0
+BUILD_SITES_EXIT=0
+Sites output verified
 ```

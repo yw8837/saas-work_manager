@@ -192,8 +192,11 @@ export function BetaOpsApplications() {
     setMessage(null);
   }, []);
 
-  const refresh = useCallback(async (target: BetaOpsBackend) => {
-    const generation = generationRef.current;
+  // startedGeneration: 작업 뒤 이어서 부르는 조회는 그 작업을 시작한 세대를 넘긴다.
+  // 그 사이 로그아웃·계정 전환이 있었으면 조회하지 않아서, 이전 계정의 작업이 새 화면을 바꾸지 못한다.
+  const refresh = useCallback(async (target: BetaOpsBackend, startedGeneration?: number) => {
+    const generation = startedGeneration ?? generationRef.current;
+    if (generation !== generationRef.current) return null;
     try {
       const [nextApplications, nextNotices, nextDeletions] = await Promise.all([
         target.listApplications(), target.listNotices(), target.listDeletions(),
@@ -268,33 +271,43 @@ export function BetaOpsApplications() {
   const openNotices = notices.filter((notice) => !notice.noticeEmailedAt && !notice.emailUnavailable);
   const openDeletions = deletions.filter((deletion) => deletion.email && !deletion.resultEmailedAt);
 
+  // 작업 응답을 기다리는 사이 로그아웃·계정 전환이 있었는지. 있었으면 늦게 온 응답으로 화면을 바꾸지 않는다.
+  const isStale = (generation: number) => generation !== generationRef.current;
+
   async function run<T>(action: () => Promise<T>, done: string | ((result: T) => string)) {
     if (!backend) return;
+    const generation = generationRef.current;
     try {
       const result = await action();
+      if (isStale(generation)) return;
       setMessage(typeof done === "function" ? done(result) : done);
     } catch (error) {
+      if (isStale(generation)) return;
       setMessage(error instanceof BetaNotOperatorError || error instanceof BetaNoticesPendingError
         ? error.message
         : "처리하지 못했어요. 새로고침 뒤 다시 시도해 주세요.");
     }
-    await refresh(backend);
+    await refresh(backend, generation);
   }
 
   // 정리 실행: 신청 정리와 호출 기록 정리는 서로 다른 RPC(트랜잭션)다. 결과·오류를 각각 처리해서,
   // 신청 정리가 끝난 뒤 호출 기록 정리만 실패해도 이미 끝난 신청 정리 결과를 그대로 알린다.
   async function runCleanup() {
     if (!backend) return;
+    const generation = generationRef.current;
     let purge: BetaPurgeResult;
     try {
       purge = await backend.purgeExpired();
     } catch (error) {
+      if (isStale(generation)) return;
       setMessage(error instanceof BetaNotOperatorError
         ? error.message
         : "신청 정리를 하지 못했어요. 호출 기록 정리도 하지 않았어요. 새로고침 뒤 다시 시도해 주세요.");
-      await refresh(backend);
+      await refresh(backend, generation);
       return;
     }
+    // 그 사이 계정이 바뀌었으면 다음 RPC(호출 기록 정리)도 부르지 않는다.
+    if (isStale(generation)) return;
     const parts = [
       `신청 ${purge.deletedCount}건을 정리했어요.`,
       purge.remainingCount > 0
@@ -310,23 +323,30 @@ export function BetaOpsApplications() {
       if (prune.remainingRows > 5000) parts.push("남은 기록이 5,000행 넘게 있어요. 다시 눌러 지워 주세요.");
       else if (prune.remainingRows > 0) parts.push(`남은 ${prune.remainingRows}행은 다시 눌러 지워 주세요.`);
     } catch (error) {
+      if (isStale(generation)) return;
       parts.push(error instanceof BetaNotOperatorError
         ? error.message
         : "호출 기록 정리는 완료하지 못했어요. 다시 시도해 주세요.");
     }
+    if (isStale(generation)) return;
     setMessage(parts.filter(Boolean).join(" "));
-    await refresh(backend);
+    await refresh(backend, generation);
   }
 
   async function copyAdTargets() {
     if (!backend) return;
+    const generation = generationRef.current;
     // 복사 직전에 다시 불러와 방금 수신거부한 사람을 다시 뺀다.
-    const latest = await refresh(backend);
-    if (!latest) return;
+    const latest = await refresh(backend, generation);
+    if (!latest || isStale(generation)) return;
     const emails = [...new Set(latest.filter((application) => application.adTarget).map((application) => application.email))];
-    setMessage(emails.length === 0
-      ? "광고 발송 대상이 없어요."
-      : await copyText(emails.join(", ")) ? `최신 목록으로 ${emails.length}명을 복사했어요.` : "복사하지 못했어요.");
+    if (emails.length === 0) {
+      setMessage("광고 발송 대상이 없어요.");
+      return;
+    }
+    const copied = await copyText(emails.join(", "));
+    if (isStale(generation)) return;
+    setMessage(copied ? `최신 목록으로 ${emails.length}명을 복사했어요.` : "복사하지 못했어요.");
   }
 
   const header = (
@@ -352,7 +372,7 @@ export function BetaOpsApplications() {
         )}
         <p role={keepResult ? "alert" : "status"} data-testid="beta-ops-gate">
           {text}
-          {keepResult && " 방금 한 작업은 위와 같이 처리됐고, 목록만 다시 불러오지 못했어요."}
+          {keepResult && " 목록 갱신에도 실패했어요. 위 작업 결과를 확인한 뒤 목록을 다시 불러와 주세요."}
         </p>
         {gate === "error" && backend && (
           <p>
