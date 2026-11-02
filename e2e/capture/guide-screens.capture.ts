@@ -334,7 +334,7 @@ test.describe("주문 30초 등록", () => {
     await page.goto("/jobs/new");
     await page.locator("#clientLabel").fill(SAMPLE_CLIENT_LABEL);
     // 받은 곳은 가장 최근 일감(크몽)이 먼저 골라져 있다.
-    await expect(page.getByTestId("order-source-kmong")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("order-source-kmong")).toHaveAttribute("aria-pressed", "true");
     await page.locator("label.packageChoice").filter({ hasText: "STANDARD 로고" }).click();
     await page.locator("label.optionChoice").filter({ hasText: "원본 파일" }).click();
     await page.locator("#clientLabel").blur();

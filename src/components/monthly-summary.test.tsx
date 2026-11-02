@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { composeJob, type Job, type OrderSource, type PackageTemplate } from "@/lib/domain";
 import { MonthlySummary } from "./monthly-summary";
@@ -38,16 +38,20 @@ const jobs = [
 ];
 
 const clicked: HTMLAnchorElement[] = [];
+/** 누른 순간 링크가 문서에 붙어 있었는지(일부 브라우저는 문서 밖 링크의 내려받기를 무시한다). */
+const connectedAtClick: boolean[] = [];
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-20T03:00:00.000Z"));
   vi.mocked(useWorkspace).mockReturnValue({ jobs } as unknown as ReturnType<typeof useWorkspace>);
   clicked.length = 0;
+  connectedAtClick.length = 0;
   URL.createObjectURL = vi.fn(() => "blob:monthly-summary");
   URL.revokeObjectURL = vi.fn();
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
     clicked.push(this);
+    connectedAtClick.push(this.isConnected);
   });
 });
 
@@ -76,7 +80,8 @@ it("이번 달 완료 주문의 합계·받은 곳별 줄·진행 중 합계를 
   expect(screen.getByTestId("summary-total-cost").previousElementSibling).toHaveTextContent("예상 원가");
   expect(screen.getByTestId("summary-total-margin").previousElementSibling).toHaveTextContent("남는 돈(예상)");
   expect(screen.queryByText("금액 합계")).not.toBeInTheDocument();
-  expect(screen.getByTestId("summary-in-progress")).toHaveTextContent("진행 중 1건 · 1,580,000원 (합계에 안 넣음)");
+  // 진행 중 합계는 고른 달과 상관없는 지금 값이라 '지금'을 밝힌다.
+  expect(screen.getByTestId("summary-in-progress").textContent).toBe("지금 진행 중 1건 · 1,580,000원 (합계에 안 넣음)");
 
   const kmong = screen.getByTestId("summary-source-kmong");
   expect(kmong).toHaveTextContent("크몽");
@@ -106,6 +111,8 @@ it("◀ ▶로 달이 바뀌고 이번 달보다 뒤로는 못 간다", () => {
   expect(screen.getByTestId("summary-total-count")).toHaveTextContent("1건");
   expect(screen.getByTestId("summary-row-oct")).toBeInTheDocument();
   expect(screen.queryByTestId("summary-row-nov1")).not.toBeInTheDocument();
+  // 지난달을 봐도 진행 중 줄은 지금 값 그대로다.
+  expect(screen.getByTestId("summary-in-progress").textContent).toBe("지금 진행 중 1건 · 1,580,000원 (합계에 안 넣음)");
   expect(next).toBeEnabled();
 
   fireEvent.click(previous);
@@ -119,6 +126,22 @@ it("◀ ▶로 달이 바뀌고 이번 달보다 뒤로는 못 간다", () => {
   expect(next).toBeDisabled();
 });
 
+it("화면을 열어 둔 채 달이 바뀌면 다음 달로 갈 수 있다", () => {
+  vi.setSystemTime(new Date("2026-11-30T14:00:00.000Z")); // 서울 11/30 23:00
+  const view = render(<MonthlySummary timeZone="Asia/Seoul" />);
+  expect(screen.getByTestId("summary-month-title")).toHaveTextContent("2026년 11월");
+  expect(screen.getByRole("button", { name: "다음 달" })).toBeDisabled();
+
+  // 자정을 넘겨 12월이 됐다. 작업공간은 날짜가 바뀌면 화면을 다시 그린다(기준 시각 틱).
+  vi.setSystemTime(new Date("2026-11-30T15:10:00.000Z")); // 서울 12/1 00:10
+  view.rerender(<MonthlySummary timeZone="Asia/Seoul" />);
+  const next = screen.getByRole("button", { name: "다음 달" });
+  expect(next).toBeEnabled();
+  fireEvent.click(next);
+  expect(screen.getByTestId("summary-month-title")).toHaveTextContent("2026년 12월");
+  expect(next).toBeDisabled();
+});
+
 it("summary-download-month를 누르면 그달 CSV를 내려받고 알림을 띄운다", () => {
   render(<MonthlySummary timeZone="Asia/Seoul" />);
 
@@ -128,7 +151,8 @@ it("summary-download-month를 누르면 그달 CSV를 내려받고 알림을 띄
   expect(clicked[0].getAttribute("href")).toBe("blob:monthly-summary");
   const blob = vi.mocked(URL.createObjectURL).mock.calls[0][0] as Blob;
   expect(blob.type).toBe("text/csv;charset=utf-8");
-  expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:monthly-summary");
+  // 주소 해제는 내려받기가 시작된 뒤로 미룬다(시점은 아래 시험).
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
   expect(screen.getByRole("status")).toHaveTextContent("ilgamcheck-매출-2026-11.csv를 내려받았어요");
 
   fireEvent.click(screen.getByTestId("summary-download-year"));
@@ -138,4 +162,23 @@ it("summary-download-month를 누르면 그달 CSV를 내려받고 알림을 띄
   fireEvent.click(screen.getByRole("button", { name: "이전 달" }));
   fireEvent.click(screen.getByTestId("summary-download-month"));
   expect(clicked[2].getAttribute("download")).toBe("ilgamcheck-매출-2026-10.csv");
+});
+
+it("내려받기 링크는 문서에 붙여 누른 뒤 떼고, 파일 주소는 누른 즉시가 아니라 잠시 뒤 해제한다", () => {
+  vi.useRealTimers();
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+  vi.setSystemTime(new Date("2026-11-20T03:00:00.000Z"));
+  render(<MonthlySummary timeZone="Asia/Seoul" />);
+
+  fireEvent.click(screen.getByTestId("summary-download-month"));
+  expect(clicked).toHaveLength(1);
+  expect(connectedAtClick).toEqual([true]);
+  expect(clicked[0].isConnected).toBe(false);
+  // 바로 해제하면 브라우저가 내려받기를 시작하기 전에 파일을 잃을 수 있다.
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  act(() => { vi.advanceTimersByTime(1_000); });
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  act(() => { vi.advanceTimersByTime(60_000); });
+  expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:monthly-summary");
 });

@@ -181,6 +181,10 @@ describe("TodayDashboard 받은 곳", () => {
     render(<TodayDashboard />);
     const row = screen.getByRole("button", { name: "시안 보내기 완료 처리" }).closest("article")!;
     expect(row).toHaveTextContent("모라스튜디오 브랜드 사이트 · 크몽");
+    // 다가오는 마감 줄에도 같은 모양으로 받은 곳을 붙인다.
+    const upcoming = document.querySelectorAll(".upcomingItem p");
+    expect(upcoming).toHaveLength(1);
+    expect(upcoming[0]).toHaveTextContent(/^모라스튜디오 브랜드 사이트 · 크몽$/);
   });
 });
 

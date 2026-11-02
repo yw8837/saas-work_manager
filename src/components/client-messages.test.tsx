@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { composeJob, type Job, type PackageTemplate } from "@/lib/domain";
+import { composeJob, markStartShared, type Job, type PackageTemplate } from "@/lib/domain";
 import { ClientMessages } from "./client-messages";
 
 const LINK = "https://ilgam.example/r/token_cm";
@@ -133,6 +134,35 @@ describe("고객에게 보낼 말", () => {
     await act(async () => { fireEvent.click(screen.getByTestId("client-message-copy")); });
     expect(screen.getByTestId("client-message-text")).toBeVisible();
     expect(onStartShared).toHaveBeenCalledTimes(1);
+  });
+
+  it("'시작 안내'를 처음 복사해 칩 순서가 바뀌어도, 복사한 칩과 글이 그대로 남는다", async () => {
+    writeText.mockResolvedValue();
+    // 일감 화면처럼 복사하면 일감에 보낸 시각이 생기고 다시 그린다.
+    function Screen() {
+      const [current, setCurrent] = useState(notSentYet);
+      return (
+        <ClientMessages
+          job={current}
+          link={LINK}
+          today={TODAY}
+          onStartShared={() => setCurrent((value) => markStartShared(value, "2026-11-02T03:00:00.000Z"))}
+        />
+      );
+    }
+    render(<Screen />);
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+    const shown = screen.getByTestId("client-message-preview").textContent;
+
+    fireEvent.click(screen.getByTestId("client-message-copy"));
+    await waitFor(() => expect(screen.getByTestId("client-message-copy")).toHaveTextContent("복사했어요"));
+    expect(writeText).toHaveBeenCalledWith(shown);
+    // 보낸 기록이 생겨 칩은 설계 순서로 돌아가지만, 화면은 방금 복사한 '시작 안내'에 머문다.
+    const chips = within(screen.getByRole("group", { name: "보낼 상황" })).getAllByRole("button");
+    expect(chips.map((chip) => chip.textContent)).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("client-message-preview").textContent).toBe(shown);
   });
 
   it("보낼 상황이 없으면 그리지 않는다", () => {

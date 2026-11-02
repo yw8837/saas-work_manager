@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
@@ -49,6 +49,7 @@ const confirmAddonSpy = vi.fn();
 const setJobSourceSpy = vi.fn();
 const completeJobSpy = vi.fn();
 const setPortalSpy = vi.fn();
+const markStartSharedSpy = vi.fn();
 
 function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted"; saveStatus?: "saved" | "saving"; settings?: { minMarginPerJob?: number } } = {}) {
   vi.mocked(useWorkspace).mockReturnValue({
@@ -73,6 +74,7 @@ function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hoste
     confirmAddon: confirmAddonSpy,
     cancelAddon: cancelAddonSpy,
     setJobSource: setJobSourceSpy,
+    markStartShared: markStartSharedSpy,
   } as unknown as ReturnType<typeof useWorkspace>);
   return render(<JobDetail jobId={job.id} />);
 }
@@ -90,6 +92,7 @@ beforeEach(() => {
   setJobSourceSpy.mockReset();
   completeJobSpy.mockReset();
   setPortalSpy.mockReset();
+  markStartSharedSpy.mockReset();
 });
 
 /** 제공자가 상태를 바꾼 뒤의 화면: 같은 동작 함수에 일감만 바꿔 다시 그린다. */
@@ -185,6 +188,66 @@ describe("JobDetail 처리 결과 알림", () => {
     expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
   });
 
+  it("되돌리기 알림은 안에 포커스가 있는 동안 저절로 닫히지 않고, 포커스가 나가면 처음부터 다시 센다", () => {
+    vi.useFakeTimers();
+    renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+    const undo = within(screen.getByTestId("job-toast")).getByRole("button", { name: "되돌리기" });
+
+    act(() => { undo.focus(); });
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(screen.getByTestId("job-toast")).toBeInTheDocument();
+
+    act(() => { undo.blur(); });
+    act(() => { vi.advanceTimersByTime(5_999); });
+    expect(screen.getByTestId("job-toast")).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("되돌리기 알림은 마우스가 올라가 있는 동안에도 멈춘다", () => {
+    vi.useFakeTimers();
+    renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+
+    fireEvent.mouseEnter(screen.getByTestId("job-toast"));
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(screen.getByTestId("job-toast")).toBeInTheDocument();
+
+    fireEvent.mouseLeave(screen.getByTestId("job-toast"));
+    act(() => { vi.advanceTimersByTime(6_000); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("되돌리기를 누르고 닫힌 뒤 다시 띄운 알림은 처음처럼 저절로 닫힌다", () => {
+    vi.useFakeTimers();
+    const view = renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+    const undo = within(screen.getByTestId("job-toast")).getByRole("button", { name: "되돌리기" });
+    act(() => { undo.focus(); });
+    fireEvent.mouseEnter(screen.getByTestId("job-toast"));
+    // 되돌리기를 누르면 알림이 사라진다(포커스·마우스가 머문 채로 지워진다).
+    showUpdated(view, toggleJobCompletion(baseJob(), "2026-08-02T00:00:00.000Z"));
+    fireEvent.click(undo);
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+
+    showUpdated(view, baseJob());
+    fireEvent.click(screen.getByTestId("complete-job"));
+    act(() => { vi.advanceTimersByTime(6_000); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("되돌리기가 없는 처리 결과 알림은 포커스가 있어도 지금처럼 닫힌다", () => {
+    vi.useFakeTimers();
+    renderDetail(pendingJob());
+    fireEvent.click(screen.getByTestId("complete-revision-revision_toast"));
+    const close = within(screen.getByTestId("job-toast")).getByRole("button", { name: "닫기" });
+    act(() => { close.focus(); });
+    fireEvent.mouseEnter(screen.getByTestId("job-toast"));
+    act(() => { vi.advanceTimersByTime(4_000); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
   it("오류는 경고 알림으로 띄우고 닫을 때까지 둔다", () => {
     vi.useFakeTimers();
     completeRevisionSpy.mockImplementation(() => { throw new Error("저장하지 못했어요."); });
@@ -240,6 +303,20 @@ describe("JobDetail 고객 수정 링크", () => {
 
     expect(writeText).toHaveBeenCalledWith(`${origin}/r/token_detail`);
   });
+
+  it("'링크 복사'에 성공하면 시작 안내를 보낸 것으로 남기고, 복사가 막히면 남기지 않는다", async () => {
+    const writeText = vi.fn().mockRejectedValueOnce(new Error("blocked")).mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderDetail();
+
+    fireEvent.click(screen.getByTestId("copy-revision-portal"));
+    await waitFor(() => expect(screen.getByTestId("job-toast")).toHaveTextContent("자동 복사가 막혔어요"));
+    expect(markStartSharedSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("copy-revision-portal"));
+    await waitFor(() => expect(markStartSharedSpy).toHaveBeenCalledWith("job_detail"));
+    expect(markStartSharedSpy).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("JobDetail 새 요청 띠", () => {
@@ -282,14 +359,17 @@ describe("JobDetail 받은 곳", () => {
     renderDetail(job);
     const button = screen.getByTestId("job-source");
     expect(button).toHaveTextContent("크몽");
-    expect(screen.queryByRole("radiogroup", { name: "받은 곳" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "받은 곳" })).not.toBeInTheDocument();
 
     fireEvent.click(button);
-    const group = screen.getByRole("radiogroup", { name: "받은 곳" });
-    expect(within(group).getByTestId("job-source-kmong")).toHaveAttribute("aria-checked", "true");
+    // 고를 수도 비울 수도 있는 칩이라 라디오가 아니라 누름 버튼 묶음이다.
+    const group = screen.getByRole("group", { name: "받은 곳" });
+    expect(within(group).queryAllByRole("radio")).toHaveLength(0);
+    expect(within(group).getByTestId("job-source-kmong")).toHaveAttribute("aria-pressed", "true");
+    expect(within(group).getByTestId("job-source-kmong")).not.toHaveAttribute("aria-checked");
     fireEvent.click(within(group).getByTestId("job-source-soomgo"));
     expect(setJobSourceSpy).toHaveBeenCalledWith(job.id, "soomgo");
-    expect(screen.queryByRole("radiogroup", { name: "받은 곳" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "받은 곳" })).not.toBeInTheDocument();
 
     // 고른 받은 곳을 다시 누르면 지운다.
     fireEvent.click(button);
@@ -302,8 +382,8 @@ describe("JobDetail 받은 곳", () => {
     const button = screen.getByTestId("job-source");
     expect(button).toHaveTextContent("받은 곳");
     fireEvent.click(button);
-    for (const radio of within(screen.getByRole("radiogroup", { name: "받은 곳" })).getAllByRole("radio")) {
-      expect(radio).toHaveAttribute("aria-checked", "false");
+    for (const chip of within(screen.getByRole("group", { name: "받은 곳" })).getAllByRole("button")) {
+      expect(chip).toHaveAttribute("aria-pressed", "false");
     }
     fireEvent.click(screen.getByTestId("job-source-referral"));
     expect(setJobSourceSpy).toHaveBeenCalledWith("job_detail", "referral");

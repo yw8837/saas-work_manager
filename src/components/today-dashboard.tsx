@@ -321,7 +321,7 @@ export function TodayDashboard() {
                 return (
                   <Link href={`/jobs/${job.id}`} className="upcomingItem" key={job.id}>
                     <div className="upcomingTop"><span>{job.clientLabel}</span><strong>{getDday(job.dueDate)}</strong></div>
-                    <p>{displayJobTitle(job)}</p>
+                    <p>{jobLine(job)}</p>
                     <div className="progressLine" aria-label={`${progress}% 완료`}><span style={{ width: `${progress}%` }} /></div>
                     <span className="progressCaption">{finished}/{job.tasks.length} 완료</span>
                   </Link>

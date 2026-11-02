@@ -180,8 +180,8 @@ export function NewJobForm() {
                   required
                 />
               </div>
-              {/* 고르지 않아도 된다. 고른 칩을 다시 누르면 풀린다. 고객 문구·고객 링크에는 넣지 않는다. */}
-              <div className="sourceChoices" role="radiogroup" aria-labelledby="order-source-label">
+              {/* 고르지 않아도 된다. 고른 칩을 다시 누르면 풀린다(비울 수 있어 라디오가 아니라 누름 버튼). 고객 문구·고객 링크에는 넣지 않는다. */}
+              <div className="sourceChoices" role="group" aria-labelledby="order-source-label">
                 <span id="order-source-label" className="sourceChoicesLabel">받은 곳 (선택)</span>
                 {ORDER_SOURCES.map((value) => {
                   const checked = source === value;
@@ -189,8 +189,7 @@ export function NewJobForm() {
                     <button
                       key={value}
                       type="button"
-                      role="radio"
-                      aria-checked={checked}
+                      aria-pressed={checked}
                       className="sourceChip"
                       onClick={() => setSourceChoice({ value: checked ? undefined : value })}
                       data-testid={`order-source-${value}`}

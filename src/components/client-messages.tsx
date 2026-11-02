@@ -40,6 +40,8 @@ export function ClientMessages({
   };
 
   const copy = async () => {
+    // 복사한 상황에 화면을 묶어 둔다. 처음 '시작 안내'를 보내면 칩 순서가 바뀌는데, 그때 다른 문구로 넘어가면 안 된다.
+    setChosen(situation);
     try {
       if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
       await navigator.clipboard.writeText(message);

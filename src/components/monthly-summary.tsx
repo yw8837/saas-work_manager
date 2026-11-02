@@ -23,13 +23,17 @@ function monthNumber(month: string) {
   return Number(month.slice(5, 7));
 }
 
+/** 내려받기를 시작하기 전에 파일 주소를 해제하면 실패하는 브라우저가 있어 이만큼 뒤에 해제한다. */
+const REVOKE_DELAY_MS = 40_000;
+
 /**
  * 월별 정리: 완료한 달 기준으로 매출·예상 원가·남는 돈을 숫자 줄로 보여 주고 표 파일(CSV)로 내려받는다.
  * 세금 계산이나 신고는 하지 않는다(화면 맨 위 안내). 달 경계는 이 기기의 시간대로 나눈다.
  */
 export function MonthlySummary({ timeZone = browserTimeZone() }: { timeZone?: string }) {
   const { jobs } = useWorkspace();
-  const [currentMonth] = useState(() => monthKeyOf(new Date().toISOString(), timeZone));
+  // 그릴 때마다 계산한다. 화면을 열어 둔 채 달이 바뀌면 작업공간이 날짜가 바뀐 것을 보고 다시 그리므로(기준 시각 틱) 다음 달로 갈 수 있다.
+  const currentMonth = monthKeyOf(new Date().toISOString(), timeZone);
   const [month, setMonth] = useState(currentMonth);
   const [downloaded, setDownloaded] = useState<{ fileName: string } | null>(null);
   const summary = monthlySummary(jobs, month, timeZone);
@@ -48,8 +52,11 @@ export function MonthlySummary({ timeZone = browserTimeZone() }: { timeZone?: st
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = fileName;
+    // 문서 밖 링크의 내려받기를 무시하는 브라우저가 있어 잠깐 붙였다 뗀다.
+    document.body.append(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
     setDownloaded({ fileName });
   };
 
@@ -98,7 +105,7 @@ export function MonthlySummary({ timeZone = browserTimeZone() }: { timeZone?: st
           <div><dt>남는 돈(예상)</dt><dd data-testid="summary-total-margin">{formatWon(summary.totals.margin)}</dd></div>
         </dl>
         <p className="summaryInProgress" data-testid="summary-in-progress">
-          진행 중 {summary.inProgress.count}건 · {formatWon(summary.inProgress.amount)} (합계에 안 넣음)
+          지금 진행 중 {summary.inProgress.count}건 · {formatWon(summary.inProgress.amount)} (합계에 안 넣음)
         </p>
         <div className="summaryDownloads">
           <button

@@ -130,7 +130,14 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [addonTaskTitle, setAddonTaskTitle] = useState("");
   const [addonTaskDay, setAddonTaskDay] = useState("0");
   // 처리 결과는 화면 아래 알림 하나로 보인다(맨 아래 문단은 휴대폰에서 안 보임). 일감 완료만 '되돌리기'를 단다.
-  const [notice, setNotice] = useState<{ text: string; tone: "ok" | "error"; undo?: { linkWasOn: boolean } } | null>(null);
+  const [notice, setNoticeState] = useState<{ text: string; tone: "ok" | "error"; undo?: { linkWasOn: boolean } } | null>(null);
+  // 되돌리기 알림 안에 포커스나 마우스가 있는 동안은 저절로 닫지 않는다(WCAG 2.2.1).
+  // 알림이 닫히거나 바뀌면 지운다(되돌리기를 누르면 포커스·마우스가 머문 채로 알림이 사라진다).
+  const [toastHold, setToastHold] = useState({ focus: false, hover: false });
+  const setNotice = (next: typeof notice) => {
+    setNoticeState(next);
+    setToastHold({ focus: false, hover: false });
+  };
   const [sendBannerDismissed, setSendBannerDismissed] = useState(false);
   const sendBannerRequested = useMemo(() => {
     const params = new URLSearchParams(locationSearch);
@@ -160,12 +167,14 @@ export function JobDetail({ jobId }: { jobId: string }) {
     return () => window.cancelAnimationFrame(frame);
   }, [revisionFocusRequest, revisionOpen]);
 
+  const toastHeld = Boolean(notice?.undo) && (toastHold.focus || toastHold.hover);
   useEffect(() => {
     // 오류는 읽고 닫을 때까지 두고, 처리 결과는 잠시 뒤 닫는다(되돌리기가 있으면 조금 더 길게).
-    if (!notice || notice.tone === "error") return;
-    const timer = window.setTimeout(() => setNotice(null), notice.undo ? 6000 : 4000);
+    // 되돌리기 알림은 포커스·마우스가 머무는 동안 멈추고, 벗어나면 처음부터 다시 센다. 행동 버튼이 없는 알림은 그대로 닫는다.
+    if (!notice || notice.tone === "error" || toastHeld) return;
+    const timer = window.setTimeout(() => setNoticeState(null), notice.undo ? 6000 : 4000);
     return () => window.clearTimeout(timer);
-  }, [notice]);
+  }, [notice, toastHeld]);
 
   if (!hydrated) {
     return <div className="pageSurface missingJob" role="status" aria-live="polite"><p>일감을 불러오고 있어요.</p></div>;
@@ -272,6 +281,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
     try {
       await navigator.clipboard.writeText(portalLink);
       markFirstRun("linkShared");
+      // 링크만 보내도 고객은 시작 안내를 받은 것이다(처음 한 번만 남는다).
+      recordStartShared();
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -279,7 +290,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     }
   };
 
-  // 시작 안내(저장 직후 안내의 문구·링크, '시작 안내' 칩)를 처음 복사한 시각을 남긴다. 그 뒤로 '고객에게 보낼 말'은 설계 순서로 고른다.
+  // 시작 안내(저장 직후 안내의 문구·링크, '시작 안내' 칩, 고객 링크 구획의 '링크 복사')를 처음 복사한 시각을 남긴다. 그 뒤로 '고객에게 보낼 말'은 설계 순서로 고른다.
   const recordStartShared = () => markStartShared(job.id);
 
   const dismissSendBanner = () => {
@@ -459,15 +470,15 @@ export function JobDetail({ jobId }: { jobId: string }) {
               )}
             </div>
             {sourceOpen && (
-              <div id="job-source-choices" className="sourceChoices jobSourceChoices" role="radiogroup" aria-label="받은 곳">
+              // 고른 칩을 다시 누르면 지운다(비울 수 있어 라디오가 아니라 누름 버튼).
+              <div id="job-source-choices" className="sourceChoices jobSourceChoices" role="group" aria-label="받은 곳">
                 {ORDER_SOURCES.map((value) => {
                   const checked = currentSource === value;
                   return (
                     <button
                       key={value}
                       type="button"
-                      role="radio"
-                      aria-checked={checked}
+                      aria-pressed={checked}
                       className="sourceChip"
                       onClick={() => {
                         setJobSource(job.id, checked ? undefined : value);
@@ -1016,7 +1027,18 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
       {/* 하단 바 바로 뒤에 둬서 '일감 완료' 다음 Tab이 '되돌리기'로 간다. 동작은 하나만(되돌리기 또는 닫기). */}
       {notice && (
-        <div className="actionToast" role={notice.tone === "error" ? "alert" : "status"} data-tone={notice.tone} data-testid="job-toast">
+        <div
+          className="actionToast"
+          role={notice.tone === "error" ? "alert" : "status"}
+          data-tone={notice.tone}
+          data-testid="job-toast"
+          onFocus={() => setToastHold((hold) => ({ ...hold, focus: true }))}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setToastHold((hold) => ({ ...hold, focus: false }));
+          }}
+          onMouseEnter={() => setToastHold((hold) => ({ ...hold, hover: true }))}
+          onMouseLeave={() => setToastHold((hold) => ({ ...hold, hover: false }))}
+        >
           {notice.tone === "error" ? <CircleAlert size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
           <span>{notice.text}</span>
           {notice.undo ? (

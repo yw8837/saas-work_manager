@@ -67,13 +67,16 @@ it("가장 최근 일감의 받은 곳이 처음부터 골라져 있고, 다시 
   create.mockReturnValue("created-job");
   render(<NewJobForm />);
 
-  const group = screen.getByRole("radiogroup", { name: "받은 곳 (선택)" });
-  expect(within(group).getAllByRole("radio").map((radio) => radio.textContent)).toEqual(["크몽", "숨고", "소개", "직접 문의", "기타"]);
-  expect(screen.getByTestId("order-source-kmong")).toHaveAttribute("aria-checked", "true");
-  expect(screen.getByTestId("order-source-soomgo")).toHaveAttribute("aria-checked", "false");
+  // 고를 수도 비울 수도 있는 칩이라 라디오가 아니라 누름 버튼 묶음이다(라디오는 화살표 키로 움직이고 비울 수 없다).
+  const group = screen.getByRole("group", { name: "받은 곳 (선택)" });
+  expect(within(group).queryAllByRole("radio")).toHaveLength(0);
+  expect(within(group).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["크몽", "숨고", "소개", "직접 문의", "기타"]);
+  expect(screen.getByTestId("order-source-kmong")).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("order-source-kmong")).not.toHaveAttribute("aria-checked");
+  expect(screen.getByTestId("order-source-soomgo")).toHaveAttribute("aria-pressed", "false");
 
   fireEvent.click(screen.getByTestId("order-source-kmong"));
-  expect(screen.getByTestId("order-source-kmong")).toHaveAttribute("aria-checked", "false");
+  expect(screen.getByTestId("order-source-kmong")).toHaveAttribute("aria-pressed", "false");
   fireEvent.change(screen.getByLabelText(/고객 이름/), { target: { value: "받은 곳 없는 고객" } });
   fireEvent.click(screen.getByTestId("submit-job-mobile"));
   expect(create).toHaveBeenCalledTimes(1);
@@ -84,11 +87,11 @@ it("가장 최근 일감의 받은 곳이 처음부터 골라져 있고, 다시 
 it("일감이 없으면 받은 곳이 비어 있고, 고른 받은 곳을 새 일감에 넘긴다", () => {
   create.mockReturnValue("created-job");
   render(<NewJobForm />);
-  const group = screen.getByRole("radiogroup", { name: "받은 곳 (선택)" });
-  for (const radio of within(group).getAllByRole("radio")) expect(radio).toHaveAttribute("aria-checked", "false");
+  const group = screen.getByRole("group", { name: "받은 곳 (선택)" });
+  for (const chip of within(group).getAllByRole("button")) expect(chip).toHaveAttribute("aria-pressed", "false");
 
   fireEvent.click(screen.getByTestId("order-source-referral"));
-  expect(screen.getByTestId("order-source-referral")).toHaveAttribute("aria-checked", "true");
+  expect(screen.getByTestId("order-source-referral")).toHaveAttribute("aria-pressed", "true");
   fireEvent.change(screen.getByLabelText(/고객 이름/), { target: { value: "소개 고객" } });
   fireEvent.click(screen.getByTestId("submit-job-mobile"));
   expect(create.mock.calls[0][0]).toMatchObject({ clientLabel: "소개 고객", source: "referral" });

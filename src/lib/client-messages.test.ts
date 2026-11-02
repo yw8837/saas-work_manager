@@ -102,13 +102,25 @@ describe("고객에게 보낼 말 — 상황 고르기", () => {
   it("시작 안내를 아직 안 보낸 진행 중 일감은 시작 안내가 맨 앞이고, 보낸 뒤에는 설계 순서로 돌아간다", () => {
     const fresh = notSentYet(baseJob());
     expect(availableSituations(fresh, TODAY)).toEqual(["start", "remaining", "review"]);
-    let busy = withDoneRevision(fresh, "r1");
+    // 메신저로 받아 작업자가 직접 적은 요청은 고객이 링크를 받았다는 뜻이 아니다.
+    const manual = recordRevision(fresh, { revisionId: "r1", source: "manual", channel: "kakao", body: "전화로 받은 요청", submittedAt: TODAY_NOON }).job;
+    let busy = completeRevision(manual, "r1", TODAY_NOON);
     busy = updateTaskStatus(busy, busy.tasks[1].id, "waiting", TODAY_NOON);
     expect(availableSituations(busy, TODAY)).toEqual(["start", "revision-done", "remaining", "waiting", "review"]);
     // 한 번 보내면 남은 것 요청이 앞선다.
     expect(availableSituations(markStartShared(fresh, TODAY_NOON), TODAY)).toEqual(["remaining", "review", "start"]);
     // 끝난 일감에는 시작 안내가 없다.
     expect(availableSituations({ ...fresh, status: "completed" }, TODAY)).toEqual(["delivery"]);
+  });
+
+  it("고객이 링크로 요청을 남긴 일감은 보낸 기록이 없어도 시작 안내를 맨 앞에 두지 않는다", () => {
+    const fresh = notSentYet(baseJob());
+    // 첫 실행 체크리스트의 '고객이 링크를 썼다'와 같은 기준: 고객 링크로 들어온 요청이 하나라도 있다.
+    const fromLink = recordRevision(fresh, { revisionId: "r_link", source: "public", body: "사진 교체", submittedAt: TODAY_NOON }).job;
+    expect(availableSituations(fromLink, TODAY)).toEqual(["remaining", "review", "start"]);
+    // 반려한 요청이어도 고객은 링크를 받은 것이다.
+    const rejected = revertRevision(fromLink, "r_link", "질문이라 대화창으로 답함", TODAY_NOON);
+    expect(availableSituations(rejected, TODAY)).toEqual(["remaining", "review", "start"]);
   });
 
   it("초안 추가요청이 있으면 범위 밖 안내, 할 일을 다 끝내면 납품 안내가 나온다", () => {
