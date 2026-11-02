@@ -1,12 +1,13 @@
 import {
   activeOptionCount,
   activePackageCount,
+  DEFAULT_BRIEF_QUESTIONS,
   type Job,
   type OptionTemplate,
   type PackageTemplate,
   type PlanLimits,
 } from "../domain";
-import { seedOptions, seedPackages } from "./seed";
+import { seedIntakeItems, seedOptions, seedPackages } from "./seed";
 
 /**
  * 첫 실행에서 고르는 업종별 예시 패키지. 금액은 모두 "예시"이며 사용자가 패키지 화면에서 고쳐 쓴다.
@@ -29,6 +30,17 @@ function task(taskKey: string, title: string, relativeDay: number, order: number
   return { taskKey, title, relativeDay, order };
 }
 
+/**
+ * 업종 예시 패키지마다 넣는 '시작 전 받을 자료'. 예시이며 사용자가 패키지 화면에서 고친다.
+ * 착수 전 질문은 업종과 상관없이 엔진의 기본 질문 3개(`DEFAULT_BRIEF_QUESTIONS`)를 넣는다.
+ */
+export const INDUSTRY_INTAKE_ITEMS: Record<Industry, string[]> = {
+  web: seedIntakeItems,
+  design: ["가게·브랜드 이름(한글·영문)", "참고 이미지", "원하는 색이나 분위기"],
+  video: ["원본 영상 파일", "넣을 자막·문구", "원하는 배경음악(있으면)"],
+  photo: ["촬영 장소 주소", "촬영 날짜·시간 후보", "꼭 찍을 장면"],
+};
+
 export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
   web: { packages: seedPackages, options: seedOptions },
   design: {
@@ -42,6 +54,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 5,
         revisionLimit: 2,
         tasks: [task("brief", "요청서와 참고 이미지 확인", 0, 0), task("draft", "로고 시안 1종 공유", 3, 1), task("deliver", "최종 파일 전달", 5, 2)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.design],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
       {
         id: "pkg_starter_design_standard",
@@ -52,6 +66,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 7,
         revisionLimit: 3,
         tasks: [task("brief", "요청서와 참고 이미지 확인", 0, 0), task("draft", "로고 시안 2종 공유", 3, 1), task("color", "색상·흑백 변형 정리", 5, 2), task("deliver", "최종 파일 전달", 7, 3)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.design],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
       {
         id: "pkg_starter_design_branding",
@@ -62,6 +78,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 10,
         revisionLimit: 5,
         tasks: [task("brief", "요청서와 참고 이미지 확인", 0, 0), task("draft", "로고 시안 3종 공유", 4, 1), task("card", "명함 시안 공유", 7, 2), task("guide", "사용 안내서 작성", 9, 3), task("deliver", "최종 파일 전달", 10, 4)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.design],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
     ],
     options: [
@@ -98,6 +116,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 4,
         revisionLimit: 2,
         tasks: [task("brief", "원본 영상과 요청 사항 확인", 0, 0), task("cut", "1차 편집본 공유", 2, 1), task("deliver", "최종본 전달", 4, 2)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.video],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
       {
         id: "pkg_starter_video_youtube",
@@ -108,6 +128,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 6,
         revisionLimit: 2,
         tasks: [task("brief", "원본 영상과 구성 확인", 0, 0), task("cut", "1차 편집본 공유", 3, 1), task("subtitle", "자막·배경음 정리", 5, 2), task("deliver", "최종본 전달", 6, 3)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.video],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
       {
         id: "pkg_starter_video_brand",
@@ -118,6 +140,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 14,
         revisionLimit: 3,
         tasks: [task("brief", "목표와 참고 영상 정리", 0, 0), task("plan", "구성안 공유", 3, 1), task("cut", "1차 편집본 공유", 9, 2), task("color", "색 보정과 음악 정리", 12, 3), task("deliver", "최종본 전달", 14, 4)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.video],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
     ],
     options: [
@@ -154,6 +178,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 5,
         revisionLimit: 1,
         tasks: [task("brief", "촬영 콘셉트와 일정 확인", 0, 0), task("shoot", "촬영", 2, 1), task("select", "셀렉 사진 공유", 3, 2), task("deliver", "보정본 전달", 5, 3)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.photo],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
       {
         id: "pkg_starter_photo_product",
@@ -164,6 +190,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 7,
         revisionLimit: 2,
         tasks: [task("brief", "제품 목록과 참고 사진 확인", 0, 0), task("shoot", "촬영", 2, 1), task("select", "셀렉 사진 공유", 4, 2), task("deliver", "보정본 전달", 7, 3)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.photo],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
       {
         id: "pkg_starter_photo_event",
@@ -174,6 +202,8 @@ export const INDUSTRY_STARTERS: Record<Industry, Starter> = {
         durationDays: 10,
         revisionLimit: 1,
         tasks: [task("brief", "행사 일정과 필수 컷 확인", 0, 0), task("shoot", "현장 촬영", 3, 1), task("select", "셀렉 사진 공유", 6, 2), task("deliver", "보정본 전달", 10, 3)],
+        intakeItems: [...INDUSTRY_INTAKE_ITEMS.photo],
+        briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
       },
     ],
     options: [
@@ -233,10 +263,20 @@ function sameContent(a: unknown, b: unknown): boolean {
   return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 }
 
+/** 받을 자료·착수 질문 기본값을 넣기 전(2026-11-02 전) 예시 모양. 그때 저장된 예시도 손대지 않은 것으로 본다. */
+function withoutBriefDefaults(template: PackageTemplate): PackageTemplate {
+  const copy = { ...template };
+  delete copy.intakeItems;
+  delete copy.briefQuestions;
+  return copy;
+}
+
 /** 사용자가 손대지 않은 업종 예시 패키지인지. 이름 하나만 바꿔도 사용자 것으로 본다. */
 export function isUntouchedStarterPackage(item: PackageTemplate): boolean {
   const template = starterPackageById.get(item.id);
-  return Boolean(template) && sameContent(withoutArchive(item), template);
+  if (!template) return false;
+  const content = withoutArchive(item);
+  return sameContent(content, template) || sameContent(content, withoutBriefDefaults(template));
 }
 
 export function isUntouchedStarterOption(item: OptionTemplate): boolean {

@@ -2,6 +2,7 @@ import {
   addCalendarDays,
   completeRevision,
   composeJob,
+  DEFAULT_BRIEF_QUESTIONS,
   recordRevision,
   updateTaskStatus,
   type BetaAccess,
@@ -9,6 +10,12 @@ import {
   type OptionTemplate,
   type PackageTemplate,
 } from "../domain";
+
+/**
+ * 웹 예시 패키지가 시작 전에 받을 자료(예시). 업종 예시 목록(`INDUSTRY_INTAKE_ITEMS.web`)도 이것을 쓴다.
+ * 업종 예시 파일이 이 파일을 불러오므로 여기서 정한다(거꾸로 불러오면 순환 참조가 된다).
+ */
+export const seedIntakeItems = ["로고 파일(있으면)", "가게·회사 소개 글", "넣을 사진", "참고하고 싶은 사이트 주소"];
 
 export const seedPackages: PackageTemplate[] = [
   {
@@ -26,6 +33,8 @@ export const seedPackages: PackageTemplate[] = [
       { taskKey: "build", title: "반응형 페이지 제작", relativeDay: 5, order: 3 },
       { taskKey: "launch", title: "모바일 검수와 납품", relativeDay: 7, order: 4 },
     ],
+    intakeItems: [...seedIntakeItems],
+    briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
   },
   {
     id: "pkg_standard_homepage",
@@ -43,6 +52,8 @@ export const seedPackages: PackageTemplate[] = [
       { taskKey: "build", title: "반응형 홈페이지 제작", relativeDay: 9, order: 4 },
       { taskKey: "launch", title: "최종 검수와 납품", relativeDay: 12, order: 5 },
     ],
+    intakeItems: [...seedIntakeItems],
+    briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
   },
   {
     id: "pkg_deluxe_homepage",
@@ -62,6 +73,8 @@ export const seedPackages: PackageTemplate[] = [
       { taskKey: "qa", title: "기기별 QA와 분석 도구 점검", relativeDay: 16, order: 6 },
       { taskKey: "launch", title: "최종 납품과 인수인계", relativeDay: 18, order: 7 },
     ],
+    intakeItems: [...seedIntakeItems],
+    briefQuestions: [...DEFAULT_BRIEF_QUESTIONS],
   },
 ];
 
