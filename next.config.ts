@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
-import { buildBearerRouteHeaders, buildSecurityHeaders } from "./src/lib/security/headers";
+import {
+  buildBearerRouteHeaders,
+  buildPrivateAreaHeaders,
+  buildSecurityHeaders,
+  PRIVATE_AREA_ROUTE_SOURCES,
+} from "./src/lib/security/headers";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -20,6 +25,8 @@ const nextConfig: NextConfig = {
         source: "/demo/:path*",
         headers: buildBearerRouteHeaders(),
       },
+      // 작업 화면·API(초대 주소 `/today?invite=`, JSON 포함)는 검색에서 뺀다. 공개 페이지(/, /guide, /privacy, /terms)는 그대로 둔다.
+      ...PRIVATE_AREA_ROUTE_SOURCES.map((source) => ({ source, headers: buildPrivateAreaHeaders() })),
     ];
   },
 };

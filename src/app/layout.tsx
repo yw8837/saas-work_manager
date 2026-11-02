@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { WorkspaceBoundary } from "@/components/workspace-boundary";
+import { deploymentOrigin } from "@/lib/deployment-origin";
+import { SITE_OPEN_GRAPH, SITE_TWITTER } from "@/lib/site-meta";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "@/styles/theme.css";
 
+// 대표 주소(canonical)는 여기 두지 않는다. 두면 모든 하위 페이지가 /를 대표 주소로 물려받는다(공개 페이지마다 자기 주소를 둔다).
 export const metadata: Metadata = {
+  metadataBase: new URL(deploymentOrigin()),
   title: {
     default: "일감체크 · 본업만 하세요",
     template: "%s | 일감체크",
@@ -25,6 +29,8 @@ export const metadata: Metadata = {
     title: "일감체크",
     statusBarStyle: "black-translucent",
   },
+  openGraph: SITE_OPEN_GRAPH,
+  twitter: SITE_TWITTER,
 };
 
 export const viewport: Viewport = {

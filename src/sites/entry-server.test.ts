@@ -152,8 +152,10 @@ describe("Sites Worker entry", () => {
       expect(response.status).toBe(200);
       expect(response.headers.get("referrer-policy")).toBe("no-referrer");
       expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+      // 고객 링크·체험은 noarchive까지 막는다. beta.example.test는 운영 주소(ilgam.studioyeolmae.com)가 아니라
+      // 작업 화면이 아닌 /guide도 noindex다(운영 주소 기준 공개 페이지는 아래 '검색 노출' 시험).
       expect(response.headers.get("x-robots-tag")).toBe(
-        path.startsWith("/r/") || path.startsWith("/demo/") ? "noindex, nofollow, noarchive" : null,
+        path.startsWith("/r/") || path.startsWith("/demo/") ? "noindex, nofollow, noarchive" : "noindex, nofollow",
       );
       const html = await response.text();
       expect(html).toContain("__ILGAMCHECK_PUBLIC_ENV__");
@@ -458,5 +460,75 @@ describe("Sites Worker entry", () => {
 
     expect(response.status).toBe(403);
     expect(assets.fetch).not.toHaveBeenCalled();
+  });
+});
+
+const PRODUCTION_ORIGIN = "https://ilgam.studioyeolmae.com";
+const shellOnlyAssets = {
+  fetch: async (request: Request) => new URL(request.url).pathname === "/app-shell.payload"
+    ? new Response("<html><head></head><body>일감체크</body></html>")
+    : new Response("not found", { status: 404 }),
+};
+
+function htmlRequest(url: string) {
+  return new Request(url, { headers: { Accept: "text/html" } });
+}
+
+describe("Sites 검색 노출 헤더", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    "/today", "/today?invite=TESTCODE", "/jobs", "/jobs/new", "/jobs/summary", "/jobs/job.with.dots",
+    "/packages", "/settings", "/feedback", "/auth/callback",
+  ])("운영 주소에서도 작업 화면 %s는 noindex, nofollow로 검색에서 뺀다", async (path) => {
+    const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
+  it.each(["/", "/guide", "/privacy", "/terms"])("운영 주소의 공개 페이지 %s에는 noindex가 없다", async (path) => {
+    const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBeNull();
+  });
+
+  it.each(["/r/key", "/demo/r"])("운영 주소에서도 고객 링크·체험 %s는 noarchive까지 막는다", async (path) => {
+    const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+  });
+
+  it.each([
+    "https://ilgamcheck.bsfire1237.workers.dev",
+    "https://ilgamcheck-beta.bsfire1237.chatgpt.site",
+    "https://www.ilgam.studioyeolmae.com",
+  ])("운영 주소가 아닌 호스트 %s로 오면 공개 페이지도 검색에서 뺀다", async (origin) => {
+    for (const path of ["/", "/guide", "/privacy", "/terms"]) {
+      const response = await worker.fetch(htmlRequest(`${origin}${path}`), { ASSETS: shellOnlyAssets });
+      expect(response.headers.get("x-robots-tag"), path).toBe("noindex, nofollow");
+    }
+  });
+
+  it("운영 주소는 빌드 때 정한 NEXT_PUBLIC_SITE_ORIGIN을 따른다", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ORIGIN", "https://beta.example.test");
+    const own = await worker.fetch(htmlRequest("https://beta.example.test/guide"), { ASSETS: shellOnlyAssets });
+    const other = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}/guide`), { ASSETS: shellOnlyAssets });
+    expect(own.headers.get("x-robots-tag")).toBeNull();
+    expect(other.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
+  it("API JSON 응답도 검색에서 뺀다", async () => {
+    const response = await worker.fetch(new Request(`${PRODUCTION_ORIGIN}/api/public-config`), { NEXT_PUBLIC_STORAGE_MODE: "hosted" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
+  it("운영 주소의 robots.txt는 noindex 없이 그대로 나간다", async () => {
+    const assets = { fetch: async () => new Response("User-agent: *\nAllow: /\n", { headers: { "Content-Type": "text/plain" } }) };
+    const response = await worker.fetch(new Request(`${PRODUCTION_ORIGIN}/robots.txt`), { ASSETS: assets });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBeNull();
+    await expect(response.text()).resolves.toBe("User-agent: *\nAllow: /\n");
   });
 });

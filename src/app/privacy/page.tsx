@@ -8,6 +8,7 @@ const document = POLICY_PUBLICATION_MANIFEST.documents.privacy;
 export const metadata: Metadata = {
   title: document.title,
   description: document.metadataDescription,
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

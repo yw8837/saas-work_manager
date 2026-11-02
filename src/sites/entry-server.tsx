@@ -1,4 +1,11 @@
-import { buildBearerRouteHeaders, buildSecurityHeaders } from "@/lib/security/headers";
+import {
+  buildBearerRouteHeaders,
+  buildPrivateAreaHeaders,
+  buildSecurityHeaders,
+  isPrivateAreaPath,
+  type SecurityHeader,
+} from "@/lib/security/headers";
+import { deploymentOrigin } from "@/lib/deployment-origin";
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
 import {
   ILGAMCHECK_PUBLIC_ENV_KEYS,
@@ -37,6 +44,8 @@ function json(body: unknown, status: number, environment?: SitesEnvironment) {
   for (const { key, value } of buildSecurityHeaders(false, environment?.NEXT_PUBLIC_SUPABASE_URL)) {
     headers.set(key, value);
   }
+  // JSON은 모두 /api 응답이라 작업 화면과 같이 검색에서 뺀다.
+  for (const { key, value } of buildPrivateAreaHeaders()) headers.set(key, value);
   return new Response(JSON.stringify(body), {
     status,
     headers,
@@ -50,6 +59,17 @@ function isHtmlNavigation(request: Request) {
   );
 }
 
+/**
+ * 검색 차단 헤더. 고객 링크·체험은 noarchive까지 막고, 작업 화면·API와 운영 주소(빌드 때 정한
+ * NEXT_PUBLIC_SITE_ORIGIN, 없으면 ilgam.studioyeolmae.com)가 아닌 호스트(workers.dev·옛 주소)는 noindex로 뺀다.
+ * 운영 주소의 공개 페이지(/, /guide, /privacy, /terms)와 정적 파일에는 붙이지 않는다.
+ */
+function robotsHeaders(url: URL): SecurityHeader[] {
+  if (/^\/r\/[^/]+$/.test(url.pathname) || /^\/demo(?:\/|$)/.test(url.pathname)) return buildBearerRouteHeaders();
+  if (isPrivateAreaPath(url.pathname) || url.host !== new URL(deploymentOrigin()).host) return buildPrivateAreaHeaders();
+  return [];
+}
+
 function withSecurityHeaders(
   response: Response,
   request: Request,
@@ -59,11 +79,7 @@ function withSecurityHeaders(
   for (const { key, value } of buildSecurityHeaders(false, environment.NEXT_PUBLIC_SUPABASE_URL)) {
     headers.set(key, value);
   }
-  // 고객 링크와 체험 링크는 검색 결과에 남지 않게 한다.
-  const { pathname } = new URL(request.url);
-  if (/^\/r\/[^/]+$/.test(pathname) || /^\/demo(?:\/|$)/.test(pathname)) {
-    for (const { key, value } of buildBearerRouteHeaders()) headers.set(key, value);
-  }
+  for (const { key, value } of robotsHeaders(new URL(request.url))) headers.set(key, value);
   return new Response(request.method === "HEAD" ? null : responseBody(response), {
     status: response.status,
     statusText: response.statusText,
