@@ -2,12 +2,16 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { composeJob, markStartShared, type Job, type PackageTemplate } from "@/lib/domain";
+import { completeRevision, composeJob, markStartShared, recordRevision, toggleIntakeItem, updateTaskStatus, type Job, type PackageTemplate } from "@/lib/domain";
 import { ClientMessages } from "./client-messages";
 
 const LINK = "https://ilgam.example/r/token_cm";
 const TODAY = "2026-11-02";
+// 이 기기 시간대와 상관없이 TODAY에 드는 시각(로컬 정오).
+const TODAY_NOON = new Date(2026, 10, 2, 12, 0, 0).toISOString();
 const writeText = vi.fn<(value: string) => Promise<void>>();
+
+const chipLabels = () => within(screen.getByRole("group", { name: "보낼 상황" })).getAllByRole("button").map((chip) => chip.textContent);
 
 const template: PackageTemplate = {
   id: "pkg_cm",
@@ -136,6 +140,18 @@ describe("고객에게 보낼 말", () => {
     expect(onStartShared).toHaveBeenCalledTimes(1);
   });
 
+  it("'시작 안내' 기록이 실패해도 복사는 됐으니 '복사했어요'만 보이고 복사 실패 글상자는 안 뜬다", async () => {
+    writeText.mockResolvedValue();
+    const onStartShared = vi.fn(() => { throw new Error("저장 실패"); });
+    render(<ClientMessages job={notSentYet()} link={LINK} today={TODAY} onStartShared={onStartShared} />);
+    fireEvent.click(screen.getByTestId("client-message-copy"));
+    await waitFor(() => expect(screen.getByTestId("client-message-copy")).toHaveTextContent("복사했어요"));
+    expect(onStartShared).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("client-message-text")).not.toBeInTheDocument();
+    expect(screen.getByTestId("client-message-preview")).toBeInTheDocument();
+  });
+
   it("'시작 안내'를 처음 복사해 칩 순서가 바뀌어도, 복사한 칩과 글이 그대로 남는다", async () => {
     writeText.mockResolvedValue();
     // 일감 화면처럼 복사하면 일감에 보낸 시각이 생기고 다시 그린다.
@@ -163,6 +179,57 @@ describe("고객에게 보낼 말", () => {
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("client-message-preview").textContent).toBe(shown);
+  });
+
+  it("복사해 고정한 칩은 순서만 바뀌면 그대로 두고, 그 뒤 새 상황이 생기면 고정을 풀어 맨 앞 상황으로 돌아간다", async () => {
+    writeText.mockResolvedValue();
+    const fresh = notSentYet();
+    const view = render(<ClientMessages job={fresh} link={LINK} today={TODAY} />);
+    fireEvent.click(screen.getByTestId("client-message-copy"));
+    await waitFor(() => expect(screen.getByTestId("client-message-copy")).toHaveTextContent("복사했어요"));
+
+    // ① 처음 보낸 기록이 생겨 '시작 안내'가 뒤로 갔다(순서만 바뀜): 복사한 '시작 안내'에 머문다.
+    const shared = markStartShared(fresh, "2026-11-02T03:00:00.000Z");
+    view.rerender(<ClientMessages job={shared} link={LINK} today={TODAY} />);
+    expect(chipLabels()).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+
+    // ② 오늘 '수정 완료'를 눌러 '수정 반영 알림'이 새로 생겼다: 고정을 풀고 맨 앞 상황을 고른다.
+    const revised = completeRevision(
+      recordRevision(shared, { revisionId: "r_today", source: "public", body: "사진 교체", submittedAt: TODAY_NOON }).job,
+      "r_today",
+      TODAY_NOON,
+    );
+    view.rerender(<ClientMessages job={revised} link={LINK} today={TODAY} />);
+    expect(chipLabels()).toEqual(["수정 반영 알림", "남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(screen.getByTestId("client-message-chip-revision-done")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("client-message-preview")).toHaveTextContent("요청하신 수정을 반영했어요.");
+
+    // 한 번 푼 고정은 그 상황이 다시 사라져도(다음 날) 되살리지 않는다.
+    view.rerender(<ClientMessages job={revised} link={LINK} today="2026-11-03" />);
+    expect(chipLabels()).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("사용자가 누른 칩도 상황이 줄기만 하면 그대로 두고, 새 상황이 생기면 고정을 풀어 맨 앞 상황으로 돌아간다", () => {
+    const sent = job();
+    const view = render(<ClientMessages job={sent} link={LINK} today={TODAY} />);
+    fireEvent.click(screen.getByTestId("client-message-chip-start"));
+
+    // 받을 자료를 다 받아 '남은 것 요청'이 사라졌다(새 상황 없음): 누른 '시작 안내'에 머문다.
+    const received = toggleIntakeItem(sent, sent.intakeItems![0].id, TODAY_NOON);
+    view.rerender(<ClientMessages job={received} link={LINK} today={TODAY} />);
+    expect(chipLabels()).toEqual(["시안 확인 부탁", "시작 안내"]);
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+
+    // 할 일을 '고객 대기'로 바꿔 '답 기다림'이 새로 생겼다: 맨 앞 상황으로 돌아간다.
+    const waiting = updateTaskStatus(received, received.tasks[0].id, "waiting", TODAY_NOON);
+    view.rerender(<ClientMessages job={waiting} link={LINK} today={TODAY} />);
+    expect(chipLabels()).toEqual(["답 기다림", "시안 확인 부탁", "시작 안내"]);
+    expect(screen.getByTestId("client-message-chip-waiting")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("보낼 상황이 없으면 그리지 않는다", () => {

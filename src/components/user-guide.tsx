@@ -191,7 +191,8 @@ export function UserGuide() {
                     <p>{shot.caption}</p>
                     {shot.detail && (
                       <details className="guideDetail">
-                        <summary>자세히 <ChevronDown size={15} aria-hidden="true" /></summary>
+                        {/* '자세히'가 일곱 번 나오니 낭독기에는 그림 제목을 붙여 구분한다. 보이는 글은 '자세히' 그대로다. */}
+                        <summary>자세히<span className="srOnly">, {shot.title}</span> <ChevronDown size={15} aria-hidden="true" /></summary>
                         <p>{shot.detail}</p>
                       </details>
                     )}

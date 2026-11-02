@@ -23,18 +23,20 @@ import {
 import { useWorkspace } from "./workspace-provider";
 
 // 그림은 사용설명서와 같은 캡처(e2e/capture/guide-screens.capture.ts)를 다시 쓴다. 크기는 그 파일 그대로.
+// 그림 칸은 폭 200px·최대 높이 240px로 위쪽만 보인다(.firstRunShot). alt는 그 칸에 보이는 부분만 말한다:
+// 패키지 그림은 위쪽 약 69%(저장 버튼은 칸 밖), 새 일감 그림은 위쪽 약 35%(패키지·옵션·금액·마감은 칸 밖), 저장 직후 안내는 전부.
 const STEP_COPY: Record<FirstRunStepId, { title: string; body: string; image: { src: string; width: number; height: number }; alt: string }> = {
   packages: {
     title: "내 일에 맞는 예시 패키지 고르기",
     body: "업종을 고르면 그 업종 예시 패키지로 바꿔 드려요. 금액은 예시라서 패키지 화면에서 내 조건으로 고쳐 쓰면 돼요.",
     image: { src: "/guide/02-packages.webp", width: 750, height: 1304 },
-    alt: "받을 자료·착수 전 질문 칸과 패키지 저장 버튼이 보이는 패키지 화면 예시",
+    alt: "받을 자료·착수 전 질문 칸이 보이는 패키지 화면 예시",
   },
   "first-job": {
     title: "첫 일감 만들기",
     body: "고객, 시작일, 패키지, 옵션 네 가지만 고르면 금액·마감·할 일·수정 횟수가 채워져요.",
     image: { src: "/guide/03-new-job.webp", width: 750, height: 2544 },
-    alt: "고객·시작일·패키지·옵션을 고르자 금액과 마감이 계산된 새 일감 화면 예시",
+    alt: "고객 이름·받은 곳·시작일이 보이는 새 일감 화면 예시",
   },
   "send-link": {
     title: "고객에게 수정 요청 링크 보내기",

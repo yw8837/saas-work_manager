@@ -8,11 +8,15 @@ import { availableSituations, situationMessage, SITUATION_LABELS, type MessageSi
 import type { Job } from "@/lib/domain";
 import { markFirstRun } from "@/lib/first-run";
 
+/** 고른 상황과, 고를 때 보이던 상황 목록. 그 뒤 목록에 새 상황이 생기면 고정을 푼다. */
+type Pin = { situation: MessageSituation; known: MessageSituation[] };
+
 /**
  * 일감 화면의 '고객에게 보낼 말'. 지금 일감 상태에 맞는 상황 칩만 보이고, 가장 알맞은 칩이 처음부터 골라져 있다.
  * 칩을 누르면 문구가 말풍선으로 바뀌고 '문구 복사' 한 번이면 끝. 복사가 막히면 같은 자리를 글상자로 바꿔 글을 선택해 둔다.
  * `link`는 링크가 켜져 있고 저장이 끝났을 때만 받는다(저장 직후 안내와 같은 계산).
  * '시작 안내'를 복사하면 `onStartShared`로 알린다(일감에 처음 보낸 시각을 남기는 데 쓴다).
+ * 고른 칩은 일감마다 따로다. 다른 일감으로 넘어갈 때는 부르는 쪽이 `key`로 새로 그린다.
  */
 export function ClientMessages({
   job,
@@ -25,36 +29,46 @@ export function ClientMessages({
   today: string;
   onStartShared?: () => void;
 }) {
-  const [chosen, setChosen] = useState<MessageSituation | null>(null);
+  const [pin, setPin] = useState<Pin | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const textRef = useRef<HTMLTextAreaElement>(null);
   const situations = availableSituations(job, today);
+  // 고른 뒤 새 상황이 생기면(예: 오늘 '수정 완료'를 눌러 '수정 반영 알림') 고정을 풀고 맨 앞 상황으로 돌아간다.
+  // 순서만 바뀐 건(처음 '시작 안내'를 보내 뒤로 간 경우) 그대로 둔다. 한 번 푼 고정은 그 상황이 다시 사라져도 되살리지 않는다.
+  const released = pin !== null && situations.some((item) => !pin.known.includes(item));
+  if (released) setPin(null);
   if (situations.length === 0) return null;
-  // 고른 상황이 일감 상태가 바뀌어 사라지면 맨 앞 상황으로 돌아간다.
-  const situation = chosen && situations.includes(chosen) ? chosen : situations[0];
+  // 고른 상황이 일감 상태가 바뀌어 사라져도 맨 앞 상황으로 돌아간다.
+  const situation = !released && pin && situations.includes(pin.situation) ? pin.situation : situations[0];
   const message = situationMessage(situation, { job, link });
 
   const choose = (next: MessageSituation) => {
-    setChosen(next);
+    setPin({ situation: next, known: situations });
     setCopyState("idle");
   };
 
   const copy = async () => {
     // 복사한 상황에 화면을 묶어 둔다. 처음 '시작 안내'를 보내면 칩 순서가 바뀌는데, 그때 다른 문구로 넘어가면 안 된다.
-    setChosen(situation);
+    setPin({ situation, known: situations });
     try {
       if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
       await navigator.clipboard.writeText(message);
-      // 링크가 든 문구를 보냈으면 첫 실행 '고객에게 보내기'를 끝낸 것으로 본다(저장 직후 안내와 같다).
-      if (link && message.includes(link)) markFirstRun("linkShared");
-      if (situation === "start") onStartShared?.();
-      setCopyState("copied");
-      window.setTimeout(() => setCopyState((value) => (value === "copied" ? "idle" : value)), 2200);
     } catch {
       // 글상자는 실패한 뒤에야 그려지므로 바로 그린 다음 글을 선택해 둔다. 길게 눌러 바로 복사할 수 있다.
       flushSync(() => setCopyState("failed"));
       textRef.current?.focus();
       textRef.current?.select();
+      return;
+    }
+    setCopyState("copied");
+    window.setTimeout(() => setCopyState((value) => (value === "copied" ? "idle" : value)), 2200);
+    // 기록은 클립보드와 따로 남긴다. 기록이 실패해도 복사는 됐으니 화면은 '복사했어요' 그대로 둔다.
+    try {
+      // 링크가 든 문구를 보냈으면 첫 실행 '고객에게 보내기'를 끝낸 것으로 본다(저장 직후 안내와 같다).
+      if (link && message.includes(link)) markFirstRun("linkShared");
+      if (situation === "start") onStartShared?.();
+    } catch {
+      // 시작 안내 기록은 처음 한 번만 남는 값이라, 다음에 복사할 때 다시 남긴다.
     }
   };
 

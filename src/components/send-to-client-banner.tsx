@@ -61,11 +61,6 @@ export function SendToClientBanner({
     try {
       if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
       await navigator.clipboard.writeText(target === "link" ? link : message);
-      setCopyFailed(null);
-      setCopied(target);
-      markFirstRun("linkShared");
-      onShared?.();
-      window.setTimeout(() => setCopied((value) => (value === target ? null : value)), 2200);
     } catch {
       // 문구 글상자는 실패한 뒤에야 그려지므로, 선택하기 전에 바로 그려 둔다.
       flushSync(() => setCopyFailed(target));
@@ -75,6 +70,17 @@ export function SendToClientBanner({
         field?.focus();
         field?.select();
       });
+      return;
+    }
+    setCopyFailed(null);
+    setCopied(target);
+    window.setTimeout(() => setCopied((value) => (value === target ? null : value)), 2200);
+    // 기록은 클립보드와 따로 남긴다. 기록이 실패해도 복사는 됐으니 복사 실패 안내·글상자를 띄우지 않는다.
+    try {
+      markFirstRun("linkShared");
+      onShared?.();
+    } catch {
+      // 시작 안내 기록은 처음 한 번만 남는 값이라, 다음에 복사할 때 다시 남긴다.
     }
   };
 

@@ -124,6 +124,23 @@ describe("오늘 화면 첫 실행 체크리스트", () => {
     expect(screen.queryByTestId("first-run-other-industry")).not.toBeInTheDocument();
   });
 
+  it("단계 그림 설명은 잘린 그림 칸(최대 높이 240px)에 실제로 보이는 부분만 말한다", () => {
+    // 1단계: 패키지 그림은 위쪽(받을 자료·착수 전 질문 칸)만 보이고 맨 아래 저장 버튼은 칸 밖이다.
+    let view = show({ packages: [...starter.packages, ...INDUSTRY_STARTERS.design.packages] });
+    expect(screen.getByTestId("first-run-step-packages")).toHaveAttribute("data-state", "current");
+    expect(screen.getByRole("img")).toHaveAttribute("alt", "받을 자료·착수 전 질문 칸이 보이는 패키지 화면 예시");
+    view.unmount();
+    // 2단계: 새 일감 그림은 위쪽(고객 이름·받은 곳·시작일)만 보이고 패키지·옵션·금액·마감은 칸 밖이다.
+    view = show();
+    expect(screen.getByTestId("first-run-step-first-job")).toHaveAttribute("data-state", "current");
+    expect(screen.getByRole("img")).toHaveAttribute("alt", "고객 이름·받은 곳·시작일이 보이는 새 일감 화면 예시");
+    view.unmount();
+    // 3단계: 저장 직후 안내 그림은 칸 안에 다 들어간다.
+    show({ jobs: [job()] });
+    expect(screen.getByTestId("first-run-step-send-link")).toHaveAttribute("data-state", "current");
+    expect(screen.getByRole("img")).toHaveAttribute("alt", "카톡 문구 복사 버튼과 보낼 문구가 보이는 저장 직후 안내 예시");
+  });
+
   it("첫 일감 뒤에는 작게 남아 그 일감의 보내기 화면으로 안내하고, 닫을 수 있다", () => {
     show({ jobs: [job()], compact: true });
     expect(screen.getByTestId("first-run-progress")).toHaveTextContent("2/3 완료");

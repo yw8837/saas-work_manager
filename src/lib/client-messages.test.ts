@@ -16,6 +16,8 @@ import {
   markStartShared,
   recordRevision,
   revertRevision,
+  toggleBriefQuestion,
+  toggleIntakeItem,
   updateTaskStatus,
   type Job,
   type PackageTemplate,
@@ -102,11 +104,11 @@ describe("고객에게 보낼 말 — 상황 고르기", () => {
   it("시작 안내를 아직 안 보낸 진행 중 일감은 시작 안내가 맨 앞이고, 보낸 뒤에는 설계 순서로 돌아간다", () => {
     const fresh = notSentYet(baseJob());
     expect(availableSituations(fresh, TODAY)).toEqual(["start", "remaining", "review"]);
-    // 메신저로 받아 작업자가 직접 적은 요청은 고객이 링크를 받았다는 뜻이 아니다.
+    // 메신저로 받아 작업자가 직접 적은 요청도 이미 진행된 흔적이다. 보낸 기록이 없어도 설계 순서 그대로다.
     const manual = recordRevision(fresh, { revisionId: "r1", source: "manual", channel: "kakao", body: "전화로 받은 요청", submittedAt: TODAY_NOON }).job;
     let busy = completeRevision(manual, "r1", TODAY_NOON);
     busy = updateTaskStatus(busy, busy.tasks[1].id, "waiting", TODAY_NOON);
-    expect(availableSituations(busy, TODAY)).toEqual(["start", "revision-done", "remaining", "waiting", "review"]);
+    expect(availableSituations(busy, TODAY)).toEqual(["revision-done", "remaining", "waiting", "review", "start"]);
     // 한 번 보내면 남은 것 요청이 앞선다.
     expect(availableSituations(markStartShared(fresh, TODAY_NOON), TODAY)).toEqual(["remaining", "review", "start"]);
     // 끝난 일감에는 시작 안내가 없다.
@@ -121,6 +123,31 @@ describe("고객에게 보낼 말 — 상황 고르기", () => {
     // 반려한 요청이어도 고객은 링크를 받은 것이다.
     const rejected = revertRevision(fromLink, "r_link", "질문이라 대화창으로 답함", TODAY_NOON);
     expect(availableSituations(rejected, TODAY)).toEqual(["remaining", "review", "start"]);
+  });
+
+  it("보낸 기록 칸이 생기기 전에 만든 일감도, 이미 진행된 흔적이 하나라도 있으면 시작 안내를 맨 앞에 두지 않는다", () => {
+    const fresh = notSentYet(baseJob());
+    // 아무 흔적 없는 새 일감은 그대로 시작 안내가 맨 앞이다.
+    expect(availableSituations(fresh, TODAY)).toEqual(["start", "remaining", "review"]);
+    // 고객 대기 할 일은 흔적이 아니다(고객에게 아직 아무것도 안 보냈을 수 있다).
+    expect(availableSituations(updateTaskStatus(fresh, fresh.tasks[1].id, "waiting", TODAY_NOON), TODAY)[0]).toBe("start");
+
+    const draft = createAddon(fresh, { addonId: "addon_trace", title: "배너 추가", amountDelta: 100_000, durationDaysDelta: 1, createdAt: TODAY_NOON });
+    const traces: Array<[string, Job, MessageSituation[]]> = [
+      ["받은 자료 하나", toggleIntakeItem(fresh, fresh.intakeItems![0].id, TODAY_NOON), ["remaining", "review", "start"]],
+      ["답 받은 질문 하나", toggleBriefQuestion(fresh, fresh.briefQuestions![0].id, TODAY_NOON), ["remaining", "review", "start"]],
+      ["끝낸 할 일 하나", updateTaskStatus(fresh, fresh.tasks[0].id, "done", TODAY_NOON), ["remaining", "review", "start"]],
+      [
+        "직접 적은 수정 기록 하나(확인 대기)",
+        recordRevision(fresh, { revisionId: "r_manual", source: "manual", channel: "phone", body: "전화로 받은 요청", submittedAt: TODAY_NOON }).job,
+        ["remaining", "review", "start"],
+      ],
+      ["추가요청 하나", { ...fresh, addons: [draft] }, ["remaining", "review", "start", "out-of-scope"]],
+    ];
+    for (const [trace, job, expected] of traces) {
+      expect(job.startSharedAt, trace).toBeUndefined();
+      expect(availableSituations(job, TODAY), trace).toEqual(expected);
+    }
   });
 
   it("초안 추가요청이 있으면 범위 밖 안내, 할 일을 다 끝내면 납품 안내가 나온다", () => {

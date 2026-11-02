@@ -35,13 +35,26 @@ function localDateOf(iso: string): string {
 }
 
 /**
+ * 시작 안내를 이미 보낸 것으로 볼 일감인가. 보낸 기록(`startSharedAt`)이 없어도(그 칸이 생기기 전에 만든 일감 포함)
+ * 이미 진행된 흔적이 하나라도 있으면 고객은 안내를 받은 것이다: 받은 자료, 답 받은 질문, 끝낸 할 일,
+ * 수정 기록(고객 링크·직접 적은 것·반려한 것 모두), 추가요청.
+ */
+function startAlreadyShared(job: Job): boolean {
+  return Boolean(job.startSharedAt)
+    || (job.intakeItems ?? []).some((item) => Boolean(item.receivedAt))
+    || (job.briefQuestions ?? []).some((question) => Boolean(question.answeredAt))
+    || job.tasks.some((task) => task.status === "done")
+    || job.revisions.length > 0
+    || job.addons.length > 0;
+}
+
+/**
  * 지금 일감 상태에 맞는 상황만 우선순위대로 준다. `today`는 이 기기 날짜(`localToday()`).
  * 반려·되돌린 수정 요청은 세지 않는다. 시작 안내를 아직 안 보낸 진행 중 일감은 첫 연락이라 시작 안내가 맨 앞이다.
- * 보낸 기록이 없어도 고객이 링크로 요청을 남겼으면 이미 받은 것으로 본다(첫 실행 체크리스트와 같은 기준).
+ * 보낸 기록이 없어도 진행된 흔적이 있으면 이미 보낸 것으로 본다(`startAlreadyShared`).
  */
 export function availableSituations(job: Job, today: string): MessageSituation[] {
   const active = job.status === "active";
-  const customerUsedLink = job.revisions.some((revision) => revision.source === "public");
   const liveRevisions = job.revisions.filter((revision) => !revision.revertedAt);
   const liveTasks = job.tasks.filter((task) => task.status !== "cancelled");
   const matches: Record<MessageSituation, boolean> = {
@@ -56,7 +69,7 @@ export function availableSituations(job: Job, today: string): MessageSituation[]
     "out-of-scope": liveRevisions.some((revision) => revision.usage === "extra_scope") || job.addons.some((addon) => addon.status === "draft"),
     delivery: job.status === "completed" || (liveTasks.length > 0 && liveTasks.every((task) => task.status === "done")),
   };
-  const order: MessageSituation[] = active && !job.startSharedAt && !customerUsedLink
+  const order: MessageSituation[] = active && !startAlreadyShared(job)
     ? ["start", ...SITUATION_ORDER.filter((situation) => situation !== "start")]
     : SITUATION_ORDER;
   return order.filter((situation) => matches[situation]);

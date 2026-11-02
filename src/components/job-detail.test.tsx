@@ -317,6 +317,19 @@ describe("JobDetail 고객 수정 링크", () => {
     await waitFor(() => expect(markStartSharedSpy).toHaveBeenCalledWith("job_detail"));
     expect(markStartSharedSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("'링크 복사' 뒤 시작 안내 기록이 실패해도 복사는 됐으니 복사가 막혔다고 알리지 않는다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    markStartSharedSpy.mockImplementation(() => { throw new Error("저장 실패"); });
+    renderDetail();
+
+    fireEvent.click(screen.getByTestId("copy-revision-portal"));
+    await waitFor(() => expect(screen.getByText("링크를 복사했어요")).toBeInTheDocument());
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(markStartSharedSpy).toHaveBeenCalledWith("job_detail");
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
 });
 
 describe("JobDetail 새 요청 띠", () => {
@@ -517,6 +530,26 @@ describe("JobDetail 고객에게 보낼 말", () => {
     const tasks = screen.getByRole("heading", { name: "작업 체크리스트" });
     expect(rail.compareDocumentPosition(messages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(messages.compareDocumentPosition(tasks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("같은 화면에서 다른 일감으로 넘어가면 앞 일감에서 고른 칩을 이어 쓰지 않는다", () => {
+    const view = renderDetail();
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByTestId("client-message-chip-review"));
+    expect(screen.getByTestId("client-message-chip-review")).toHaveAttribute("aria-pressed", "true");
+
+    // Sites는 알림 팝오버로 다른 일감을 열어도 화면을 새로 만들지 않고 일감만 바꿔 다시 그린다.
+    const other = composeJob({
+      jobId: "job_other",
+      revisionPortalToken: "token_other",
+      clientLabel: "다른 고객",
+      startDate: "2026-08-01",
+      package: template,
+      now: "2026-08-01T00:00:00.000Z",
+    });
+    showUpdated(view, other);
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("client-message-chip-review")).toHaveAttribute("aria-pressed", "false");
   });
 });
 

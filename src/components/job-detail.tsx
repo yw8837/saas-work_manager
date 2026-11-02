@@ -280,13 +280,19 @@ export function JobDetail({ jobId }: { jobId: string }) {
     if (!portalEnabled) return;
     try {
       await navigator.clipboard.writeText(portalLink);
+    } catch {
+      setNotice({ text: `자동 복사가 막혔어요. 이 주소를 직접 복사해 주세요: ${portalLink}`, tone: "error" });
+      return;
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+    // 기록은 클립보드와 따로 남긴다. 기록이 실패해도 복사는 됐으니 복사가 막혔다고 알리지 않는다.
+    try {
       markFirstRun("linkShared");
       // 링크만 보내도 고객은 시작 안내를 받은 것이다(처음 한 번만 남는다).
       recordStartShared();
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      setNotice({ text: `자동 복사가 막혔어요. 이 주소를 직접 복사해 주세요: ${portalLink}`, tone: "error" });
+      // 시작 안내 기록은 처음 한 번만 남는 값이라, 다음에 복사할 때 다시 남긴다.
     }
   };
 
@@ -621,8 +627,9 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
       <div className="detailGrid">
         <div className="detailMain">
-          {/* 안내 띠를 닫으면 지금 상황에 맞는 문구를 다시 복사할 수 있다. 링크 준비 여부는 저장 직후 안내와 같다. */}
-          {!sendBannerOpen && <ClientMessages job={job} link={portalEnabled && portalSynced ? portalLink : null} today={localToday()} onStartShared={recordStartShared} />}
+          {/* 안내 띠를 닫으면 지금 상황에 맞는 문구를 다시 복사할 수 있다. 링크 준비 여부는 저장 직후 안내와 같다.
+              Sites는 알림 팝오버로 다른 일감을 열어도 이 화면을 다시 쓰므로, 일감마다 새로 그려 앞 일감에서 고른 칩을 넘기지 않는다. */}
+          {!sendBannerOpen && <ClientMessages key={job.id} job={job} link={portalEnabled && portalSynced ? portalLink : null} today={localToday()} onStartShared={recordStartShared} />}
 
           <section className="contentSection taskDetailSection">
             <div className="sectionHeadingRow">

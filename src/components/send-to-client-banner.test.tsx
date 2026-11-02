@@ -142,6 +142,27 @@ describe("저장 직후 고객에게 보내기", () => {
     await waitFor(() => expect(onShared).toHaveBeenCalledTimes(2));
   });
 
+  it("시작 안내 기록이 실패해도 복사는 됐으니 '복사했어요'만 보이고 복사 실패 안내·글상자는 안 뜬다", async () => {
+    writeText.mockResolvedValue();
+    const onShared = vi.fn(() => { throw new Error("저장 실패"); });
+    renderBanner({ onShared });
+
+    fireEvent.click(screen.getByTestId("send-copy-message"));
+    await waitFor(() => expect(screen.getByTestId("send-copy-message")).toHaveTextContent("문구를 복사했어요"));
+    expect(onShared).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("send-message-text")).not.toBeInTheDocument();
+
+    // 링크만 복사도 같다.
+    fireEvent.click(screen.getByTestId("send-copy-link"));
+    await waitFor(() => expect(screen.getByTestId("send-copy-link")).toHaveTextContent("링크를 복사했어요"));
+    expect(onShared).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("send-to-client-link")).not.toBeInTheDocument();
+    // 첫 실행 '고객에게 보내기' 표시는 그대로 남는다.
+    expect(JSON.parse(storage.getItem(FIRST_RUN_STORAGE_KEY) ?? "{}").linkShared).toBe(true);
+  });
+
   it("복사가 막혔거나 저장이 끝나기 전이면 보낸 것으로 알리지 않는다", async () => {
     const onShared = vi.fn();
     writeText.mockRejectedValue(new Error("denied"));

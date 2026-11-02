@@ -123,6 +123,25 @@ describe("그림 사용설명서", () => {
     }
   });
 
+  it("'자세히' 접기는 보이는 글은 그대로 두고, 낭독기에는 그림 제목을 붙여 서로 다른 이름으로 읽힌다", () => {
+    const withDetail = GUIDE_CHAPTERS.flatMap((chapter) => chapter.shots).filter((shot) => shot.detail);
+    expect(withDetail).toHaveLength(7);
+    expect(new Set(withDetail.map((shot) => shot.title)).size).toBe(withDetail.length);
+    render(<UserGuide />);
+    const summaries = Array.from(document.querySelectorAll(".guideDetail summary"));
+    expect(summaries).toHaveLength(withDetail.length);
+    summaries.forEach((summary, index) => {
+      const title = withDetail[index].title;
+      expect(summary.closest("li")?.id).toBe(withDetail[index].id);
+      // 그림 제목은 숨김 글로만 붙인다. 숨김 글을 빼면 보이는 글은 '자세히' 하나다.
+      expect(summary.querySelector(".srOnly")).toHaveTextContent(title);
+      const visible = summary.cloneNode(true) as HTMLElement;
+      visible.querySelectorAll(".srOnly").forEach((node) => node.remove());
+      expect(visible.textContent?.trim()).toBe("자세히");
+      expect(summary).toHaveAccessibleName(`자세히, ${title}`);
+    });
+  });
+
   it("장마다 '직접 해 보기' 링크는 하나씩, 맨 위 목차 띠는 네 장으로 이어진다", () => {
     render(<UserGuide />);
     for (const chapter of GUIDE_CHAPTERS) {
@@ -136,11 +155,16 @@ describe("그림 사용설명서", () => {
 
   it("설명서 글은 예전(1,094자)보다 짧다", () => {
     render(<UserGuide />);
-    const text = (document.body.textContent ?? "").replace(/\s+/g, " ").trim();
+    // 기준은 화면에 보이는 글이다. 낭독기 전용 숨김 글('자세히'에 붙인 그림 제목)은 화면에 안 보이니 세지 않는다.
+    // 숨김 글은 '자세히' 이름에만 쓴다(긴 글을 숨김 글로 감춰 이 기준을 넘기지 못하게).
+    expect(Array.from(document.querySelectorAll(".srOnly")).every((node) => node.parentElement?.tagName === "SUMMARY")).toBe(true);
+    const shown = document.body.cloneNode(true) as HTMLElement;
+    shown.querySelectorAll(".srOnly").forEach((node) => node.remove());
+    const text = (shown.textContent ?? "").replace(/\s+/g, " ").trim();
     expect(text.length).toBeLessThan(1094);
     // 돌아보기(화면 innerText)는 줄마다 띄어 세서 textContent보다 길게 나온다(예전 설명서 1,097 대 1,061).
     // 글 조각 사이를 한 칸씩 띄워 같은 기준으로도 잰다(접힌 '자세히' 글도 센다).
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(shown, NodeFilter.SHOW_TEXT);
     const parts: string[] = [];
     while (walker.nextNode()) parts.push(walker.currentNode.textContent ?? "");
     expect(parts.join(" ").replace(/\s+/g, " ").trim().length).toBeLessThan(1094);
