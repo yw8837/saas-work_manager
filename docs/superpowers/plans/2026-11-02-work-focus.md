@@ -164,6 +164,15 @@ expect(INDUSTRY_INTAKE_ITEMS).toEqual({
 - [ ] **5단계: 통과 확인** — `npx vitest run src/components src/lib --pool=threads --maxWorkers=1` PASS(바뀐 문구 기대값은 새 문구로)
 - [ ] **6단계: 커밋** — `refactor: 화면의 어려운 말과 영어를 쉬운 말로 바꾸고 일감 화면 설명을 줄임`
 
+### 작업 5.5: 남은 어려운 말 (작업 5 보고에서 남은 것)
+
+**파일:** `src/components/public-revision-form.tsx`(39·55줄, 고객이 보는 오류 문구), `src/lib/supabase/workspace.ts`(210·214·244·248줄), `src/components/workspace-auth-gate.tsx`(52·80·121·123줄), `src/components/job-detail.tsx`('수정 요청 로그' 제목, 스냅샷 구획 '…스냅샷으로 보존하고 있어요'), 관련 시험
+
+- 화면에 보이는 'Hosted'를 쉬운 말로: 고객 오류 → "링크를 열 수 없어요. 작업자에게 링크를 다시 받아 주세요.", 작업자 오류 → '서버'·'온라인 저장' 같은 말("작업공간을 불러오지 못했어요: …", "온라인 저장에 실패했어요: …", 설정 오류 화면 제목 "온라인 저장 설정을 확인해 주세요" 등). 코드 이름(`Hosted…` 타입·함수)은 그대로.
+- '수정 요청 로그' → '수정 요청 기록', 스냅샷 문장 → "주문할 때 조건을 그대로 보관해요"
+- 시험 먼저 바꾸고(실패 확인) 고친 뒤 통과. 커밋: `refactor: 남은 'Hosted'·'로그'·'스냅샷' 같은 어려운 말을 쉬운 말로 바꿈`
+- 확인: `rg -n "Hosted|스냅샷|로그" src --glob '!*.test.*' -g '*.tsx'`의 결과가 코드 이름·주석·`console`뿐이어야 한다.
+
 ### 작업 6: 받은 곳(수주처) (B1)
 
 **파일:**
