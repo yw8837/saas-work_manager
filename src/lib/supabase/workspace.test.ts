@@ -12,6 +12,7 @@ import {
   mergeRemoteRevisionEvidence,
   prepareStateForHosted,
   saveHostedWorkspace,
+  syncHostedRevisionPortals,
 } from "./workspace";
 
 describe("hosted workspace helpers", () => {
@@ -105,6 +106,32 @@ describe("hosted save errors", () => {
     // 어떤 경우에도 서버 식별자를 그대로 노출하지 않는다.
     await expect(saveHostedWorkspace(clientRejecting("plan_packages_exceeded"), state, 1))
       .rejects.toThrowError(/^(?!.*plan_packages_exceeded)/);
+  });
+
+  it("저장·불러오기 오류 문구는 'Hosted' 대신 온라인 저장·작업공간이라고 쓴다", async () => {
+    const state = prepareStateForHosted(createSeedState("2026-08-15"));
+    await expect(saveHostedWorkspace(clientRejecting("network down", "08006"), state, 1))
+      .rejects.toThrowError(/^온라인 저장에 실패했어요: network down$/);
+    const emptyResult = { rpc: async () => ({ data: [], error: null }) } as unknown as SupabaseClient;
+    await expect(saveHostedWorkspace(emptyResult, state, 1)).rejects.toThrowError(/^온라인 저장 결과가 비어 있어요\.$/);
+
+    function clientLoading(result: { data: unknown; error: { message: string } | null }): SupabaseClient {
+      return {
+        from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => result }) }) }),
+      } as unknown as SupabaseClient;
+    }
+    await expect(loadHostedWorkspace(clientLoading({ data: null, error: { message: "timeout" } }), "owner-1"))
+      .rejects.toThrowError(/^작업공간을 불러오지 못했어요: timeout$/);
+    await expect(loadHostedWorkspace(
+      clientLoading({ data: { state: { version: 1 }, document_version: 1, updated_at: "2026-08-15T00:00:00.000Z" }, error: null }),
+      "owner-1",
+    )).rejects.toThrowError(/^작업공간 데이터 형식이 손상됐어요/);
+  });
+
+  it("고객 링크 반영 오류는 '동기화' 대신 쉬운 말로 쓴다", async () => {
+    const state = prepareStateForHosted(createSeedState("2026-08-15"));
+    await expect(syncHostedRevisionPortals(clientRejecting("timeout", "08006"), state.jobs))
+      .rejects.toThrowError(/^고객 수정 링크에 반영하지 못했어요: timeout$/);
   });
 
   it("충돌은 한도 초과와 다른 오류로 구분된다", async () => {

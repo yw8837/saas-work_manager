@@ -45,7 +45,8 @@ export const SAMPLE_PACKAGES: PackageTemplate[] = [
       { taskKey: "color", title: "색상·흑백 변형 정리", relativeDay: 5, order: 2 },
       { taskKey: "deliver", title: "최종 파일 전달", relativeDay: 7, order: 3 },
     ],
-    intakeItems: ["로고에 넣을 상호명·영문 표기", "참고 이미지 2~3장", "꼭 쓰고 싶은 색이나 피하고 싶은 색"],
+    // 참고 예시는 기본 질문 2번이 묻는다. 받을 자료에는 참고와 겹치지 않는 것만 둔다(시장조사 R2, 디자인 업종 기본값과 같은 뜻).
+    intakeItems: ["로고에 넣을 상호명·영문 표기", "로고를 쓸 곳(간판·명함 등)", "꼭 쓰고 싶은 색이나 피하고 싶은 색"],
   },
   {
     id: "pkg_sample_logo_deluxe",
@@ -136,7 +137,7 @@ export function createSampleOrder(referenceDate = sampleToday()): Job {
     submittedAt: `${shiftDate(referenceDate, -1)}T06:20:00.000Z`,
   }).job;
   const completed = completeRevision(received, "revision_sample_first", `${shiftDate(referenceDate, -1)}T09:00:00.000Z`);
-  // 상호명은 시작할 때 받았고, 참고 이미지·색상은 아직 못 받은 상태로 둔다(고객 화면에 남은 자료가 보이게).
+  // 상호명은 시작할 때 받았고, 로고를 쓸 곳·색상은 아직 못 받은 상태로 둔다(고객 화면에 남은 자료가 보이게).
   return toggleIntakeItem(completed, `${SAMPLE_ORDER_ID}_intake_1`, `${startDate}T02:00:00.000Z`);
 }
 

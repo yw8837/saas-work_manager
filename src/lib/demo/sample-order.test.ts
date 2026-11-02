@@ -4,6 +4,7 @@ import { pendingIntakeLabels } from "@/lib/domain";
 import {
   SAMPLE_CLIENT_LABEL,
   SAMPLE_ORDER_TITLE,
+  SAMPLE_PACKAGES,
   createCustomerDemoState,
   createSampleOrder,
   submitCustomerDemoRevision,
@@ -46,7 +47,13 @@ describe("체험 링크 예시 주문", () => {
   it("예시 주문은 첫 요청을 '수정 완료'로 처리했고, 시작 전 자료 중 2개를 아직 못 받은 상태다", () => {
     const order = createSampleOrder("2026-10-30");
     expect(order.revisions[0]).toMatchObject({ usage: "used", status: "done", sequence: 1 });
-    expect(pendingIntakeLabels(order)).toEqual(["참고 이미지 2~3장", "꼭 쓰고 싶은 색이나 피하고 싶은 색"]);
+    expect(pendingIntakeLabels(order)).toEqual(["로고를 쓸 곳(간판·명함 등)", "꼭 쓰고 싶은 색이나 피하고 싶은 색"]);
+  });
+
+  it("예시 받을 자료에는 '참고' 항목을 두지 않는다(기본 질문 2번이 참고 예시를 묻는다, 시장조사 R2)", () => {
+    for (const item of SAMPLE_PACKAGES) {
+      for (const label of item.intakeItems ?? []) expect(label, item.name).not.toContain("참고");
+    }
   });
 
   it("원래 상태를 바꾸지 않는다(새로고침 전 되돌리기용)", () => {

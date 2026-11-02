@@ -115,9 +115,10 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 ::selection { background: #f5e9d4; color: #181d26; }
 /* WCAG 2.4.11: 3:1 이상이 필요해 반투명 링 대신 잉크색 실선을 쓴다. */
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-/* 어두운 면 위에서는 반대로 밝은 링으로 뒤집는다. */
+/* 어두운 면 위에서는 반대로 밝은 링으로 뒤집는다(일감 하단 바·새 일감 하단 바·알림 포함). */
 .sideNav :focus-visible, .revisionSection :focus-visible, .finalCta :focus-visible,
-.productSceneBody :focus-visible, .appSidebar :focus-visible { outline-color: var(--paper); }
+.productSceneBody :focus-visible, .appSidebar :focus-visible,
+.jobActionBar :focus-visible, .mobileSubmitBar :focus-visible, .actionToast :focus-visible { outline-color: var(--paper); }
 
 .srOnly {
   position: absolute !important;
@@ -755,13 +756,11 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .intakeToggle[data-received="true"] { color: var(--muted); background: var(--canvas); }
 .intakeToggle[data-received="true"] > span { text-decoration: line-through; }
 .intakeToggle svg { color: var(--green, #2f8f5b); flex: none; }
-.intakeToggle small { margin-left: auto; color: var(--muted); font-size: 11px; }
+/* '받음'·'답 받음'은 줄어들지 않게 둔다(긴 질문 옆에서 한 글자씩 세로로 찌그러지던 것). */
+.intakeToggle small { flex: none; margin-left: auto; color: var(--muted); font-size: 11px; }
 .intakeCircle { flex: none; width: 16px; height: 16px; border: 1.5px solid var(--line-strong); border-radius: 50%; }
 .briefItem { display: grid; gap: 4px; }
 .briefNote { width: 100%; min-height: 36px; padding: 0 12px; font-size: 13px; }
-.startReminder { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-.startReminder p { flex: 1 1 220px; margin: 0; color: var(--muted); font-size: 12px; }
-.startReminderText { width: 100%; font-size: 13px; }
 .revisionRowActions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .revisionRowActions .compactButton { min-height: 32px; font-size: 12px; }
 .revisionRowActions .revisionRevertButton { margin-top: 0; min-height: 32px; }
@@ -1047,11 +1046,10 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .smallIconButton { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); color: var(--ink-soft); }
 .smallIconButton:hover { color: var(--blue); border-color: var(--blue); }
 .sectionExplain { margin: -4px 0 13px; color: var(--muted); font-size: 12px; }
-.detailFeedback { display: flex; align-items: center; gap: 7px; margin: 14px 0 -4px; padding: 10px 12px; color: var(--green); background: var(--green-soft); border: 1px solid #bde7d1; font-size: 12px; font-weight: 600; }
 .addonForm, .linkEditor { display: grid; gap: 10px; padding: 13px; margin-bottom: 12px; background: var(--canvas); border: 1px solid var(--line); }
 .addonForm label, .optionEffectFields label, .optionRemoveField { display: grid; gap: 5px; }
 .addonForm label > span, .optionEffectFields label > span, .optionRemoveField > span { color: var(--ink-soft); font-size: 11px; font-weight: 600; }
-.addonForm input, .linkDraftRow input, .optionEffectFields input, .optionRemoveField input { min-height: 38px; padding: 0 10px; }
+.addonForm input, .linkDraftRow input, .optionEffectFields input, .optionRemoveField select { min-height: 38px; padding: 0 10px; }
 .addonFieldPair { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .addonList { display: grid; }
 .addonRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid #edf0f4; }
@@ -1112,7 +1110,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .effectToggle button { min-height: 32px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink-soft); background: white; font-size: 11px; font-weight: 600; }
 .effectToggle button[data-active="true"] { color: var(--blue); background: var(--blue-soft); border-color: #adc5f7; }
 .optionEffectFields { display: grid; grid-template-columns: 1fr 130px; gap: 9px; }
-.optionRemoveField small { color: var(--muted); font-size: 10px; }
 
 /* Settings and live alert surfaces */
 .authPage { min-height: 100svh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px)); background: var(--canvas); }
@@ -1457,7 +1454,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .catalogTaskRow label span { top: 12px; font-size: 12px; }
 .catalogListHead .smallIconButton { width: 44px; height: 44px; }
 @media (max-width: 760px) {
-  .pageSurface :is(.compactButton, .textButton, .effectToggle button, .linkPresetButtons button) { min-height: 44px; }
+  .pageSurface :is(.compactButton, .textButton, .textOnlyButton, .effectToggle button, .linkPresetButtons button) { min-height: 44px; }
   .catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 86px 44px; gap: 6px; }
   .firstJobGuide { padding: 24px 20px; }
   .firstJobGuide > .primaryButton { width: 100%; }
@@ -1496,19 +1493,32 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .guideIntro > p { margin: 0; color: var(--ink-soft); font-size: 17px; }
 .guideIntroActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
 .guideIntroActions > * { min-height: 48px; gap: 7px; }
-.guideSteps { margin: 56px 0 0; padding: 0; list-style: none; }
-.guideStep { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 48px; align-items: center; padding: 44px 0; border-top: 1px solid var(--line); }
-.guideStepCopy { max-width: 440px; }
-.guideStepNumber { display: inline-grid; place-items: center; width: 32px; height: 32px; margin-bottom: 14px; color: var(--on-primary); background: var(--ink); border-radius: 50%; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.guideStepCopy h2 { margin: 0 0 10px; font-size: 24px; line-height: 1.3; word-break: keep-all; }
-.guideStepCopy p { margin: 0; color: var(--ink-soft); font-size: 16px; line-height: 1.7; word-break: keep-all; }
+/* 그림 위주(작업 9): 가입은 맨 위 작게, 장마다 그림이 먼저 오고 아래 제목 한 줄·설명 한 줄, 긴 글은 '자세히' 접기. */
+.guideSignup { display: flex; align-items: center; gap: 14px; margin: 32px 0 0; padding: 10px; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.guideSignup img { flex: 0 0 auto; display: block; width: 84px; height: auto; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.guideSignup figcaption { display: grid; gap: 3px; min-width: 0; word-break: keep-all; }
+.guideSignup strong { font-size: 16px; }
+.guideSignup span { color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
+.guideChapters { margin: 56px 0 0; padding: 0; list-style: none; }
+.guideChapter { padding: 44px 0; border-top: 1px solid var(--line); }
+.guideChapter > h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 24px; font-size: 24px; line-height: 1.3; word-break: keep-all; }
+.guideStepNumber { display: inline-grid; place-items: center; flex: 0 0 auto; width: 32px; height: 32px; color: var(--on-primary); background: var(--ink); border-radius: 50%; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+/* 데스크톱에서는 휴대폰 캡처를 원래 크기 가까이(400px까지) 두 장씩 놓는다. */
+.guideShots { display: grid; grid-template-columns: repeat(2, minmax(0, 400px)); gap: 40px; align-items: start; margin: 0; padding: 0; list-style: none; }
+.guideShotItem { min-width: 0; }
+.guideShotItem h3 { margin: 16px 0 4px; font-size: 18px; line-height: 1.35; word-break: keep-all; }
+.guideShotItem > p { margin: 0; color: var(--ink-soft); font-size: 15px; line-height: 1.6; word-break: keep-all; }
+.guideDetail { color: var(--ink-soft); font-size: 14px; }
+.guideDetail summary { min-height: 44px; display: inline-flex; align-items: center; gap: 4px; color: var(--ink); font-weight: 600; cursor: pointer; list-style: none; }
+.guideDetail summary::-webkit-details-marker { display: none; }
+.guideDetail[open] summary svg { transform: rotate(180deg); }
+.guideDetail p { margin: 0; line-height: 1.6; word-break: keep-all; }
 .guideShot { margin: 0; overflow: hidden; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .guideShot img { display: block; width: 100%; height: auto; }
 .guideOutro { margin-top: 24px; padding: 32px; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .guideOutro h2 { margin: 0 0 8px; font-size: 22px; }
 .guideOutro p { margin: 0 0 18px; color: var(--ink-soft); }
 .guideOutro p:last-child { margin-bottom: 0; }
-.guideOutro .primaryButton { min-height: 48px; gap: 7px; }
 .guideFooter { max-width: 1040px; margin: 0 auto; padding: 24px; display: flex; flex-wrap: wrap; gap: 6px 20px; color: var(--muted); border-top: 1px solid var(--line); font-size: 13px; }
 .guideFooter a { min-height: 44px; display: inline-flex; align-items: center; }
 
@@ -1523,12 +1533,13 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .guideIntro > p { font-size: 16px; }
   .guideIntroActions { flex-direction: column; }
   .guideIntroActions > * { width: 100%; }
-  .guideSteps { margin-top: 36px; }
-  .guideStep { grid-template-columns: 1fr; gap: 20px; padding: 32px 0; }
-  .guideStepCopy h2 { font-size: 21px; }
-  .guideShot { width: min(100%, 360px); justify-self: center; }
+  .guideSignup { margin-top: 24px; }
+  .guideChapters { margin-top: 36px; }
+  .guideChapter { padding: 32px 0; }
+  .guideChapter > h2 { margin-bottom: 18px; font-size: 21px; }
+  /* 휴대폰에서는 그림이 본문 폭을 가득 채운다. */
+  .guideShots { grid-template-columns: 1fr; gap: 32px; }
   .guideOutro { padding: 24px 20px; }
-  .guideOutro .primaryButton { width: 100%; }
   .guideFooter { padding: 18px; }
 }
 
@@ -1542,7 +1553,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .sendToClientHead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .sendToClientIcon { display: grid; place-items: center; width: 36px; height: 36px; color: var(--on-primary); background: var(--ink); border-radius: var(--radius); }
 .sendToClientHead h2 { margin: 0; font-size: 18px; line-height: 1.4; word-break: keep-all; }
-.sendToClientHead p { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }
 .sendToClientClose { width: 44px; height: 44px; padding: 0; color: var(--muted); background: transparent; }
 .sendToClientLink { display: grid; gap: 6px; min-width: 0; }
 .sendToClientLink > span { color: var(--muted); font-size: 12px; font-weight: 600; }
@@ -1553,8 +1563,31 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .sendToClientNotes { display: grid; gap: 6px; color: var(--muted); font-size: 13px; line-height: 1.6; word-break: keep-all; }
 .sendToClientNotes p { margin: 0; }
 .sendToClientNotes .sendToClientWarning { padding: 8px 10px; color: var(--red); background: var(--red-soft); border-radius: var(--radius-sm); font-weight: 600; }
-.sendToClientPreviewText summary { min-height: 44px; display: inline-flex; align-items: center; color: var(--blue); font-weight: 600; cursor: pointer; }
-.sendToClientPreviewText pre { margin: 0; padding: 10px 12px; color: var(--ink-soft); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sendToClientNotes:empty { display: none; }
+/* 보낼 카톡 문구 말풍선: 줄바꿈 그대로, 길면 안에서 스크롤. 그림자 없이 흰 면과 얇은 선. */
+.sendToClientMessage { max-height: 240px; overflow-y: auto; padding: 12px 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 14px 14px 4px 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 복사가 막혔을 때 같은 자리에 두는 읽기 전용 글상자 */
+.sendToClientMessageText { display: block; width: 100%; min-height: 180px; resize: vertical; font: inherit; font-size: 14px; line-height: 1.6; }
+
+/* 1-1. 일감 화면: 제목 아래 새 요청 띠, '고객에게 보낼 말'(상황 칩 + 말풍선 + 복사) */
+.pendingRequestStrip { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 0 18px; padding: 10px 14px; color: var(--ink); background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius); font-size: 14px; font-weight: 600; line-height: 1.4; text-decoration: none; word-break: keep-all; }
+.pendingRequestStrip:hover { border-color: var(--border-strong); }
+.pendingRequestStrip svg { flex: none; }
+.pendingRequestStripAction { margin-left: auto; padding-left: 8px; color: var(--ink-soft); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.clientMessageChips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.clientMessageChip { min-height: 36px; display: inline-flex; align-items: center; gap: 4px; padding: 0 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.clientMessageChip:hover { border-color: var(--border-strong); }
+.clientMessageChip[aria-pressed="true"] { color: var(--blue); background: var(--blue-soft); border-color: var(--blue); }
+.clientMessageBubble { max-height: 240px; overflow-y: auto; margin: 0 0 10px; padding: 12px 14px; color: var(--ink); background: var(--canvas); border: 1px solid var(--line); border-radius: 14px 14px 4px 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.clientMessageText { display: block; width: 100%; min-height: 180px; resize: vertical; font: inherit; font-size: 14px; line-height: 1.6; }
+.clientMessageWarning { margin: 0 0 8px; padding: 8px 10px; color: var(--red); background: var(--red-soft); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; line-height: 1.6; word-break: keep-all; }
+.clientMessageCopy { gap: 6px; }
+/* 남은 수정 구획의 '수정 횟수는 이렇게 세요' 접기(긴 설명은 여기에만) */
+.revisionRules { margin-top: 10px; border-top: 1px solid var(--line); }
+.revisionRules summary { min-height: 44px; display: flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 13px; font-weight: 600; cursor: pointer; }
+.revisionRules p { margin: 0 0 6px; color: var(--muted); font-size: 13px; line-height: 1.6; word-break: keep-all; }
+/* 오늘 화면 '우선 처리'의 고객 요청 줄: 체크 버튼 자리에 아이콘만 둔다(누르는 곳은 글 쪽 링크). */
+.taskRowIcon { display: grid; place-items: center; width: 44px; height: 44px; color: var(--ink-soft); }
 
 /* 2. 고객 링크 화면 */
 .publicRevisionWorker { margin: 0 0 8px; color: var(--ink); font-size: 24px; font-weight: 700; line-height: 1.3; letter-spacing: -.02em; word-break: keep-all; }
@@ -1632,9 +1665,9 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .customerSceneField { display: flex; align-items: flex-start; gap: 6px; min-height: 84px; padding: 10px 12px; color: var(--ink-soft); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font-size: 11px; }
 .customerSceneSend { padding: 10px; text-align: center; font-size: 11px; }
 
-/* 7. 설명서 6칸 단계 띠 */
+/* 7. 설명서 맨 위 네 장 목차 띠 */
 .guideStrip { margin-top: 40px; }
-.guideStrip ol { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.guideStrip ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .guideStrip li { position: relative; min-width: 0; }
 .guideStrip li + li::before { content: ""; position: absolute; left: -9px; top: 42%; width: 8px; height: 1px; background: var(--line-strong); }
 .guideStrip a { display: grid; gap: 8px; padding: 8px; color: var(--ink); background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -1646,9 +1679,10 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 
 @media (max-width: 760px) {
   /* 8. 작은 버튼도 휴대폰에서는 손가락 크기(44px) */
-  .compactButton { min-height: 44px; }
+  .compactButton, .profileAction { min-height: 44px; }
   .sendToClientBanner { padding: 16px; }
   .sendToClientActions > * { flex: 1 1 100%; }
+  .clientMessageChip { min-height: 44px; }
   .publicRevisionWorker { font-size: 22px; }
   .publicRevisionCounter strong { font-size: 36px; }
   .firstRunHead { grid-template-columns: minmax(0, 1fr) auto; }
@@ -1657,7 +1691,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .firstRunShot { grid-column: 2; max-height: 200px; }
   .firstRunActions .primaryButton, .firstRunActions .secondaryButton { width: 100%; }
   .customerSceneBody { min-height: 0; padding: 22px 18px; }
-  .guideStrip ol { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .guideStrip ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .guideStrip li + li::before { display: none; }
   .guideTryButton { width: 100%; }
 }
@@ -1670,3 +1704,128 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 
 /* 초대 링크로 들어온 사람에게 로그인 화면에서 코드가 준비됐다고 알린다. */
 .authCard > p.authInviteNotice { margin: 0; padding: 10px 12px; color: var(--ink); background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius-sm); font-size: 13px; line-height: 1.6; word-break: keep-all; }
+
+/* 받은 곳(작업 6): 새 일감·일감 화면의 칩(하나만 고르거나 비우는 누름 버튼), 목록 거르기 칩, 제목 윗줄의 글 버튼. 색은 중립(체리 안 씀). */
+.sourceChoices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.sourceChoicesLabel { flex: 1 1 100%; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+.sourceChip { min-height: 36px; display: inline-flex; align-items: center; gap: 4px; padding: 0 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.sourceChip:hover { border-color: var(--border-strong); }
+.sourceChip[aria-pressed="true"] { color: var(--blue); background: var(--blue-soft); border-color: var(--blue); }
+.sourceFilters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.jobSourceChoices { margin: 8px 0 4px; }
+.detailKickerLine { flex-wrap: wrap; row-gap: 4px; }
+.jobSourceButton { min-height: 32px; display: inline-flex; align-items: center; gap: 2px; padding: 0; color: var(--ink-soft); background: transparent; border: 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.jobSourceButton:hover { color: var(--ink); }
+.jobSourceButton[data-empty="true"] { color: var(--muted); font-weight: 500; }
+.jobIdentity .jobRowSource { display: inline; }
+@media (max-width: 760px) {
+  .sourceChip, .jobSourceButton { min-height: 44px; }
+}
+
+/* 최소 남길 돈(작업 7): 패키지 화면 맨 위 한 줄 설정, 덜 남을 때만 체리 글 한 줄(상자·배경 없음), 어두운 하단 바에서는 연한 체리 받침 */
+.marginFloorRow { margin: 0 0 18px; }
+.marginFloorSummary { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin: 0; color: var(--ink-soft); font-size: 14px; }
+.marginFloorSummary strong { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+.marginFloorForm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.marginFloorForm label { color: var(--ink-soft); font-size: 14px; font-weight: 600; }
+.marginFloorField { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 14px; }
+.marginFloorField input { width: 168px; min-height: 44px; text-align: right; font-size: 16px; font-variant-numeric: tabular-nums; }
+.marginFloorForm small { flex: 1 1 100%; color: var(--muted); font-size: 12px; }
+.marginFloorError { flex: 1 1 100%; margin: 0; color: var(--red); font-size: 13px; font-weight: 600; }
+.marginWarning { display: flex; align-items: flex-start; gap: 4px; margin: 4px 0 0; color: var(--red); font-size: 13px; font-weight: 650; line-height: 1.45; word-break: keep-all; font-variant-numeric: tabular-nums; }
+.marginWarning svg { flex: none; margin-top: 2px; }
+.catalogListItem .marginWarning { display: flex; margin-top: 4px; overflow: visible; color: var(--red); white-space: normal; text-overflow: clip; }
+.appFrame .previewMetrics .marginWarning { margin-top: 6px; font-size: 12px; }
+.appFrame .mobileSubmitBar .marginWarningPill { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; padding: 2px 8px; color: var(--red); background: var(--red-soft); border-radius: 5px; font-size: 12px; font-weight: 650; line-height: 1.4; white-space: nowrap; }
+/* 최소 남길 돈 경고는 화면마다 한 줄(시장조사 R7). 새 일감은 아래 띠가 보이는 폭(1050px 이하)에서는 띠에만,
+   그보다 넓으면 미리보기 패널에만 보인다. 일감 화면(이미 만든 주문)에는 띄우지 않는다. */
+@media (max-width: 1050px) {
+  .jobPreview .marginWarning { display: none; }
+}
+
+/* 월별 정리(작업 8): 차트 없이 숫자 줄, ◀ ▶ 44px, 합계 바로 아래 내려받기 두 개. 색은 중립(체리 안 씀). */
+.monthlySummaryPage { max-width: 760px; }
+.monthlySummaryPage .formPageHeader { margin-bottom: 20px; }
+.summaryMonthNav { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
+.summaryMonthNav h2 { min-width: 124px; margin: 0; text-align: center; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.summaryMonthNav .iconButton { flex: 0 0 44px; width: 44px; min-height: 44px; }
+.summarySection { padding: 20px 0; border-top: 1px solid var(--line); }
+.summarySection h3 { margin: 0 0 10px; font-size: 16px; font-weight: 650; }
+.summaryTotals { display: grid; margin: 0; }
+.summaryTotals > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 0; }
+.summaryTotals dt { color: var(--ink-soft); font-size: 14px; }
+.summaryTotals dd { margin: 0; color: var(--ink); font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.summaryInProgress { margin: 6px 0 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.summaryDownloads { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.summarySourceList, .summaryRows { margin: 0; padding: 0; list-style: none; }
+.summarySourceList li { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(104px, auto); gap: 16px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; font-variant-numeric: tabular-nums; }
+.summarySourceList li > span:nth-child(2) { color: var(--ink-soft); }
+.summarySourceList strong { text-align: right; font-weight: 650; white-space: nowrap; }
+.summaryRow { display: grid; grid-template-columns: minmax(0, 1fr) auto 17px; gap: 12px; align-items: center; min-height: 64px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.summaryRow:hover { background: var(--canvas); }
+.summaryRowMain { display: grid; gap: 2px; min-width: 0; }
+.summaryRowMain small { color: var(--muted); font-size: 12px; }
+.summaryRowMain strong { font-size: 15px; font-weight: 600; }
+.summaryRowMain > span { color: var(--ink-soft); font-size: 13px; }
+.summaryRowAmount { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.summaryEmpty { padding: 40px 20px; }
+.summaryFootnote { margin: 16px 0 0; color: var(--muted); font-size: 12px; }
+@media (max-width: 760px) {
+  .summaryTotals dd { font-size: 23px; }
+  .summaryDownloads > .secondaryButton { flex: 1 1 100%; }
+}
+
+/* ============================================================
+   디자인 감사 꼭 고칠 것(작업 8.7, research-2026-11-02/design-review.md 0.2절).
+   새 색은 없다. 체리는 쓰지 않는다.
+   ============================================================ */
+/* 5. 일감 화면 처리 결과 알림: 하단 행동 바 위에 하나만 띄운다. 되돌리기·닫기도 손가락 크기. */
+.jobDetailPage .actionToast { bottom: 84px; max-width: min(520px, calc(100vw - 56px)); }
+.jobDetailPage .actionToast > svg { flex: none; }
+.jobDetailPage .actionToast > span { min-width: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.jobDetailPage .actionToast button { flex: none; min-height: 44px; margin-left: auto; padding: 0 10px; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 760px) {
+  /* 하단 탭(70px) + 하단 행동 바(66px) + 8px 위 */
+  .jobDetailPage .actionToast { bottom: calc(144px + env(safe-area-inset-bottom, 0px)); max-width: none; }
+  /* 10. '반려·되돌리기' 글 버튼은 44px, 옆 버튼과 8px. 프로필 버튼은 보이는 원(33px)은 두고 누르는 영역만 45px. */
+  .revisionRowActions { gap: 8px; }
+  .revisionRowActions .revisionRevertButton { min-height: 44px; min-width: 44px; padding-inline: 8px; font-size: 13px; }
+  .avatarButton { position: relative; }
+  .avatarButton::after { content: ""; position: absolute; inset: -6px; }
+}
+/* 2·3. 일감 화면 휴대폰 첫 화면: 핵심 정보는 한 줄 요약(금액은 '금액 보기'), '더보기'는 제목 묶음 오른쪽 위,
+   말풍선은 160px까지. 저장 직후 띠의 보조 버튼 둘은 한 줄 두 칸. 데스크톱은 그대로. */
+.jobFactLine { display: none; }
+@media (max-width: 760px) {
+  .detailHeader { position: relative; }
+  .detailHeader .detailMore { position: absolute; top: 0; right: 0; }
+  .detailHeader .detailTitleLine { padding-right: 52px; }
+  .detailHeaderActions { margin-top: 0; }
+  .detailHeaderActions:has(> a) { margin-top: 13px; }
+  .jobFactLine { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; margin: 0 0 16px; padding: 4px 0; color: var(--ink); border-block: 1px solid var(--line); font-size: 14px; font-weight: 600; line-height: 1.5; font-variant-numeric: tabular-nums; }
+  .jobFactRail[data-money-open="false"] { display: none; }
+  .jobFactRail[data-money-open="true"] > div:not(.jobFactMoney) { display: none; }
+  .clientMessageBubble, .sendToClientMessage { max-height: 160px; }
+  .sendToClientActions > .secondaryButton { flex: 1 1 0; min-width: 0; padding-inline: 8px; font-size: 14px; line-height: 1.3; text-align: center; white-space: normal; }
+}
+/* 4. 첫 실행: 끝난 1단계는 한 줄('웹·홈페이지 예시로 시작했어요 · 패키지 확인하기')과 그 아래 작은 업종 칩 한 줄,
+   휴대폰은 단계 그림을 숨긴다.
+   9. 데스크톱 새 일감: 미리보기 패널은 상단 바(64px) 아래에 붙어 따라오고 '일감 만들기'는 금액 칸 바로 아래. */
+.firstRunDoneLine { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; }
+.firstRunDoneLine .inlineLink { min-height: 44px; font-size: 14px; }
+.firstRunActions:has(> .firstRunIndustryChips) { margin-top: 4px; }
+.firstRunIndustryChips .industryChip { min-height: 36px; padding: 0 12px; font-size: 13px; }
+@media (max-width: 760px) {
+  .firstRunIndustryChips .industryChip { min-height: 44px; }
+}
+/* 가운뎃점은 앞 항목 끝에 붙인다(줄이 바뀌어도 줄 맨 앞에 혼자 남지 않게). inline-block이라 버튼 밑줄이 번지지 않는다. */
+.firstRunDoneLine > :not(:last-child)::after { content: "·"; content: "·" / ""; display: inline-block; margin-left: 6px; color: var(--muted); font-weight: 400; text-decoration: none; }
+/* '금액 보기'는 펼침 표시를 달고, 펼치면 뒤집는다. */
+.jobFactLine .textButton { gap: 2px; }
+.jobFactLine .textButton[aria-expanded="true"] svg { transform: rotate(180deg); }
+@media (min-width: 1051px) {
+  .jobPreview { position: sticky; top: 84px; }
+}
+@media (max-width: 760px) {
+  .firstRunShot { display: none; }
+}

@@ -112,6 +112,8 @@ export function PublicRevisionView({
   const [receipt, setReceipt] = useState<PublicRevisionUsage | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 서버가 주는 기본 제목은 이미 "고객 · 패키지" 모양이라, 패키지 이름으로 끝나면 다시 붙이지 않는다.
+  const titleLine = title === packageName || title.endsWith(` · ${packageName}`) ? title : `${title} · ${packageName}`;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -164,7 +166,7 @@ export function PublicRevisionView({
           <>
             <div className="publicRevisionIntro">
               {workerName && <p className="publicRevisionWorker" data-testid="revision-worker">{workerName}</p>}
-              <p className="pageEyebrow">{title} · {packageName}</p>
+              <p className="pageEyebrow">{titleLine}</p>
               <h1>수정할 내용을 한 번에 남겨주세요</h1>
               <p>남겨주신 내용은 접수 시각과 함께 기록돼요. 서로 다른 수정사항은 번호를 붙이면 더 정확해요.</p>
             </div>

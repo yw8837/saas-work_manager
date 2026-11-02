@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, Settings2 } from "lucide-react";
+import { BookOpen, LogOut, Settings2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { PlanAccess } from "@/lib/domain";
@@ -18,7 +18,7 @@ export function planSummary(access: Pick<PlanAccess, "plan" | "source" | "remain
 }
 
 /**
- * 상단바 오른쪽 계정 표시. 누르면 로그인한 계정·요금제·설정·로그아웃을 보여 준다.
+ * 상단바 오른쪽 계정 표시. 누르면 로그인한 계정·요금제·사용설명서·설정·로그아웃을 보여 준다.
  * 로그아웃은 설정 화면과 같은 함수를 쓰고, 저장 안 된 변경이 있어 멈추면 설정에서 마저 처리하게 안내한다.
  */
 export function ProfileMenu() {
@@ -90,6 +90,9 @@ export function ProfileMenu() {
             </div>
           </div>
           <div className="profileActions">
+            <Link href="/guide" onClick={() => setOpen(false)} className="profileAction" data-testid="profile-guide">
+              <BookOpen size={16} /> 사용설명서
+            </Link>
             <Link href="/settings" onClick={() => setOpen(false)} className="profileAction">
               <Settings2 size={16} /> 설정
             </Link>

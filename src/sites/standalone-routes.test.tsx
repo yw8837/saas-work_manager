@@ -36,7 +36,8 @@ describe("Sites 공개 단독 경로", () => {
     window.history.pushState({}, "", "/guide");
     render(<SiteShell />);
     expect(screen.getByRole("heading", { level: 1, name: "그림으로 보는 일감체크" })).toBeInTheDocument();
-    expect(screen.getAllByRole("img")).toHaveLength(6);
+    // 장 그림 8장 + 맨 위 가입 그림 1장(목차 띠 그림은 장식이라 빈 alt)
+    expect(screen.getAllByRole("img")).toHaveLength(9);
     expect(WorkspaceProvider).not.toHaveBeenCalled();
   });
 

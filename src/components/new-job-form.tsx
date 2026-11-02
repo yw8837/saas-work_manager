@@ -4,10 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   composeJob,
+  latestOrderSource,
+  marginShortfall,
+  marginWarningText,
+  ORDER_SOURCE_LABELS,
+  ORDER_SOURCES,
   PLAN_LIMITS,
   PLAN_NAMES,
   PLAN_PRICES,
   type JobLimitKind,
+  type OrderSource,
   type Plan,
   type PlanLimits,
 } from "@/lib/domain";
@@ -17,6 +23,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  CircleAlert,
   CircleDollarSign,
   ListChecks,
   PackageCheck,
@@ -69,7 +76,7 @@ function currentDate() {
 
 export function NewJobForm() {
   const router = useRouter();
-  const { packages, options, createJob, canCreateJob, jobLimitHit, limits, plan } = useWorkspace();
+  const { packages, options, jobs, settings, createJob, canCreateJob, jobLimitHit, limits, plan } = useWorkspace();
   const limitCopy = jobLimitCopy(jobLimitHit, limits, plan);
   const activePackages = packages.filter((item) => !item.archivedAt);
   const activeOptions = options.filter((item) => !item.archivedAt);
@@ -77,6 +84,9 @@ export function NewJobForm() {
   const [startDate, setStartDate] = useState(currentDate());
   const [packageId, setPackageId] = useState(activePackages[0]?.id ?? "");
   const [optionIds, setOptionIds] = useState<string[]>([]);
+  // 받은 곳 기본값은 가장 최근에 만든 일감의 받은 곳이다(설정 칸에 저장하지 않음). 칩을 누르면 그 선택을 따른다.
+  const [sourceChoice, setSourceChoice] = useState<{ value: OrderSource | undefined } | null>(null);
+  const source = sourceChoice ? sourceChoice.value : latestOrderSource(jobs);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [createError, setCreateError] = useState("");
@@ -101,6 +111,9 @@ export function NewJobForm() {
     }
   }, [clientLabel, packageId, optionIds, activePackages, activeOptions, startDate]);
 
+  // 한 건에 최소 남길 돈을 정했을 때만, 이 주문이 덜 남으면 한 줄로 알린다(만들기는 막지 않음).
+  const previewShortfall = preview ? marginShortfall(preview.job.margin, settings.minMarginPerJob) : null;
+
   const toggleOption = (id: string) => {
     setOptionIds((previous) =>
       previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id],
@@ -114,7 +127,7 @@ export function NewJobForm() {
     setSubmitting(true);
     setCreateError("");
     try {
-      const id = createJob({ clientLabel, startDate, packageId, optionIds });
+      const id = createJob({ clientLabel, startDate, packageId, optionIds, source });
       if (!id) throw new Error("일감을 만들지 못했어요. 진행 중인 일감 수와 패키지를 확인해주세요.");
       router.push(`/jobs/${id}?created=1`);
     } catch (error) {
@@ -166,6 +179,26 @@ export function NewJobForm() {
                   autoComplete="organization"
                   required
                 />
+              </div>
+              {/* 고르지 않아도 된다. 고른 칩을 다시 누르면 풀린다(비울 수 있어 라디오가 아니라 누름 버튼). 고객 문구·고객 링크에는 넣지 않는다. */}
+              <div className="sourceChoices" role="group" aria-labelledby="order-source-label">
+                <span id="order-source-label" className="sourceChoicesLabel">받은 곳 (선택)</span>
+                {ORDER_SOURCES.map((value) => {
+                  const checked = source === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={checked}
+                      className="sourceChip"
+                      onClick={() => setSourceChoice({ value: checked ? undefined : value })}
+                      data-testid={`order-source-${value}`}
+                    >
+                      {checked && <Check size={14} aria-hidden="true" />}
+                      {ORDER_SOURCE_LABELS[value]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -281,11 +314,18 @@ export function NewJobForm() {
                     <dd data-testid="preview-estimated-cost">{formatWon(preview.job.estimatedCost)}</dd>
                   </div>
                   <div>
-                    <dt><TrendingUp size={16} /> 예상 마진</dt>
+                    <dt><TrendingUp size={16} /> 남는 돈(예상)</dt>
                     <dd data-testid="preview-margin">
                       {formatWon(preview.job.margin)}
-                      {preview.job.amount > 0 && <span>마진율 {Math.round((preview.job.margin / preview.job.amount) * 100)}%</span>}
+                      {preview.job.amount > 0 && <span>남는 비율 {Math.round((preview.job.margin / preview.job.amount) * 100)}%</span>}
                     </dd>
+                    {previewShortfall !== null && (
+                      <dd className="marginWarning" data-testid="preview-panel-margin-warning">
+                        <CircleAlert size={13} aria-hidden="true" />
+                        <span className="srOnly">주의: </span>
+                        {marginWarningText(preview.job.margin, previewShortfall)}
+                      </dd>
+                    )}
                   </div>
                   <div>
                     <dt><CalendarDays size={16} /> 자동 마감</dt>
@@ -300,29 +340,10 @@ export function NewJobForm() {
                     <dd>{preview.job.tasks.length}개</dd>
                   </div>
                 </dl>
-
-                <div className="previewTodoBlock">
-                  <span>생성될 체크리스트</span>
-                  <ul>
-                    {preview.job.tasks.slice(0, 5).map((task) => (
-                      <li key={task.id}>
-                        <CheckCircle2 size={15} />
-                        <span>{task.title}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {preview.job.tasks.length > 5 && <span className="moreTasks">+ {preview.job.tasks.length - 5}개 더</span>}
-                </div>
-
-                {preview.selectedOptions.length > 0 && (
-                  <div className="selectedOptionSummary">
-                    <span>선택 옵션</span>
-                    {preview.selectedOptions.map((item) => <b key={item.id}>{item.name}</b>)}
-                  </div>
-                )}
               </>
             )}
 
+            {/* 데스크톱 1280×800 첫 화면에 들어오게 '일감 만들기'는 할 일 목록보다 위에 둔다(패널은 스크롤해도 따라온다). */}
             {canCreateJob ? (
               <>
                 <button
@@ -347,6 +368,30 @@ export function NewJobForm() {
                 />
               </div>
             )}
+
+            {preview && (
+              <>
+                <div className="previewTodoBlock">
+                  <span>생성될 체크리스트</span>
+                  <ul>
+                    {preview.job.tasks.slice(0, 3).map((task) => (
+                      <li key={task.id}>
+                        <CheckCircle2 size={15} />
+                        <span>{task.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {preview.job.tasks.length > 3 && <span className="moreTasks">외 {preview.job.tasks.length - 3}개</span>}
+                </div>
+
+                {preview.selectedOptions.length > 0 && (
+                  <div className="selectedOptionSummary">
+                    <span>선택 옵션</span>
+                    {preview.selectedOptions.map((item) => <b key={item.id}>{item.name}</b>)}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </aside>
 
@@ -355,14 +400,21 @@ export function NewJobForm() {
             <div className="mobileSubmitSummary">
               <span>
                 {preview
-                  ? `${formatWon(preview.job.amount)} · Todo ${preview.job.tasks.length}개`
-                  : "금액과 Todo를 자동 계산해요"}
+                  ? `${formatWon(preview.job.amount)} · 할 일 ${preview.job.tasks.length}개`
+                  : "금액과 할 일을 자동 계산해요"}
               </span>
               <strong>
                 {preview
                   ? `${formatShortDate(preview.job.dueDate)} 마감 · 수정 ${preview.job.revisionLimit}회`
                   : "패키지를 골라주세요"}
               </strong>
+              {previewShortfall !== null && (
+                <span className="marginWarningPill" data-testid="preview-margin-warning">
+                  <CircleAlert size={12} aria-hidden="true" />
+                  <span className="srOnly">주의: </span>
+                  기준보다 {formatWon(previewShortfall)} 적어요
+                </span>
+              )}
             </div>
             <button
               type="submit"

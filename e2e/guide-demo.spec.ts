@@ -1,17 +1,18 @@
 import { expect, test } from "@playwright/test";
 
-test("그림 사용설명서는 6단계 캡처를 모두 불러오고 체험 링크로 이어진다", async ({ page }) => {
+test("그림 사용설명서는 네 장의 그림 8장과 가입 그림을 모두 불러오고 체험 링크로 이어진다", async ({ page }) => {
   await page.goto("/guide");
   await expect(page.getByRole("heading", { level: 1, name: "그림으로 보는 일감체크" })).toBeVisible();
 
-  const steps = page.locator(".guideStep");
-  await expect(steps).toHaveCount(6);
-  // 맨 위 6칸 띠와 단계별 직접 해보기 버튼
-  await expect(page.getByRole("navigation", { name: "여섯 단계 한눈에 보기" }).getByRole("link")).toHaveCount(6);
-  await expect(page.locator(".guideTryButton")).toHaveCount(6);
-  const images = page.locator(".guideShot img");
-  await expect(images).toHaveCount(6);
-  for (let index = 0; index < 6; index += 1) {
+  const chapters = page.locator(".guideChapter");
+  await expect(chapters).toHaveCount(4);
+  // 맨 위 네 장 목차 띠와 장마다 하나씩인 직접 해 보기 버튼
+  await expect(page.getByRole("navigation", { name: "네 장 한눈에 보기" }).getByRole("link")).toHaveCount(4);
+  await expect(page.locator(".guideTryButton")).toHaveCount(4);
+  await expect(page.locator(".guideShot img")).toHaveCount(8);
+  const images = page.locator(".guideShot img, .guideSignup img");
+  await expect(images).toHaveCount(9);
+  for (let index = 0; index < 9; index += 1) {
     const image = images.nth(index);
     await image.scrollIntoViewIfNeeded();
     await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);

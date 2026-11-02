@@ -98,7 +98,7 @@ export function MarketingHome() {
             <ol className="workflowRail">
               <li>
                 <span>처음 한 번</span>
-                <div><PackageCheck size={21} /><strong>내 패키지 저장</strong><p>금액, 기간, 수정 횟수와 기본 Todo를 등록해요.</p></div>
+                <div><PackageCheck size={21} /><strong>내 패키지 저장</strong><p>금액, 기간, 수정 횟수와 기본 할 일을 등록해요.</p></div>
               </li>
               <li>
                 <span>주문이 오면</span>
@@ -117,7 +117,7 @@ export function MarketingHome() {
             <h2>수정 요청은 말이 아니라<br />기록과 횟수로 남겨요.</h2>
             <p>
               고객이 링크로 남긴 요청은 먼저 확인 대기로 들어오고, 작업자가 수정을 마치면 그때 1회로 세요.
-              메신저·이메일·전화로 온 요청도 직접 기록해서 같은 타임라인에 남아요.
+              메신저·이메일·전화로 온 요청도 직접 적어 두면 같은 기록에 함께 남아요.
             </p>
             <ul>
               <li><CheckCircle2 size={18} /> 링크 요청은 확인 대기로 접수</li>

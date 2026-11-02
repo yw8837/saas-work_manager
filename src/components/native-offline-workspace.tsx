@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { displayJobTitle } from "@/lib/domain";
 import { loadNativeOfflineSnapshot, type OfflineSnapshot } from "@/lib/native/offline";
 import styles from "./native-offline-workspace.module.css";
 
@@ -26,7 +27,7 @@ export function NativeOfflineWorkspace() {
             {snapshot.jobs.map((job) => (
               <article key={job.id} className={styles.job}>
                 <h2>{job.clientLabel}</h2>
-                <p>{job.title}</p>
+                <p>{displayJobTitle(job)}</p>
                 <p>마감 {job.dueDate} · 완료 {job.doneTasks}/{job.totalTasks} · 수정 {job.remainingRevisions}회 남음</p>
                 {job.tasks.length > 0 && <details><summary>남은 할 일 · 최대 5개</summary>
                   <ul>{job.tasks.map((task, index) => <li key={index}>{task}</li>)}</ul>

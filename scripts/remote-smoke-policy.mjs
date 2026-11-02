@@ -17,6 +17,17 @@ const REQUIRED_SECURITY_HEADERS = [
   ["permissions-policy", (value) => value.includes("camera=()") && value.includes("microphone=()")],
 ];
 
+const NOINDEX = /noindex/i;
+const CANONICAL_LINK = /<link\b[^>]*\brel\s*=\s*["']canonical["'][^>]*>/i;
+const OG_IMAGE_META = /<meta\b[^>]*\bproperty\s*=\s*["']og:image["'][^>]*>/i;
+
+/** HTML의 robots 메타 내용(여러 개면 이어 붙임). */
+function robotsMetaContent(html) {
+  return (html.match(/<meta\b[^>]*>/gi) ?? [])
+    .filter((tag) => /\bname\s*=\s*["']robots["']/i.test(tag))
+    .join(" ");
+}
+
 export function normalizeDeploymentUrl(rawUrl) {
   const raw = rawUrl?.trim();
   if (!raw) throw new Error("DEPLOYMENT_URL 또는 첫 번째 인수로 Preview URL을 넣으세요.");
@@ -169,13 +180,37 @@ export async function runRemoteSmoke(
     `health(hosted/configured/ref:${body.supabaseProjectRefConfigured}/db:${body.databaseContractDetected}/service-role:current/policy:${policy.bundleDigest}/no-store)`,
   );
 
-  for (const path of ["/", "/today", "/privacy", "/terms"]) {
+  // 검색 노출: 작업 화면은 noindex 헤더, 공개 페이지(/, /guide, /privacy, /terms)는 noindex 없음, 랜딩은 대표 주소·공유 그림.
+  for (const path of ["/", "/today", "/guide", "/privacy", "/terms"]) {
     const response = await checkedFetch(fetchImpl, baseUrl, path);
     if (!contentTypeIncludes(response, "text/html")) throw new Error(`${path}: HTML 응답이 아닙니다.`);
     const headerIssues = securityHeaderIssues(response.headers);
     if (headerIssues.length) throw new Error(`${path}: ${headerIssues.join(", ")}`);
     checks.push(`${path}(html/security-headers)`);
+
+    const robotsHeader = response.headers.get("x-robots-tag") ?? "";
+    const html = await response.text();
+    if (path === "/today") {
+      if (!NOINDEX.test(robotsHeader)) throw new Error("/today: 작업 화면에 X-Robots-Tag noindex가 없습니다.");
+      checks.push("/today(noindex)");
+      continue;
+    }
+    if (NOINDEX.test(robotsHeader) || NOINDEX.test(robotsMetaContent(html))) {
+      throw new Error(`${path}: 공개 페이지에 noindex가 있어 검색에서 빠집니다.`);
+    }
+    if (path === "/") {
+      if (!CANONICAL_LINK.test(html)) throw new Error("/: canonical 링크가 없습니다.");
+      if (!OG_IMAGE_META.test(html)) throw new Error("/: og:image가 없습니다.");
+      checks.push("/(canonical/og:image)");
+    }
   }
+  checks.push("public-pages(indexable)");
+
+  const robots = await checkedFetch(fetchImpl, baseUrl, "/robots.txt");
+  if (!/^sitemap:\s*https:\/\/\S+/im.test(await robots.text())) {
+    throw new Error("/robots.txt: Sitemap 줄이 없습니다.");
+  }
+  checks.push("robots.txt(sitemap)");
 
   const manifestResponse = await checkedFetch(fetchImpl, baseUrl, "/manifest.webmanifest");
   const manifestType = manifestResponse.headers.get("content-type")?.toLowerCase() ?? "";

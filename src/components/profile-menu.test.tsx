@@ -48,6 +48,16 @@ describe("상단바 계정 표시 → 프로필 메뉴", () => {
     expect(button).toHaveFocus();
   });
 
+  it("메뉴 안 설정 위에 사용설명서로 가는 링크가 있다", () => {
+    openMenu();
+    const menu = screen.getByTestId("profile-menu");
+    const guide = within(menu).getByTestId("profile-guide");
+    expect(guide).toHaveAttribute("href", "/guide");
+    expect(guide).toHaveTextContent("사용설명서");
+    const settings = within(menu).getByRole("link", { name: "설정" });
+    expect(guide.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("로그아웃은 설정 화면과 같은 함수를 부르고, 성공하면 메뉴를 닫는다", async () => {
     openMenu();
     fireEvent.click(screen.getByTestId("profile-sign-out"));

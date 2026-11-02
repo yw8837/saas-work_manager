@@ -8,6 +8,7 @@ import {
   DomainValidationError,
   getRevisionSummary,
   markRevisionExtraScope,
+  markStartShared,
   normalizeIntakeLabels,
   pendingIntakeLabels,
   recordRevision,
@@ -77,6 +78,19 @@ describe("composeJob", () => {
     expect(job.dueDate).toBe("2026-08-19");
     expect(job.tasks.map((task) => task.taskKey)).toEqual(["brief", "launch", "pages"]);
     expect(job.tasks.find((task) => task.taskKey === "pages")?.dueDate).toBe("2026-08-13");
+  });
+
+  it("받은 곳을 주면 일감에 남기고, 안 주면 칸을 만들지 않는다", () => {
+    const input = {
+      jobId: "job_source",
+      revisionPortalToken: "token_source",
+      clientLabel: "받은 곳 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+      now: "2026-08-01T00:00:00.000Z",
+    };
+    expect(composeJob({ ...input, source: "soomgo" }).source).toBe("soomgo");
+    expect("source" in composeJob(input)).toBe(false);
   });
 
   it("옵션 업무가 일감 마감을 넘으면 마감일로 당겨진다", () => {
@@ -535,5 +549,109 @@ describe("job completion", () => {
     expect(completed.status).toBe("completed");
     expect(reopened.status).toBe("active");
     expect(reopened.tasks.map((task) => task.status)).toEqual(active.tasks.map((task) => task.status));
+  });
+
+  it("완료하면 completedAt이 생기고 되돌리면 칸이 사라진다", () => {
+    const active = composeJob({
+      jobId: "job_completed_at",
+      clientLabel: "완료 시각 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+    });
+    expect("completedAt" in active).toBe(false);
+
+    const completed = toggleJobCompletion(active, "2026-08-02T00:00:00.000Z");
+    expect(completed.status).toBe("completed");
+    expect(completed.completedAt).toBe("2026-08-02T00:00:00.000Z");
+    expect(completed.updatedAt).toBe("2026-08-02T00:00:00.000Z");
+
+    const reopened = toggleJobCompletion(completed, "2026-08-03T00:00:00.000Z");
+    expect(reopened.status).toBe("active");
+    expect("completedAt" in reopened).toBe(false);
+    expect(reopened.updatedAt).toBe("2026-08-03T00:00:00.000Z");
+
+    // 다시 완료하면 새 완료 시각을 적는다.
+    expect(toggleJobCompletion(reopened, "2026-08-04T00:00:00.000Z").completedAt).toBe("2026-08-04T00:00:00.000Z");
+  });
+});
+
+describe("할 일 오류 문구", () => {
+  // 할 일을 가리키는 내부 이름(할 일 키)은 화면에 안 보인다. 오류 문구는 그 말 대신 사용자가 할 일을 알려 준다.
+  function messageOf(run: () => unknown): string {
+    try {
+      run();
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    throw new Error("오류가 나야 하는 입력이에요.");
+  }
+
+  it("패키지·옵션·추가요청의 할 일 오류는 '할 일 키' 대신 고칠 방법을 말한다", () => {
+    const blankKey = messageOf(() => composeJob({
+      clientLabel: "이름표 없는 고객",
+      startDate: "2026-08-01",
+      package: { ...packageTemplate, tasks: [{ taskKey: " ", title: "의뢰서 확인", relativeDay: 0, order: 0 }] },
+    }));
+    expect(blankKey).toBe("스탠다드에 알아볼 수 없는 할 일이 있어요. 그 할 일을 지우고 다시 넣어 주세요.");
+
+    const blankRemove = messageOf(() => composeJob({
+      clientLabel: "뺄 할 일 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+      options: [{ ...suppliedDesignOption, taskDeltas: [{ kind: "remove", taskKey: "" }] }],
+    }));
+    expect(blankRemove).toBe("디자인 제공에서 뺄 할 일을 골라 주세요.");
+
+    const duplicate = messageOf(() => composeJob({
+      clientLabel: "겹친 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+      options: [{ ...pagesOption, taskDeltas: [{ kind: "add", task: { taskKey: "brief", title: "또 의뢰서", relativeDay: 1, order: 0 } }] }],
+    }));
+    expect(duplicate).toBe("스탠다드, 추가 페이지에 겹치는 할 일이 있어요. 한 곳에만 남겨 주세요.");
+
+    const job = composeJob({ jobId: "job_task_message", clientLabel: "추가 고객", startDate: "2026-08-01", package: packageTemplate });
+    const addonDuplicate = messageOf(() => createAddon(job, {
+      title: "배너 추가",
+      amountDelta: 0,
+      durationDaysDelta: 0,
+      tasks: [{ taskKey: "brief", title: "배너 시안", relativeDay: 0, order: 0 }],
+    }));
+    expect(addonDuplicate).toBe("추가할 할 일이 이 일감의 다른 할 일과 겹쳐요. 다시 추가해 주세요.");
+
+    // 초안을 만든 뒤에 같은 할 일이 일감에 생겼으면 확정할 때 막는다.
+    const draft = createAddon(job, {
+      addonId: "addon_late",
+      title: "배너 추가",
+      amountDelta: 0,
+      durationDaysDelta: 0,
+      tasks: [{ taskKey: "late", title: "배너 시안", relativeDay: 0, order: 0 }],
+    });
+    const lateTask = { ...job.tasks[0], id: "job_task_message:late", taskKey: "late" };
+    const confirmDuplicate = messageOf(() => confirmAddon({ ...job, tasks: [...job.tasks, lateTask], addons: [draft] }, "addon_late"));
+    expect(confirmDuplicate).toBe("이 추가요청의 할 일이 일감의 다른 할 일과 겹쳐요. 추가요청을 취소하고 다시 만들어 주세요.");
+
+    for (const message of [blankKey, blankRemove, duplicate, addonDuplicate, confirmDuplicate]) {
+      expect(message).not.toMatch(/할 일 키|키를/);
+    }
+  });
+});
+
+describe("시작 안내 보낸 시각", () => {
+  it("처음 복사한 시각만 남기고, 다시 불러도 바꾸지 않는다", () => {
+    const job = composeJob({
+      jobId: "job_start_shared",
+      clientLabel: "시작 안내 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+      now: "2026-08-01T00:00:00.000Z",
+    });
+    expect("startSharedAt" in job).toBe(false);
+
+    const shared = markStartShared(job, "2026-08-01T01:00:00.000Z");
+    expect(shared.startSharedAt).toBe("2026-08-01T01:00:00.000Z");
+    expect(shared.updatedAt).toBe("2026-08-01T01:00:00.000Z");
+    // 처음 한 번만: 다시 복사해도 그대로 둔다.
+    expect(markStartShared(shared, "2026-08-02T00:00:00.000Z")).toBe(shared);
   });
 });

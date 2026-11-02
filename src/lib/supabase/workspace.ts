@@ -207,11 +207,11 @@ export async function loadHostedWorkspace(
     .eq("owner_id", ownerId)
     .maybeSingle();
 
-  if (error) throw new Error(`Hosted 작업공간을 불러오지 못했어요: ${error.message}`);
+  if (error) throw new Error(`작업공간을 불러오지 못했어요: ${error.message}`);
   if (!data) return null;
 
   if (!isHostedWorkspaceState(data.state)) {
-    throw new Error("Hosted 작업공간 데이터 형식이 손상됐어요. 백업 복원 또는 운영자 확인이 필요합니다.");
+    throw new Error("작업공간 데이터 형식이 손상됐어요. 백업 복원 또는 운영자 확인이 필요합니다.");
   }
 
   return {
@@ -241,11 +241,11 @@ export async function saveHostedWorkspace(
     }
     const limitMessage = planLimitMessage(error.message);
     if (limitMessage) throw new HostedPlanLimitError(limitMessage);
-    throw new Error(`Hosted 저장에 실패했어요: ${error.message}`);
+    throw new Error(`온라인 저장에 실패했어요: ${error.message}`);
   }
 
   const row = firstRow<{ document_version: number; updated_at: string }>(data);
-  if (!row) throw new Error("Hosted 저장 결과가 비어 있어요.");
+  if (!row) throw new Error("온라인 저장 결과가 비어 있어요.");
   return { documentVersion: Number(row.document_version), updatedAt: String(row.updated_at) };
 }
 
@@ -256,7 +256,7 @@ export async function syncHostedRevisionPortals(client: SupabaseClient, jobs: Jo
       p_raw_token: job.revisionPortalToken,
       p_enabled: job.status === "active" && job.revisionPortalEnabled,
     });
-    if (error) throw new Error(`고객 수정 링크를 동기화하지 못했어요: ${error.message}`);
+    if (error) throw new Error(`고객 수정 링크에 반영하지 못했어요: ${error.message}`);
   }));
 }
 
