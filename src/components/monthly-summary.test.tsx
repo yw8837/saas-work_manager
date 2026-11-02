@@ -71,6 +71,11 @@ it("이번 달 완료 주문의 합계·받은 곳별 줄·진행 중 합계를 
   expect(screen.getByTestId("summary-total-amount")).toHaveTextContent("2,080,000원");
   expect(screen.getByTestId("summary-total-cost")).toHaveTextContent("240,000원");
   expect(screen.getByTestId("summary-total-margin")).toHaveTextContent("1,840,000원");
+  // 합계 이름은 CSV 열 이름과 같은 말(무슨 금액인지 밝힘).
+  expect(screen.getByTestId("summary-total-amount").previousElementSibling).toHaveTextContent("주문 금액 합계");
+  expect(screen.getByTestId("summary-total-cost").previousElementSibling).toHaveTextContent("예상 원가");
+  expect(screen.getByTestId("summary-total-margin").previousElementSibling).toHaveTextContent("남는 돈(예상)");
+  expect(screen.queryByText("금액 합계")).not.toBeInTheDocument();
   expect(screen.getByTestId("summary-in-progress")).toHaveTextContent("진행 중 1건 · 1,580,000원 (합계에 안 넣음)");
 
   const kmong = screen.getByTestId("summary-source-kmong");

@@ -93,7 +93,7 @@ export function MonthlySummary({ timeZone = browserTimeZone() }: { timeZone?: st
       <section className="summarySection" aria-label={`${monthLabel} 합계`}>
         <dl className="summaryTotals">
           <div><dt>완료 주문</dt><dd data-testid="summary-total-count">{summary.totals.count}건</dd></div>
-          <div><dt>금액 합계</dt><dd data-testid="summary-total-amount">{formatWon(summary.totals.amount)}</dd></div>
+          <div><dt>주문 금액 합계</dt><dd data-testid="summary-total-amount">{formatWon(summary.totals.amount)}</dd></div>
           <div><dt>예상 원가</dt><dd data-testid="summary-total-cost">{formatWon(summary.totals.estimatedCost)}</dd></div>
           <div><dt>남는 돈(예상)</dt><dd data-testid="summary-total-margin">{formatWon(summary.totals.margin)}</dd></div>
         </dl>

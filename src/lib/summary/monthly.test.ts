@@ -125,7 +125,8 @@ describe("월별 정리", () => {
     const csv = summaryCsv(jobs, { kind: "month", month: "2026-11" }, TZ);
 
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    expect(csv.slice(1).startsWith("완료일,고객,일감,받은 곳,패키지,금액,예상 원가,남는 돈,시작일,마감일\r\n")).toBe(true);
+    // 무슨 금액인지 열 이름에 밝힌다(주문 금액·예상 원가·남는 돈(예상)).
+    expect(csv.slice(1).startsWith("완료일,고객,일감,받은 곳,패키지,주문 금액,예상 원가,남는 돈(예상),시작일,마감일\r\n")).toBe(true);
     // 줄바꿈은 CRLF. 따옴표 밖에 맨 LF가 없다(글 칸 안 줄바꿈은 따옴표 안에 남는다).
     const outsideQuotes = csv.replace(/"(?:[^"]|"")*"/g, "");
     expect(outsideQuotes).toContain("\r\n");

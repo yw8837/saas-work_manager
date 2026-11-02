@@ -28,7 +28,8 @@ export type SummaryCsvRange = { kind: "month"; month: string } | { kind: "year";
 
 export const NO_SOURCE_LABEL = "받은 곳 없음";
 
-const CSV_HEADER = "완료일,고객,일감,받은 곳,패키지,금액,예상 원가,남는 돈,시작일,마감일";
+/** 무슨 금액인지 열 이름에 밝힌다(주문 금액 = 주문 조건 + 확정한 추가요청, 원가·남는 돈은 예상). 화면 합계 이름과 같은 말. */
+const CSV_HEADER = "완료일,고객,일감,받은 곳,패키지,주문 금액,예상 원가,남는 돈(예상),시작일,마감일";
 /** 엑셀이 수식으로 읽을 수 있는 첫 글자(OWASP CSV 주입 목록: = + - @ 탭 CR). */
 const FORMULA_START = /^[=+\-@\t\r]/;
 
