@@ -11,7 +11,7 @@ const auth = vi.hoisted(() => ({
   signOut: vi.fn(),
   hasAcceptance: vi.fn(),
   recordAcceptance: vi.fn(),
-  client: {},
+  client: {} as object | null,
 }));
 
 const mobile = vi.hoisted(() => ({
@@ -63,6 +63,7 @@ describe("WorkspaceAuthGate Google login", () => {
     auth.signOut.mockReset().mockResolvedValue(undefined);
     auth.hasAcceptance.mockReset().mockResolvedValue(false);
     auth.recordAcceptance.mockReset().mockResolvedValue(undefined);
+    auth.client = {};
     vi.stubEnv("NEXT_PUBLIC_OPERATOR_NAME", "테스트 운영자");
     vi.stubEnv("NEXT_PUBLIC_SUPPORT_EMAIL", "support@example.com");
     vi.stubEnv("NEXT_PUBLIC_BETA_SIGNUP_ENABLED", "true");
@@ -107,6 +108,17 @@ describe("WorkspaceAuthGate Google login", () => {
     const cancel = await screen.findByRole("button", { name: "로그인 취소" });
     fireEvent.click(cancel);
     await waitFor(() => expect(screen.getByRole("button", { name: "Google로 계속하기" })).toBeEnabled());
+  });
+
+  it("온라인 저장 연결이 없으면 개발 말 없이 설정을 확인하라고 알린다", async () => {
+    auth.authStatus = "signed_in";
+    auth.client = null;
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+
+    expect(await screen.findByRole("heading", { name: "온라인 저장 설정을 확인해 주세요" })).toBeInTheDocument();
+    expect(screen.getByText("정책 동의 기록을 확인할 서버 연결이 없어요.")).toBeInTheDocument();
+    expect(screen.queryByText("private workspace")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Hosted|Supabase|migration/);
   });
 
   it("blocks a signed-in account until the current policies are recorded", async () => {

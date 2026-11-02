@@ -183,6 +183,14 @@ describe("JobDetail 쉬운 말·짧은 설명", () => {
     expect(portal).not.toHaveTextContent("Hosted");
   });
 
+  it("수정 요청 구획은 '기록', 주문 조건 구획은 쉬운 말로 쓴다", () => {
+    renderDetail();
+    expect(screen.getByRole("heading", { name: "수정 요청 기록" })).toBeInTheDocument();
+    expect(screen.getByText("주문할 때 조건을 그대로 보관해요.")).toBeInTheDocument();
+    // '로그인'은 쉬운 말이라 두고, 개발 말 '로그'·'스냅샷'·'Hosted'만 막는다.
+    expect(document.body).not.toHaveTextContent(/로그(?!인|아웃)|스냅샷|Hosted/);
+  });
+
   it("추가요청 입력과 기록에 Todo 대신 할 일을 쓴다", () => {
     renderDetail();
     fireEvent.click(screen.getByTestId("open-addon"));

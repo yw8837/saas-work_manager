@@ -107,6 +107,26 @@ describe("hosted save errors", () => {
       .rejects.toThrowError(/^(?!.*plan_packages_exceeded)/);
   });
 
+  it("저장·불러오기 오류 문구는 'Hosted' 대신 온라인 저장·작업공간이라고 쓴다", async () => {
+    const state = prepareStateForHosted(createSeedState("2026-08-15"));
+    await expect(saveHostedWorkspace(clientRejecting("network down", "08006"), state, 1))
+      .rejects.toThrowError(/^온라인 저장에 실패했어요: network down$/);
+    const emptyResult = { rpc: async () => ({ data: [], error: null }) } as unknown as SupabaseClient;
+    await expect(saveHostedWorkspace(emptyResult, state, 1)).rejects.toThrowError(/^온라인 저장 결과가 비어 있어요\.$/);
+
+    function clientLoading(result: { data: unknown; error: { message: string } | null }): SupabaseClient {
+      return {
+        from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => result }) }) }),
+      } as unknown as SupabaseClient;
+    }
+    await expect(loadHostedWorkspace(clientLoading({ data: null, error: { message: "timeout" } }), "owner-1"))
+      .rejects.toThrowError(/^작업공간을 불러오지 못했어요: timeout$/);
+    await expect(loadHostedWorkspace(
+      clientLoading({ data: { state: { version: 1 }, document_version: 1, updated_at: "2026-08-15T00:00:00.000Z" }, error: null }),
+      "owner-1",
+    )).rejects.toThrowError(/^작업공간 데이터 형식이 손상됐어요/);
+  });
+
   it("충돌은 한도 초과와 다른 오류로 구분된다", async () => {
     const state = prepareStateForHosted(createSeedState("2026-08-15"));
     await expect(saveHostedWorkspace(clientRejecting("workspace_conflict"), state, 1))

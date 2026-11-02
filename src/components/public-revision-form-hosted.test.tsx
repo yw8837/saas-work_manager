@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PublicRevisionForm } from "./public-revision-form";
 import { useWorkspace } from "./workspace-provider";
@@ -11,13 +11,15 @@ vi.mock("./workspace-provider", async () => {
 
 const summaryMock = vi.fn();
 const submitMock = vi.fn();
+// 운영 빌드에 공개 링크 설정이 빠진 경우를 흉내 내려면 브라우저 클라이언트를 없앨 수 있어야 한다.
+const supabase = vi.hoisted(() => ({ client: {} as object | null }));
 
 vi.mock("@/lib/supabase", async () => {
   const actual = await vi.importActual<typeof import("@/lib/supabase")>("@/lib/supabase");
   return {
     ...actual,
     getHostedRuntimeBoundary: () => ({ requestedMode: "hosted", configured: true }),
-    getSupabaseBrowserClient: () => ({}),
+    getSupabaseBrowserClient: () => supabase.client,
     getHostedPublicRevisionSummary: (...args: unknown[]) => summaryMock(...args),
     submitHostedPublicRevision: (...args: unknown[]) => submitMock(...args),
   };
@@ -26,6 +28,18 @@ vi.mock("@/lib/supabase", async () => {
 const base = { jobKey: "job_1", title: "랜딩", packageName: "기본", included: 3, dueDate: undefined, tasksTotal: 4, tasksDone: 1, hasOpenRevision: true, workerName: undefined, intakePending: [] };
 
 describe("PublicRevisionForm 운영 모드", () => {
+  beforeEach(() => { supabase.client = {}; });
+
+  it("공개 링크 설정이 빠졌으면 고객에게 개발 말 없이 링크를 다시 받으라고 알린다", async () => {
+    supabase.client = null;
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+
+    expect(await screen.findByText("링크를 열 수 없어요. 작업자에게 링크를 다시 받아 주세요.")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("Hosted");
+  });
+
   // Codex 4차 P2: 링크를 연 사이 작업자가 다른 요청을 '수정 완료'하면, 처음 읽은 값으로 계산한 숫자가 서버와 어긋난다.
   it("제출 뒤 서버 요약을 다시 읽어 사용·대기·남은 횟수를 서버와 맞춘다", async () => {
     vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);

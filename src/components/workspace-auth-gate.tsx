@@ -49,7 +49,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
       const client = getSupabaseBrowserClient();
       if (!client) {
         setPolicyGateStatus("error");
-        setPolicyGateError("정책 동의 기록을 확인할 Hosted 연결이 없어요.");
+        setPolicyGateError("정책 동의 기록을 확인할 서버 연결이 없어요.");
         return;
       }
 
@@ -77,7 +77,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
 
     const client = getSupabaseBrowserClient();
     if (!client) {
-      setFeedback("정책 동의 기록을 저장할 Hosted 연결이 없어요.");
+      setFeedback("정책 동의 기록을 저장할 서버 연결이 없어요.");
       return;
     }
 
@@ -118,9 +118,9 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
         <section className="authCard">
           <Brand />
           <span className="authIcon error"><LockKeyhole size={23} /></span>
-          <h1>Hosted 연결을 확인해주세요</h1>
-          <p>{policyGateError ?? authError ?? "Supabase 환경값이나 migration 적용 상태를 확인해주세요."}</p>
-          <small>설정이 빠진 Hosted 빌드는 로컬 저장으로 몰래 전환하지 않아요.</small>
+          <h1>온라인 저장 설정을 확인해 주세요</h1>
+          <p>{policyGateError ?? authError ?? "서버 설정값이나 데이터베이스 준비 상태를 확인해 주세요."}</p>
+          <small>설정이 빠져도 이 브라우저에만 저장하는 방식으로 몰래 바꾸지 않아요.</small>
         </section>
       </main>
     );

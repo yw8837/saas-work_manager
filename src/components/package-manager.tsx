@@ -179,7 +179,7 @@ export function PackageManager() {
         </p>
       )}
 
-      <div className="catalogTabs" role="tablist" aria-label="카탈로그 종류">
+      <div className="catalogTabs" role="tablist" aria-label="패키지·옵션">
         <button type="button" role="tab" aria-selected={tab === "package"} data-active={tab === "package"} onClick={() => setTab("package")}><PackagePlus size={17} /> 패키지 {packageList.length}</button>
         <button type="button" role="tab" aria-selected={tab === "option"} data-active={tab === "option"} onClick={() => setTab("option")}><Settings2 size={17} /> 옵션 {optionList.length}</button>
       </div>

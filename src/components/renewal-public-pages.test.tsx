@@ -78,6 +78,9 @@ describe("그림 사용설명서", () => {
     const revisions = document.getElementById("revisions");
     expect(revisions).toHaveTextContent("요청은 확인 대기로 들어오고, 수정을 마치면 1회를 써요");
     expect(revisions).toHaveTextContent("고친 뒤 '수정 완료'를 누르면 그때 1회가 빠지고, 질문·중복은 '반려', 범위 밖이면 '추가 작업으로'를 눌러요.");
+    // 일감 화면 구획 이름('수정 요청 기록')과 같은 말을 쓰고, 그림 설명에도 '로그'를 쓰지 않는다.
+    expect(revisions).toHaveTextContent("원문과 시각이 수정 요청 기록에 '확인 대기'로 쌓여요");
+    for (const image of Array.from(document.images)) expect(image.alt).not.toMatch(/로그(?!인|아웃)/);
     expect(document.getElementById("packages")).toHaveTextContent("시작 전에 고객에게 받을 자료도 적어 두면, 아직 못 받은 것이 고객 링크에 보여요.");
     expect(document.body.textContent).not.toContain("접수되는 즉시");
     expect(document.getElementById("send-link")).toHaveTextContent("자동으로 보내지지는 않아요");

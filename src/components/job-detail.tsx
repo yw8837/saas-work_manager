@@ -589,7 +589,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <section id="revisions" className="contentSection jobRevisionSection" ref={revisionSectionRef}>
             <div className="sectionHeadingRow">
               <div>
-                <h2>수정 요청 로그</h2>
+                <h2>수정 요청 기록</h2>
               </div>
               <button
                 type="button"
@@ -867,7 +867,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
               <strong>{job.packageSnapshot.name}</strong>{" "}
               <span>{job.optionSnapshots.length ? job.optionSnapshots.map((item) => item.name).join(" · ") : "추가 옵션 없음"}</span>
             </div>
-            <p>주문 당시 조건을 스냅샷으로 보존하고 있어요.</p>
+            <p>주문할 때 조건을 그대로 보관해요.</p>
           </section>
         </aside>
       </div>

@@ -36,7 +36,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
     const client = getSupabaseBrowserClient();
     if (!client) {
       const timer = window.setTimeout(() => {
-        setError("Hosted 공개 링크가 설정되지 않았어요.");
+        setError("링크를 열 수 없어요. 작업자에게 링크를 다시 받아 주세요.");
         setLoading(false);
       }, 0);
       return () => window.clearTimeout(timer);
@@ -52,7 +52,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
   async function submit({ name, content }: { name: string; content: string }) {
     if (hosted) {
       const client = getSupabaseBrowserClient();
-      if (!client) throw new Error("Hosted 공개 링크가 설정되지 않았어요.");
+      if (!client) throw new Error("링크를 열 수 없어요. 작업자에게 링크를 다시 받아 주세요.");
       const fingerprint = `${name.trim()}\u0000${content.trim()}`;
       if (retryIdentityRef.current?.fingerprint !== fingerprint) {
         retryIdentityRef.current = { fingerprint, key: crypto.randomUUID() };

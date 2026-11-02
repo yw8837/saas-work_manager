@@ -33,6 +33,8 @@ describe("패키지 화면 쉬운 말", () => {
     expect(screen.getByLabelText("할 일 1 이름")).toBeInTheDocument();
     expect(screen.getByText(/새 일감에 자동으로 채워져요/)).toBeInTheDocument();
     expect(view.container).not.toHaveTextContent(/Todo|합성|상대 기한/);
+    // 화면 낭독기가 읽는 이름도 쉬운 말로 쓴다('카탈로그' 대신).
+    expect(screen.getByRole("tablist", { name: "패키지·옵션" })).toBeInTheDocument();
   });
 
   it("옵션 편집도 할 일 말로 보인다", () => {
