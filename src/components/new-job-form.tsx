@@ -281,10 +281,10 @@ export function NewJobForm() {
                     <dd data-testid="preview-estimated-cost">{formatWon(preview.job.estimatedCost)}</dd>
                   </div>
                   <div>
-                    <dt><TrendingUp size={16} /> 예상 마진</dt>
+                    <dt><TrendingUp size={16} /> 남는 돈(예상)</dt>
                     <dd data-testid="preview-margin">
                       {formatWon(preview.job.margin)}
-                      {preview.job.amount > 0 && <span>마진율 {Math.round((preview.job.margin / preview.job.amount) * 100)}%</span>}
+                      {preview.job.amount > 0 && <span>남는 비율 {Math.round((preview.job.margin / preview.job.amount) * 100)}%</span>}
                     </dd>
                   </div>
                   <div>
@@ -355,8 +355,8 @@ export function NewJobForm() {
             <div className="mobileSubmitSummary">
               <span>
                 {preview
-                  ? `${formatWon(preview.job.amount)} · Todo ${preview.job.tasks.length}개`
-                  : "금액과 Todo를 자동 계산해요"}
+                  ? `${formatWon(preview.job.amount)} · 할 일 ${preview.job.tasks.length}개`
+                  : "금액과 할 일을 자동 계산해요"}
               </span>
               <strong>
                 {preview

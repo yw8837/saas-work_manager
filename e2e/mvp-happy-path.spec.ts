@@ -158,14 +158,14 @@ test("추가요청은 초안 기록 뒤 확정 시에만 일감에 반영한다"
   await page.getByLabel("추가요청 내용").fill("이벤트 랜딩 페이지");
   await page.getByLabel("추가금 (원)").fill("220000");
   await page.getByLabel("추가 기간 (일)").fill("2");
-  await page.getByLabel("추가 Todo").fill("이벤트 랜딩 제작");
+  await page.getByLabel("추가 할 일").fill("이벤트 랜딩 제작");
   await page.getByRole("button", { name: "초안 기록" }).click();
   await expect(page.getByText("이벤트 랜딩 페이지", { exact: true })).toBeVisible();
   await expect(page.getByText("초안", { exact: true })).toBeVisible();
 
   await page.locator('[data-testid^="confirm-addon-"]').click();
   await expect(page.getByText("확정됨", { exact: true })).toBeVisible();
-  await expect(page.getByText("추가요청을 확정해 합계·마감·Todo에 반영했어요.")).toBeVisible();
+  await expect(page.getByText("추가요청을 확정해 합계·마감·할 일에 반영했어요.")).toBeVisible();
   await expect(page.getByText("이벤트 랜딩 제작", { exact: true })).toBeVisible();
 });
 

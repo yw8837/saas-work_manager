@@ -47,11 +47,11 @@ const cancelAddonSpy = vi.fn();
 const createAddonSpy = vi.fn();
 const confirmAddonSpy = vi.fn();
 
-function renderDetail(job = baseJob()) {
+function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted" } = {}) {
   vi.mocked(useWorkspace).mockReturnValue({
     jobs: [job],
     hydrated: true,
-    runtimeMode: "local",
+    runtimeMode: options.runtimeMode ?? "local",
     saveStatus: "saved",
     toggleTask: vi.fn(),
     toggleIntake: toggleIntakeSpy,
@@ -160,6 +160,38 @@ describe("JobDetail 새 요청 띠", () => {
   });
 });
 
+describe("JobDetail 쉬운 말·짧은 설명", () => {
+  it("수정 횟수 규칙은 접기 하나로 모으고, 고객 링크 구획의 긴 설명은 뺀다", () => {
+    renderDetail();
+    const summary = screen.getByText("수정 횟수는 이렇게 세요");
+    const rules = summary.closest("details");
+    expect(rules).not.toBeNull();
+    expect(rules).toHaveTextContent(
+      "고객 요청은 먼저 확인 대기로 들어와요. 고친 뒤 ‘수정 완료’를 누르면 1회를 써요. 질문·중복은 ‘반려’, 범위 밖은 ‘추가 작업으로’를 눌러요. 둘 다 횟수를 안 써요.",
+    );
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(portal).not.toHaveTextContent("먼저 확인 대기로 들어와요");
+    // 로컬 모드 안내는 상황에 꼭 필요한 문장이라 그대로 둔다.
+    expect(portal).toHaveTextContent("지금은 이 브라우저에 저장하는 모드라 링크도 이 브라우저에서만 열려요.");
+    expect(screen.getByText("초안으로 적어 두고, 고객이 동의하면 확정해요. 확정하면 금액·마감·할 일에 반영돼요.")).toBeInTheDocument();
+  });
+
+  it("로그인 모드의 고객 링크 안내는 앞말 없이 짧게 쓴다", () => {
+    renderDetail(baseJob(), { runtimeMode: "hosted" });
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(portal).toHaveTextContent("저장이 끝나면 링크에 반영돼요. 재발급하면 이전 주소는 못 써요.");
+    expect(portal).not.toHaveTextContent("Hosted");
+  });
+
+  it("추가요청 입력과 기록에 Todo 대신 할 일을 쓴다", () => {
+    renderDetail();
+    fireEvent.click(screen.getByTestId("open-addon"));
+    expect(screen.getByLabelText(/추가 할 일/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/시작 며칠 뒤/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Todo/);
+  });
+});
+
 describe("JobDetail 고객에게 보낼 말", () => {
   it("핵심 정보 줄 바로 아래, 할 일 목록보다 위에 둔다", () => {
     renderDetail();
@@ -172,12 +204,14 @@ describe("JobDetail 고객에게 보낼 말", () => {
 });
 
 describe("JobDetail 원가·마진 노출", () => {
-  it("계약 금액 옆에 예상 원가와 예상 마진·마진율을 그대로 보여준다", () => {
+  it("계약 금액 옆에 예상 원가와 남는 돈(예상)·남는 비율을 그대로 보여준다", () => {
     renderDetail();
 
     expect(screen.getByTestId("job-estimated-cost")).toHaveTextContent("250,000원");
+    expect(screen.getByText("남는 돈(예상)")).toBeInTheDocument();
     expect(screen.getByTestId("job-margin")).toHaveTextContent("750,000원");
-    expect(screen.getByTestId("job-margin")).toHaveTextContent("마진율 75%");
+    expect(screen.getByTestId("job-margin")).toHaveTextContent("남는 비율 75%");
+    expect(screen.getByRole("region", { name: "일감 핵심 정보" })).not.toHaveTextContent(/마진/);
   });
 
   it("추가요청을 확정하면 화면의 원가·마진도 같이 움직인다", () => {

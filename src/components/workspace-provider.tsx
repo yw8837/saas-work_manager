@@ -555,7 +555,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
   const [authError, setAuthError] = useState<string | null>(
     hostedConfigurationError
-      ? "Hosted 모드 환경값이 빠졌어요. Supabase URL과 anon key를 연결해주세요."
+      ? "로그인 모드 환경값이 빠졌어요. Supabase URL과 anon key를 연결해주세요."
       : null,
   );
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -849,13 +849,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               clearHostedDraft(session.user.id);
             } catch (error) {
               if (isStaleActivation()) return;
-              const message = error instanceof Error ? error.message : "Hosted 첫 저장에 실패했어요.";
+              const message = error instanceof Error ? error.message : "서버에 첫 저장을 하지 못했어요.";
               writeHostedDraft(session.user.id, cached, draft?.baseVersion ?? 0, draft?.baseState ?? cached, message);
               remoteVersionRef.current = 0;
               lastSyncedStateRef.current = null;
               setCurrentState(cached);
               setSaveStatus("error");
-              setSaveError(saveFailureMessage(error, "Hosted 첫 저장에 실패했어요."));
+              setSaveError(saveFailureMessage(error, "서버에 첫 저장을 하지 못했어요."));
               setAuthStatus("signed_in");
               setHydrated(true);
               return;
@@ -1037,7 +1037,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           if (cancelled || currentActivation !== activation) return;
           setAuthStatus(nativePlatform() === "web" ? "configuration_error" : "offline");
-          setAuthError(error instanceof Error ? error.message : "Hosted 작업공간을 시작하지 못했어요.");
+          setAuthError(error instanceof Error ? error.message : "작업공간을 시작하지 못했어요.");
           setRealtimeStatus("error");
           setRealtimeError("실시간 연결을 시작하지 못했어요.");
           setHydrated(true);
@@ -1113,7 +1113,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async (redirectPath = "/today") => {
     const client = hostedClientRef.current;
-    if (!client) throw new Error("Hosted 로그인이 설정되지 않았어요.");
+    if (!client) throw new Error("로그인 설정이 빠져 있어요.");
     const safePath = redirectPath.startsWith("/") && !redirectPath.startsWith("//")
       ? redirectPath
       : "/today";

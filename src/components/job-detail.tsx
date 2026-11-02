@@ -326,7 +326,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     if (job.status !== "active") return;
     try {
       confirmAddon(job.id, addonId);
-      setDetailFeedback("추가요청을 확정해 합계·마감·Todo에 반영했어요.");
+      setDetailFeedback("추가요청을 확정해 합계·마감·할 일에 반영했어요.");
     } catch (error) {
       setDetailFeedback(error instanceof Error ? error.message : "추가요청을 확정하지 못했어요.");
     }
@@ -486,9 +486,9 @@ export function JobDetail({ jobId }: { jobId: string }) {
         <div>
           <span className="factIcon"><TrendingUp size={18} /></span>
           <dl>
-            <dt>예상 마진</dt>
+            <dt>남는 돈(예상)</dt>
             <dd data-testid="job-margin">
-              {formatWon(job.margin)} <small>{marginRate === null ? "금액 없음" : `마진율 ${marginRate}%`}</small>
+              {formatWon(job.margin)} <small>{marginRate === null ? "금액 없음" : `남는 비율 ${marginRate}%`}</small>
             </dd>
           </dl>
         </div>
@@ -749,20 +749,20 @@ export function JobDetail({ jobId }: { jobId: string }) {
                 <Plus size={15} /> 추가요청 기록
               </button>
             </div>
-            <p className="sectionExplain">초안으로 기록한 뒤 확정해야 금액·마감·Todo가 일감에 반영돼요.</p>
+            <p className="sectionExplain">초안으로 적어 두고, 고객이 동의하면 확정해요. 확정하면 금액·마감·할 일에 반영돼요.</p>
             {addonOpen && (
               <form className="addonForm" onSubmit={submitAddon}>
                 <label><span>추가요청 내용</span><input required value={addonTitle} onChange={(event) => setAddonTitle(event.target.value)} placeholder="예: 이벤트 랜딩 페이지 1장" /></label>
                 <div className="addonFieldPair"><label><span>추가금 (원)</span><input type="number" min="0" value={addonAmount} onChange={(event) => setAddonAmount(event.target.value)} /></label><label><span>추가 원가 (원)</span><input type="number" min="0" value={addonCost} onChange={(event) => setAddonCost(event.target.value)} /></label></div>
                 <div className="addonFieldPair"><label><span>추가 기간 (일)</span><input type="number" min="0" value={addonDays} onChange={(event) => setAddonDays(event.target.value)} /></label></div>
-                <div className="addonFieldPair"><label><span>추가 Todo <small>선택</small></span><input value={addonTaskTitle} onChange={(event) => setAddonTaskTitle(event.target.value)} placeholder="예: 랜딩 페이지 제작" /></label><label><span>Todo 기한 (시작일 + 일)</span><input type="number" min="0" value={addonTaskDay} onChange={(event) => setAddonTaskDay(event.target.value)} /></label></div>
+                <div className="addonFieldPair"><label><span>추가 할 일 <small>선택</small></span><input value={addonTaskTitle} onChange={(event) => setAddonTaskTitle(event.target.value)} placeholder="예: 랜딩 페이지 제작" /></label><label><span>할 일 날짜 (시작 며칠 뒤)</span><input type="number" min="0" value={addonTaskDay} onChange={(event) => setAddonTaskDay(event.target.value)} /></label></div>
                 <div className="revisionFormActions"><button type="button" className="textOnlyButton" onClick={() => setAddonOpen(false)}>취소</button><button type="submit" className="primaryButton compactSubmit"><Save size={16} /> 초안 기록</button></div>
               </form>
             )}
             <div className="addonList">
               {job.addons.length ? [...job.addons].reverse().map((addon) => (
                 <article key={addon.id} className="addonRow" data-status={addon.status}>
-                  <div><span>{addon.status === "confirmed" ? "확정됨" : addon.status === "cancelled" ? "취소됨" : "초안"}</span><strong>{addon.title}</strong><p>+{formatWon(addon.amountDelta)} · 원가 {formatWon(addon.estimatedCostDelta)} · +{addon.durationDaysDelta}일{addon.tasks.length ? ` · Todo ${addon.tasks.length}개` : ""}</p></div>
+                  <div><span>{addon.status === "confirmed" ? "확정됨" : addon.status === "cancelled" ? "취소됨" : "초안"}</span><strong>{addon.title}</strong><p>+{formatWon(addon.amountDelta)} · 원가 {formatWon(addon.estimatedCostDelta)} · +{addon.durationDaysDelta}일{addon.tasks.length ? ` · 할 일 ${addon.tasks.length}개` : ""}</p></div>
                   <div className="addonRowActions">
                     {addon.status === "draft" && job.status === "active" && <button type="button" className="compactButton emphasized" onClick={() => handleConfirmAddon(addon.id)} data-testid={`confirm-addon-${addon.id}`}><Check size={15} /> 확정</button>}
                     {addon.status !== "cancelled" && job.status === "active" && (
@@ -789,12 +789,15 @@ export function JobDetail({ jobId }: { jobId: string }) {
             {revision.pending > 0 && (
               <p className="revisionPendingNote" data-testid="revision-pending-count">확인 대기 {revision.pending}건 · 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회를 써요</p>
             )}
-            <p>남은 수정이 없으면 &lsquo;추가 작업으로&rsquo;를 눌러 금액·기간을 따로 협의하세요.</p>
+            {/* 수정 횟수 규칙은 접기 하나에 모은다(고객 링크 구획의 설명도 여기로 옮김). */}
+            <details className="revisionRules">
+              <summary>수정 횟수는 이렇게 세요</summary>
+              <p>고객 요청은 먼저 확인 대기로 들어와요. 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회를 써요. 질문·중복은 &lsquo;반려&rsquo;, 범위 밖은 &lsquo;추가 작업으로&rsquo;를 눌러요. 둘 다 횟수를 안 써요.</p>
+            </details>
           </section>
 
           <section className="sideSection portalLinkSection">
             <h2>고객 수정 요청 링크</h2>
-            <p>고객이 링크에 남긴 요청은 먼저 확인 대기로 들어와요. 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회를 쓰고, 질문·중복은 반려하면 횟수를 쓰지 않아요.</p>
             <div className="portalStatus" data-enabled={portalEnabled} role="status" aria-live="polite">
               <span />
               {portalEnabled ? portalSynced ? "링크 켜짐" : "링크 동기화 중" : job.status === "completed" ? "일감 완료 · 링크 잠김" : portalSynced ? "링크 꺼짐" : "링크 동기화 중"}
@@ -836,7 +839,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
               {job.status === "completed"
                 ? "일감을 다시 진행한 뒤에만 링크를 켜거나 재발급할 수 있어요."
                 : runtimeMode === "hosted"
-                  ? "Hosted: 저장 완료 표시 뒤 외부 링크에 반영돼요. 재발급하면 이전 주소는 폐기돼요."
+                  ? "저장이 끝나면 링크에 반영돼요. 재발급하면 이전 주소는 못 써요."
                   : "지금은 이 브라우저에 저장하는 모드라 링크도 이 브라우저에서만 열려요. 고객에게 보내려면 로그인 모드가 필요해요."}
             </small>
           </section>

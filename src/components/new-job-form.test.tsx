@@ -33,6 +33,17 @@ it.each(["throw", "empty"])("keeps input and permits retry when creation returns
   expect(nav.push).toHaveBeenCalledWith("/jobs/created-job?created=1");
 });
 
+it("새 일감 아래 띠와 미리보기는 쉬운 말로 보인다", () => {
+  const view = render(<NewJobForm />);
+  // 첫 패키지(Basic 홈페이지)는 할 일 5개다.
+  const bar = view.container.querySelector(".mobileSubmitBar")!;
+  expect(bar).toHaveTextContent("할 일 5개");
+  expect(bar).not.toHaveTextContent("Todo");
+  expect(screen.getByText("남는 돈(예상)")).toBeInTheDocument();
+  expect(screen.getByTestId("preview-margin")).toHaveTextContent("남는 비율");
+  expect(view.container).not.toHaveTextContent(/Todo|마진/);
+});
+
 it("does not create a second job on repeated form submit", () => {
   create.mockReturnValue("created-job");
   const view = render(<NewJobForm />);

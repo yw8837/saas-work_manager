@@ -133,10 +133,10 @@ function cloneOption(template: OptionTemplate): OptionSnapshot {
 }
 
 function validateTask(task: TaskTemplate, source: string): void {
-  assertText(task.taskKey, `${source} 업무 키`);
-  assertText(task.title, `${source} 업무명`);
-  assertNonNegativeInteger(task.relativeDay, `${source} 업무 상대일`);
-  assertNonNegativeInteger(task.order, `${source} 업무 순서`);
+  assertText(task.taskKey, `${source} 할 일 키`);
+  assertText(task.title, `${source} 할 일 이름`);
+  assertNonNegativeInteger(task.relativeDay, `${source} 할 일 날짜(시작 며칠 뒤)`);
+  assertNonNegativeInteger(task.order, `${source} 할 일 순서`);
 }
 
 function validatePackage(template: PackageTemplate): void {
@@ -164,7 +164,7 @@ function validateOption(option: OptionTemplate): void {
   assertNonNegativeInteger(option.revisionLimitDelta, `${option.name} 추가 수정`);
   option.taskDeltas.forEach((delta) => {
     if (delta.kind === "add") validateTask(delta.task, option.name);
-    else assertText(delta.taskKey, `${option.name} 제거 업무 키`);
+    else assertText(delta.taskKey, `${option.name} 제거할 할 일 키`);
   });
 }
 
@@ -223,7 +223,7 @@ function composeTasks(
   if (duplicate) {
     const [taskKey, sources] = duplicate;
     throw new DomainValidationError(
-      `업무 키 '${taskKey}'가 ${sources.join(", ")}에 중복됩니다. 한 원천만 남겨주세요.`,
+      `할 일 키 '${taskKey}'가 ${sources.join(", ")}에 겹쳐요. 한 곳에만 남겨 주세요.`,
       "DUPLICATE_TASK_KEY",
     );
   }
@@ -598,7 +598,7 @@ export function createAddon(job: Job, input: CreateAddonInput): Addon {
   for (const task of tasks) {
     if (allKeys.has(task.taskKey)) {
       throw new DomainValidationError(
-        `업무 키 '${task.taskKey}'가 기존 할 일과 중복됩니다. 다른 키를 입력해주세요.`,
+        `할 일 키 '${task.taskKey}'가 이미 있는 할 일과 겹쳐요. 다른 키를 입력해 주세요.`,
         "DUPLICATE_TASK_KEY",
       );
     }
@@ -639,7 +639,7 @@ export function confirmAddon(job: Job, addonId: string, confirmedAt = new Date()
     validateTask(task, addon.title);
     if (existingKeys.has(task.taskKey)) {
       throw new DomainValidationError(
-        `업무 키 '${task.taskKey}'가 기존 할 일과 중복됩니다.`,
+        `할 일 키 '${task.taskKey}'가 이미 있는 할 일과 겹쳐요.`,
         "DUPLICATE_TASK_KEY",
       );
     }

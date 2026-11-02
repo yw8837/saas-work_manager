@@ -261,13 +261,13 @@ const slides: Slide[] = [
   },
   {
     key: "revision",
-    caption: "링크든 메신저든 모든 수정 요청이 한 타임라인에 쌓여요",
+    caption: "링크든 메신저든 모든 수정 요청이 한 기록에 쌓여요",
     render: () => (
       <Scene title="수정 요청 기록" live="완료 기준 카운트" active="일감">
         <div className="sceneHeading">
           <div>
             <span>오로라 스튜디오</span>
-            <strong>수정 요청 타임라인</strong>
+            <strong>수정 요청 기록</strong>
           </div>
           <span className="ppCounter">
             <b>2</b> / 3회

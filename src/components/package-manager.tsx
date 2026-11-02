@@ -66,24 +66,24 @@ function TaskRows({ tasks, onChange }: { tasks: TaskTemplate[]; onChange: (tasks
 
   return (
     <div className="catalogTaskEditor">
-      <div className="catalogTaskHead"><span>자동 생성 Todo</span><span>상대 기한</span></div>
+      <div className="catalogTaskHead"><span>자동으로 만들 할 일</span><span>시작 며칠 뒤</span></div>
       {tasks.map((task, index) => (
         <div className="catalogTaskRow" key={`${task.taskKey}-${index}`}>
           <input
-            aria-label={`Todo ${index + 1} 제목`}
+            aria-label={`할 일 ${index + 1} 이름`}
             value={task.title}
             onChange={(event) => updateTask(index, { title: event.target.value, taskKey: taskKey(event.target.value, index) })}
             placeholder="할 일 이름"
           />
-          <label><input aria-label={`Todo ${index + 1} 상대 일수`} type="number" min="0" value={task.relativeDay} onChange={(event) => updateTask(index, { relativeDay: numeric(event.target.value) })} /><span>일</span></label>
-          <button type="button" className="smallIconButton" aria-label={`Todo ${index + 1} 삭제`} onClick={() => onChange(tasks.filter((_, current) => current !== index))}><Trash2 size={15} /></button>
+          <label><input aria-label={`할 일 ${index + 1} 시작 며칠 뒤`} type="number" min="0" value={task.relativeDay} onChange={(event) => updateTask(index, { relativeDay: numeric(event.target.value) })} /><span>일</span></label>
+          <button type="button" className="smallIconButton" aria-label={`할 일 ${index + 1} 삭제`} onClick={() => onChange(tasks.filter((_, current) => current !== index))}><Trash2 size={15} /></button>
         </div>
       ))}
       <button
         type="button"
         className="compactButton"
         onClick={() => onChange([...tasks, { taskKey: `task-${tasks.length + 1}`, title: "새 할 일", relativeDay: 0, order: tasks.length }])}
-      ><Plus size={15} /> Todo 추가</button>
+      ><Plus size={15} /> 할 일 추가</button>
     </div>
   );
 }
@@ -164,7 +164,7 @@ export function PackageManager() {
       <header className="pageHeader catalogHeader">
         <div>
           <h1>패키지와 옵션</h1>
-          <p>여기서 정한 금액·마감·수정·Todo가 새 일감에 자동으로 합성돼요.</p>
+          <p>여기서 정한 금액·마감·수정·할 일이 새 일감에 자동으로 채워져요.</p>
         </div>
         {savedMessage && <span className="catalogSaved" role="status"><Check size={16} /> {savedMessage}</span>}
       </header>
@@ -276,10 +276,10 @@ export function PackageManager() {
               <label><span>수정 변화 (회)</span><input type="number" min="0" value={selectedOption.revisionLimitDelta} onChange={(event) => setOptionDraft({ ...selectedOption, revisionLimitDelta: numeric(event.target.value) })} /></label>
               <label><span>추가 예상 원가 (원)</span><input type="number" min="0" value={selectedOption.estimatedCostDelta} onChange={(event) => setOptionDraft({ ...selectedOption, estimatedCostDelta: numeric(event.target.value) })} /></label>
             </div>
-            <fieldset className="optionTodoEffect"><legend>Todo 변화</legend>
-              <div className="effectToggle"><button type="button" data-active={Boolean(optionTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: optionTask?.task ?? { taskKey: "option-task", title: "옵션 작업", relativeDay: 0, order: 0 } }] })}>Todo 추가</button><button type="button" data-active={Boolean(removeTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: removeTask?.taskKey ?? "design" }] })}>Todo 제거</button><button type="button" data-active={!optionTask && !removeTask} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [] })}>변화 없음</button></div>
-              {optionTask && <div className="optionEffectFields"><label><span>추가 Todo</span><input value={optionTask.task.title} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: { ...optionTask.task, title: event.target.value, taskKey: taskKey(event.target.value, 0) } }] })} /></label><label><span>상대 기한 (일)</span><input type="number" min="0" value={optionTask.task.relativeDay} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: { ...optionTask.task, relativeDay: numeric(event.target.value) } }] })} /></label></div>}
-              {removeTask && <label className="optionRemoveField"><span>제거할 Todo 키</span><input value={removeTask.taskKey} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: event.target.value }] })} /><small>예: `design` — 패키지 Todo 키와 정확히 같아야 제거됩니다.</small></label>}
+            <fieldset className="optionTodoEffect"><legend>할 일 변화</legend>
+              <div className="effectToggle"><button type="button" data-active={Boolean(optionTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: optionTask?.task ?? { taskKey: "option-task", title: "옵션 작업", relativeDay: 0, order: 0 } }] })}>할 일 추가</button><button type="button" data-active={Boolean(removeTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: removeTask?.taskKey ?? "design" }] })}>할 일 제거</button><button type="button" data-active={!optionTask && !removeTask} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [] })}>변화 없음</button></div>
+              {optionTask && <div className="optionEffectFields"><label><span>추가 할 일</span><input value={optionTask.task.title} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: { ...optionTask.task, title: event.target.value, taskKey: taskKey(event.target.value, 0) } }] })} /></label><label><span>시작 며칠 뒤 (일)</span><input type="number" min="0" value={optionTask.task.relativeDay} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: { ...optionTask.task, relativeDay: numeric(event.target.value) } }] })} /></label></div>}
+              {removeTask && <label className="optionRemoveField"><span>제거할 할 일 키</span><input value={removeTask.taskKey} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: event.target.value }] })} /><small>예: `design` — 패키지 할 일 키와 정확히 같아야 제거돼요.</small></label>}
             </fieldset>
             <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentOption} data-testid="save-option"><Save size={16} /> 옵션 저장</button>{!optionDraft && <button type="button" className="quietButton" onClick={() => { if (window.confirm("이 옵션을 새 일감 선택 목록에서 보관할까요?")) { archiveOption(selectedOption.id); flashSaved("옵션을 보관했어요."); } }}><Archive size={16} /> 보관</button>}</div>
           </section>
