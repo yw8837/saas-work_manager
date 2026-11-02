@@ -64,16 +64,17 @@ function isHtmlNavigation(request: Request) {
  * 검색 차단 헤더. 고객 링크·체험은 noarchive까지 막고, 작업 화면·API와 운영 주소(빌드 때 정한
  * NEXT_PUBLIC_SITE_ORIGIN, 없으면 ilgam.studioyeolmae.com)가 아닌 호스트(workers.dev·옛 주소)는 noindex로 뺀다.
  * 운영 주소의 공개 페이지(/, /guide, /privacy, /terms)와 정적 파일에는 붙이지 않는다.
+ * 경로 판정은 라우터와 같게 대소문자를 가리지 않고 끝 슬래시도 받는다(판정만 하고 토큰 값은 건드리지 않는다).
  */
 function robotsHeaders(url: URL): SecurityHeader[] {
-  if (/^\/r\/[^/]+$/.test(url.pathname) || /^\/demo(?:\/|$)/.test(url.pathname)) return buildBearerRouteHeaders();
+  if (/^\/r\/[^/]+\/?$/i.test(url.pathname) || /^\/demo(?:\/|$)/i.test(url.pathname)) return buildBearerRouteHeaders();
   if (isPrivateAreaPath(url.pathname) || url.host !== new URL(deploymentOrigin()).host) return buildPrivateAreaHeaders();
   return [];
 }
 
-/** 고객 수정 요청 링크(/r/토큰)와 그 체험(/demo/r) 화면. */
+/** 고객 수정 요청 링크(/r/토큰)와 그 체험(/demo/r) 화면. 라우터처럼 대소문자·끝 슬래시를 가리지 않는다. */
 function isCustomerLinkPage(pathname: string): boolean {
-  return /^\/r\/[^/]+$/.test(pathname) || /^\/demo\/r\/?$/.test(pathname);
+  return /^\/r\/[^/]+\/?$/i.test(pathname) || /^\/demo\/r\/?$/i.test(pathname);
 }
 
 function withSecurityHeaders(

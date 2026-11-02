@@ -78,6 +78,13 @@ describe("작업 화면 검색 차단 헤더", () => {
     }
   });
 
+  it("Sites 라우터처럼 대소문자와 끝 슬래시를 가리지 않는다(같은 화면이 열리는 주소는 같이 뺀다)", () => {
+    for (const path of ["/JOBS", "/Jobs/", "/today/", "/TODAY", "/jobs/Summary", "/Settings/", "/API/health"]) {
+      expect(isPrivateAreaPath(path), path).toBe(true);
+    }
+    for (const path of ["/JOBSX", "/Guide", "/R/token"]) expect(isPrivateAreaPath(path), path).toBe(false);
+  });
+
   it("Next headers()는 작업 화면에만 noindex를 붙이고 공개 페이지에는 붙이지 않는다", async () => {
     const rules = await nextConfig.headers!();
     const robotsFor = (path: string) => rules

@@ -501,6 +501,20 @@ describe("Sites 검색 노출 헤더", () => {
     expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
   });
 
+  // 라우터(react-router)는 대소문자를 가리지 않고 끝 슬래시도 같은 화면으로 연다. 판정도 같게 한다(토큰 값은 그대로).
+  it.each(["/r/key/", "/R/key", "/r/Key.With.Dots/", "/demo/r/", "/DEMO/R", "/Demo/r/"])(
+    "대소문자·끝 슬래시가 달라도 고객 링크·체험 %s는 noarchive까지 막는다",
+    async (path) => {
+      const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+      expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+    },
+  );
+
+  it.each(["/JOBS", "/Today/", "/jobs/Summary/", "/PACKAGES"])("대소문자·끝 슬래시가 달라도 작업 화면 %s는 noindex, nofollow", async (path) => {
+    const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
   it.each([
     "https://ilgamcheck.bsfire1237.workers.dev",
     "https://ilgamcheck-beta.bsfire1237.chatgpt.site",
@@ -545,7 +559,7 @@ describe("Sites 고객 링크·체험 공유 미리보기", () => {
   };
   const pageHtml = async (path: string) => (await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: indexAssets })).text();
 
-  it.each(["/r/token_abc", "/r/key.with.dots", "/demo/r"])("%s는 소개용 슬로건·그림 대신 차분한 공유 미리보기를 낸다", async (path) => {
+  it.each(["/r/token_abc", "/r/key.with.dots", "/demo/r", "/r/token_abc/", "/R/token_abc", "/demo/r/", "/DEMO/R"])("%s는 소개용 슬로건·그림 대신 차분한 공유 미리보기를 낸다", async (path) => {
     const html = await pageHtml(path);
     expect(html).toContain('property="og:title" content="수정 요청 링크"');
     expect(html).toContain('property="og:description" content="작업자가 보낸 수정 요청 페이지예요. 로그인 없이 열려요."');

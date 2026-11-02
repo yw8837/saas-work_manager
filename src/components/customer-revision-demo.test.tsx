@@ -69,7 +69,7 @@ describe("CustomerRevisionDemo", () => {
 
   it("아직 못 받은 시작 전 자료를 보여 주고, 요청을 여러 번 남긴 뒤 처음 상태로 되돌릴 수 있다", async () => {
     render(<CustomerRevisionDemo initialState={createCustomerDemoState("2026-10-30")} />);
-    expect(screen.getByTestId("revision-intake-pending")).toHaveTextContent("참고 이미지 2~3장");
+    expect(screen.getByTestId("revision-intake-pending")).toHaveTextContent("로고를 쓸 곳(간판·명함 등)");
     expect(screen.getByTestId("revision-intake-pending")).not.toHaveTextContent("상호명");
 
     for (const body of ["첫 번째 수정", "두 번째 수정"]) {

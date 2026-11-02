@@ -23,9 +23,12 @@ export const PRIVATE_AREA_ROUTE_SOURCES = [
   "/api/:path*",
 ] as const;
 
-/** Sites Worker가 쓰는 같은 경로 판정(위 목록과 같은 경로). */
+/**
+ * Sites Worker가 쓰는 같은 경로 판정(위 목록과 같은 경로). Sites 라우터처럼 대소문자를 가리지 않는다
+ * (`/JOBS`도 같은 화면이 열린다). 끝 슬래시(`/jobs/`)는 `(?:\/|$)`가 이미 받는다.
+ */
 export function isPrivateAreaPath(pathname: string): boolean {
-  return /^\/(?:today|jobs|packages|settings|feedback|auth|api)(?:\/|$)/.test(pathname);
+  return /^\/(?:today|jobs|packages|settings|feedback|auth|api)(?:\/|$)/i.test(pathname);
 }
 
 function configuredSupabaseSources(value = process.env.NEXT_PUBLIC_SUPABASE_URL): string[] {

@@ -180,4 +180,19 @@ describe("robots.txt · sitemap.xml · llms.txt", () => {
     // 작업 화면·고객 링크·체험 주소는 알리지 않는다.
     expect(llms).not.toMatch(/\/(?:today|jobs|packages|settings|feedback|r|demo)(?:\/|\)|\s|$)/m);
   });
+
+  it("llms.txt에는 요금제 건수를 숫자로 적지 않는다(숫자 출처는 PLAN_LIMITS 한 곳)", () => {
+    const llms = read("llms.txt");
+    expect(llms).toContain("무료 플랜");
+    expect(llms).not.toMatch(/동시\s*\d|누적\s*\d|\d+\s*건/);
+  });
+
+  it("설명서 메타 설명과 llms.txt의 설명서 소개는 지금 장 구성을 말한다", () => {
+    const guideLine = read("llms.txt").split(/\r?\n/).find((line) => line.includes(`${ORIGIN}/guide`)) ?? "";
+    for (const text of [String(guideMetadata.description), guideLine]) {
+      for (const chapter of ["주문 등록", "시작 안내", "수정 범위", "상황별 문구", "월별 정리"]) expect(text, chapter).toContain(chapter);
+      // 옛 범위(가입부터 고객 링크까지)는 말하지 않는다.
+      expect(text).not.toContain("가입부터");
+    }
+  });
 });
