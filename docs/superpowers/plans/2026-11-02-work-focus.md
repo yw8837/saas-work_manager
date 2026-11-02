@@ -249,6 +249,19 @@ expect(INDUSTRY_INTAKE_ITEMS).toEqual({
 - [ ] **4단계: 통과 확인** — PASS + `npm run typecheck`
 - [ ] **5단계: 커밋** — `feat: 달마다 완료한 주문의 매출·원가를 받은 곳별로 보고 CSV로 내려받음`
 
+### 작업 8.5: 검색 노출 정리 (SEO 감사 결과, `E:/ilgamcheck-work/research-2026-11-02/seo-audit.md` 8절·부록 A·B)
+
+**파일:** `src/app/(workspace)/layout.tsx`, `src/lib/security/headers.ts`(+시험), `next.config.ts`, `src/sites/entry-server.tsx`(+`entry-server.test.ts` 136~157행 기대값), `public/robots.txt`(새), `public/sitemap.xml`(새), `public/llms.txt`(새), `src/app/layout.tsx` + 새 `src/lib/site-meta.ts`, `src/app/page.tsx`·`guide/page.tsx`·`privacy/page.tsx`·`terms/page.tsx`, `scripts/remote-smoke.mjs`
+
+- P0 작업 화면(`/today /jobs /jobs/new /jobs/[id] /jobs/summary /packages /settings /feedback`, `/auth`·`/api`) 검색 차단: `(workspace)/layout.tsx`에 `robots: { index: false, follow: false }`, 헤더 `X-Robots-Tag: noindex, nofollow`(`buildPrivateAreaHeaders()`)를 Next `headers()`와 Sites `entry-server.tsx` 둘 다에. 작업 화면은 robots.txt에서 **Disallow 하지 않는다**(noindex를 읽혀야 함). 시험: 두 경로 모두 헤더가 붙고, 공개 페이지(`/`, `/guide`, `/privacy`, `/terms`)엔 noindex가 없다.
+- P1 `robots.txt`(모두 허용 + `Sitemap:` 줄), `sitemap.xml`(`/ /guide /privacy /terms` 4개, 절대 https 주소, `/demo/r`·작업 화면·고객 링크 빼기), `llms.txt`(부록 A-4, 지금 되는 것과 안 되는 것 구분).
+- P1 `metadataBase`·`openGraph`(website, ko_KR, `/og/ilgamcheck-social.png` 1200×630)·`twitter`(summary_large_image)는 `site-meta.ts` 상수 한 곳에서. 페이지마다 자기 `alternates.canonical`(루트 layout에는 넣지 않음). 페이지에서 `openGraph`를 다시 쓰면 통째로 바뀌니 상수를 펼쳐 쓴다.
+- P1 운영 주소(`deploymentOrigin()`의 host)가 아닌 호스트로 온 요청에는 `X-Robots-Tag: noindex, nofollow`(Sites `entry-server.tsx`, 시험 추가). `wrangler.jsonc`의 `workers_dev`는 바꾸지 않는다(배포 설정 변경은 사용자 몫).
+- P2 랜딩 전용 `title`·`description`에 '외주'를 넣는다(예: "일감체크 — 외주 작업, 주문부터 수정 횟수까지 한곳에서"). 히어로 본문 문구는 바꾸지 않는다(카피는 Codex·사용자 몫, 전달문으로).
+- P2 랜딩 JSON-LD `Organization` + `SoftwareApplication`(무료 0원 offer, 평점·후기 없음). `<`는 `\u003c`로 이스케이프.
+- P2 `remote-smoke.mjs`에 `/robots.txt` 200·`Sitemap:` 줄, `/today`의 `X-Robots-Tag`, 공개 페이지 noindex 없음, `/` canonical·og:image 확인을 더한다(운영 배포 뒤 실행).
+- 커밋: `feat: 작업 화면을 검색에서 빼고 공개 페이지에 사이트맵·공유 미리보기·대표 주소를 넣음`
+
 ### 작업 9: 그림 위주 사용설명서 (D)
 
 **파일:**
