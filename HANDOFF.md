@@ -12,6 +12,14 @@
 
 ## 지금 상태
 
+### 2026-11-03 정책 화면 hydrate 오류(React #418) 고침 (브랜치 `claude/policy-hydration`, PR·배포 전)
+
+- 문제: 운영 `/privacy`·`/terms`를 열면 콘솔에 React #418(args `HTML`, 서버 HTML과 브라우저 첫 화면 불일치)이 1개씩 났다. 대표 주소와 workers.dev 둘 다 같아서 에지 탓이 아니고, `/`·`/guide`·`/demo/r`에는 없었다.
+- 원인: 정책 화면 머리(`src/components/policy-page.tsx`)가 이미 홈 링크인 `Brand`를 홈 `Link`로 한 번 더 감싸 서버 HTML에 링크 안의 링크(`a > a.brand`)가 생겼다. 브라우저는 HTML을 읽으며 바깥 `a`를 닫아 둘을 형제로 만들고(운영을 스크립트 없이 열면 바깥 `a` 자식 0개), React는 중첩을 기대해 hydrate가 깨졌다. 그래서 React가 화면을 브라우저에서 다시 그렸고, 첫 화면의 로고가 데스크톱은 머리 가운데에서 왼쪽으로, 휴대폰은 머리 높이 129px에서 107px로 튀었다. 운영자명·지원 메일 환경변수 차이는 원인이 아니었다(`PolicyPage`는 서버 컴포넌트이고, 운영 HTML과 RSC 데이터의 운영자 값이 둘 다 `열매스튜디오`).
+- 수정: 바깥 `Link`를 빼고 다른 화면처럼 `<Brand />`만 둔다. 홈 링크는 `Brand`가 그대로 준다. DB 변경 없음.
+- 시험: `src/components/policy-page.test.tsx`(서버 렌더 → HTML 해석 → hydrate 불일치 0, 서버 노드 그대로 재사용, 머리 홈 링크 1개), `e2e/policy-pages.spec.ts`(운영 빌드에서 콘솔 오류 0, 데스크톱·휴대폰). 둘 다 고치기 전에 실패하는 것을 확인했다.
+- 검증(배포 전): 로컬 운영 빌드의 콘솔 오류가 `/privacy` 1→0, `/terms` 1→0이다(`/`·`/guide`·`/demo/r`은 전후 0). 머리 모양은 전후 같다(줄 높이 차이로 1~2px). `check:release` 결과는 PR 본문에 적는다.
+
 ### 2026-11-03 HTML 에지 변형 막기 · 검색 등록 (PR #30, 2026-11-03 main `682442a` 병합·02:47 운영 배포 Worker `9d1bb21f`)
 
 - 문제: 운영 주소의 HTML마다 Cloudflare Web Analytics 스크립트(`static.cloudflareinsights.com/beacon.min.js`, 토큰 `32918b1a…`)가 끼워져 CSP에 막히며 콘솔 오류를 남겼다. 우리 Cloudflare에는 끌 설정이 없었다: 도메인 RUM `off`, 계정 Web Analytics 사이트는 `yeolmaeapps.kr`뿐(토큰 다름), 감사 로그(2026-08-16부터)에 RUM 기록 없음. workers.dev, 옛 chatgpt.site, ChatGPT Sites에 남은 다른 주소(www·expat·home)에는 없다. 누가 넣는지는 확정하지 못했다.
@@ -225,6 +233,10 @@
 - 2026-09-30: 코드의 기본 운영 주소를 `https://ilgam.studioyeolmae.com`으로 바꿨다(링크 미리보기 등). DNS는 연결됨. 남은 일: ChatGPT Sites에 다시 배포, 새 주소 HTTPS·로그인 확인, Supabase Auth Site URL/Redirect URLs를 supabase/config.toml과 같게 맞추기.
 
 ## 다음 작업
+
+### 정책 화면 hydrate 오류 수정 배포 (2026-11-03)
+
+1. `claude/policy-hydration` PR이 CI를 통과하면 사용자 확인 뒤 병합하고, 깨끗한 `main`에서 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번 절차로 배포한다(DB 변경 없음). 배포 뒤 운영 두 주소의 `/privacy`·`/terms` 콘솔 오류가 0인지, 머리 로고가 처음부터 왼쪽에 있는지 확인한다.
 
 ### 네이버 소유확인 배포 (2026-11-03)
 

@@ -55,7 +55,7 @@ export function PolicyPage({ document }: PolicyPageProps) {
   return (
     <div className="policyPage">
       <header className="policyHeader">
-        <Link href="/" aria-label="일감체크 홈"><Brand /></Link>
+        <Brand />
         <nav aria-label="정책 메뉴">
           <Link href={manifest.documents.privacy.pathname}>{manifest.documents.privacy.title}</Link>
           <Link href={manifest.documents.terms.pathname}>{manifest.documents.terms.title}</Link>
