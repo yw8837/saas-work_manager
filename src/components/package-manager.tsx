@@ -277,7 +277,8 @@ export function PackageManager() {
                 <button type="button" className="catalogListItem" data-active={selectedPackage.id === item.id} key={item.id} onClick={() => selectPackage(item.id)}>
                   <div>
                     <strong>{item.name}</strong><span>{formatWon(item.price)} · {item.durationDays}일 · 수정 {item.revisionLimit}회</span>
-                    {shortfall !== null && (
+                    {/* 고르고 있는 패키지는 편집 칸에서만 알린다(화면마다 한 줄). */}
+                    {shortfall !== null && selectedPackage.id !== item.id && (
                       <span className="marginWarning" data-testid={`package-margin-warning-${item.id}`}>
                         <CircleAlert size={13} aria-hidden="true" />
                         <span className="srOnly">주의: </span>
@@ -321,7 +322,7 @@ export function PackageManager() {
                   rows={3}
                   value={(selectedPackage.intakeItems ?? []).join("\n")}
                   onChange={(event) => setPackageDraft({ ...selectedPackage, intakeItems: event.target.value.split("\n") })}
-                  placeholder={"예: 로고에 넣을 상호명·영문 표기\n참고 이미지 2~3장"}
+                  placeholder={"예: 로고에 넣을 상호명·영문 표기\n로고 원본 파일(있으면)"}
                   data-testid="package-intake-items"
                 />
               </label>

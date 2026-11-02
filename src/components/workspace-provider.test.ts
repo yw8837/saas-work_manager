@@ -127,6 +127,32 @@ describe("hosted workspace serialization", () => {
     }
   });
 
+  it("두 기기가 시작 안내 보낸 시각·완료 시각을 각각 남겨도 충돌 없이 먼저 것을 남긴다", () => {
+    const base = createSeedState("2026-08-15");
+    const local = clone(base);
+    const remote = clone(base);
+    local.jobs[0] = { ...local.jobs[0], startSharedAt: "2026-08-15T03:00:00.000Z", completedAt: "2026-08-15T05:00:00.000Z", updatedAt: "2026-08-15T05:00:00.000Z" };
+    remote.jobs[0] = { ...remote.jobs[0], startSharedAt: "2026-08-15T02:00:00.000Z", completedAt: "2026-08-15T06:00:00.000Z", updatedAt: "2026-08-15T06:00:00.000Z" };
+
+    for (const merged of [mergeConcurrentWorkspaceState(base, local, remote), mergeConcurrentWorkspaceState(base, remote, local)]) {
+      expect(merged.conflicts).toEqual([]);
+      expect(merged.state.jobs[0].startSharedAt).toBe("2026-08-15T02:00:00.000Z");
+      expect(merged.state.jobs[0].completedAt).toBe("2026-08-15T05:00:00.000Z");
+    }
+  });
+
+  it("할 일의 완료 시각은 일감 규칙을 따르지 않고 지금처럼 충돌로 남긴다", () => {
+    const base = createSeedState("2026-08-15");
+    const local = clone(base);
+    const remote = clone(base);
+    local.jobs[0].tasks[0] = { ...local.jobs[0].tasks[0], completedAt: "2026-08-15T03:00:00.000Z" };
+    remote.jobs[0].tasks[0] = { ...remote.jobs[0].tasks[0], completedAt: "2026-08-15T02:00:00.000Z" };
+
+    expect(mergeConcurrentWorkspaceState(base, local, remote).conflicts).toEqual([
+      `workspace.jobs[${base.jobs[0].id}].tasks[${base.jobs[0].tasks[0].id}].completedAt`,
+    ]);
+  });
+
   it("두 기기가 각각 일감을 만들면 누적 카운터를 합산해 무료 한도를 우회할 수 없게 한다", () => {
     const base = createSeedState("2026-08-15");
     base.jobsCreatedTotal = 3;

@@ -305,6 +305,11 @@ function mergeWorkspaceValue(
     return { value: local > remote ? local : remote, conflicts: [] };
   }
 
+  // 일감의 시작 안내 보낸 시각·완료 시각은 두 기기가 따로 남겨도 먼저 것을 남긴다(할 일·수정 요청의 완료 시각은 그대로 충돌).
+  if (/^workspace\.jobs\[[^\]]+\]\.(?:startSharedAt|completedAt)$/.test(path) && typeof local === "string" && typeof remote === "string") {
+    return { value: local < remote ? local : remote, conflicts: [] };
+  }
+
   if (Array.isArray(local) && Array.isArray(remote) && Array.isArray(base)) {
     if (isKeyedArray(local) && isKeyedArray(remote) && isKeyedArray(base)) {
       const baseById = new Map(base.map((item) => [item.id, item]));

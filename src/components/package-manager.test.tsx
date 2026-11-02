@@ -94,12 +94,19 @@ describe("한 건에 최소 남길 돈", () => {
     mockWorkspace({ minMarginPerJob: 700000 });
     render(<PackageManager />);
     expect(screen.getByTestId("min-margin-row")).toHaveTextContent("한 건에 최소 남길 돈 700,000원");
+    // 참고 예시는 기본 질문이 묻으니 받을 자료 예시 글에는 넣지 않는다.
+    expect(screen.getByTestId("package-intake-items").getAttribute("placeholder")).toBe("예: 로고에 넣을 상호명·영문 표기\n로고 원본 파일(있으면)");
     // Basic 홈페이지: 790,000원 − 예상 원가 95,000원 = 695,000원
-    expect(screen.getByTestId("package-margin-warning-pkg_basic_homepage")).toHaveTextContent("남는 돈 695,000원 · 내 기준보다 5,000원 적어요");
+    // 편집 중인 패키지는 '예상 원가' 칸 바로 아래에만 알린다(화면마다 한 줄).
+    expect(screen.getByTestId("package-edit-margin-warning")).toHaveTextContent("남는 돈 695,000원 · 내 기준보다 5,000원 적어요");
+    expect(screen.queryByTestId("package-margin-warning-pkg_basic_homepage")).not.toBeInTheDocument();
     expect(screen.queryByTestId("package-margin-warning-pkg_standard_homepage")).not.toBeInTheDocument();
     expect(screen.queryByTestId("package-margin-warning-pkg_deluxe_homepage")).not.toBeInTheDocument();
-    // 편집 중인 패키지는 '예상 원가' 칸 바로 아래에도 알린다.
-    expect(screen.getByTestId("package-edit-margin-warning")).toHaveTextContent("남는 돈 695,000원 · 내 기준보다 5,000원 적어요");
+    // 다른 패키지를 고르면 덜 남는 패키지는 목록에서 알린다.
+    fireEvent.click(screen.getByRole("button", { name: /Standard 홈페이지/ }));
+    expect(screen.getByTestId("package-margin-warning-pkg_basic_homepage")).toHaveTextContent("남는 돈 695,000원 · 내 기준보다 5,000원 적어요");
+    expect(screen.queryByTestId("package-edit-margin-warning")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Basic 홈페이지/ }));
     fireEvent.click(screen.getByTestId("save-package"));
     expect(savePackage).toHaveBeenCalledTimes(1);
     expect(document.body).not.toHaveTextContent(/시세|권장|받으세요/);

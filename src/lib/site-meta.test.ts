@@ -97,6 +97,9 @@ describe("고객 링크·체험 공유 미리보기", () => {
       expect(metadata.twitter, path).toBe(CUSTOMER_LINK_TWITTER);
       expect(metadata.robots, path).toBe("noindex, nofollow, noarchive");
     }
+    // 고객이 보는 탭 제목도 소개 슬로건 대신 차분한 값("수정 요청 링크 | 일감체크").
+    expect(revisionMetadata.title).toBe(TITLE);
+    expect(demoRevisionMetadata.title).toBe("고객 화면 체험");
   });
 
   it("Vite Sites 첫 화면(index.html)의 공유 미리보기 태그를 같은 값으로 바꾸고 소개 그림·첫 화면 주소는 뺀다", () => {
@@ -110,6 +113,7 @@ describe("고객 링크·체험 공유 미리보기", () => {
     expect(tags).not.toMatch(/og:image|twitter:image|og:url/);
     expect(tags).not.toContain(SITE_SOCIAL_TITLE);
     expect(tags).not.toContain(SITE_SOCIAL_DESCRIPTION);
+    expect(html.match(/<title>[^<]*<\/title>/g)).toEqual([`<title>${TITLE} | 일감체크</title>`]);
     // 나머지 head(문자 집합·보안 정책·아이콘)는 그대로 둔다.
     expect(html).toContain('<meta charset="UTF-8" />');
     expect(html).toContain('http-equiv="Content-Security-Policy"');

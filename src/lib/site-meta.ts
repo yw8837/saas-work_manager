@@ -62,11 +62,12 @@ export const CUSTOMER_LINK_TWITTER = {
 } satisfies NonNullable<Metadata["twitter"]>;
 
 /**
- * Vite Sites 빌드는 모든 화면이 같은 첫 화면(index.html)을 쓰므로, 고객 링크·체험 응답에서만 공유 미리보기 태그를 바꾼다.
+ * Vite Sites 빌드는 모든 화면이 같은 첫 화면(index.html)을 쓰므로, 고객 링크·체험 응답에서만 탭 제목과 공유 미리보기 태그를 바꾼다.
  * 소개 그림과 첫 화면 주소(og:url)는 뺀다. og:url이 첫 화면을 가리키면 미리보기가 첫 화면 것으로 바뀔 수 있다.
  */
 export function withCustomerLinkShareMeta(html: string): string {
   const contents: Array<[RegExp, string]> = [
+    [/(<title>)[^<]*(<\/title>)/, `${CUSTOMER_LINK_SHARE_TITLE} | ${SITE_NAME}`],
     [/(<meta\s+property="og:title"\s+content=")[^"]*(")/, CUSTOMER_LINK_SHARE_TITLE],
     [/(<meta\s+property="og:description"\s+content=")[^"]*(")/, CUSTOMER_LINK_SHARE_DESCRIPTION],
     [/(<meta\s+name="twitter:card"\s+content=")[^"]*(")/, CUSTOMER_LINK_TWITTER.card],
