@@ -67,14 +67,14 @@ describe("일감 저장 직후 상세", () => {
   // 일감의 실제 남은 횟수가 카톡 문구까지 전달돼야 다 쓴 주문에 "1회씩 세요"라고 보내지 않는다.
   it("포함 수정을 다 쓴 일감이면 카톡 문구가 추가 작업으로 따로 말한다고 쓴다", () => {
     renderAt("https://ilgam.example/jobs/job_send?send=1", { usedRevisions: 2 });
-    const preview = screen.getByText((_, element) => element?.tagName === "PRE");
+    const preview = screen.getByTestId("send-message-preview");
     expect(preview).toHaveTextContent("포함된 수정 2회를 모두 써서, 새 요청은 추가 작업으로 따로 말씀드릴게요.");
     expect(preview).not.toHaveTextContent("1회씩 세요");
   });
 
   it("남은 수정이 있는 일감이면 카톡 문구가 '수정을 마칠 때마다 1회씩 세요'라고 쓴다", () => {
     renderAt("https://ilgam.example/jobs/job_send?send=1", { usedRevisions: 1 });
-    const preview = screen.getByText((_, element) => element?.tagName === "PRE");
+    const preview = screen.getByTestId("send-message-preview");
     expect(preview).toHaveTextContent("제가 수정을 마칠 때마다 1회씩 세요.");
   });
 
@@ -129,11 +129,11 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
 
   it("보내기 카톡 문구에 아직 못 받은 자료와 질문이 들어가고, 답 받은 질문은 빠진다", () => {
     renderBrief("https://ilgam.example/jobs/job_send?send=1");
-    const preview = screen.getByText((_, element) => element?.tagName === "PRE");
+    const preview = screen.getByTestId("send-message-preview");
     expect(preview).toHaveTextContent("[보내 주실 자료] - 로고 원본 파일 [알려 주실 것] 1. 이 작업으로 가장 하고 싶은 일은 무엇인가요? 2. 참고 예시가 있나요?");
     cleanup();
     renderBrief("https://ilgam.example/jobs/job_send?send=1", true);
-    const answered = screen.getByText((_, element) => element?.tagName === "PRE");
+    const answered = screen.getByTestId("send-message-preview");
     expect(answered).toHaveTextContent("[알려 주실 것] 1. 참고 예시가 있나요?");
     expect(answered).not.toHaveTextContent("가장 하고 싶은 일");
   });

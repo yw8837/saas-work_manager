@@ -46,6 +46,25 @@ afterEach(() => {
 });
 
 describe("저장 직후 고객에게 보내기", () => {
+  it("주 버튼은 카톡 문구 복사이고 문구 미리보기가 처음부터 보인다", () => {
+    renderBanner();
+    const messageButton = screen.getByTestId("send-copy-message");
+    const linkButton = screen.getByTestId("send-copy-link");
+    expect(messageButton).toHaveClass("primaryButton");
+    expect(messageButton).toHaveTextContent("카톡 문구 복사");
+    expect(linkButton).toHaveClass("secondaryButton");
+    expect(linkButton).toHaveTextContent("링크만 복사");
+    // 버튼 순서: 카톡 문구 복사(주) → 링크만 복사 → 고객 화면 미리보기
+    expect(messageButton.compareDocumentPosition(linkButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(linkButton.compareDocumentPosition(screen.getByTestId("send-preview")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const preview = screen.getByTestId("send-message-preview");
+    expect(preview).toBeVisible();
+    expect(preview).toHaveTextContent("안녕하세요, 모라스튜디오님.");
+    expect(preview).toHaveTextContent(LINK);
+    expect(document.querySelector("details")).toBeNull();
+  });
+
   it("링크를 복사하면 주소를 그대로 복사하고 첫 실행 3단계 표시를 남긴다", async () => {
     writeText.mockResolvedValue();
     renderBanner();
@@ -94,7 +113,7 @@ describe("저장 직후 고객에게 보내기", () => {
 
   it("남은 포함 수정이 없는 일감이면 카톡 문구가 '1회씩 세요'가 아니라 추가 작업으로 따로 말한다고 쓴다", () => {
     renderBanner({ included: 2, remaining: 0 });
-    const preview = screen.getByText((_, element) => element?.tagName === "PRE");
+    const preview = screen.getByTestId("send-message-preview");
     expect(preview).toHaveTextContent("포함된 수정 2회를 모두 써서, 새 요청은 추가 작업으로 따로 말씀드릴게요.");
     expect(preview).not.toHaveTextContent("1회씩 세요");
   });

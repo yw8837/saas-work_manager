@@ -46,8 +46,8 @@ test("3·5·1번: 첫 실행 체크리스트 → 업종 예시 → 첫 일감 �
   await expect(page).toHaveURL(/\/jobs\/[^/?]+\?created=1$/);
   const banner = page.getByTestId("send-to-client-banner");
   await expect(banner).toBeVisible();
-  // 모바일에서도 첫 화면 안에 보낼 링크가 있다.
-  const box = await banner.getByTestId("send-copy-link").boundingBox();
+  // 모바일에서도 첫 화면 안에 카톡 문구 복사(주 버튼)가 있다.
+  const box = await banner.getByTestId("send-copy-message").boundingBox();
   expect(box).not.toBeNull();
   expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   await noHorizontalOverflow(page);
@@ -55,6 +55,7 @@ test("3·5·1번: 첫 실행 체크리스트 → 업종 예시 → 첫 일감 �
   const link = await page.getByTestId("send-to-client-link").inputValue();
   expect(link).toMatch(/\/r\/[A-Za-z0-9_-]+$/);
 
+  await expect(page.getByTestId("send-copy-link")).toContainText("링크만 복사");
   await page.getByTestId("send-copy-link").click();
   await expect(page.getByTestId("send-copy-link")).toContainText("링크를 복사했어요");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link);
