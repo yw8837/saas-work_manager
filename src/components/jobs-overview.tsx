@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { useMemo, useSyncExternalStore } from "react";
+import { displayJobTitle } from "@/lib/domain";
 import {
   emptyJobListSearch, jobListHref, jobListSearchSnapshot, readJobListLocation,
   subscribeJobListLocation, updateJobListLocation,
@@ -113,7 +114,7 @@ export function JobsOverview() {
                 <span className="jobInitial">{job.clientLabel.slice(0, 1)}</span>
                 <div>
                   <strong>{job.clientLabel}</strong>
-                  <span>{job.title}</span>
+                  <span>{displayJobTitle(job)}</span>
                 </div>
               </div>
               <div className="jobStatusCell">

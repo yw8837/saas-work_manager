@@ -35,7 +35,7 @@ import { revisionPortalUrl } from "@/lib/client-share";
 import { markFirstRun } from "@/lib/first-run";
 import { SendToClientBanner } from "./send-to-client-banner";
 import { StartChecklist } from "./start-checklist";
-import { pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
+import { displayJobTitle, pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { nativePlatform } from "@/lib/native/platform";
 import {
@@ -394,7 +394,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
               )}
             </div>
             <h1>{job.clientLabel}</h1>
-            <p>{job.title}</p>
+            <p>{displayJobTitle(job)}</p>
           </div>
         </div>
         <div className="detailHeaderActions">
@@ -447,7 +447,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
         <SendToClientBanner
           link={portalLink}
           clientLabel={job.clientLabel}
-          title={job.title}
+          title={displayJobTitle(job)}
           included={revision.included}
           remaining={revision.remaining}
           pendingIntake={pendingIntake}
@@ -850,7 +850,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <section className="sideSection snapshotSection">
             <PackageCheck size={19} />
             <div>
-              <strong>{job.packageSnapshot.name}</strong>
+              <strong>{job.packageSnapshot.name}</strong>{" "}
               <span>{job.optionSnapshots.length ? job.optionSnapshots.map((item) => item.name).join(" · ") : "추가 옵션 없음"}</span>
             </div>
             <p>주문 당시 조건을 스냅샷으로 보존하고 있어요.</p>

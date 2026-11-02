@@ -1647,7 +1647,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 
 @media (max-width: 760px) {
   /* 8. 작은 버튼도 휴대폰에서는 손가락 크기(44px) */
-  .compactButton { min-height: 44px; }
+  .compactButton, .profileAction { min-height: 44px; }
   .sendToClientBanner { padding: 16px; }
   .sendToClientActions > * { flex: 1 1 100%; }
   .publicRevisionWorker { font-size: 22px; }

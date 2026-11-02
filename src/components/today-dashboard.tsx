@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { FirstRunChecklist } from "./first-run-checklist";
+import { displayJobTitle } from "@/lib/domain";
 import { emptyTodaySearch, subscribeTodayLocation, todaySearchSnapshot, updateTodayScope } from "@/lib/today-location";
 import {
   formatShortDate,
@@ -70,7 +71,7 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
           </span>
         </div>
         <strong>{task.title}</strong>
-        <span className="taskContext">{job.title} · {formatShortDate(job.dueDate)} 마감</span>
+        <span className="taskContext">{displayJobTitle(job)} · {formatShortDate(job.dueDate)} 마감</span>
       </Link>
       {(contactLink || workLink) && (
         <div className="taskQuickActions">
@@ -187,7 +188,7 @@ export function TodayDashboard() {
         >
           <option value="">진행 중인 일감 전체 · {activeJobs.length}건</option>
           {activeJobs.map((job) => (
-            <option key={job.id} value={job.id}>{job.clientLabel} · {job.title}</option>
+            <option key={job.id} value={job.id}>{job.clientLabel} · {displayJobTitle(job)}</option>
           ))}
         </select>
         <Link href="/jobs">전체 일감 보기 <ArrowUpRight size={15} /></Link>
@@ -255,7 +256,7 @@ export function TodayDashboard() {
                       <span className="waitingAvatar">{job.clientLabel.slice(0, 1)}</span>
                       <Link href={`/jobs/${job.id}`} className="waitingMain">
                         <strong>{job.clientLabel}</strong>
-                        <span>{job.title} · {waitingTask?.title ?? "고객 답변 대기 중"}</span>
+                        <span>{displayJobTitle(job)} · {waitingTask?.title ?? "고객 답변 대기 중"}</span>
                       </Link>
                       <span className="waitingDays">{days}일째</span>
                       <button type="button" className="compactButton" onClick={() => toggleJobWaiting(job.id)}>답변 받음</button>
@@ -289,7 +290,7 @@ export function TodayDashboard() {
                 return (
                   <Link href={`/jobs/${job.id}`} className="upcomingItem" key={job.id}>
                     <div className="upcomingTop"><span>{job.clientLabel}</span><strong>{getDday(job.dueDate)}</strong></div>
-                    <p>{job.title}</p>
+                    <p>{displayJobTitle(job)}</p>
                     <div className="progressLine" aria-label={`${progress}% 완료`}><span style={{ width: `${progress}%` }} /></div>
                     <span className="progressCaption">{finished}/{job.tasks.length} 완료</span>
                   </Link>
