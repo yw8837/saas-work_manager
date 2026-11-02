@@ -115,6 +115,29 @@ describe("업종 예시 패키지", () => {
     expect(currentStarterIndustry(next.packages)).toBe("design");
   });
 
+  it("예전 예시만 있는 빈 작업공간에서 같은 업종을 다시 고르면 새 기본값으로 바뀐다", () => {
+    const input = freshInput();
+    // 받을 자료·착수 질문이 없던 예전 웹 예시 3개만 있고 일감은 0건이다.
+    const legacy = input.packages.map((item) => {
+      const copy = { ...item };
+      delete copy.intakeItems;
+      delete copy.briefQuestions;
+      return copy;
+    });
+    const next = applyIndustryStarter({ ...input, packages: legacy }, "web", PLAN_LIMITS.free, NOW);
+    const live = next.packages.filter((item) => !item.archivedAt);
+    expect(live).toHaveLength(INDUSTRY_STARTERS.web.packages.length);
+    for (const item of live) {
+      expect(item.intakeItems).toEqual(INDUSTRY_INTAKE_ITEMS.web);
+      expect(item.briefQuestions).toEqual(DEFAULT_BRIEF_QUESTIONS);
+    }
+
+    // 사용자가 고친 예전 예시는 같은 업종을 골라도 그대로 둔다.
+    const edited = { ...legacy[0], price: 990_000 };
+    const kept = applyIndustryStarter({ ...input, packages: [edited, ...legacy.slice(1)] }, "web", PLAN_LIMITS.free, NOW);
+    expect(kept.packages.find((item) => item.id === edited.id)).toEqual(edited);
+  });
+
   it("업종 예시의 패키지·옵션 id는 서로 겹치지 않는다", () => {
     const packageIds = Object.values(INDUSTRY_STARTERS).flatMap((starter) => starter.packages.map((item) => item.id));
     const optionIds = Object.values(INDUSTRY_STARTERS).flatMap((starter) => starter.options.map((item) => item.id));

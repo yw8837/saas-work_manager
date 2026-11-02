@@ -1556,6 +1556,8 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .sendToClientNotes:empty { display: none; }
 /* 보낼 카톡 문구 말풍선: 줄바꿈 그대로, 길면 안에서 스크롤. 그림자 없이 흰 면과 얇은 선. */
 .sendToClientMessage { max-height: 240px; overflow-y: auto; padding: 12px 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 14px 14px 4px 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 복사가 막혔을 때 같은 자리에 두는 읽기 전용 글상자 */
+.sendToClientMessageText { display: block; width: 100%; min-height: 180px; resize: vertical; font: inherit; font-size: 14px; line-height: 1.6; }
 
 /* 2. 고객 링크 화면 */
 .publicRevisionWorker { margin: 0 0 8px; color: var(--ink); font-size: 24px; font-weight: 700; line-height: 1.3; letter-spacing: -.02em; word-break: keep-all; }

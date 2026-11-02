@@ -316,6 +316,7 @@ export type IndustryStarterInput = {
  * - 일감이 한 건도 없고 한 번도 만든 적 없는 새 작업공간에서만 된다.
  * - 사용자가 만들었거나 고친 패키지·옵션은 그대로 둔다(삭제·덮어쓰기 없음).
  * - 손대지 않은 다른 업종 예시만 "보관"으로 숨긴다. 보관은 삭제가 아니며 같은 업종을 다시 고르면 돌아온다.
+ * - 고른 업종의 손대지 않은 예시는 지금 예시 내용으로 다시 넣는다(예전 저장본의 예시도 새 기본값을 받는다).
  */
 export function applyIndustryStarter(
   input: IndustryStarterInput,
@@ -332,7 +333,9 @@ export function applyIndustryStarter(
 
   const packages = input.packages.map((item) => {
     if (chosenPackageIds.has(item.id)) {
-      return item.archivedAt && isUntouchedStarterPackage(item) ? clone(starter.packages.find((t) => t.id === item.id)!) : item;
+      // 손대지 않은 예시는 보관 여부와 상관없이 지금 예시로 바꿔 끼운다.
+      // 받을 자료·착수 질문이 없던 예전 예시도 같은 업종을 다시 고르면 새 기본값을 받는다.
+      return isUntouchedStarterPackage(item) ? clone(starter.packages.find((t) => t.id === item.id)!) : item;
     }
     return !item.archivedAt && isUntouchedStarterPackage(item) ? { ...item, archivedAt: now } : item;
   });

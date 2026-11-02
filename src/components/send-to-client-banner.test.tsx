@@ -103,6 +103,27 @@ describe("저장 직후 고객에게 보내기", () => {
     frame.mockRestore();
   });
 
+  it("카톡 문구 복사가 막히면 문구 글을 선택해 둔다", async () => {
+    writeText.mockRejectedValue(new Error("denied"));
+    const frame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { callback(0); return 0; });
+    renderBanner();
+    const message = screen.getByTestId("send-message-preview").textContent ?? "";
+    expect(screen.queryByTestId("send-message-text")).not.toBeInTheDocument();
+
+    await act(async () => { fireEvent.click(screen.getByTestId("send-copy-message")); });
+    expect(screen.getByRole("alert")).toHaveTextContent("자동 복사를 막았어요");
+    const text = screen.getByTestId("send-message-text") as HTMLTextAreaElement;
+    expect(text).toBeVisible();
+    expect(text).toHaveAttribute("readonly");
+    expect(text).toHaveValue(message);
+    // 링크 칸이 아니라 문구 글을 선택해 둔다.
+    expect(document.activeElement).toBe(text);
+    expect(text.selectionStart).toBe(0);
+    expect(text.selectionEnd).toBe(message.length);
+    expect(storage.getItem(FIRST_RUN_STORAGE_KEY)).toBeNull();
+    frame.mockRestore();
+  });
+
   it("저장이 끝나기 전에는 보낼 수 없고 이유를 보여 준다", () => {
     renderBanner({ ready: false });
     expect(screen.getByTestId("send-copy-link")).toBeDisabled();
