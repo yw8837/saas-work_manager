@@ -18,6 +18,8 @@ export function SendToClientBanner({
   title,
   included,
   remaining,
+  pendingIntake,
+  pendingQuestions,
   ready,
   pendingMessage,
   localOnly,
@@ -29,6 +31,10 @@ export function SendToClientBanner({
   included: number;
   /** 지금 남은 포함 수정. 다 쓴 주문에 "1회로 세요"라고 보내지 않으려고 받는다. */
   remaining?: number;
+  /** 아직 받지 못한 '시작 전 받을 자료'. 고객이 링크를 안 열어도 대화창에서 보내게 문구에 넣는다. */
+  pendingIntake?: string[];
+  /** 아직 답을 받지 못한 '착수 전 질문'. */
+  pendingQuestions?: string[];
   /** 링크가 켜져 있고 서버 저장까지 끝났을 때만 보낼 수 있다. */
   ready: boolean;
   /** ready가 아닐 때 보여 줄 이유. */
@@ -40,7 +46,7 @@ export function SendToClientBanner({
   const [copied, setCopied] = useState<CopyTarget | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
   const linkInputRef = useRef<HTMLInputElement>(null);
-  const message = clientShareMessage({ clientLabel, title, included, remaining, link });
+  const message = clientShareMessage({ clientLabel, title, included, remaining, link, pendingIntake, pendingQuestions });
 
   const copy = async (target: CopyTarget) => {
     if (!ready) return;

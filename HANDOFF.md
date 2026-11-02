@@ -12,6 +12,13 @@
 
 ## 지금 상태
 
+### 2026-11-02 MVP 무기 3개 고정 · 착수 전 질문 · 프로필 메뉴 (브랜치 `claude/brief-questions`, 배포 전)
+
+- 사용자 결정: MVP는 무기 3개(주문 30초 등록 / 시작 안내 한 방 / 수정 범위 정리)로 고정하고 나머지는 콜드메일 첫 결과 전까지 동결. 근거는 `PRODUCT.md` 'MVP 무기 3개'·'기능 상태'.
+- 착수 전 질문: 패키지마다 최대 5개(기본 3개 버튼). 일감에 복사되고, 작업자는 '답 받음' 체크·선택 메모만 한다. 아직 못 받은 자료·답 못 받은 질문은 '고객에게 보내기' 카톡 문구에 들어가고, 일감 화면에서 남은 것만 다시 보낼 문구를 복사할 수 있다. DB 변경 없음. 고객 링크에는 아직 질문을 안 보인다.
+- 프로필 메뉴: 상단바 계정 표시를 누르면 계정·요금제·설정·로그아웃(설정과 같은 signOut)이 보인다.
+- 역할 분담(사용자 2026-11-02): 서비스 개발·운영은 Claude, 서비스 밖 마케팅·홍보는 Codex. 운영 DB migration은 깨끗한 main에서 `npx --yes supabase db push --project-ref evhkpgxacpweelnmjmqh --skip-vault --dry-run --yes`로 대상 확인 뒤 `--dry-run`을 빼고 적용한다(`db reset`·`migration repair`·`--include-all` 금지).
+
 ### 2026-11-01 Cloudflare 운영 전환
 
 - PR #23의 bootstrap 플래그 수정이 CI 통과 후 `main`에 병합됐다(`57a4eff`). 깨끗한 `main`에서 운영 Worker `ilgamcheck`를 생성하고 Supabase 서버 키를 Worker secret에만 등록했다. 가입 플래그를 켠 최종 배포 버전은 `7ce18edc-57ae-41d1-ad6c-2028584d545e`다.
@@ -19,7 +26,7 @@
 - `npm run smoke:remote -- https://ilgam.studioyeolmae.com`이 health, 주요 경로, 보안 헤더, PWA 파일을 통과했다. Google 로그인은 기존 운영자 Google 계정으로 `/today` 복귀, 실시간 연결·저장됨, 누적 생성 1건을 확인했다. 포트폴리오·www·블로그·Pages 하위 주소와 Daum MX는 확인했다. `expat` 루트는 404여서 별도 확인이 필요하다. 전용 테스트 계정의 일감 생성·고객 요청 쓰기와 모바일 실기기는 아직 검증하지 않았다.
 - 배포·DNS·롤백 절차와 남은 검증은 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 참조. Cloudflare 대시보드에서 수동 배포가 아니라 저장소의 명령으로 Claude도 `main` 기준 재배포할 수 있다. 도메인 캐시는 리졸버별로 전파 시간이 다르다.
 
-### 2026-11-01 수정 완료 때 차감·시작 전 받을 자료 (브랜치 `claude/revision-count-clarity`, 커밋·push 전, **운영 migration 필요**)
+### 2026-11-01 수정 완료 때 차감·시작 전 받을 자료 (PR #26, 2026-11-02 main `7d4d063` 병합·운영 배포 Worker `8d411269`·migration `20261101140000` 적용 완료)
 
 - 계기: 외주 경험자 대화(디스코드)와 Codex 인계(스테이션 `우편함/Codex→Claude/2026-11-01-2000-제품작업용-핵심인계.md`), 사용자 지시 "반영해서 소비자맞춤서비스로 만들어". 사용 검증 아님.
 - **수정 횟수는 이제 작업자가 '수정 완료'를 누를 때 1회를 쓴다.** 고객 링크·수동 기록은 '확인 대기'로 들어오고, 작업자가 수정 완료·추가 작업으로·반려 중 하나를 고른다. 이미 고친 뒤 적는 수동 기록은 '수정 완료로 기록'. 되돌려도 추가 작업 요청을 저절로 포함 수정으로 바꾸지 않는다. 기존 `used` 기록은 그대로 둔다. 상세·결정 현황(D1~D9)은 `docs/design/revision-count-and-customer-link.md`.
