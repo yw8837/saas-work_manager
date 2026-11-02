@@ -27,6 +27,7 @@ import {
   toggleIntakeItem as applyIntakeToggle,
   toggleBriefQuestion as applyBriefToggle,
   setBriefQuestionNote as applyBriefNote,
+  setJobSource as applyJobSource,
   toggleJobCompletion,
   updateTaskStatus,
   BETA_GRANT_DAYS,
@@ -35,6 +36,7 @@ import {
   type JobLimitKind,
   type JobLink,
   type OptionTemplate,
+  type OrderSource,
   type PackageTemplate,
   type Plan,
   type PlanAccess,
@@ -97,6 +99,8 @@ type CreateJobInput = {
   startDate: string;
   packageId: string;
   optionIds: string[];
+  /** 주문을 받은 곳(선택). */
+  source?: OrderSource;
 };
 
 type WorkspaceContextValue = AppState & {
@@ -137,6 +141,8 @@ type WorkspaceContextValue = AppState & {
   updateBriefNote: (jobId: string, questionId: string, note: string) => void;
   toggleJobWaiting: (jobId: string) => void;
   completeJob: (jobId: string) => void;
+  /** 받은 곳을 바꾸거나 지운다(undefined). 고객 링크·수정 횟수와 상관없어 완료한 일감에서도 된다. */
+  setJobSource: (jobId: string, source: OrderSource | undefined) => void;
   deleteJob: (jobId: string) => void;
   setRevisionPortalEnabled: (jobId: string, enabled: boolean) => void;
   rotateRevisionPortalToken: (jobId: string) => string | null;
@@ -1358,6 +1364,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           package: selectedPackage,
           options: selectedOptions,
           revisionPortalToken: createSecurePortalToken(),
+          source: input.source,
         });
         createdJobId = job.id;
         return {
@@ -1441,6 +1448,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     },
     [commitState, plan],
   );
+
+  // 다른 동작은 완료한 일감을 막지만, 받은 곳은 지난달 정리를 고칠 수 있게 완료한 일감에서도 바꾼다.
+  const setJobSource = useCallback((jobId: string, source: OrderSource | undefined) => {
+    updateJob(jobId, (job) => applyJobSource(job, source));
+  }, [updateJob]);
 
   const deleteJob = useCallback((jobId: string) => {
     commitState((current) => ({
@@ -1752,6 +1764,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateBriefNote,
       toggleJobWaiting,
       completeJob,
+      setJobSource,
       deleteJob,
       setRevisionPortalEnabled,
       rotateRevisionPortalToken,
@@ -1772,7 +1785,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, setJobSource, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (

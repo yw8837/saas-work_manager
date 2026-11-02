@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
-import { DomainValidationError, completeRevision, composeJob, createAddon, confirmAddon, markRevisionExtraScope, recordRevision, revertRevision, toggleIntakeItem, type PackageTemplate } from "@/lib/domain";
+import { DomainValidationError, completeRevision, composeJob, createAddon, confirmAddon, markRevisionExtraScope, recordRevision, revertRevision, toggleIntakeItem, toggleJobCompletion, type PackageTemplate } from "@/lib/domain";
 import { JobDetail } from "./job-detail";
 import { useWorkspace } from "./workspace-provider";
 
@@ -46,6 +46,7 @@ const toggleIntakeSpy = vi.fn();
 const cancelAddonSpy = vi.fn();
 const createAddonSpy = vi.fn();
 const confirmAddonSpy = vi.fn();
+const setJobSourceSpy = vi.fn();
 
 function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted" } = {}) {
   vi.mocked(useWorkspace).mockReturnValue({
@@ -68,6 +69,7 @@ function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hoste
     createAddon: createAddonSpy,
     confirmAddon: confirmAddonSpy,
     cancelAddon: cancelAddonSpy,
+    setJobSource: setJobSourceSpy,
   } as unknown as ReturnType<typeof useWorkspace>);
   return render(<JobDetail jobId={job.id} />);
 }
@@ -82,6 +84,7 @@ beforeEach(() => {
   cancelAddonSpy.mockReset();
   createAddonSpy.mockReset();
   confirmAddonSpy.mockReset();
+  setJobSourceSpy.mockReset();
 });
 
 describe("JobDetail 고객 수정 링크", () => {
@@ -157,6 +160,40 @@ describe("JobDetail 새 요청 띠", () => {
     );
     renderDetail(rejected);
     expect(screen.queryByTestId("pending-request-strip")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 받은 곳", () => {
+  it("제목 위 받은 곳을 두 번 눌러 바꾸거나 지우고, 완료한 일감에서도 된다", () => {
+    const job = { ...toggleJobCompletion(baseJob(), "2026-08-02T00:00:00.000Z"), source: "kmong" as const };
+    renderDetail(job);
+    const button = screen.getByTestId("job-source");
+    expect(button).toHaveTextContent("크몽");
+    expect(screen.queryByRole("radiogroup", { name: "받은 곳" })).not.toBeInTheDocument();
+
+    fireEvent.click(button);
+    const group = screen.getByRole("radiogroup", { name: "받은 곳" });
+    expect(within(group).getByTestId("job-source-kmong")).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(group).getByTestId("job-source-soomgo"));
+    expect(setJobSourceSpy).toHaveBeenCalledWith(job.id, "soomgo");
+    expect(screen.queryByRole("radiogroup", { name: "받은 곳" })).not.toBeInTheDocument();
+
+    // 고른 받은 곳을 다시 누르면 지운다.
+    fireEvent.click(button);
+    fireEvent.click(screen.getByTestId("job-source-kmong"));
+    expect(setJobSourceSpy).toHaveBeenLastCalledWith(job.id, undefined);
+  });
+
+  it("받은 곳이 없는 예전 일감은 '받은 곳'으로 보이고 골라 넣을 수 있다", () => {
+    renderDetail();
+    const button = screen.getByTestId("job-source");
+    expect(button).toHaveTextContent("받은 곳");
+    fireEvent.click(button);
+    for (const radio of within(screen.getByRole("radiogroup", { name: "받은 곳" })).getAllByRole("radio")) {
+      expect(radio).toHaveAttribute("aria-checked", "false");
+    }
+    fireEvent.click(screen.getByTestId("job-source-referral"));
+    expect(setJobSourceSpy).toHaveBeenCalledWith("job_detail", "referral");
   });
 });
 

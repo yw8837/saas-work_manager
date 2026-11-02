@@ -4,10 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   composeJob,
+  latestOrderSource,
+  ORDER_SOURCE_LABELS,
+  ORDER_SOURCES,
   PLAN_LIMITS,
   PLAN_NAMES,
   PLAN_PRICES,
   type JobLimitKind,
+  type OrderSource,
   type Plan,
   type PlanLimits,
 } from "@/lib/domain";
@@ -69,7 +73,7 @@ function currentDate() {
 
 export function NewJobForm() {
   const router = useRouter();
-  const { packages, options, createJob, canCreateJob, jobLimitHit, limits, plan } = useWorkspace();
+  const { packages, options, jobs, createJob, canCreateJob, jobLimitHit, limits, plan } = useWorkspace();
   const limitCopy = jobLimitCopy(jobLimitHit, limits, plan);
   const activePackages = packages.filter((item) => !item.archivedAt);
   const activeOptions = options.filter((item) => !item.archivedAt);
@@ -77,6 +81,9 @@ export function NewJobForm() {
   const [startDate, setStartDate] = useState(currentDate());
   const [packageId, setPackageId] = useState(activePackages[0]?.id ?? "");
   const [optionIds, setOptionIds] = useState<string[]>([]);
+  // 받은 곳 기본값은 가장 최근에 만든 일감의 받은 곳이다(설정 칸에 저장하지 않음). 칩을 누르면 그 선택을 따른다.
+  const [sourceChoice, setSourceChoice] = useState<{ value: OrderSource | undefined } | null>(null);
+  const source = sourceChoice ? sourceChoice.value : latestOrderSource(jobs);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [createError, setCreateError] = useState("");
@@ -114,7 +121,7 @@ export function NewJobForm() {
     setSubmitting(true);
     setCreateError("");
     try {
-      const id = createJob({ clientLabel, startDate, packageId, optionIds });
+      const id = createJob({ clientLabel, startDate, packageId, optionIds, source });
       if (!id) throw new Error("일감을 만들지 못했어요. 진행 중인 일감 수와 패키지를 확인해주세요.");
       router.push(`/jobs/${id}?created=1`);
     } catch (error) {
@@ -166,6 +173,27 @@ export function NewJobForm() {
                   autoComplete="organization"
                   required
                 />
+              </div>
+              {/* 고르지 않아도 된다. 고른 칩을 다시 누르면 풀린다. 고객 문구·고객 링크에는 넣지 않는다. */}
+              <div className="sourceChoices" role="radiogroup" aria-labelledby="order-source-label">
+                <span id="order-source-label" className="sourceChoicesLabel">받은 곳 (선택)</span>
+                {ORDER_SOURCES.map((value) => {
+                  const checked = source === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={checked}
+                      className="sourceChip"
+                      onClick={() => setSourceChoice({ value: checked ? undefined : value })}
+                      data-testid={`order-source-${value}`}
+                    >
+                      {checked && <Check size={14} aria-hidden="true" />}
+                      {ORDER_SOURCE_LABELS[value]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </section>

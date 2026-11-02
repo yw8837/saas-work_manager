@@ -6,10 +6,12 @@ import {
   SITUATION_LABELS,
   type MessageSituation,
 } from "./client-messages";
+import { clientShareMessage } from "./client-share";
 import {
   completeRevision,
   composeJob,
   createAddon,
+  displayJobTitle,
   markRevisionExtraScope,
   recordRevision,
   revertRevision,
@@ -110,6 +112,27 @@ describe("고객에게 보낼 말 — 문구", () => {
         expect(message).not.toMatch(/\d{1,3}(,\d{3})*원|₩/);
         expect(message).not.toMatch(/790|95,?000|695/);
       }
+    }
+  });
+
+  it("받은 곳 이름은 고객 문구에 안 나간다", () => {
+    const job: Job = { ...withDoneRevision(baseJob(), "r1"), source: "kmong" };
+    for (const situation of ALL) {
+      for (const link of [LINK, null]) {
+        expect(situationMessage(situation, { job, link })).not.toContain("크몽");
+      }
+    }
+    const revision = { included: job.revisionLimit, remaining: job.revisionLimit - 1 };
+    for (const link of [LINK, null]) {
+      const shared = clientShareMessage({
+        clientLabel: job.clientLabel,
+        title: displayJobTitle(job),
+        ...revision,
+        link,
+        pendingIntake: ["로고 파일"],
+        pendingQuestions: ["가장 하고 싶은 일은 무엇인가요?"],
+      });
+      expect(shared).not.toContain("크몽");
     }
   });
 

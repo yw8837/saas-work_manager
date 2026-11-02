@@ -79,6 +79,19 @@ describe("composeJob", () => {
     expect(job.tasks.find((task) => task.taskKey === "pages")?.dueDate).toBe("2026-08-13");
   });
 
+  it("받은 곳을 주면 일감에 남기고, 안 주면 칸을 만들지 않는다", () => {
+    const input = {
+      jobId: "job_source",
+      revisionPortalToken: "token_source",
+      clientLabel: "받은 곳 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+      now: "2026-08-01T00:00:00.000Z",
+    };
+    expect(composeJob({ ...input, source: "soomgo" }).source).toBe("soomgo");
+    expect("source" in composeJob(input)).toBe(false);
+  });
+
   it("옵션 업무가 일감 마감을 넘으면 마감일로 당겨진다", () => {
     const shortPackage: PackageTemplate = {
       ...packageTemplate,

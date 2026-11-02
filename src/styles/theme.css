@@ -1692,3 +1692,20 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 
 /* 초대 링크로 들어온 사람에게 로그인 화면에서 코드가 준비됐다고 알린다. */
 .authCard > p.authInviteNotice { margin: 0; padding: 10px 12px; color: var(--ink); background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius-sm); font-size: 13px; line-height: 1.6; word-break: keep-all; }
+
+/* 받은 곳(작업 6): 새 일감·일감 화면의 칩(하나만 고르기), 목록 거르기 칩, 제목 윗줄의 글 버튼. 색은 중립(체리 안 씀). */
+.sourceChoices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.sourceChoicesLabel { flex: 1 1 100%; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+.sourceChip { min-height: 36px; display: inline-flex; align-items: center; gap: 4px; padding: 0 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.sourceChip:hover { border-color: var(--border-strong); }
+.sourceChip:is([aria-checked="true"], [aria-pressed="true"]) { color: var(--blue); background: var(--blue-soft); border-color: var(--blue); }
+.sourceFilters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.jobSourceChoices { margin: 8px 0 4px; }
+.detailKickerLine { flex-wrap: wrap; row-gap: 4px; }
+.jobSourceButton { min-height: 32px; display: inline-flex; align-items: center; gap: 2px; padding: 0; color: var(--ink-soft); background: transparent; border: 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.jobSourceButton:hover { color: var(--ink); }
+.jobSourceButton[data-empty="true"] { color: var(--muted); font-weight: 500; }
+.jobIdentity .jobRowSource { display: inline; }
+@media (max-width: 760px) {
+  .sourceChip, .jobSourceButton { min-height: 44px; }
+}

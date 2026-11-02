@@ -143,6 +143,30 @@ describe("TodayDashboard 우선 처리의 고객 요청", () => {
   });
 });
 
+describe("TodayDashboard 받은 곳", () => {
+  it("우선 처리 줄의 일감 이름 옆에 받은 곳을 작게 보인다", () => {
+    const job = {
+      ...seed.jobs[0],
+      status: "active" as const,
+      source: "kmong" as const,
+      dueDate: "2099-01-01",
+      tasks: [{ ...seed.jobs[0].tasks[0], id: "source-task", title: "시안 보내기", status: "todo" as const, dueDate: "2020-01-01" }],
+    };
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job],
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask: vi.fn(),
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<TodayDashboard />);
+    const row = screen.getByRole("button", { name: "시안 보내기 완료 처리" }).closest("article")!;
+    expect(row).toHaveTextContent("모라스튜디오 브랜드 사이트 · 크몽");
+  });
+});
+
 describe("TodayDashboard 일감별 작업 범위", () => {
   const jobs = seed.jobs.map((job, index) => ({
     ...job,

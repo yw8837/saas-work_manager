@@ -37,7 +37,7 @@ import { localToday } from "@/lib/store";
 import { ClientMessages } from "./client-messages";
 import { SendToClientBanner } from "./send-to-client-banner";
 import { StartChecklist } from "./start-checklist";
-import { displayJobTitle, pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
+import { displayJobTitle, normalizeOrderSource, ORDER_SOURCE_LABELS, ORDER_SOURCES, pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { nativePlatform } from "@/lib/native/platform";
 import {
@@ -81,6 +81,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     updateBriefNote,
     toggleJobWaiting,
     completeJob,
+    setJobSource,
     deleteJob,
     setRevisionPortalEnabled,
     rotateRevisionPortalToken,
@@ -98,6 +99,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const listHref = jobListReturnHref(locationSearch);
   const job = jobs.find((item) => item.id === jobId);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(false);
   const handleDeleteJob = () => {
     if (!job) return;
     if (!window.confirm(`'${job.clientLabel}' 일감을 삭제할까요? 관련 할 일·수정 기록도 함께 사라지고, 되돌릴 수 없어요.`)) return;
@@ -179,6 +181,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const marginRate = job.amount > 0 ? Math.round((job.margin / job.amount) * 100) : null;
   const portalEnabled = job.status === "active" && job.revisionPortalEnabled;
   const portalSynced = runtimeMode === "local" || saveStatus === "saved";
+  const currentSource = normalizeOrderSource(job.source);
+  const sourceLabel = currentSource ? ORDER_SOURCE_LABELS[currentSource] : undefined;
 
   // 메신저·전화로 받은 요청을 적는다. 기본은 확인 대기, 이미 고쳤으면 '수정 완료로 기록'으로 바로 1회를 쓴다.
   const saveManualRevision = (completed: boolean) => {
@@ -384,6 +388,19 @@ export function JobDetail({ jobId }: { jobId: string }) {
           </Link>
           <div>
             <div className="detailKickerLine">
+              {/* 받은 곳: 눌러서 펼치고 하나 고르면 닫힌다(두 번). 완료한 일감에서도 바꿀 수 있다. */}
+              <button
+                type="button"
+                className="jobSourceButton"
+                data-empty={!sourceLabel}
+                onClick={() => setSourceOpen((open) => !open)}
+                aria-expanded={sourceOpen}
+                aria-controls="job-source-choices"
+                aria-label={sourceLabel ? `받은 곳 ${sourceLabel} 바꾸기` : "받은 곳 정하기"}
+                data-testid="job-source"
+              >
+                {sourceLabel ?? "받은 곳"} <ChevronDown size={14} aria-hidden="true" />
+              </button>
               <span>{job.packageSnapshot.name}</span>
               {job.status === "completed" ? (
                 <span className="statusBadge completed"><CheckCircle2 size={14} /> 완료</span>
@@ -395,6 +412,30 @@ export function JobDetail({ jobId }: { jobId: string }) {
                 </span>
               )}
             </div>
+            {sourceOpen && (
+              <div id="job-source-choices" className="sourceChoices jobSourceChoices" role="radiogroup" aria-label="받은 곳">
+                {ORDER_SOURCES.map((value) => {
+                  const checked = currentSource === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={checked}
+                      className="sourceChip"
+                      onClick={() => {
+                        setJobSource(job.id, checked ? undefined : value);
+                        setSourceOpen(false);
+                      }}
+                      data-testid={`job-source-${value}`}
+                    >
+                      {checked && <Check size={14} aria-hidden="true" />}
+                      {ORDER_SOURCE_LABELS[value]}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <h1>{job.clientLabel}</h1>
             <p>{displayJobTitle(job)}</p>
           </div>

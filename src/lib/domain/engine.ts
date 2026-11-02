@@ -15,6 +15,7 @@ import type {
   TaskStatus,
   TaskTemplate,
 } from "./types";
+import { normalizeOrderSource } from "./order-source";
 
 export class DomainValidationError extends Error {
   constructor(
@@ -396,6 +397,7 @@ export function composeJob(input: ComposeJobInput): Job {
   const calculatedDueDate = addCalendarDays(input.startDate, durationDays);
   const intakeLabels = normalizeIntakeLabels(input.package.intakeItems);
   const briefQuestions = normalizeBriefQuestions(input.package.briefQuestions);
+  const source = normalizeOrderSource(input.source);
 
   return {
     ...(intakeLabels.length > 0
@@ -404,6 +406,7 @@ export function composeJob(input: ComposeJobInput): Job {
     ...(briefQuestions.length > 0
       ? { briefQuestions: briefQuestions.map((question, index) => ({ id: `${jobId}_brief_${index + 1}`, question })) }
       : {}),
+    ...(source ? { source } : {}),
     id: jobId,
     clientLabel: input.clientLabel.trim(),
     title: input.title?.trim() || `${input.clientLabel.trim()} · ${input.package.name}`,

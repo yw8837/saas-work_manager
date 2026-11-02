@@ -3,6 +3,8 @@ export type ISODate = string;
 export type TaskStatus = "todo" | "waiting" | "done" | "cancelled";
 export type JobStatus = "active" | "completed" | "archived";
 export type RevisionSource = "public" | "manual";
+/** 주문을 받은 곳(수주처). 작업자 화면에서만 쓰고 고객 문구·고객 링크에는 넣지 않는다. */
+export type OrderSource = "kmong" | "soomgo" | "referral" | "direct" | "other";
 export type RevisionChannel =
   | "kakao"
   | "kmong"
@@ -176,6 +178,8 @@ export interface Job {
   intakeItems?: IntakeItem[];
   /** 패키지의 '착수 전 질문'을 일감을 만들 때 복사한 것. 없던 저장본에서는 비어 있다. */
   briefQuestions?: BriefQuestion[];
+  /** 주문을 받은 곳(선택). 없던 저장본·고르지 않은 일감에는 칸이 없다. */
+  source?: OrderSource;
   revisionPortalToken: string;
   revisionPortalEnabled: boolean;
   status: JobStatus;
@@ -193,6 +197,8 @@ export interface ComposeJobInput {
   jobId?: string;
   now?: string;
   revisionPortalToken?: string;
+  /** 주문을 받은 곳(선택). */
+  source?: OrderSource;
 }
 
 export interface RecordRevisionInput {

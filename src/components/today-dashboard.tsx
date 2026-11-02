@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { FirstRunChecklist } from "./first-run-checklist";
-import { displayJobTitle } from "@/lib/domain";
+import { displayJobTitle, orderSourceLabel } from "@/lib/domain";
 import { emptyTodaySearch, subscribeTodayLocation, todaySearchSnapshot, updateTodayScope } from "@/lib/today-location";
 import {
   formatShortDate,
@@ -28,6 +28,12 @@ import {
 } from "./workspace-provider";
 
 type QueueItem = { job: Job; task: Task };
+
+/** 줄에 보이는 일감 이름. 받은 곳이 있으면 뒤에 작게 붙인다("Basic 홈페이지 · 크몽"). */
+function jobLine(job: Job) {
+  const source = orderSourceLabel(job.source);
+  return source ? `${displayJobTitle(job)} · ${source}` : displayJobTitle(job);
+}
 
 function todayISO() {
   const now = new Date();
@@ -72,7 +78,7 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
           </span>
         </div>
         <strong>{task.title}</strong>
-        <span className="taskContext">{displayJobTitle(job)} · {formatShortDate(job.dueDate)} 마감</span>
+        <span className="taskContext">{jobLine(job)} · {formatShortDate(job.dueDate)} 마감</span>
       </Link>
       {(contactLink || workLink) && (
         <div className="taskQuickActions">
@@ -102,7 +108,7 @@ function RequestRow({ job, pending }: { job: Job; pending: number }) {
           <span className="clientName">{job.clientLabel}</span>
         </div>
         <strong>고객 요청 {pending}건 확인 대기</strong>
-        <span className="taskContext">{displayJobTitle(job)}</span>
+        <span className="taskContext">{jobLine(job)}</span>
       </Link>
     </article>
   );
@@ -281,7 +287,7 @@ export function TodayDashboard() {
                       <span className="waitingAvatar">{job.clientLabel.slice(0, 1)}</span>
                       <Link href={`/jobs/${job.id}`} className="waitingMain">
                         <strong>{job.clientLabel}</strong>
-                        <span>{displayJobTitle(job)} · {waitingTask?.title ?? "고객 답변 대기 중"}</span>
+                        <span>{jobLine(job)} · {waitingTask?.title ?? "고객 답변 대기 중"}</span>
                       </Link>
                       <span className="waitingDays">{days}일째</span>
                       <button type="button" className="compactButton" onClick={() => toggleJobWaiting(job.id)}>답변 받음</button>

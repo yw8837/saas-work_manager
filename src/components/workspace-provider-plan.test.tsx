@@ -147,6 +147,28 @@ describe("workspace plan — 누적 일감 카운터는 단조 증가한다", ()
   });
 });
 
+describe("workspace 받은 곳", () => {
+  it("새 일감에 받은 곳을 남기고, 완료한 일감에서도 받은 곳을 바꾸거나 지운다", async () => {
+    await mountWith({});
+    const packageId = workspace!.packages.find((item) => !item.archivedAt)!.id;
+    let jobId = "";
+    act(() => {
+      jobId = workspace!.createJob({ clientLabel: "받은 곳 고객", startDate: "2026-08-20", packageId, optionIds: [], source: "kmong" });
+    });
+    const find = () => workspace!.jobs.find((job) => job.id === jobId)!;
+    expect(find().source).toBe("kmong");
+
+    act(() => workspace!.completeJob(jobId));
+    expect(find().status).toBe("completed");
+
+    // 다른 동작은 완료한 일감을 막지만, 받은 곳은 고객 링크·수정 횟수와 상관없어 바꿀 수 있다.
+    act(() => workspace!.setJobSource(jobId, "referral"));
+    expect(find().source).toBe("referral");
+    act(() => workspace!.setJobSource(jobId, undefined));
+    expect("source" in find()).toBe(false);
+  });
+});
+
 describe("workspace plan — 무료 한도", () => {
   it("누적 10건을 다 쓰면 일감이 하나도 없어도 막힌다", async () => {
     await mountWith({ jobsCreatedTotal: PLAN_LIMITS.free.totalJobs, trialStartedAt: EXPIRED_TRIAL });
