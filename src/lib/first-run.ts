@@ -77,7 +77,7 @@ export type FirstRunStep = { id: FirstRunStepId; done: boolean };
 /**
  * 단계별 완료 여부. 브라우저 표시가 없어도(다른 기기·저장 차단) 일감 데이터로 알 수 있는 건 데이터를 우선한다.
  * - 일감을 만들었으면 패키지는 이미 고른 것이다.
- * - 손대지 않은 업종 예시 세트(처음엔 웹)를 그대로 쓰고 있으면 이미 고른 것으로 본다(다른 업종은 '다른 업종'으로).
+ * - 손대지 않은 업종 예시 세트(처음엔 웹)를 그대로 쓰고 있으면 이미 고른 것으로 본다(다른 업종은 접힌 1단계의 업종 칩 한 번으로).
  * - 고객 링크로 들어온 요청이 하나라도 있으면 링크는 이미 보낸 것이다.
  */
 export function firstRunSteps(input: { jobs: Job[]; flags: FirstRunFlags; packagesCustomized: boolean; starterSet?: boolean }): FirstRunStep[] {

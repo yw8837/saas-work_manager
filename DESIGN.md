@@ -213,7 +213,7 @@ Sidecar의 8단계 tonalRamp는 패널 탐색용으로 합성한 OKLCH 명도 �
 
 ### Buttons
 
-단정한 흑연색 행동과 흰색 보조 행동. 기본 높이는 최소 (44px), primary/secondary 내부 좌우 여백은 frontmatter를 따른다. primary는 interactive 호버, primary-active 눌림과 (1px) 이동, 공통 focus-visible 실선을 갖는다. secondary는 중립색 배경 호버와 더 강한 테두리를 사용한다. disabled는 불투명도 (.52)와 금지 커서다. 모바일 짙은 생성 바 안의 primary만 흰색으로 반전한다.
+단정한 흑연색 행동과 흰색 보조 행동. 기본 높이는 최소 (44px), primary/secondary 내부 좌우 여백은 frontmatter를 따른다. primary는 interactive 호버, primary-active 눌림과 (1px) 이동, 공통 focus-visible 실선을 갖는다. secondary는 중립색 배경 호버와 더 강한 테두리를 사용한다. disabled는 불투명도 (.52)와 금지 커서다. 짙은 하단 바 위에서는 주 버튼만 흰 바탕(paper)·잉크 글자로 뒤집는다: 새 일감 생성 바(1050px 이하)의 primary '일감 만들기'와 일감 화면 하단 행동 바의 '일감 완료'(`.invertedButton`). 일감 화면 하단 행동 바의 나머지 버튼(고객 대기·수정 기록)은 흰 글자와 흰 반투명 테두리(paper 55%, 호버 때 paper 10% 바탕)로 두어 주 버튼과 위계를 나눈다.
 
 ### Chips
 

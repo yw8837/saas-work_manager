@@ -227,10 +227,11 @@
 .appFrame .settingTime input { width: 150px; min-height: 44px; }
 .appFrame .catalogListItem[data-active="true"] { box-shadow: none; font-weight: 650; }
 .appFrame .selectedOptionSummary b { background: #e5e5e9; }
-.appFrame .jobActionBar { background: #242426; box-shadow: none; }
-/* 하단 행동 바: 주 버튼(일감 완료)만 흰 바탕, 나머지는 흰 테두리 버튼으로 위계를 보인다(감사 1번). */
-.appFrame .jobActionBar .quietButton { color: #fff; background: transparent; border-color: rgb(255 255 255 / 55%); }
-.appFrame .jobActionBar .quietButton:hover { background: rgb(255 255 255 / 10%); border-color: #fff; }
+.appFrame .jobActionBar { background: var(--ink); box-shadow: none; }
+/* 하단 행동 바: 주 버튼(일감 완료)만 흰 바탕, 나머지는 흰 테두리 버튼으로 위계를 보인다(감사 1번).
+   흰 반투명도 --paper 토큰을 55%·10%로 섞어 만든다(바꾸기 전과 같은 색). */
+.appFrame .jobActionBar .quietButton { color: var(--paper); background: transparent; border-color: color-mix(in srgb, var(--paper) 55%, transparent); }
+.appFrame .jobActionBar .quietButton:hover { background: color-mix(in srgb, var(--paper) 10%, transparent); border-color: var(--paper); }
 .appFrame :is(.actionToast, .mobileSubmitBar) { background: #242426; }
 .appFrame :is(.actionToast button, .mobileSubmitBar span) { color: #d1d1d6; }
 .appFrame .mobileSubmitBar .primaryButton { color: var(--ink); background: #fff; }

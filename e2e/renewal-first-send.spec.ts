@@ -26,12 +26,13 @@ test("3·5·1번: 첫 실행 체크리스트 → 업종 예시 → 첫 일감 �
 
   const checklist = page.getByTestId("first-run-checklist");
   await expect(checklist).toBeVisible();
-  // 기본 웹 예시 그대로라 1단계는 끝난 것으로 접혀 있다. 다른 업종은 '다른 업종'을 눌러 고른다.
+  // 기본 웹 예시 그대로라 1단계는 끝난 것으로 접혀 있다. 다른 업종은 접힌 줄 아래 작은 칩을 한 번 눌러 고른다.
   await expect(page.getByTestId("first-run-progress")).toHaveText("1/3 완료");
   await expect(page.getByTestId("first-run-starter-line")).toContainText("웹·홈페이지 예시로 시작했어요");
+  await expect(checklist.getByRole("group", { name: "업종 고르기" })).toBeVisible();
+  await expect(page.getByTestId("first-run-other-industry")).toHaveCount(0);
   await noHorizontalOverflow(page);
 
-  await page.getByTestId("first-run-other-industry").click();
   await page.getByTestId("industry-design").click();
   await expect(page.getByTestId("industry-design")).toHaveAttribute("aria-pressed", "true");
   await expect(checklist.getByRole("status")).toContainText("디자인 예시 패키지 3개로 바꿨어요. 금액은 예시예요.");

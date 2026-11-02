@@ -152,3 +152,32 @@ describe("써 보며 다듬기(2026-11-02 돌아보기)", () => {
     expect(bodies(theme, '.jobFactLine .textButton[aria-expanded="true"] svg')).toMatch(/rotate\(180deg\)/);
   });
 });
+
+describe("첫 실행 접힌 1단계의 업종 칩(리뷰 반영)", () => {
+  it("접힌 줄 아래 칩은 작게 두되 휴대폰에서는 손가락 크기(44px)", () => {
+    expect(bodies(baseTheme, ".firstRunIndustryChips .industryChip")).toMatch(/min-height:\s*36px/);
+    expect(bodies(mobileTheme, ".firstRunIndustryChips .industryChip")).toMatch(/min-height:\s*44px/);
+  });
+});
+
+describe("토큰 밖 색 정리(리뷰 표준)", () => {
+  it("월별 정리 줄 호버는 다른 행 호버와 같은 canvas 토큰을 쓴다", () => {
+    expect(bodies(theme, ".summaryRow:hover")).toMatch(/background:\s*var\(--canvas\)/);
+  });
+
+  it("일감 하단 행동 바는 토큰 색만 쓰고, 흰 반투명은 color-mix로 만든다(보이는 값은 그대로)", () => {
+    expect(bodies(workspace, ".jobActionBar")).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+    expect(bodies(workspace, ".appFrame .jobActionBar")).toMatch(/background:\s*var\(--ink\)/);
+    expect(bodies(workspace, ".appFrame .jobActionBar .quietButton")).toMatch(/border-color:\s*color-mix\(in srgb, var\(--paper\) 55%, transparent\)/);
+    expect(bodies(workspace, ".appFrame .jobActionBar .quietButton:hover")).toMatch(/background:\s*color-mix\(in srgb, var\(--paper\) 10%, transparent\)/);
+    // 작업 화면의 --ink·--paper는 바꾸기 전 값(#242426·#fff)과 같다.
+    expect(workspace).toMatch(/--ink:\s*#242426;/);
+    expect(workspace).toMatch(/--paper:\s*#fff;/);
+  });
+});
+
+describe("착수 전 질문 '답 받음'(작업 9가 찾음)", () => {
+  it("긴 질문 옆 '답 받음'·'받음' 글은 줄어들지 않아 한 글자씩 세로로 찌그러지지 않는다", () => {
+    expect(bodies(theme, ".intakeToggle small")).toMatch(/flex:\s*none/);
+  });
+});

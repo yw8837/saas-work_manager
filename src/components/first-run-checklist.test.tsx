@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { composeJob, recordRevision } from "@/lib/domain";
+import { FIRST_RUN_STORAGE_KEY } from "@/lib/first-run";
 import { createStarterState, INDUSTRY_STARTERS } from "@/lib/store";
 import { FirstRunChecklist } from "./first-run-checklist";
 import { useWorkspace } from "./workspace-provider";
@@ -39,49 +40,72 @@ beforeEach(() => {
 });
 
 describe("오늘 화면 첫 실행 체크리스트", () => {
-  it("새 작업공간: 웹 예시 그대로면 1단계는 끝난 것으로 한 줄로 접고, 첫 일감 만들기를 지금 할 일로 둔다", () => {
+  it("새 작업공간: 웹 예시 그대로면 1단계는 끝난 것으로 접고, 첫 일감 만들기를 지금 할 일로 둔다", () => {
     show();
     expect(screen.getByTestId("first-run-progress")).toHaveTextContent("1/3 완료");
     expect(screen.getByRole("progressbar", { name: "첫 실행 진행률" })).toHaveAttribute("aria-valuenow", "1");
     const packagesStep = screen.getByTestId("first-run-step-packages");
     expect(packagesStep).toHaveAttribute("data-state", "done");
     expect(packagesStep).toHaveTextContent("웹·홈페이지 예시로 시작했어요");
-    // 끝난 단계는 설명·업종 칩을 접는다.
+    // 끝난 단계는 설명 글을 접는다(업종 칩은 작게 남는다).
     expect(packagesStep).not.toHaveTextContent("업종을 고르면");
-    expect(screen.queryByRole("group", { name: "업종 고르기" })).not.toBeInTheDocument();
     expect(screen.getByTestId("first-run-step-first-job")).toHaveAttribute("data-state", "current");
     expect(screen.getByRole("link", { name: /첫 일감 만들기/ })).toHaveAttribute("href", "/jobs/new");
-    // 단계별 설명서 그림은 지금 할 단계 하나만
+    // 단계별 설명서 그림은 지금 할 단계 하나만(끝난 1단계 그림은 접는다)
     expect(screen.getAllByRole("img")).toHaveLength(1);
+    expect(within(packagesStep).queryByRole("img")).not.toBeInTheDocument();
   });
 
-  it("접힌 한 줄에 패키지 확인 길을 남기고, '다른 업종'을 누를 때만 업종 칩을 펼친다", () => {
+  it("접힌 1단계: 첫 줄은 '예시로 시작했어요 · 패키지 확인하기', 그 아래 작은 업종 칩이 바로 보이고 '다른 업종' 펼침 버튼은 없다", () => {
     show();
     const line = screen.getByTestId("first-run-starter-line");
+    // 가운뎃점은 CSS(::after)로 그린다. 글은 두 항목뿐이다.
+    expect(line.children).toHaveLength(2);
+    expect(line).toHaveTextContent("웹·홈페이지 예시로 시작했어요");
     expect(within(line).getByRole("link", { name: /패키지 확인하기/ })).toHaveAttribute("href", "/packages");
-    const other = within(line).getByTestId("first-run-other-industry");
-    expect(other).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(other);
-    expect(other).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("group", { name: "업종 고르기" })).toBeInTheDocument();
+    expect(screen.queryByTestId("first-run-other-industry")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "다른 업종" })).not.toBeInTheDocument();
+
+    const packagesStep = screen.getByTestId("first-run-step-packages");
+    const picker = within(packagesStep).getByRole("group", { name: "업종 고르기" });
+    expect(picker).toHaveClass("firstRunIndustryChips");
+    expect(within(picker).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["웹·홈페이지", "디자인", "영상", "촬영"]);
     expect(screen.getByTestId("industry-web")).toHaveAttribute("aria-pressed", "true");
-    // 펼쳐도 같은 링크를 두 번 두지 않는다.
+    expect(screen.getByTestId("industry-design")).toHaveAttribute("aria-pressed", "false");
+    // 칩 줄은 첫 줄 아래에 둔다. 같은 링크를 두 번 두지 않는다.
+    expect(line.compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getAllByRole("link", { name: /패키지 확인하기/ })).toHaveLength(1);
   });
 
-  it("업종을 직접 고를 때만 예시를 바꾸고, 결과를 알린다", () => {
+  it("웹이 아닌 업종도 칩 한 번으로 예시를 바꾸고, 결과를 알린다", () => {
     show();
-    fireEvent.click(screen.getByTestId("first-run-other-industry"));
     fireEvent.click(screen.getByTestId("industry-video"));
+    expect(applyIndustryStarter).toHaveBeenCalledTimes(1);
     expect(applyIndustryStarter).toHaveBeenCalledWith("video");
     expect(screen.getByRole("status")).toHaveTextContent(`영상 예시 패키지 ${INDUSTRY_STARTERS.video.packages.length}개로 바꿨어요. 금액은 예시예요.`);
     expect(screen.getByTestId("first-run-progress")).toHaveTextContent("1/3 완료");
   });
 
+  it("바꾼 업종이 첫 줄과 눌린 칩에 보인다", () => {
+    show({ packages: INDUSTRY_STARTERS.design.packages });
+    expect(screen.getByTestId("first-run-starter-line")).toHaveTextContent("디자인 예시로 시작했어요");
+    expect(screen.getByTestId("industry-design")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("industry-web")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("업종을 알 수 없는 패키지로 1단계를 끝냈으면 '패키지를 정했어요'와 눌리지 않은 업종 칩을 보인다", () => {
+    window.localStorage.setItem(FIRST_RUN_STORAGE_KEY, JSON.stringify({ packagesReviewed: true }));
+    show({ packages: [...starter.packages, ...INDUSTRY_STARTERS.design.packages] });
+    expect(screen.getByTestId("first-run-step-packages")).toHaveAttribute("data-state", "done");
+    expect(screen.getByTestId("first-run-starter-line")).toHaveTextContent("패키지를 정했어요");
+    for (const chip of within(screen.getByRole("group", { name: "업종 고르기" })).getAllByRole("button")) {
+      expect(chip).toHaveAttribute("aria-pressed", "false");
+    }
+  });
+
   it("예시를 바꾸지 못하면 이유를 경고로 보여 준다", () => {
     applyIndustryStarter.mockImplementation(() => { throw new Error("한도를 넘어요"); });
     show();
-    fireEvent.click(screen.getByTestId("first-run-other-industry"));
     fireEvent.click(screen.getByTestId("industry-photo"));
     expect(screen.getByRole("alert")).toHaveTextContent("한도를 넘어요");
   });

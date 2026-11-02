@@ -55,8 +55,6 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
   const jobsCreatedTotal = workspace.jobsCreatedTotal ?? jobs.length;
   const flags = useSyncExternalStore(subscribeFirstRun, readFirstRunFlags, serverFirstRunFlags);
   const [industryMessage, setIndustryMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  // 끝난 1단계에서는 '다른 업종'을 눌렀을 때만 업종 칩을 펼친다.
-  const [industryOpen, setIndustryOpen] = useState(false);
   const selectedIndustry = currentStarterIndustry(packages);
   // 기본 예시(처음엔 웹)를 그대로 쓰고 있으면 1단계는 끝난 것으로 보고 접는다(누르기 1번 덜).
   const steps = firstRunSteps({ jobs, flags, packagesCustomized: !usesOnlyStarterPackages(packages), starterSet: selectedIndustry !== null });
@@ -107,7 +105,8 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
           const current = step.id === currentId;
           // 큰 체크리스트는 아직 안 끝난 단계마다 바로 갈 곳을 준다. 순서를 강제하지 않는다.
           const actionable = !step.done && (!compact || current);
-          // 끝난 단계는 제목만 남기고 접는다. 일감을 만들기 전 1단계만 한 줄로 남겨 업종을 다시 고를 수 있게 한다.
+          // 끝난 단계는 제목만 남기고 접는다. 일감을 만들기 전 1단계만 한 줄과 작은 업종 칩을 남긴다.
+          // 웹이 아닌 업종도 칩 한 번으로 바꾼다(펼치는 버튼을 두면 첫 링크까지 누르기가 1번 는다).
           const packagesDoneLine = step.id === "packages" && step.done && canPickIndustry && !compact;
           return (
             <li key={step.id} className="firstRunStep" data-state={step.done ? "done" : current ? "current" : "todo"} data-testid={`first-run-step-${step.id}`}>
@@ -122,26 +121,16 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
                 {packagesDoneLine && (
                   <p className="firstRunDoneLine" data-testid="first-run-starter-line">
                     <span>{selectedIndustry ? `${INDUSTRY_LABELS[selectedIndustry]} 예시로 시작했어요` : "패키지를 정했어요"}</span>
-                    <button
-                      type="button"
-                      className="textButton"
-                      onClick={() => setIndustryOpen((open) => !open)}
-                      aria-expanded={industryOpen}
-                      aria-controls="first-run-industry"
-                      data-testid="first-run-other-industry"
-                    >
-                      {selectedIndustry ? "다른 업종" : "업종 예시 고르기"}
-                    </button>
                     <Link href="/packages" className="inlineLink" onClick={() => markFirstRun("packagesReviewed")}>
                       패키지 확인하기 <ArrowUpRight size={16} />
                     </Link>
                   </p>
                 )}
 
-                {(actionable || (packagesDoneLine && industryOpen)) && step.id === "packages" && (
-                  <div className="firstRunActions" id="first-run-industry">
+                {(actionable || packagesDoneLine) && step.id === "packages" && (
+                  <div className="firstRunActions">
                     {canPickIndustry && (
-                      <div className="industryPicker" role="group" aria-label="업종 고르기">
+                      <div className={packagesDoneLine ? "industryPicker firstRunIndustryChips" : "industryPicker"} role="group" aria-label="업종 고르기">
                         {INDUSTRY_ORDER.map((industry) => (
                           <button
                             key={industry}
