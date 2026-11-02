@@ -22,6 +22,7 @@ import {
   SITE_SOCIAL_DESCRIPTION,
   SITE_SOCIAL_TITLE,
   SITE_TWITTER,
+  SITE_VERIFICATION,
   withCustomerLinkShareMeta,
 } from "./site-meta";
 
@@ -57,6 +58,13 @@ describe("공유 미리보기·대표 주소", () => {
       images: [{ url: "/og/ilgamcheck-social.png", width: 1200, height: 630 }],
     });
     expect(SITE_TWITTER).toMatchObject({ card: "summary_large_image", images: ["/og/ilgamcheck-social.png"] });
+  });
+
+  it("루트 layout은 검색 등록 소유 확인 값(공개 메타 태그)을 site-meta 상수에서 받는다", () => {
+    expect(rootMetadata.verification).toBe(SITE_VERIFICATION);
+    expect(SITE_VERIFICATION).toEqual({ google: "UXU-m-sHhK9ieaTSVBB9l6gzZgAdUwdineCgXQjQa5g" });
+    // 랜딩은 verification을 다시 쓰지 않아 루트 값을 물려받는다(구글은 첫 화면의 메타 태그를 본다).
+    expect(landingMetadata.verification).toBeUndefined();
   });
 
   it("공개 페이지는 저마다 자기 주소를 대표 주소로 둔다", () => {

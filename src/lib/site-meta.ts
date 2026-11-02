@@ -41,6 +41,15 @@ export const SITE_TWITTER = {
 } satisfies NonNullable<Metadata["twitter"]>;
 
 /**
+ * 검색 등록 소유 확인 값. 페이지에 그대로 공개되는 메타 태그라 비밀이 아니다.
+ * google: Search Console 'URL 접두어' 속성 https://ilgam.studioyeolmae.com/ (2026-11-02 등록).
+ * 네이버·Bing 값을 받으면 `other`에 더한다.
+ */
+export const SITE_VERIFICATION = {
+  google: "UXU-m-sHhK9ieaTSVBB9l6gzZgAdUwdineCgXQjQa5g",
+} satisfies NonNullable<Metadata["verification"]>;
+
+/**
  * 고객 링크(/r/…)와 체험(/demo/r)의 공유 미리보기. 고객이 광고로 오해하지 않게 소개용 슬로건·그림 대신 차분한 값을 쓴다.
  * 그림이 없으니 트위터 카드는 작은 카드(summary)로 둔다.
  */
