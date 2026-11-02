@@ -62,8 +62,12 @@ describe("공유 미리보기·대표 주소", () => {
 
   it("루트 layout은 검색 등록 소유 확인 값(공개 메타 태그)을 site-meta 상수에서 받는다", () => {
     expect(rootMetadata.verification).toBe(SITE_VERIFICATION);
-    expect(SITE_VERIFICATION).toEqual({ google: "UXU-m-sHhK9ieaTSVBB9l6gzZgAdUwdineCgXQjQa5g" });
-    // 랜딩은 verification을 다시 쓰지 않아 루트 값을 물려받는다(구글은 첫 화면의 메타 태그를 본다).
+    expect(SITE_VERIFICATION).toEqual({
+      google: "UXU-m-sHhK9ieaTSVBB9l6gzZgAdUwdineCgXQjQa5g",
+      // Next가 <meta name="naver-site-verification" content="…">로 그린다(네이버 서치어드바이저 'HTML 태그').
+      other: { "naver-site-verification": "efc4f9f897ab1ab4e79d7df42799314f08eb4ccc" },
+    });
+    // 랜딩은 verification을 다시 쓰지 않아 루트 값을 물려받는다(구글·네이버는 첫 화면의 메타 태그를 본다).
     expect(landingMetadata.verification).toBeUndefined();
   });
 
