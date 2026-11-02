@@ -47,6 +47,17 @@ it("새 일감 아래 띠와 미리보기는 쉬운 말로 보인다", () => {
   expect(view.container).not.toHaveTextContent(/Todo|마진/);
 });
 
+it("데스크톱 미리보기는 '일감 만들기'를 할 일 목록보다 위에 두고, 할 일은 3개와 '외 N개'만 보인다", () => {
+  const view = render(<NewJobForm />);
+  const preview = view.container.querySelector(".jobPreview") as HTMLElement;
+  const submit = within(preview).getByTestId("submit-job");
+  const todoTitle = within(preview).getByText("생성될 체크리스트");
+  expect(submit.compareDocumentPosition(todoTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  // 첫 패키지(Basic 홈페이지)는 할 일 5개다.
+  expect(within(preview).getAllByRole("listitem")).toHaveLength(3);
+  expect(within(preview).getByText("외 2개")).toBeInTheDocument();
+});
+
 it("가장 최근 일감의 받은 곳이 처음부터 골라져 있고, 다시 누르면 풀려서 받은 곳 없이 만든다", () => {
   const [first, second] = createSeedState().jobs;
   mockWorkspace([

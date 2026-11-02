@@ -137,7 +137,7 @@ const slides: Slide[] = [
             <MessageSquareText size={15} /> 고객 대기 1
           </span>
           <span>
-            <RotateCcw size={15} /> 수정 임박 1
+            <RotateCcw size={15} /> 수정 거의 다 씀 1
           </span>
         </div>
         <div className="sceneQueue">

@@ -24,7 +24,7 @@ test("수정 링크 재발급은 옛 토큰을 폐기하고 새 256-bit 토큰�
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByTestId("rotate-revision-portal").click();
-  await expect(page.getByText("새 수정 링크를 발급했어요. 기존 주소는 폐기됐어요.")).toBeVisible();
+  await expect(page.getByText("새 수정 링크를 발급했어요. 이전 주소는 더 못 써요.")).toBeVisible();
 
   const newToken = await page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem("ilgamcheck:mvp:v2") ?? "null") as {

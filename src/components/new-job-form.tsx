@@ -341,29 +341,10 @@ export function NewJobForm() {
                     <dd>{preview.job.tasks.length}개</dd>
                   </div>
                 </dl>
-
-                <div className="previewTodoBlock">
-                  <span>생성될 체크리스트</span>
-                  <ul>
-                    {preview.job.tasks.slice(0, 5).map((task) => (
-                      <li key={task.id}>
-                        <CheckCircle2 size={15} />
-                        <span>{task.title}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {preview.job.tasks.length > 5 && <span className="moreTasks">+ {preview.job.tasks.length - 5}개 더</span>}
-                </div>
-
-                {preview.selectedOptions.length > 0 && (
-                  <div className="selectedOptionSummary">
-                    <span>선택 옵션</span>
-                    {preview.selectedOptions.map((item) => <b key={item.id}>{item.name}</b>)}
-                  </div>
-                )}
               </>
             )}
 
+            {/* 데스크톱 1280×800 첫 화면에 들어오게 '일감 만들기'는 할 일 목록보다 위에 둔다(패널은 스크롤해도 따라온다). */}
             {canCreateJob ? (
               <>
                 <button
@@ -387,6 +368,30 @@ export function NewJobForm() {
                   ctaLabel={limitCopy.ctaLabel}
                 />
               </div>
+            )}
+
+            {preview && (
+              <>
+                <div className="previewTodoBlock">
+                  <span>생성될 체크리스트</span>
+                  <ul>
+                    {preview.job.tasks.slice(0, 3).map((task) => (
+                      <li key={task.id}>
+                        <CheckCircle2 size={15} />
+                        <span>{task.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {preview.job.tasks.length > 3 && <span className="moreTasks">외 {preview.job.tasks.length - 3}개</span>}
+                </div>
+
+                {preview.selectedOptions.length > 0 && (
+                  <div className="selectedOptionSummary">
+                    <span>선택 옵션</span>
+                    {preview.selectedOptions.map((item) => <b key={item.id}>{item.name}</b>)}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </aside>

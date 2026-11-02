@@ -232,7 +232,7 @@ export function TodayDashboard() {
         <dl className="briefStats">
           <div><dt>오늘</dt><dd>{queue.length}</dd></div>
           <div><dt>고객 대기</dt><dd>{waitingJobs.length}</dd></div>
-          <div><dt>수정 임박</dt><dd>{nearRevisionLimit.length}</dd></div>
+          <div><dt>수정 거의 다 씀</dt><dd>{nearRevisionLimit.length}</dd></div>
         </dl>
       </section>
 
@@ -272,7 +272,7 @@ export function TodayDashboard() {
 
           <section className="contentSection waitingSection">
             <div className="sectionHeadingRow">
-              <div><h2>고객 답변 대기</h2><p>답이 오면 한 번 눌러 다시 작업 큐로 보내요.</p></div>
+              <div><h2>고객 답변 대기</h2><p>답이 오면 ‘답변 받음’을 눌러요.</p></div>
               <span className="sectionCount muted">{waitingJobs.length}건</span>
             </div>
             {waitingJobs.length ? (

@@ -298,7 +298,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     notify(runtimeMode === "hosted"
       ? enabled
         ? "링크를 켜는 중이에요. 상단에 저장 완료가 표시되면 공유할 수 있어요."
-        : "링크를 끄는 중이에요. 상단에 저장 완료가 표시되면 기존 주소가 폐기돼요."
+        : "링크를 끄는 중이에요. 상단에 저장 완료가 표시되면 이 주소로 요청을 받지 않아요."
       : enabled
         ? "고객 수정 링크를 켰어요."
         : "고객 수정 링크를 껐어요. 기존 주소의 요청을 받지 않아요.");
@@ -312,8 +312,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
     if (!nextToken) return;
     setCopied(false);
     notify(runtimeMode === "hosted"
-      ? "새 링크를 저장 중이에요. 상단에 저장 완료가 표시되면 기존 주소가 폐기돼요."
-      : "새 수정 링크를 발급했어요. 기존 주소는 폐기됐어요.");
+      ? "새 링크를 저장 중이에요. 상단에 저장 완료가 표시되면 이전 주소는 더 못 써요."
+      : "새 수정 링크를 발급했어요. 이전 주소는 더 못 써요.");
   };
 
   const openLinkEditor = () => {
@@ -910,7 +910,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
             <h2>고객 수정 요청 링크</h2>
             <div className="portalStatus" data-enabled={portalEnabled} role="status" aria-live="polite">
               <span />
-              {portalEnabled ? portalSynced ? "링크 켜짐" : "링크 동기화 중" : job.status === "completed" ? "일감 완료 · 링크 잠김" : portalSynced ? "링크 꺼짐" : "링크 동기화 중"}
+              {portalEnabled ? portalSynced ? "링크 켜짐" : "링크 저장 중" : job.status === "completed" ? "일감 완료 · 링크 잠김" : portalSynced ? "링크 꺼짐" : "링크 저장 중"}
             </div>
             <button
               type="button"

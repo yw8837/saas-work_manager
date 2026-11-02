@@ -54,11 +54,14 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
   const jobsCreatedTotal = workspace.jobsCreatedTotal ?? jobs.length;
   const flags = useSyncExternalStore(subscribeFirstRun, readFirstRunFlags, serverFirstRunFlags);
   const [industryMessage, setIndustryMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  const steps = firstRunSteps({ jobs, flags, packagesCustomized: !usesOnlyStarterPackages(packages) });
+  // 끝난 1단계에서는 '다른 업종'을 눌렀을 때만 업종 칩을 펼친다.
+  const [industryOpen, setIndustryOpen] = useState(false);
+  const selectedIndustry = currentStarterIndustry(packages);
+  // 기본 예시(처음엔 웹)를 그대로 쓰고 있으면 1단계는 끝난 것으로 보고 접는다(누르기 1번 덜).
+  const steps = firstRunSteps({ jobs, flags, packagesCustomized: !usesOnlyStarterPackages(packages), starterSet: selectedIndustry !== null });
   const doneCount = steps.filter((step) => step.done).length;
   const currentId = steps.find((step) => !step.done)?.id;
   const canPickIndustry = jobs.length === 0 && jobsCreatedTotal === 0;
-  const selectedIndustry = currentStarterIndustry(packages);
   const sendTarget = jobs.find((job) => job.status === "active") ?? jobs[0];
 
   if (doneCount === steps.length) return null;
@@ -103,6 +106,8 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
           const current = step.id === currentId;
           // 큰 체크리스트는 아직 안 끝난 단계마다 바로 갈 곳을 준다. 순서를 강제하지 않는다.
           const actionable = !step.done && (!compact || current);
+          // 끝난 단계는 제목만 남기고 접는다. 일감을 만들기 전 1단계만 한 줄로 남겨 업종을 다시 고를 수 있게 한다.
+          const packagesDoneLine = step.id === "packages" && step.done && canPickIndustry && !compact;
           return (
             <li key={step.id} className="firstRunStep" data-state={step.done ? "done" : current ? "current" : "todo"} data-testid={`first-run-step-${step.id}`}>
               <span className="firstRunMarker" aria-hidden="true">{step.done ? <Check size={15} /> : index + 1}</span>
@@ -111,11 +116,31 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
                   {copy.title}
                   <span className="firstRunState">{step.done ? "완료" : current ? "지금 할 일" : "다음"}</span>
                 </h3>
-                {(!compact || current) && <p>{copy.body}</p>}
+                {!step.done && (!compact || current) && <p>{copy.body}</p>}
 
-                {/* 일감을 만들기 전에는 업종을 다시 고를 수 있게 고른 뒤에도 남겨 둔다. */}
-                {(actionable || (canPickIndustry && !compact)) && step.id === "packages" && (
-                  <div className="firstRunActions">
+                {packagesDoneLine && (
+                  <p className="firstRunDoneLine" data-testid="first-run-starter-line">
+                    <span>{selectedIndustry ? `${INDUSTRY_LABELS[selectedIndustry]} 예시로 시작했어요` : "패키지를 정했어요"}</span>
+                    <span aria-hidden="true">·</span>
+                    <button
+                      type="button"
+                      className="textButton"
+                      onClick={() => setIndustryOpen((open) => !open)}
+                      aria-expanded={industryOpen}
+                      aria-controls="first-run-industry"
+                      data-testid="first-run-other-industry"
+                    >
+                      {selectedIndustry ? "다른 업종" : "업종 예시 고르기"}
+                    </button>
+                    <span aria-hidden="true">·</span>
+                    <Link href="/packages" className="inlineLink" onClick={() => markFirstRun("packagesReviewed")}>
+                      패키지 확인하기 <ArrowUpRight size={16} />
+                    </Link>
+                  </p>
+                )}
+
+                {(actionable || (packagesDoneLine && industryOpen)) && step.id === "packages" && (
+                  <div className="firstRunActions" id="first-run-industry">
                     {canPickIndustry && (
                       <div className="industryPicker" role="group" aria-label="업종 고르기">
                         {INDUSTRY_ORDER.map((industry) => (
@@ -133,9 +158,12 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
                         ))}
                       </div>
                     )}
-                    <Link href="/packages" className="inlineLink" onClick={() => markFirstRun("packagesReviewed")}>
-                      패키지 확인하기 <ArrowUpRight size={16} />
-                    </Link>
+                    {/* 접힌 한 줄에 이미 있으면 같은 링크를 또 두지 않는다. */}
+                    {actionable && (
+                      <Link href="/packages" className="inlineLink" onClick={() => markFirstRun("packagesReviewed")}>
+                        패키지 확인하기 <ArrowUpRight size={16} />
+                      </Link>
+                    )}
                   </div>
                 )}
                 {industryMessage && step.id === "packages" && (

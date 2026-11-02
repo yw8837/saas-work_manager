@@ -58,6 +58,20 @@ const baseTheme = outsideMedia(theme);
 const mobileTheme = mediaBlocks(theme, "(max-width: 760px)");
 const mobileWorkspace = mediaBlocks(workspace, "(max-width: 760px)");
 
+describe("첫 실행 체크리스트(감사 4번)", () => {
+  it("휴대폰에서는 단계 그림을 숨겨 '첫 일감 만들기'가 첫 화면에 들어오게 한다", () => {
+    expect(bodies(mobileTheme, ".firstRunShot")).toMatch(/display:\s*none/);
+  });
+});
+
+describe("데스크톱 새 일감 '일감 만들기'(감사 9번)", () => {
+  it("넓은 화면에서는 미리보기 패널이 상단 바 아래에 붙어 따라 내려온다", () => {
+    const wide = bodies(mediaBlocks(theme, "(min-width: 1051px)"), ".jobPreview");
+    expect(wide).toMatch(/position:\s*sticky/);
+    expect(wide).toMatch(/top:\s*84px/);
+  });
+});
+
 describe("휴대폰 일감 첫 화면에 '문구 복사'가 들어오게(감사 2·3번)", () => {
   it("'더보기'는 따로 한 줄을 쓰지 않고 제목 묶음 오른쪽 위로 올린다", () => {
     expect(bodies(mobileTheme, ".detailHeader")).toMatch(/position:\s*relative/);

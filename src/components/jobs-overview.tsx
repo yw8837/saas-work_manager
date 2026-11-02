@@ -65,7 +65,7 @@ export function JobsOverview() {
       <header className="pageHeader">
         <div>
           <h1>일감</h1>
-          <p>진행 중인 고객과 마감, 수정 잔여 횟수를 같이 봐요.</p>
+          <p>진행 중인 고객과 마감, 남은 수정 횟수를 같이 봐요.</p>
         </div>
         <div className="pageHeaderActions">
           <Link href="/jobs/summary" className="secondaryButton" data-testid="open-monthly-summary">

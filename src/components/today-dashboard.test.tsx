@@ -74,8 +74,25 @@ describe("TodayDashboard 첫 실행 안내", () => {
   });
 });
 
-describe("TodayDashboard 수정 임박", () => {
-  it("수정을 한 번도 안 쓴 일감은 임박으로 세지 않는다", () => {
+describe("TodayDashboard 수정 거의 다 씀", () => {
+  it("요약 칸과 답변 대기 설명은 어려운 말('임박'·'작업 큐') 없이 누를 버튼 이름으로 쓴다", () => {
+    const job = { ...seed.jobs[0], status: "active" as const };
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job],
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask: vi.fn(),
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    const view = render(<TodayDashboard />);
+    expect(screen.getByText("수정 거의 다 씀")).toBeInTheDocument();
+    expect(screen.getByText("답이 오면 ‘답변 받음’을 눌러요.")).toBeInTheDocument();
+    expect(view.container).not.toHaveTextContent(/임박|큐/);
+  });
+
+  it("수정을 한 번도 안 쓴 일감은 '거의 다 씀'으로 세지 않는다", () => {
     // 기본 패키지는 포함 수정이 1회라, 쓰지도 않은 일감이 만들자마자 임박으로 잡히면 안 된다.
     const job = { ...seed.jobs[0], status: "active" as const, revisionLimit: 1, revisions: [] };
     vi.mocked(useWorkspace).mockReturnValue({
@@ -89,7 +106,7 @@ describe("TodayDashboard 수정 임박", () => {
     } as unknown as ReturnType<typeof useWorkspace>);
     render(<TodayDashboard />);
 
-    const near = screen.getByText("수정 임박").closest("div")!;
+    const near = screen.getByText("수정 거의 다 씀").closest("div")!;
     expect(near.textContent).toContain("0");
   });
 });

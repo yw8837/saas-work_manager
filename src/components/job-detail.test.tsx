@@ -50,20 +50,20 @@ const setJobSourceSpy = vi.fn();
 const completeJobSpy = vi.fn();
 const setPortalSpy = vi.fn();
 
-function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted"; settings?: { minMarginPerJob?: number } } = {}) {
+function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted"; saveStatus?: "saved" | "saving"; settings?: { minMarginPerJob?: number } } = {}) {
   vi.mocked(useWorkspace).mockReturnValue({
     jobs: [job],
     settings: options.settings ?? {},
     hydrated: true,
     runtimeMode: options.runtimeMode ?? "local",
-    saveStatus: "saved",
+    saveStatus: options.saveStatus ?? "saved",
     toggleTask: vi.fn(),
     toggleIntake: toggleIntakeSpy,
     toggleJobWaiting: vi.fn(),
     completeJob: completeJobSpy,
     deleteJob: vi.fn(),
     setRevisionPortalEnabled: setPortalSpy,
-    rotateRevisionPortalToken: vi.fn(),
+    rotateRevisionPortalToken: vi.fn(() => "token_rotated"),
     recordRevision: recordRevisionSpy,
     revertRevision: revertRevisionSpy,
     completeRevision: completeRevisionSpy,
@@ -389,6 +389,34 @@ describe("JobDetail 휴대폰 첫 화면", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(toggle).toHaveTextContent("금액 접기");
     expect(rail).toHaveAttribute("data-money-open", "true");
+  });
+});
+
+describe("JobDetail 고객 링크 쉬운 말", () => {
+  it("저장이 끝나기 전 링크 상태는 '동기화' 대신 '링크 저장 중'으로 보인다", () => {
+    renderDetail(baseJob(), { runtimeMode: "hosted", saveStatus: "saving" });
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(within(portal).getByRole("status")).toHaveTextContent("링크 저장 중");
+    expect(document.body).not.toHaveTextContent(/동기화/);
+  });
+
+  it("링크를 끄거나 재발급하면 '폐기' 대신 쉬운 말로 알린다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderDetail(baseJob(), { runtimeMode: "hosted" });
+    fireEvent.click(screen.getByTestId("toggle-revision-portal"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("링크를 끄는 중이에요. 상단에 저장 완료가 표시되면 이 주소로 요청을 받지 않아요.");
+    fireEvent.click(screen.getByTestId("rotate-revision-portal"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("새 링크를 저장 중이에요. 상단에 저장 완료가 표시되면 이전 주소는 더 못 써요.");
+    expect(document.body).not.toHaveTextContent(/폐기/);
+    confirm.mockRestore();
+  });
+
+  it("이 브라우저 저장 모드에서 재발급하면 이전 주소는 더 못 쓴다고 알린다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderDetail();
+    fireEvent.click(screen.getByTestId("rotate-revision-portal"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("새 수정 링크를 발급했어요. 이전 주소는 더 못 써요.");
+    confirm.mockRestore();
   });
 });
 

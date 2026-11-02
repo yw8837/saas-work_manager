@@ -191,6 +191,16 @@ export function PackageManager() {
   const editShortfall = marginShortfall(editMargin, floor);
   const optionTask = selectedOption.taskDeltas.find((delta) => delta.kind === "add");
   const removeTask = selectedOption.taskDeltas.find((delta) => delta.kind === "remove");
+  // 옵션이 뺄 수 있는 할 일: 지금 패키지들의 할 일을 같은 할 일끼리 모아 이름으로 보인다(개발용 키는 화면에 안 보임).
+  const removableTasks = new Map<string, string[]>();
+  for (const item of packageList) {
+    for (const task of item.tasks) {
+      const names = removableTasks.get(task.taskKey) ?? [];
+      if (!names.includes(task.title)) names.push(task.title);
+      removableTasks.set(task.taskKey, names);
+    }
+  }
+  const firstRemovableKey = removableTasks.keys().next().value;
 
   return (
     <div className="pageSurface catalogPage">
@@ -369,9 +379,17 @@ export function PackageManager() {
               <label><span>추가 예상 원가 (원)</span><input type="number" min="0" value={selectedOption.estimatedCostDelta} onChange={(event) => setOptionDraft({ ...selectedOption, estimatedCostDelta: numeric(event.target.value) })} /></label>
             </div>
             <fieldset className="optionTodoEffect"><legend>할 일 변화</legend>
-              <div className="effectToggle"><button type="button" data-active={Boolean(optionTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: optionTask?.task ?? { taskKey: "option-task", title: "옵션 작업", relativeDay: 0, order: 0 } }] })}>할 일 추가</button><button type="button" data-active={Boolean(removeTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: removeTask?.taskKey ?? "design" }] })}>할 일 제거</button><button type="button" data-active={!optionTask && !removeTask} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [] })}>변화 없음</button></div>
+              <div className="effectToggle"><button type="button" data-active={Boolean(optionTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: optionTask?.task ?? { taskKey: "option-task", title: "옵션 작업", relativeDay: 0, order: 0 } }] })}>할 일 추가</button><button type="button" data-active={Boolean(removeTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: removeTask?.taskKey ?? firstRemovableKey ?? "design" }] })}>할 일 제거</button><button type="button" data-active={!optionTask && !removeTask} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [] })}>변화 없음</button></div>
               {optionTask && <div className="optionEffectFields"><label><span>추가 할 일</span><input value={optionTask.task.title} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: { ...optionTask.task, title: event.target.value, taskKey: taskKey(event.target.value, 0) } }] })} /></label><label><span>시작 며칠 뒤 (일)</span><input type="number" min="0" value={optionTask.task.relativeDay} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: { ...optionTask.task, relativeDay: numeric(event.target.value) } }] })} /></label></div>}
-              {removeTask && <label className="optionRemoveField"><span>제거할 할 일 키</span><input value={removeTask.taskKey} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: event.target.value }] })} /><small>예: `design` — 패키지 할 일 키와 정확히 같아야 제거돼요.</small></label>}
+              {removeTask && (
+                <label className="optionRemoveField">
+                  <span>뺄 할 일</span>
+                  <select value={removeTask.taskKey} onChange={(event) => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: event.target.value }] })}>
+                    {!removableTasks.has(removeTask.taskKey) && <option value={removeTask.taskKey}>지금 패키지에 없는 할 일</option>}
+                    {[...removableTasks].map(([key, names]) => <option key={key} value={key}>{names.join(" / ")}</option>)}
+                  </select>
+                </label>
+              )}
             </fieldset>
             <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentOption} data-testid="save-option"><Save size={16} /> 옵션 저장</button>{!optionDraft && <button type="button" className="quietButton" onClick={() => { if (window.confirm("이 옵션을 새 일감 선택 목록에서 보관할까요?")) { archiveOption(selectedOption.id); flashSaved("옵션을 보관했어요."); } }}><Archive size={16} /> 보관</button>}</div>
           </section>

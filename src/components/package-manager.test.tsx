@@ -11,6 +11,7 @@ vi.mock("./workspace-provider", async () => ({
 
 const updateSettings = vi.fn();
 const savePackage = vi.fn();
+const saveOption = vi.fn();
 
 function mockWorkspace(settings: Partial<AppSettings> = {}) {
   const state = createStarterState("2026-11-02");
@@ -21,7 +22,7 @@ function mockWorkspace(settings: Partial<AppSettings> = {}) {
     updateSettings,
     savePackage,
     archivePackage: vi.fn(),
-    saveOption: vi.fn(),
+    saveOption,
     archiveOption: vi.fn(),
     canCreatePackage: true,
     canCreateOption: true,
@@ -32,6 +33,7 @@ function mockWorkspace(settings: Partial<AppSettings> = {}) {
 beforeEach(() => {
   updateSettings.mockReset();
   savePackage.mockReset();
+  saveOption.mockReset();
   mockWorkspace();
 });
 
@@ -53,6 +55,20 @@ describe("패키지 화면 쉬운 말", () => {
     fireEvent.click(screen.getByRole("tab", { name: /옵션/ }));
     expect(screen.getByText("할 일 변화")).toBeInTheDocument();
     expect(view.container).not.toHaveTextContent(/Todo|합성|상대 기한/);
+  });
+
+  it("옵션의 '할 일 제거'는 개발용 키를 적는 칸 대신 패키지 할 일 이름 목록에서 뺄 할 일을 고른다", () => {
+    const view = render(<PackageManager />);
+    fireEvent.click(screen.getByRole("tab", { name: /옵션/ }));
+    fireEvent.click(screen.getByRole("button", { name: /고객 디자인 제공/ }));
+    const select = screen.getByLabelText("뺄 할 일") as HTMLSelectElement;
+    expect(select.tagName).toBe("SELECT");
+    // 예시 옵션은 디자인 할 일을 뺀다. 웹 예시 세 패키지의 디자인 할 일 이름이 보인다.
+    expect(select.selectedOptions[0].textContent).toContain("메인 디자인 공유");
+    expect(view.container).not.toHaveTextContent(/할 일 키|`design`/);
+    fireEvent.change(select, { target: { value: "launch" } });
+    fireEvent.click(screen.getByTestId("save-option"));
+    expect(saveOption).toHaveBeenCalledWith(expect.objectContaining({ taskDeltas: [{ kind: "remove", taskKey: "launch" }] }));
   });
 });
 

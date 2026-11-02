@@ -114,3 +114,11 @@ it("일감 목록 머리에 월별 정리로 가는 버튼이 있다", () => {
   expect(link).toHaveAttribute("href", "/jobs/summary");
   expect(link).toHaveTextContent("월별 정리");
 });
+
+it("머리 설명은 '잔여' 대신 '남은 수정'이라고 쓴다", () => {
+  vi.mocked(useWorkspace).mockReturnValue({ jobs: [] } as unknown as ReturnType<typeof useWorkspace>);
+  window.history.replaceState({}, "", "/jobs");
+  const view = render(<JobsOverview />);
+  expect(screen.getByText("진행 중인 고객과 마감, 남은 수정 횟수를 같이 봐요.")).toBeInTheDocument();
+  expect(view.container).not.toHaveTextContent("잔여");
+});
