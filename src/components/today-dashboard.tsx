@@ -10,6 +10,7 @@ import {
   Clock3,
   ExternalLink,
   MessageCircle,
+  MessageSquareText,
   Plus,
   RotateCcw,
 } from "lucide-react";
@@ -91,6 +92,22 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
   );
 }
 
+/** 고객이 링크로 남긴 확인 대기 요청. 체크하는 줄이 아니라 그 일감의 수정 요청 구획으로 가는 줄이다. */
+function RequestRow({ job, pending }: { job: Job; pending: number }) {
+  return (
+    <article className="taskRow" data-testid={`today-pending-request-${job.id}`}>
+      <span className="taskRowIcon" aria-hidden="true"><MessageSquareText size={18} /></span>
+      <Link href={`/jobs/${job.id}#revisions`} className="taskRowMain">
+        <div className="taskMetaLine">
+          <span className="clientName">{job.clientLabel}</span>
+        </div>
+        <strong>고객 요청 {pending}건 확인 대기</strong>
+        <span className="taskContext">{displayJobTitle(job)}</span>
+      </Link>
+    </article>
+  );
+}
+
 export function TodayDashboard() {
   const { jobs, jobsCreatedTotal, toggleTask, toggleJobWaiting, resetDemo, alerts, settings, runtimeMode } = useWorkspace();
   const [completedLabel, setCompletedLabel] = useState<string | null>(null);
@@ -118,6 +135,11 @@ export function TodayDashboard() {
         .sort((a, b) => a.task.dueDate.localeCompare(b.task.dueDate)),
     [scopedJobs, now],
   );
+
+  // 확인 대기 요청은 맨 위 알림 한 줄에만 나오면 놓치기 쉬워 '우선 처리' 맨 앞에 일감마다 한 줄로 둔다.
+  const requestRows = scopedJobs
+    .map((job) => ({ job, pending: getRevisionSummary(job).pending }))
+    .filter((item) => item.pending > 0);
 
   const waitingJobs = scopedJobs.filter(
     (job) => job.status === "active" && job.tasks.some((task) => task.status === "waiting"),
@@ -214,17 +236,20 @@ export function TodayDashboard() {
             <div className="sectionHeadingRow">
               <div>
                 <h2>우선 처리</h2>
-                <p>마감이 지난 일부터 보여줘요.</p>
+                <p>새 고객 요청과 마감이 지난 일부터 보여줘요.</p>
               </div>
-              <span className="sectionCount">{queue.length}개</span>
+              <span className="sectionCount">{requestRows.length + queue.length}개</span>
             </div>
 
             <div className="taskList">
+              {requestRows.map((item) => (
+                <RequestRow key={`request-${item.job.id}`} job={item.job} pending={item.pending} />
+              ))}
               {queue.length > 0 ? (
                 visibleQueue.map((item) => (
                   <QueueRow key={`${item.job.id}-${item.task.id}`} item={item} onComplete={handleComplete} />
                 ))
-              ) : (
+              ) : requestRows.length === 0 && (
                   <div className="clearState">
                     <CheckCircle2 size={24} />
                     <div><strong>급한 일은 모두 끝났어요</strong><span>마음 편히 다음 작업에 집중하세요.</span></div>

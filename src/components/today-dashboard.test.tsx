@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { recordRevision } from "@/lib/domain";
 import { createSeedState } from "@/lib/store";
 import { TodayDashboard } from "./today-dashboard";
 import { useWorkspace } from "./workspace-provider";
@@ -90,6 +91,55 @@ describe("TodayDashboard 수정 임박", () => {
 
     const near = screen.getByText("수정 임박").closest("div")!;
     expect(near.textContent).toContain("0");
+  });
+});
+
+describe("TodayDashboard 우선 처리의 고객 요청", () => {
+  it("확인 대기 요청이 우선 처리에 보인다", () => {
+    const base = {
+      ...seed.jobs[0],
+      status: "active" as const,
+      dueDate: "2099-01-01",
+      tasks: [{ ...seed.jobs[0].tasks[0], id: "request-task", title: "시안 보내기", status: "todo" as const, dueDate: "2020-01-01" }],
+    };
+    const job = recordRevision(base, { revisionId: "revision_today", source: "public", body: "사진 교체 부탁드려요.", submittedAt: "2026-08-16T01:00:00.000Z" }).job;
+    const toggleTask = vi.fn();
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job],
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask,
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<TodayDashboard />);
+
+    const focus = screen.getByRole("heading", { name: "우선 처리" }).closest("section")!;
+    const row = within(focus).getByTestId(`today-pending-request-${job.id}`);
+    expect(row).toHaveTextContent("고객 요청 1건 확인 대기");
+    // 할 일처럼 체크하는 줄이 아니라, 누르면 그 일감의 수정 요청 구획으로 가는 줄이다.
+    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(row).getByRole("link")).toHaveAttribute("href", `/jobs/${job.id}#revisions`);
+
+    // 할 일 줄의 체크 동작은 그대로다.
+    fireEvent.click(within(focus).getByRole("button", { name: "시안 보내기 완료 처리" }));
+    expect(toggleTask).toHaveBeenCalledWith(job.id, "request-task");
+  });
+
+  it("확인 대기 요청이 없으면 요청 줄이 없다", () => {
+    const job = { ...seed.jobs[0], status: "active" as const };
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job],
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask: vi.fn(),
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<TodayDashboard />);
+    expect(screen.queryByTestId(`today-pending-request-${job.id}`)).not.toBeInTheDocument();
   });
 });
 

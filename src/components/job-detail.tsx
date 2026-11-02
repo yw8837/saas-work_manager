@@ -33,6 +33,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEv
 import { emptyJobListSearch, jobListReturnHref, jobListSearchSnapshot, subscribeJobListLocation } from "@/lib/jobs-list-location";
 import { revisionPortalUrl } from "@/lib/client-share";
 import { markFirstRun } from "@/lib/first-run";
+import { localToday } from "@/lib/store";
+import { ClientMessages } from "./client-messages";
 import { SendToClientBanner } from "./send-to-client-banner";
 import { StartChecklist } from "./start-checklist";
 import { displayJobTitle, pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
@@ -443,6 +445,15 @@ export function JobDetail({ jobId }: { jobId: string }) {
         </div>
       </header>
 
+      {/* 고객이 링크로 남긴 새 요청은 휴대폰에서도 첫 화면에 보이게 제목 바로 아래에 알린다. */}
+      {revision.pending > 0 && (
+        <a href="#revisions" className="pendingRequestStrip" data-testid="pending-request-strip">
+          <MessageSquareText size={16} aria-hidden="true" />
+          <span>고객 요청 {revision.pending}건이 확인을 기다려요</span>
+          <span className="pendingRequestStripAction">보기</span>
+        </a>
+      )}
+
       {sendBannerRequested && !sendBannerDismissed && job.status === "active" && (
         <SendToClientBanner
           link={portalLink}
@@ -493,6 +504,9 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
       <div className="detailGrid">
         <div className="detailMain">
+          {/* 안내 띠를 닫아도 지금 상황에 맞는 문구를 다시 복사할 수 있다. 링크 준비 여부는 저장 직후 안내와 같다. */}
+          <ClientMessages job={job} link={portalEnabled && portalSynced ? portalLink : null} today={localToday()} />
+
           <section className="contentSection taskDetailSection">
             <div className="sectionHeadingRow">
               <div>
@@ -566,10 +580,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
           <StartChecklist
             jobId={job.id}
-            clientLabel={job.clientLabel}
             questions={job.briefQuestions ?? []}
-            pendingIntake={pendingIntake}
-            pendingQuestions={pendingQuestions}
             active={job.status === "active"}
             onToggle={toggleBriefQuestion}
             onNote={updateBriefNote}

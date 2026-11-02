@@ -1,0 +1,173 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  availableSituations,
+  situationMessage,
+  SITUATION_LABELS,
+  type MessageSituation,
+} from "./client-messages";
+import {
+  completeRevision,
+  composeJob,
+  createAddon,
+  markRevisionExtraScope,
+  recordRevision,
+  revertRevision,
+  updateTaskStatus,
+  type Job,
+  type PackageTemplate,
+} from "./domain";
+
+const TODAY = "2026-11-02";
+// 이 기기 시간대와 상관없이 TODAY에 드는 시각(로컬 정오).
+const TODAY_NOON = new Date(2026, 10, 2, 12, 0, 0).toISOString();
+const LINK = "https://ilgam.example/r/token_msg";
+const ALL = Object.keys(SITUATION_LABELS) as MessageSituation[];
+
+const template: PackageTemplate = {
+  id: "pkg_msg",
+  name: "Basic 홈페이지",
+  price: 790_000,
+  estimatedCost: 95_000,
+  durationDays: 7,
+  revisionLimit: 2,
+  tasks: [
+    { taskKey: "brief", title: "요청서 확인", relativeDay: 0, order: 0 },
+    { taskKey: "draft", title: "시안 공유", relativeDay: 3, order: 1 },
+    { taskKey: "deliver", title: "납품", relativeDay: 7, order: 2 },
+  ],
+  intakeItems: ["로고 파일"],
+  briefQuestions: ["가장 하고 싶은 일은 무엇인가요?"],
+};
+
+function baseJob(overrides: Partial<PackageTemplate> = {}): Job {
+  return composeJob({
+    jobId: "job_msg",
+    revisionPortalToken: "token_msg",
+    clientLabel: "카페 모라",
+    startDate: "2026-10-30",
+    package: { ...template, ...overrides },
+    now: "2026-10-30T00:00:00.000Z",
+  });
+}
+
+function withDoneRevision(job: Job, id: string, at = TODAY_NOON): Job {
+  return completeRevision(recordRevision(job, { revisionId: id, source: "public", body: `${id} 요청`, submittedAt: at }).job, id, at);
+}
+
+function allTasksDone(job: Job): Job {
+  return job.tasks.reduce((current, task) => updateTaskStatus(current, task.id, "done", TODAY_NOON), job);
+}
+
+describe("고객에게 보낼 말 — 상황 고르기", () => {
+  it("상황 이름은 7개다", () => {
+    expect(SITUATION_LABELS).toEqual({
+      "revision-done": "수정 반영 알림",
+      remaining: "남은 것 요청",
+      waiting: "답 기다림",
+      review: "시안 확인 부탁",
+      start: "시작 안내",
+      "out-of-scope": "범위 밖 안내",
+      delivery: "납품 안내",
+    });
+  });
+
+  it("상태에 맞는 상황만 우선순위대로 나온다", () => {
+    let job = withDoneRevision(baseJob(), "r1");
+    job = updateTaskStatus(job, job.tasks[1].id, "waiting", TODAY_NOON);
+    expect(availableSituations(job, TODAY)).toEqual(["revision-done", "remaining", "waiting", "review", "start"]);
+    // 수정 완료가 다른 날이면 수정 반영 알림은 없다.
+    expect(availableSituations(job, "2026-11-03")).toEqual(["remaining", "waiting", "review", "start"]);
+    // 되돌린 수정은 반영 알림을 띄우지 않는다.
+    expect(availableSituations(revertRevision(withDoneRevision(baseJob(), "r2"), "r2", "중복", TODAY_NOON), TODAY)).toEqual(["remaining", "review", "start"]);
+
+    // 완료 일감은 납품 안내만(범위 밖이 있으면 범위 밖 안내도).
+    expect(availableSituations({ ...baseJob(), status: "completed" }, TODAY)).toEqual(["delivery"]);
+    expect(availableSituations({ ...withDoneRevision(baseJob(), "r3"), status: "completed" }, TODAY)).toEqual(["delivery"]);
+    const extra = markRevisionExtraScope(recordRevision(baseJob(), { revisionId: "r4", source: "public", body: "페이지 추가", submittedAt: TODAY_NOON }).job, "r4", TODAY_NOON);
+    expect(availableSituations({ ...extra, status: "completed" }, TODAY)).toEqual(["out-of-scope", "delivery"]);
+  });
+
+  it("초안 추가요청이 있으면 범위 밖 안내, 할 일을 다 끝내면 납품 안내가 나온다", () => {
+    const plain = baseJob({ intakeItems: [], briefQuestions: [] });
+    expect(availableSituations(plain, TODAY)).toEqual(["review", "start"]);
+    const draft = createAddon(plain, { addonId: "addon_msg", title: "배너 추가", amountDelta: 100_000, durationDaysDelta: 1, createdAt: TODAY_NOON });
+    expect(availableSituations({ ...plain, addons: [draft] }, TODAY)).toEqual(["review", "start", "out-of-scope"]);
+    expect(availableSituations(allTasksDone(plain), TODAY)).toEqual(["review", "start", "delivery"]);
+  });
+});
+
+describe("고객에게 보낼 말 — 문구", () => {
+  it("어떤 문구에도 금액·원가가 들어가지 않는다", () => {
+    const job = withDoneRevision(baseJob(), "r1");
+    expect(job.amount).toBe(790_000);
+    expect(job.estimatedCost).toBe(95_000);
+    expect(ALL).toHaveLength(7);
+    for (const situation of ALL) {
+      for (const link of [LINK, null]) {
+        const message = situationMessage(situation, { job, link });
+        expect(message.split("\n")[0]).toBe("안녕하세요, 카페 모라님.");
+        expect(message).not.toMatch(/\d{1,3}(,\d{3})*원|₩/);
+        expect(message).not.toMatch(/790|95,?000|695/);
+      }
+    }
+  });
+
+  it("시작 안내는 저장 직후 안내와 같은 문구이고 제목에서 고객 이름을 뗀다", () => {
+    const message = situationMessage("start", { job: baseJob(), link: LINK });
+    expect(message).toContain("Basic 홈페이지 작업의 수정 요청은 아래 링크에 한 번에 남겨주세요.");
+    expect(message).not.toContain("카페 모라 · Basic 홈페이지");
+    expect(message).toContain("[보내 주실 자료]\n- 로고 파일");
+    expect(message.split("\n").at(-1)).toBe(LINK);
+    expect(situationMessage("remaining", { job: baseJob(), link: LINK })).toBe(
+      "안녕하세요, 카페 모라님.\n작업을 시작하기 전에 아래 내용만 이 대화로 보내 주세요. 모르는 건 '모름'이라고 적어 주셔도 괜찮아요.\n[보내 주실 자료]\n- 로고 파일\n[알려 주실 것]\n1. 가장 하고 싶은 일은 무엇인가요?",
+    );
+  });
+
+  it("링크가 없으면 링크 줄을 빼고 남은 수정 0회면 횟수 안내를 바꾼다", () => {
+    const job = withDoneRevision(baseJob(), "r1");
+    // 링크를 말하는 문구는 링크가 있을 때만 마지막 줄에 링크를 붙인다.
+    for (const situation of ["revision-done", "review", "start"] as const) {
+      expect(situationMessage(situation, { job, link: LINK }).split("\n").at(-1)).toBe(LINK);
+    }
+    expect(situationMessage("revision-done", { job, link: LINK })).toContain("포함 수정 2회 중 1회를 썼고, 남은 수정은 1회예요.");
+    expect(situationMessage("review", { job, link: LINK })).toContain("남은 포함 수정은 1회예요.");
+
+    // 링크가 꺼졌거나 저장 중이면(link=null) 링크 줄도, '링크' 말도 없다. 대신 이 대화로 받는다.
+    for (const situation of ALL) {
+      const message = situationMessage(situation, { job, link: null });
+      expect(message).not.toContain("http");
+      expect(message).not.toContain("링크");
+    }
+    expect(situationMessage("revision-done", { job, link: null })).toContain("이 대화로 한 번에 말씀해 주세요.");
+    expect(situationMessage("review", { job, link: null })).toContain("이 대화로 한 번에 말씀해 주세요.");
+    expect(situationMessage("start", { job, link: null })).toContain("Basic 홈페이지 작업의 수정 요청은 이 대화로 한 번에 모아 주세요.");
+
+    // 완료한 일감은 고객 링크가 서버에서 막히므로 링크를 넘겨도 넣지 않는다.
+    for (const situation of ALL) {
+      expect(situationMessage(situation, { job: { ...job, status: "completed" }, link: LINK })).not.toContain(LINK);
+    }
+
+    // 포함 수정을 다 쓴 주문: "1회씩 세요"·"링크에 남겨 주세요" 대신 추가 작업으로 따로 말한다.
+    const used = withDoneRevision(job, "r2");
+    for (const situation of ALL) {
+      const message = situationMessage(situation, { job: used, link: LINK });
+      expect(message).not.toContain("1회씩 세요");
+    }
+    for (const situation of ["revision-done", "review"] as const) {
+      const message = situationMessage(situation, { job: used, link: LINK });
+      expect(message).toContain("다음 요청부터는 추가 작업으로 따로 말씀드릴게요.");
+      expect(message).not.toMatch(/링크에 한 번에 남겨/);
+      expect(message).not.toContain(LINK);
+    }
+    expect(situationMessage("revision-done", { job: used, link: LINK })).toContain("남은 수정은 0회예요.");
+  });
+
+  it("상황마다 설계의 뜻대로 쓴다", () => {
+    const job = baseJob();
+    expect(situationMessage("waiting", { job, link: LINK })).toContain("혹시 앞서 여쭤본 내용 보셨을까요?");
+    expect(situationMessage("out-of-scope", { job, link: LINK })).toContain("처음 정한 작업 범위 밖이라 추가 작업으로 따로 진행돼요.");
+    expect(situationMessage("delivery", { job, link: LINK })).toContain("Basic 홈페이지 작업을 모두 마쳤어요.");
+    expect(situationMessage("review", { job, link: LINK })).toContain("작업한 것을 보내 드려요.");
+  });
+});

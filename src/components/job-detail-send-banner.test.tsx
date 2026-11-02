@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
@@ -150,21 +150,39 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
     expect(updateBriefNote).toHaveBeenCalledWith("job_send", "job_send_brief_2", "인스타 계정 참고");
   });
 
-  it("남은 것 다시 보내기는 인사와 남은 자료·질문만 복사하고, 복사가 막히면 문구를 그대로 보여 준다", async () => {
+  // 남은 것 다시 보내기는 '고객에게 보낼 말'의 '남은 것 요청' 칩으로 옮겼다(복사 버튼이 두 군데 생기지 않게).
+  it("'고객에게 보낼 말'의 남은 것 요청은 인사와 남은 자료·질문만 복사하고, 복사가 막히면 문구를 그대로 보여 준다", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     renderBrief("https://ilgam.example/jobs/job_send");
-    fireEvent.click(screen.getByTestId("start-reminder-copy"));
+    // 착수 전 질문 구획에는 따로 복사 버튼을 두지 않는다.
+    expect(within(screen.getByTestId("brief-section")).queryByRole("button", { name: /복사/ })).not.toBeInTheDocument();
+    // 아직 못 받은 자료·질문이 있으면 '남은 것 요청'이 처음부터 골라져 있다.
+    expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByTestId("client-message-copy"));
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
     expect(writeText.mock.calls[0][0]).toBe(
       "안녕하세요, 보내기 고객님.\n작업을 시작하기 전에 아래 내용만 이 대화로 보내 주세요. 모르는 건 '모름'이라고 적어 주셔도 괜찮아요.\n[보내 주실 자료]\n- 로고 원본 파일\n[알려 주실 것]\n1. 이 작업으로 가장 하고 싶은 일은 무엇인가요?\n2. 참고 예시가 있나요?",
     );
-    await waitFor(() => expect(screen.getByTestId("start-reminder-copy")).toHaveTextContent("복사했어요"));
+    await waitFor(() => expect(screen.getByTestId("client-message-copy")).toHaveTextContent("복사했어요"));
 
     cleanup();
     writeText.mockRejectedValueOnce(new Error("blocked"));
     renderBrief("https://ilgam.example/jobs/job_send");
-    fireEvent.click(screen.getByTestId("start-reminder-copy"));
-    await waitFor(() => expect(screen.getByTestId("start-reminder-text")).toHaveValue(writeText.mock.calls[0][0]));
+    fireEvent.click(screen.getByTestId("client-message-copy"));
+    await waitFor(() => expect(screen.getByTestId("client-message-text")).toHaveValue(writeText.mock.calls[0][0]));
+  });
+
+  it("안내 띠를 닫아도 '고객에게 보낼 말'에서 같은 시작 안내 문구를 다시 복사할 수 있다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderBrief("https://ilgam.example/jobs/job_send?created=1");
+    const bannerMessage = screen.getByTestId("send-message-preview").textContent;
+    fireEvent.click(screen.getByRole("button", { name: "고객에게 보내기 안내 닫기" }));
+    expect(screen.queryByTestId("send-to-client-banner")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("client-message-chip-start"));
+    expect(screen.getByTestId("client-message-preview").textContent).toBe(bannerMessage);
+    fireEvent.click(screen.getByTestId("client-message-copy"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(bannerMessage));
   });
 });

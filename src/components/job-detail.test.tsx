@@ -126,6 +126,51 @@ describe("JobDetail 고객 수정 링크", () => {
   });
 });
 
+describe("JobDetail 새 요청 띠", () => {
+  it("확인 대기 요청이 있으면 제목 아래에 띠를 보이고 수정 요청 구획으로 보낸다", () => {
+    renderDetail(recordRevision(baseJob(), {
+      revisionId: "revision_strip",
+      source: "public",
+      body: "사진 교체 부탁드려요.",
+      submittedAt: "2026-08-02T00:00:00.000Z",
+    }).job);
+
+    const strip = screen.getByTestId("pending-request-strip");
+    expect(strip).toHaveTextContent("고객 요청 1건이 확인을 기다려요");
+    expect(strip.closest("a") ?? strip.querySelector("a")).toHaveAttribute("href", "#revisions");
+    // 제목 바로 아래, 핵심 정보 줄보다 위에 둔다.
+    const title = screen.getByRole("heading", { level: 1, name: "상세 고객" });
+    expect(title.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
+    expect(strip.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("확인 대기 요청이 없으면 띠가 없다", () => {
+    renderDetail();
+    expect(screen.queryByTestId("pending-request-strip")).not.toBeInTheDocument();
+    // 반려한 요청은 기다리는 요청이 아니다.
+    const rejected = revertRevision(
+      recordRevision(baseJob(), { revisionId: "revision_rejected", source: "public", body: "질문", submittedAt: "2026-08-02T00:00:00.000Z" }).job,
+      "revision_rejected",
+      "질문이라 대화창으로 답함",
+      "2026-08-02T01:00:00.000Z",
+    );
+    renderDetail(rejected);
+    expect(screen.queryByTestId("pending-request-strip")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 고객에게 보낼 말", () => {
+  it("핵심 정보 줄 바로 아래, 할 일 목록보다 위에 둔다", () => {
+    renderDetail();
+    const messages = screen.getByTestId("client-messages");
+    const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
+    const tasks = screen.getByRole("heading", { name: "작업 체크리스트" });
+    expect(rail.compareDocumentPosition(messages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(messages.compareDocumentPosition(tasks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe("JobDetail 원가·마진 노출", () => {
   it("계약 금액 옆에 예상 원가와 예상 마진·마진율을 그대로 보여준다", () => {
     renderDetail();
