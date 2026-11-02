@@ -25,6 +25,8 @@ import {
   resolvePlanAccess,
   revertRevision as applyRevertedRevision,
   toggleIntakeItem as applyIntakeToggle,
+  toggleBriefQuestion as applyBriefToggle,
+  setBriefQuestionNote as applyBriefNote,
   toggleJobCompletion,
   updateTaskStatus,
   BETA_GRANT_DAYS,
@@ -129,6 +131,10 @@ type WorkspaceContextValue = AppState & {
   toggleTask: (jobId: string, taskId: string) => void;
   /** '시작 전 받을 자료'를 받음/안 받음으로 바꾼다. 받은 것은 고객 링크 목록에서 빠진다. */
   toggleIntake: (jobId: string, itemId: string) => void;
+  /** 착수 전 질문의 답을 받았다고 체크하거나 되돌린다. 답은 고객이 대화창으로 보낸다. */
+  toggleBriefQuestion: (jobId: string, questionId: string) => void;
+  /** 착수 전 질문 옆 한 줄 메모(선택). 비우면 지운다. */
+  updateBriefNote: (jobId: string, questionId: string, note: string) => void;
   toggleJobWaiting: (jobId: string) => void;
   completeJob: (jobId: string) => void;
   deleteJob: (jobId: string) => void;
@@ -1386,6 +1392,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [updateJob],
   );
 
+  const toggleBriefQuestion = useCallback(
+    (jobId: string, questionId: string) => {
+      updateJob(jobId, (job) => (job.status === "active" ? applyBriefToggle(job, questionId) : job));
+    },
+    [updateJob],
+  );
+
+  const updateBriefNote = useCallback(
+    (jobId: string, questionId: string, note: string) => {
+      updateJob(jobId, (job) => (job.status === "active" ? applyBriefNote(job, questionId, note) : job));
+    },
+    [updateJob],
+  );
+
   const toggleJobWaiting = useCallback(
     (jobId: string) => {
       updateJob(jobId, (job) => {
@@ -1728,6 +1748,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       createJob,
       toggleTask,
       toggleIntake,
+      toggleBriefQuestion,
+      updateBriefNote,
       toggleJobWaiting,
       completeJob,
       deleteJob,
@@ -1750,7 +1772,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (

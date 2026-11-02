@@ -303,6 +303,73 @@ export function pendingIntakeLabels(job: Pick<Job, "intakeItems">): string[] {
   return (job.intakeItems ?? []).filter((item) => !item.receivedAt).map((item) => item.label);
 }
 
+export const BRIEF_QUESTION_LIMIT = 5;
+export const BRIEF_QUESTION_MAX = 80;
+export const BRIEF_NOTE_MAX = 300;
+
+/**
+ * 패키지에 처음 넣어 주는 기본 질문 3개. 고객은 원하는 결과를 처음부터 말로 정리하기 어려우니
+ * 업무 용어 없이 목적·예시·넣고 뺄 것만 묻는다. 작업자가 패키지마다 고친다.
+ */
+export const DEFAULT_BRIEF_QUESTIONS = [
+  "이 작업으로 가장 하고 싶은 일은 무엇인가요? (예: 예약 받기, 가게 소개)",
+  "마음에 드는 예시(사이트·사진)가 있으면 알려 주세요. 없으면 '없음'도 괜찮아요.",
+  "꼭 들어가야 하는 것과 빼고 싶은 것이 있나요?",
+] as const;
+
+/** '착수 전 질문'을 정리한다. 빈 줄·중복은 빼고, 질문은 80자, 목록은 5개까지. */
+export function normalizeBriefQuestions(questions: unknown): string[] {
+  if (!Array.isArray(questions)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of questions) {
+    if (typeof raw !== "string") continue;
+    const question = raw.trim().slice(0, BRIEF_QUESTION_MAX);
+    if (!question || seen.has(question)) continue;
+    seen.add(question);
+    result.push(question);
+    if (result.length === BRIEF_QUESTION_LIMIT) break;
+  }
+  return result;
+}
+
+/** 고객 답을 받았다고 체크하거나 다시 '아직'으로 돌린다. 메모는 그대로 둔다. */
+export function toggleBriefQuestion(job: Job, questionId: string, now = new Date().toISOString()): Job {
+  if (!job.briefQuestions?.some((item) => item.id === questionId)) return job;
+  return {
+    ...job,
+    briefQuestions: job.briefQuestions.map((item) => {
+      if (item.id !== questionId) return item;
+      if (item.answeredAt) {
+        const { answeredAt: _answeredAt, ...rest } = item;
+        return rest;
+      }
+      return { ...item, answeredAt: now };
+    }),
+    updatedAt: now,
+  };
+}
+
+/** 질문 옆 한 줄 메모. 비우면 지운다. */
+export function setBriefQuestionNote(job: Job, questionId: string, note: string, now = new Date().toISOString()): Job {
+  if (!job.briefQuestions?.some((item) => item.id === questionId)) return job;
+  const trimmed = note.trim().slice(0, BRIEF_NOTE_MAX);
+  return {
+    ...job,
+    briefQuestions: job.briefQuestions.map((item) => {
+      if (item.id !== questionId) return item;
+      const { note: _note, ...rest } = item;
+      return trimmed ? { ...rest, note: trimmed } : rest;
+    }),
+    updatedAt: now,
+  };
+}
+
+/** 카톡 문구에 넣을, 아직 답을 받지 못한 질문. */
+export function pendingBriefQuestions(job: Pick<Job, "briefQuestions">): string[] {
+  return (job.briefQuestions ?? []).filter((item) => !item.answeredAt).map((item) => item.question);
+}
+
 export function composeJob(input: ComposeJobInput): Job {
   assertText(input.clientLabel, "고객 별칭");
   parseISODate(input.startDate);
@@ -328,10 +395,14 @@ export function composeJob(input: ComposeJobInput): Job {
     options.reduce((total, option) => total + option.revisionLimitDelta, 0);
   const calculatedDueDate = addCalendarDays(input.startDate, durationDays);
   const intakeLabels = normalizeIntakeLabels(input.package.intakeItems);
+  const briefQuestions = normalizeBriefQuestions(input.package.briefQuestions);
 
   return {
     ...(intakeLabels.length > 0
       ? { intakeItems: intakeLabels.map((label, index) => ({ id: `${jobId}_intake_${index + 1}`, label })) }
+      : {}),
+    ...(briefQuestions.length > 0
+      ? { briefQuestions: briefQuestions.map((question, index) => ({ id: `${jobId}_brief_${index + 1}`, question })) }
       : {}),
     id: jobId,
     clientLabel: input.clientLabel.trim(),

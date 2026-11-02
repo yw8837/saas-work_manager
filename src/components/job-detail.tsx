@@ -34,6 +34,8 @@ import { emptyJobListSearch, jobListReturnHref, jobListSearchSnapshot, subscribe
 import { revisionPortalUrl } from "@/lib/client-share";
 import { markFirstRun } from "@/lib/first-run";
 import { SendToClientBanner } from "./send-to-client-banner";
+import { StartChecklist } from "./start-checklist";
+import { pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { nativePlatform } from "@/lib/native/platform";
 import {
@@ -73,6 +75,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
     saveStatus,
     toggleTask,
     toggleIntake,
+    toggleBriefQuestion,
+    updateBriefNote,
     toggleJobWaiting,
     completeJob,
     deleteJob,
@@ -164,6 +168,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
   const intakeItems = job.intakeItems ?? [];
   const intakeReceived = intakeItems.filter((item) => item.receivedAt).length;
+  const pendingIntake = pendingIntakeLabels(job);
+  const pendingQuestions = pendingBriefQuestions(job);
   const waitingTask = job.tasks.find((task) => task.status === "waiting");
   const doneTasks = job.tasks.filter((task) => task.status === "done").length;
   const progress = Math.round((doneTasks / Math.max(job.tasks.length, 1)) * 100);
@@ -444,6 +450,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
           title={job.title}
           included={revision.included}
           remaining={revision.remaining}
+          pendingIntake={pendingIntake}
+          pendingQuestions={pendingQuestions}
           ready={portalEnabled && portalSynced}
           pendingMessage={portalEnabled ? "저장이 끝나면 보낼 수 있어요. 상단에 저장 완료가 표시될 때까지 잠시만 기다려 주세요." : "고객 수정 링크가 꺼져 있어요. 아래 고객 수정 요청 링크 카드에서 켜면 보낼 수 있어요."}
           localOnly={runtimeMode === "local"}
@@ -531,7 +539,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
               <div className="sectionHeadingRow">
                 <div>
                   <h2 id="intake-title">시작 전 받을 자료</h2>
-                  <p className="sectionHint">{intakeReceived}/{intakeItems.length} 받음 · 아직 못 받은 것은 고객 링크에도 보여요</p>
+                  <p className="sectionHint">{intakeReceived}/{intakeItems.length} 받음 · 아직 못 받은 것은 고객 링크와 카톡 문구에 들어가요</p>
                 </div>
               </div>
               <ul className="intakeList">
@@ -555,6 +563,17 @@ export function JobDetail({ jobId }: { jobId: string }) {
               </ul>
             </section>
           )}
+
+          <StartChecklist
+            jobId={job.id}
+            clientLabel={job.clientLabel}
+            questions={job.briefQuestions ?? []}
+            pendingIntake={pendingIntake}
+            pendingQuestions={pendingQuestions}
+            active={job.status === "active"}
+            onToggle={toggleBriefQuestion}
+            onNote={updateBriefNote}
+          />
 
           <section id="revisions" className="contentSection jobRevisionSection" ref={revisionSectionRef}>
             <div className="sectionHeadingRow">

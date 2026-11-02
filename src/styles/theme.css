@@ -757,6 +757,11 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .intakeToggle svg { color: var(--green, #2f8f5b); flex: none; }
 .intakeToggle small { margin-left: auto; color: var(--muted); font-size: 11px; }
 .intakeCircle { flex: none; width: 16px; height: 16px; border: 1.5px solid var(--line-strong); border-radius: 50%; }
+.briefItem { display: grid; gap: 4px; }
+.briefNote { width: 100%; min-height: 36px; padding: 0 12px; font-size: 13px; }
+.startReminder { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.startReminder p { flex: 1 1 220px; margin: 0; color: var(--muted); font-size: 12px; }
+.startReminderText { width: 100%; font-size: 13px; }
 .revisionRowActions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .revisionRowActions .compactButton { min-height: 32px; font-size: 12px; }
 .revisionRowActions .revisionRevertButton { margin-top: 0; min-height: 32px; }
@@ -1193,6 +1198,19 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .alertPopoverItem[data-severity="urgent"] > svg { color: var(--red); }
 .alertPopoverItem[data-severity="attention"] > svg { color: var(--amber); }
 .alertPopoverItem > svg { color: var(--blue); margin-top: 2px; }
+.avatarButton { padding: 0; border: 0; cursor: pointer; }
+.avatarButton:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.profilePopover { width: min(300px, calc(100vw - 28px)); }
+.profileSummary { display: flex; align-items: center; gap: 10px; padding: 14px; border-bottom: 1px solid var(--line); }
+.profileSummary > div { min-width: 0; }
+.profileSummary strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.profileSummary small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.profileActions { display: grid; padding: 6px; }
+.profileAction { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 10px; color: var(--ink); background: none; border: 0; border-radius: 8px; font-size: 13px; text-align: left; cursor: pointer; }
+.profileAction:hover { background: var(--canvas); }
+.profileAction:disabled { color: var(--muted); cursor: default; }
+.profileError { margin: 0; padding: 10px 14px 14px; color: var(--red); font-size: 12px; line-height: 1.5; }
+.profileError a { color: var(--ink); font-weight: 600; text-decoration: underline; }
 .alertPopoverItem span, .alertPopoverItem strong, .alertPopoverItem p { display: block; }
 .alertPopoverItem span { color: var(--muted); font-size: 10px; }
 .alertPopoverItem strong { font-size: 12px; }
