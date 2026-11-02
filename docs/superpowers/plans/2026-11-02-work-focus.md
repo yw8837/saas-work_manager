@@ -4,7 +4,7 @@
 
 **목표:** 처음 쓰는 제작자가 무기 3개(주문 30초 등록·시작 안내 한 방·수정 범위 정리)를 바로 보고 쓰게 하고, 받은 곳 표시·상황별 카톡 문구·최소 기준 경고·월별 매출 정리를 가볍게 더하고, 사용설명서를 그림 위주로 바꾼다.
 
-**구조:** 모두 클라이언트 쪽 변경이다. 작업공간 JSON 문서에 선택 칸 4개(`Job.source`, `Job.completedAt`, `AppSettings.minMarginPerJob`, `AppSettings.lastOrderSource`)를 더하고, 순수 함수(문구·합계·CSV)는 `src/lib`에 두고 화면은 기존 컴포넌트에 붙인다. DB migration과 고객 공개 경로 변경은 없다.
+**구조:** 모두 클라이언트 쪽 변경이다. 작업공간 JSON 문서에 선택 칸 3개(`Job.source`, `Job.completedAt`, `AppSettings.minMarginPerJob`)를 더하고(받은 곳 기본값은 설정 칸 없이 최근 일감에서 계산), 순수 함수(문구·합계·CSV)는 `src/lib`에 두고 화면은 기존 컴포넌트에 붙인다. DB migration과 고객 공개 경로 변경은 없다.
 
 **기술:** Next.js 16 app router + Vite Sites 빌드, React, TypeScript, Vitest(jsdom), Playwright, sharp.
 
@@ -100,6 +100,17 @@ expect(INDUSTRY_INTAKE_ITEMS).toEqual({
 - [ ] **4단계: 통과 확인** — 위 명령 PASS + `npx vitest run src/components --pool=threads --maxWorkers=1`
 - [ ] **5단계: 커밋** — `feat: 고객 이름이 겹쳐 보이는 일감 제목을 줄이고 프로필 메뉴에 사용설명서를 넣음`
 
+### 작업 3.5: 작업 1~3 보완 (작업 1~3 보고에서 남은 것)
+
+**파일:** `src/components/send-to-client-banner.tsx`(+시험), `src/components/native-offline-workspace.tsx`(+시험), `src/lib/store/industry-starters.ts`(+시험)
+
+- [ ] **1단계: 실패하는 시험**
+  - `카톡 문구 복사가 막히면 문구 글을 선택해 둔다`: 클립보드가 막힌 상태에서 `send-copy-message`를 누르면 링크 칸이 아니라 문구 글상자(`send-message-text`, 읽기 전용)가 보이고 선택돼 있다. `send-copy-link` 실패 때는 지금처럼 링크 칸을 선택한다.
+  - 오프라인 화면 일감 줄도 `displayJobTitle`을 쓴다(고객 이름 아래 같은 이름이 또 보이지 않음).
+  - `예전 예시만 있는 빈 작업공간에서 같은 업종을 다시 고르면 새 기본값으로 바뀐다`: 받을 자료·질문이 없는 옛 웹 예시 3개만 있는 일감 0건 상태에서 `applyIndustryStarter("web")` 결과 패키지에 `intakeItems`·`briefQuestions`가 있다. 사용자가 고친 패키지는 그대로 둔다(기존 시험 유지).
+- [ ] **2단계: 실패 확인 → 3단계: 구현 → 4단계: 통과 확인** — `npx vitest run <위 시험 파일> --pool=threads --maxWorkers=1`
+- [ ] **5단계: 커밋** — `fix: 카톡 문구 복사가 막히면 문구를 선택해 두고, 옛 예시를 다시 고르면 새 기본값을 넣음`
+
 ### 작업 4: '고객에게 보낼 말'(상황별 문구) + 새 요청 띠 (A3, A4, B2)
 
 **파일:**
@@ -134,7 +145,7 @@ expect(INDUSTRY_INTAKE_ITEMS).toEqual({
   - `job-detail.test.tsx`: 확인 대기 요청이 있으면 `pending-request-strip`이 제목 아래에 "고객 요청 1건이 확인을 기다려요"와 `href="#revisions"` 링크를 보이고, 없으면 없다
 - [ ] **2단계: 실패 확인** — `npx vitest run src/lib/client-messages.test.ts src/components/client-messages.test.tsx src/components/job-detail.test.tsx --pool=threads --maxWorkers=1` → FAIL
 - [ ] **3단계: 구현** — 일감 화면: 제목 바로 아래에 새 요청 띠, 핵심 정보 줄 다음(할 일 목록 위)에 `<ClientMessages>`. 링크·준비 여부는 저장 직후 안내와 같은 계산을 쓴다(준비 안 됐으면 `link=null`). 착수 전 질문 구획의 다시 보내기 복사 블록은 지우고, 그 시험은 `ClientMessages`의 `남은 것 요청` 칩 시험으로 옮긴다.
-- [ ] **4단계: 오늘 화면 확인** — 시드에 고객 링크 요청(확인 대기) 1건을 넣고 오늘 화면을 그려, 우선 처리 또는 요약에 그 요청이 보이는지 시험한다(`today-dashboard.test.tsx`, 시험 이름 `확인 대기 요청이 오늘 화면에 보인다`). 이미 보이면 코드는 안 바꾼다.
+- [ ] **4단계: 오늘 화면 '우선 처리'에 요청 줄** — 지금 '우선 처리'는 마감된 할 일만 모으고(`today-dashboard.tsx` 109~119줄), 요청은 맨 위 알림 한 줄에만 나온다. 시험 `확인 대기 요청이 우선 처리에 보인다`(`today-dashboard.test.tsx`): 확인 대기 요청 1건이 있는 일감이면 '우선 처리'에 `today-pending-request-${jobId}` 줄이 "고객 요청 1건 확인 대기"로 보이고, 이 줄은 체크 버튼이 없고 `href="/jobs/${jobId}#revisions"` 링크다. 할 일 줄의 체크 동작은 그대로. 실패 확인 → 구현 → 통과.
 - [ ] **5단계: 통과 확인** — 2단계 명령 + `npx vitest run src/components --pool=threads --maxWorkers=1` PASS
 - [ ] **6단계: 커밋** — `feat: 일감 화면에 상황별 고객 안내 문구와 새 요청 띠를 넣음`
 
@@ -157,21 +168,23 @@ expect(INDUSTRY_INTAKE_ITEMS).toEqual({
 
 **파일:**
 - 만듦: `src/lib/domain/order-source.ts`, `src/lib/domain/order-source.test.ts`
-- 수정: `src/lib/domain/types.ts`, `src/lib/domain/engine.ts`(`composeJob`), `src/lib/domain/index.ts`, `src/lib/store/seed.ts`(`AppSettings.lastOrderSource`), `src/components/workspace-provider.tsx`, `src/components/new-job-form.tsx`, `src/components/job-detail.tsx`, `src/components/jobs-overview.tsx`, `src/lib/jobs-list-location.ts`, `src/components/today-dashboard.tsx`
+- 수정: `src/lib/domain/types.ts`, `src/lib/domain/engine.ts`(`composeJob`), `src/lib/domain/index.ts`, `src/components/workspace-provider.tsx`, `src/components/new-job-form.tsx`, `src/components/job-detail.tsx`, `src/components/jobs-overview.tsx`, `src/lib/jobs-list-location.ts`, `src/components/today-dashboard.tsx`
 - 시험: `src/components/new-job-form.test.tsx`, `src/components/jobs-overview.test.tsx`, `src/components/workspace-provider.test.ts`
 
 **인터페이스:**
 - 내놓음:
   - `types.ts`: `export type OrderSource = "kmong" | "soomgo" | "referral" | "direct" | "other"`, `Job.source?: OrderSource`, `ComposeJobInput.source?: OrderSource`
-  - `order-source.ts`: `ORDER_SOURCES: OrderSource[]`(위 순서), `ORDER_SOURCE_LABELS: Record<OrderSource, string>` = 크몽 / 숨고 / 소개 / 직접 문의 / 기타, `normalizeOrderSource(value: unknown): OrderSource | undefined`, `setJobSource(job: Job, source: OrderSource | undefined, now?: string): Job`(없애면 칸 자체를 지움, `updatedAt` 갱신)
-  - `seed.ts`: `AppSettings.lastOrderSource?: OrderSource`
-  - 제공자: `CreateJobInput.source?: OrderSource`(받은 곳을 고르면 `settings.lastOrderSource`도 같이 저장), 새 동작 `setJobSource: (jobId: string, source: OrderSource | undefined) => void`
+  - `order-source.ts`: `ORDER_SOURCES: OrderSource[]`(위 순서), `ORDER_SOURCE_LABELS: Record<OrderSource, string>` = 크몽 / 숨고 / 소개 / 직접 문의 / 기타, `normalizeOrderSource(value: unknown): OrderSource | undefined`, `setJobSource(job: Job, source: OrderSource | undefined, now?: string): Job`(없애면 칸 자체를 지움, `updatedAt` 갱신), `latestOrderSource(jobs: Job[]): OrderSource | undefined`(받은 곳이 있는 일감 중 `createdAt`이 가장 늦은 것의 값)
+  - 설정 칸은 만들지 않는다(두 기기에서 서로 다르게 바뀌면 설정 충돌로 자동 병합이 멈춤 — 빌더 체크).
+  - 제공자: `CreateJobInput.source?: OrderSource`, 새 동작 `setJobSource: (jobId: string, source: OrderSource | undefined) => void` — **완료한 일감에서도 허용**(다른 동작은 완료 일감을 막지만 받은 곳은 고객 링크·횟수와 상관없음)
   - `jobs-list-location.ts`: `JobListLocation.source?: OrderSource`(주소 `?source=kmong`)
 
 - [ ] **1단계: 실패하는 시험**
   - `order-source.test.ts`: 이상한 값은 `undefined`, `setJobSource(job, undefined)`면 `"source" in job === false`
   - `composeJob`에 `source: "soomgo"`를 주면 일감에 남는다(`engine` 시험 파일에 추가)
-  - `new-job-form.test.tsx`: `lastOrderSource: "kmong"`이면 `order-source-kmong`이 처음부터 골라져 있다(`aria-checked="true"`), 다시 누르면 풀린다, 고르지 않아도 만들 수 있다
+  - `order-source.test.ts`: `latestOrderSource`는 받은 곳 없는 일감을 건너뛰고 `createdAt`이 가장 늦은 일감의 값을 준다, 일감이 없으면 `undefined`
+  - `new-job-form.test.tsx`: 가장 최근 일감이 `source: "kmong"`이면 `order-source-kmong`이 처음부터 골라져 있다(`aria-checked="true"`), 다시 누르면 풀린다, 고르지 않아도 만들 수 있다
+  - 완료한 일감에서도 `setJobSource`가 받은 곳을 바꾼다(제공자 시험)
   - `jobs-overview.test.tsx`: 받은 곳이 두 군데 이상이면 `source-filter-kmong`(글 `크몽 2`)이 보이고 누르면 크몽 일감만 남는다. 한 군데뿐이면 거르기 줄이 없다. 검색어 `숨고`로도 걸린다
   - `client-messages.test.ts`에 추가: `받은 곳 이름은 고객 문구에 안 나간다` — `source: "kmong"`인 일감의 7개 문구와 `clientShareMessage` 결과에 `크몽`이 없다
   - `workspace-provider.test.ts`: `다른 기기에서 바꾼 받은 곳이 병합 뒤 남는다` — base·local에 `source` 없음, remote에 `"referral"` → `mergeConcurrentWorkspaceState` 결과 일감 `source === "referral"`
@@ -204,7 +217,7 @@ expect(INDUSTRY_INTAKE_ITEMS).toEqual({
 
 **파일:**
 - 만듦: `src/lib/summary/monthly.ts`, `src/lib/summary/monthly.test.ts`, `src/components/monthly-summary.tsx`, `src/components/monthly-summary.test.tsx`, `src/app/(workspace)/jobs/summary/page.tsx`
-- 수정: `src/lib/domain/types.ts`(`Job.completedAt?: string`), `src/lib/domain/engine.ts`(`toggleJobCompletion`), `src/components/jobs-overview.tsx`(머리 버튼), `src/sites/routes.tsx`, `src/sites/standalone-routes.test.tsx`
+- 수정: `src/lib/domain/types.ts`(`Job.completedAt?: string`), `src/lib/domain/engine.ts`(`toggleJobCompletion`), `src/components/jobs-overview.tsx`(머리 버튼), `src/sites/routes.tsx`(경로 목록 22~36줄과 `<Route>` 70~86줄 둘 다), `src/sites/routes.test.tsx`(경로 목록 비교), 휴대폰 앱도 Sites 빌드(`dist/client`)를 싣는다(`capacitor.config.ts`)
 
 **인터페이스:**
 - 사용: `ORDER_SOURCE_LABELS`(작업 6)
@@ -221,7 +234,7 @@ expect(INDUSTRY_INTAKE_ITEMS).toEqual({
   - `CSV는 따옴표로 감싸고 수식 시작 문자를 무력화한다`: 고객 `=SUM(A1)` → `"'=SUM(A1)"`, 고객 `카페 "모라", 2호점` → `"카페 ""모라"", 2호점"`, 첫 글자 BOM, 줄바꿈 CRLF
   - `engine`: 완료하면 `completedAt`이 생기고 되돌리면 칸이 사라진다
   - `monthly-summary.test.tsx`: ◀ ▶로 달이 바뀌고, 합계·받은 곳별 줄이 보이고, `summary-download-month`를 누르면 `ilgamcheck-매출-2026-11.csv`로 내려받기가 일어난다(앵커 `download` 속성 확인), 안내 문장 "세금 신고 때 참고하려고 모은 정리예요. 세금 계산이나 신고는 하지 않아요."가 있다
-  - `standalone-routes.test.tsx`: `/jobs/summary`가 일감 상세가 아닌 월별 정리를 그린다
+  - `routes.test.tsx`: 경로 목록에 `/jobs/summary`가 있고, `/jobs/summary`가 일감 상세가 아닌 월별 정리를 그린다
 - [ ] **2단계: 실패 확인** — FAIL
 - [ ] **3단계: 구현** — 화면 시간대는 `Intl.DateTimeFormat().resolvedOptions().timeZone`을 넘긴다. 일감 목록 머리에 `open-monthly-summary` 버튼("월별 정리"). 화면 아래 작은 글: "금액은 주문 조건과 확정한 추가요청 기준이에요." Next 경로(`(workspace)/jobs/summary/page.tsx`)와 Sites 경로(`routes.tsx` 목록과 `<Route>`)를 둘 다 넣는다. `/jobs/:id`보다 먼저 맞아야 한다.
 - [ ] **4단계: 통과 확인** — PASS + `npm run typecheck`
@@ -252,7 +265,7 @@ expect(INDUSTRY_INTAKE_ITEMS).toEqual({
 
 ### 작업 10: 문서 · 전체 검사 · 다시 돌아보기
 
-**파일:** `PRODUCT.md`(기능 상태: 8번은 2026-11-02 운영 배포, 이 브랜치 = A~D 요약, 범위 밖 그대로), `HANDOFF.md`(맨 위 상태)
+**파일:** `PRODUCT.md`(기능 상태: 8번은 2026-11-02 운영 배포, 이 브랜치 = A~D 요약. 'MVP 무기 3개' 절의 "아래에 없는 기능은 만들지 않는다"와 '보관'의 "영수증과 세금 정리·자기 손익 하한"은 사용자 11-02 지시("세금·최소단가 고려, 전부 진행")로 이 브랜치에서 가볍게 만든다고 고쳐 적는다. 세무 판단·신고 대행 범위 밖은 그대로), `HANDOFF.md`(맨 위 상태)
 
 - [ ] **1단계: 문서 고치기** — 위 두 파일. 설계·계획 문서 경로를 적는다.
 - [ ] **2단계: 전체 검사** — `npm run check:release`(단독 실행) → `[release-gate] PASS … 전체 게이트 통과.`
