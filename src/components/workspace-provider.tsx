@@ -918,7 +918,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                 if (isStaleActivation()) return;
                 recoveryError = error instanceof Error
                   ? error.message
-                  : "고객 수정 링크 동기화를 다시 완료하지 못했어요.";
+                  : "고객 수정 링크에 다시 반영하지 못했어요. 새로고침하면 다시 시도해요.";
               }
             }
 

@@ -68,7 +68,9 @@ describe("AppShell runtime status", () => {
 
     render(<AppShell><p>workspace</p></AppShell>);
 
-    expect(screen.getByText("14일 동안 써보니 어떠셨나요?")).toBeInTheDocument();
+    expect(screen.getByText("써 보니 어떠셨나요?")).toBeInTheDocument();
+    // 설문 안내에는 기간 말을 넣지 않는다(이용권이 끝난 뒤에도 그대로 읽히게).
+    expect(document.body).not.toHaveTextContent(/\d+일 동안/);
     expect(screen.getByRole("link", { name: "설문 작성하기" })).toHaveAttribute("href", formUrl);
   });
 
@@ -87,7 +89,7 @@ describe("AppShell runtime status", () => {
 
     render(<AppShell><p>workspace</p></AppShell>);
 
-    expect(screen.getByText("14일 동안 써보니 어떠셨나요?")).toBeInTheDocument();
+    expect(screen.getByText("써 보니 어떠셨나요?")).toBeInTheDocument();
   });
 
   it("does not ask for the survey before 14 days of beta use", () => {
@@ -105,7 +107,7 @@ describe("AppShell runtime status", () => {
 
     render(<AppShell><p>workspace</p></AppShell>);
 
-    expect(screen.queryByText("14일 동안 써보니 어떠셨나요?")).not.toBeInTheDocument();
+    expect(screen.queryByText("써 보니 어떠셨나요?")).not.toBeInTheDocument();
   });
 });
 

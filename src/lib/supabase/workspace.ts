@@ -256,7 +256,7 @@ export async function syncHostedRevisionPortals(client: SupabaseClient, jobs: Jo
       p_raw_token: job.revisionPortalToken,
       p_enabled: job.status === "active" && job.revisionPortalEnabled,
     });
-    if (error) throw new Error(`고객 수정 링크를 동기화하지 못했어요: ${error.message}`);
+    if (error) throw new Error(`고객 수정 링크에 반영하지 못했어요: ${error.message}`);
   }));
 }
 

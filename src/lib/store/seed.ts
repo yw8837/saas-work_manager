@@ -15,7 +15,7 @@ import {
  * 웹 예시 패키지가 시작 전에 받을 자료(예시). 업종 예시 목록(`INDUSTRY_INTAKE_ITEMS.web`)도 이것을 쓴다.
  * 업종 예시 파일이 이 파일을 불러오므로 여기서 정한다(거꾸로 불러오면 순환 참조가 된다).
  */
-export const seedIntakeItems = ["로고 파일(있으면)", "가게·회사 소개 글", "넣을 사진", "참고하고 싶은 사이트 주소"];
+export const seedIntakeItems = ["로고 파일(있으면)", "가게·회사 소개 글", "넣을 사진"];
 
 export const seedPackages: PackageTemplate[] = [
   {

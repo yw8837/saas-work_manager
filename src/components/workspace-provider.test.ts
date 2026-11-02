@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { completeRevision, getRevisionSummary, recordRevision } from "@/lib/domain";
 import { createSeedState } from "@/lib/store";
 import { describe, expect, it } from "vitest";
@@ -299,5 +301,19 @@ describe("hosted workspace serialization", () => {
 
     clearHostedDraft("owner-a", storage);
     expect(storage.getItem(hostedDraftKey("owner-a"))).toBeNull();
+  });
+});
+
+describe("화면에 보이는 저장 오류 문구", () => {
+  it("'동기화' 같은 어려운 말 대신 쉬운 말을 쓴다(주석은 그대로 둔다)", () => {
+    for (const file of ["src/components/workspace-provider.tsx", "src/lib/supabase/workspace.ts"]) {
+      // 주석 줄은 빼고, 남은 줄의 따옴표 글만 본다.
+      const literals = readFileSync(resolve(process.cwd(), file), "utf8")
+        .split("\n")
+        .filter((line) => !/^\s*(\/\/|\/?\*)/.test(line))
+        .flatMap((line) => [...line.matchAll(/(["'`])(?:\\.|(?!\1).)*\1/g)].map((match) => match[0]));
+      expect(literals.length, file).toBeGreaterThan(0);
+      expect(literals.filter((text) => text.includes("동기화")), file).toEqual([]);
+    }
   });
 });

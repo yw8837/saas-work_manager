@@ -116,7 +116,10 @@ export function situationMessage(situation: MessageSituation, input: { job: Job;
       return [
         greeting,
         `${title ? `${title} ` : ""}작업을 모두 마쳤어요. 최종 결과물은 이 대화로 보내 드릴게요.`,
-        "맡겨 주셔서 감사합니다. 더 필요한 게 생기면 이 대화로 편하게 말씀해 주세요.",
+        // 포함 수정이 남아 있으면 남은 횟수를 알린다. 다 썼거나 없으면 그대로 편하게 말하라고만 쓴다.
+        revision.remaining > 0
+          ? `맡겨 주셔서 감사합니다. 포함 수정이 ${revision.remaining}회 남아 있으니, 고칠 부분이 보이면 이 대화로 말씀해 주세요.`
+          : "맡겨 주셔서 감사합니다. 더 필요한 게 생기면 이 대화로 편하게 말씀해 주세요.",
       ].join("\n");
   }
 }

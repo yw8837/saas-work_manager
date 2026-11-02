@@ -12,6 +12,7 @@ import {
   mergeRemoteRevisionEvidence,
   prepareStateForHosted,
   saveHostedWorkspace,
+  syncHostedRevisionPortals,
 } from "./workspace";
 
 describe("hosted workspace helpers", () => {
@@ -125,6 +126,12 @@ describe("hosted save errors", () => {
       clientLoading({ data: { state: { version: 1 }, document_version: 1, updated_at: "2026-08-15T00:00:00.000Z" }, error: null }),
       "owner-1",
     )).rejects.toThrowError(/^작업공간 데이터 형식이 손상됐어요/);
+  });
+
+  it("고객 링크 반영 오류는 '동기화' 대신 쉬운 말로 쓴다", async () => {
+    const state = prepareStateForHosted(createSeedState("2026-08-15"));
+    await expect(syncHostedRevisionPortals(clientRejecting("timeout", "08006"), state.jobs))
+      .rejects.toThrowError(/^고객 수정 링크에 반영하지 못했어요: timeout$/);
   });
 
   it("충돌은 한도 초과와 다른 오류로 구분된다", async () => {

@@ -573,3 +573,65 @@ describe("job completion", () => {
     expect(toggleJobCompletion(reopened, "2026-08-04T00:00:00.000Z").completedAt).toBe("2026-08-04T00:00:00.000Z");
   });
 });
+
+describe("할 일 오류 문구", () => {
+  // 할 일을 가리키는 내부 이름(할 일 키)은 화면에 안 보인다. 오류 문구는 그 말 대신 사용자가 할 일을 알려 준다.
+  function messageOf(run: () => unknown): string {
+    try {
+      run();
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    throw new Error("오류가 나야 하는 입력이에요.");
+  }
+
+  it("패키지·옵션·추가요청의 할 일 오류는 '할 일 키' 대신 고칠 방법을 말한다", () => {
+    const blankKey = messageOf(() => composeJob({
+      clientLabel: "이름표 없는 고객",
+      startDate: "2026-08-01",
+      package: { ...packageTemplate, tasks: [{ taskKey: " ", title: "의뢰서 확인", relativeDay: 0, order: 0 }] },
+    }));
+    expect(blankKey).toBe("스탠다드에 알아볼 수 없는 할 일이 있어요. 그 할 일을 지우고 다시 넣어 주세요.");
+
+    const blankRemove = messageOf(() => composeJob({
+      clientLabel: "뺄 할 일 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+      options: [{ ...suppliedDesignOption, taskDeltas: [{ kind: "remove", taskKey: "" }] }],
+    }));
+    expect(blankRemove).toBe("디자인 제공에서 뺄 할 일을 골라 주세요.");
+
+    const duplicate = messageOf(() => composeJob({
+      clientLabel: "겹친 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+      options: [{ ...pagesOption, taskDeltas: [{ kind: "add", task: { taskKey: "brief", title: "또 의뢰서", relativeDay: 1, order: 0 } }] }],
+    }));
+    expect(duplicate).toBe("스탠다드, 추가 페이지에 겹치는 할 일이 있어요. 한 곳에만 남겨 주세요.");
+
+    const job = composeJob({ jobId: "job_task_message", clientLabel: "추가 고객", startDate: "2026-08-01", package: packageTemplate });
+    const addonDuplicate = messageOf(() => createAddon(job, {
+      title: "배너 추가",
+      amountDelta: 0,
+      durationDaysDelta: 0,
+      tasks: [{ taskKey: "brief", title: "배너 시안", relativeDay: 0, order: 0 }],
+    }));
+    expect(addonDuplicate).toBe("추가할 할 일이 이 일감의 다른 할 일과 겹쳐요. 다시 추가해 주세요.");
+
+    // 초안을 만든 뒤에 같은 할 일이 일감에 생겼으면 확정할 때 막는다.
+    const draft = createAddon(job, {
+      addonId: "addon_late",
+      title: "배너 추가",
+      amountDelta: 0,
+      durationDaysDelta: 0,
+      tasks: [{ taskKey: "late", title: "배너 시안", relativeDay: 0, order: 0 }],
+    });
+    const lateTask = { ...job.tasks[0], id: "job_task_message:late", taskKey: "late" };
+    const confirmDuplicate = messageOf(() => confirmAddon({ ...job, tasks: [...job.tasks, lateTask], addons: [draft] }, "addon_late"));
+    expect(confirmDuplicate).toBe("이 추가요청의 할 일이 일감의 다른 할 일과 겹쳐요. 추가요청을 취소하고 다시 만들어 주세요.");
+
+    for (const message of [blankKey, blankRemove, duplicate, addonDuplicate, confirmDuplicate]) {
+      expect(message).not.toMatch(/할 일 키|키를/);
+    }
+  });
+});

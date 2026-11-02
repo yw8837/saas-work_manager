@@ -115,4 +115,18 @@ describe("한 건에 최소 남길 돈", () => {
     fireEvent.click(screen.getByTestId("min-margin-save"));
     expect(updateSettings).toHaveBeenCalledWith({ minMarginPerJob: undefined });
   });
+
+  it("'예상 원가' 칸은 0원이면 비워 두고 흐린 예시 글 '예: 플랫폼 수수료, 외주비'를 보인다", () => {
+    render(<PackageManager />);
+    const cost = screen.getByLabelText("예상 원가 (원)");
+    expect(cost).toHaveAttribute("placeholder", "예: 플랫폼 수수료, 외주비");
+    // 예시 Basic 홈페이지는 원가 95,000원이 그대로 보인다.
+    expect(cost).toHaveValue(95000);
+    // 새 패키지(원가 0원)는 숫자 0 대신 예시 글이 보이게 칸을 비운다. 비운 칸은 0원으로 저장한다.
+    fireEvent.click(screen.getByRole("button", { name: "새 패키지" }));
+    const fresh = screen.getByLabelText("예상 원가 (원)");
+    expect(fresh).toHaveValue(null);
+    fireEvent.click(screen.getByTestId("save-package"));
+    expect(savePackage).toHaveBeenCalledWith(expect.objectContaining({ estimatedCost: 0 }));
+  });
 });

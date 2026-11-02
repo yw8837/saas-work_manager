@@ -134,7 +134,10 @@ function cloneOption(template: OptionTemplate): OptionSnapshot {
 }
 
 function validateTask(task: TaskTemplate, source: string): void {
-  assertText(task.taskKey, `${source} 할 일 키`);
+  // 할 일 키는 화면이 이름으로 만드는 내부 값이라 사용자가 적을 수 없다. 비어 있으면 그 할 일을 다시 넣게 한다.
+  if (!task.taskKey.trim()) {
+    throw new DomainValidationError(`${source}에 알아볼 수 없는 할 일이 있어요. 그 할 일을 지우고 다시 넣어 주세요.`, "INVALID_INPUT");
+  }
   assertText(task.title, `${source} 할 일 이름`);
   assertNonNegativeInteger(task.relativeDay, `${source} 할 일 날짜(시작 며칠 뒤)`);
   assertNonNegativeInteger(task.order, `${source} 할 일 순서`);
@@ -165,7 +168,9 @@ function validateOption(option: OptionTemplate): void {
   assertNonNegativeInteger(option.revisionLimitDelta, `${option.name} 추가 수정`);
   option.taskDeltas.forEach((delta) => {
     if (delta.kind === "add") validateTask(delta.task, option.name);
-    else assertText(delta.taskKey, `${option.name} 제거할 할 일 키`);
+    else if (!delta.taskKey.trim()) {
+      throw new DomainValidationError(`${option.name}에서 뺄 할 일을 골라 주세요.`, "INVALID_INPUT");
+    }
   });
 }
 
@@ -222,9 +227,9 @@ function composeTasks(
 
   const duplicate = [...sourcesByKey.entries()].find(([, sources]) => sources.length > 1);
   if (duplicate) {
-    const [taskKey, sources] = duplicate;
+    const [, sources] = duplicate;
     throw new DomainValidationError(
-      `할 일 키 '${taskKey}'가 ${sources.join(", ")}에 겹쳐요. 한 곳에만 남겨 주세요.`,
+      `${sources.join(", ")}에 겹치는 할 일이 있어요. 한 곳에만 남겨 주세요.`,
       "DUPLICATE_TASK_KEY",
     );
   }
@@ -601,7 +606,7 @@ export function createAddon(job: Job, input: CreateAddonInput): Addon {
   for (const task of tasks) {
     if (allKeys.has(task.taskKey)) {
       throw new DomainValidationError(
-        `할 일 키 '${task.taskKey}'가 이미 있는 할 일과 겹쳐요. 다른 키를 입력해 주세요.`,
+        "추가할 할 일이 이 일감의 다른 할 일과 겹쳐요. 다시 추가해 주세요.",
         "DUPLICATE_TASK_KEY",
       );
     }
@@ -642,7 +647,7 @@ export function confirmAddon(job: Job, addonId: string, confirmedAt = new Date()
     validateTask(task, addon.title);
     if (existingKeys.has(task.taskKey)) {
       throw new DomainValidationError(
-        `할 일 키 '${task.taskKey}'가 이미 있는 할 일과 겹쳐요.`,
+        "이 추가요청의 할 일이 일감의 다른 할 일과 겹쳐요. 추가요청을 취소하고 다시 만들어 주세요.",
         "DUPLICATE_TASK_KEY",
       );
     }

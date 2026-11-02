@@ -33,10 +33,11 @@ function task(taskKey: string, title: string, relativeDay: number, order: number
 /**
  * 업종 예시 패키지마다 넣는 '시작 전 받을 자료'. 예시이며 사용자가 패키지 화면에서 고친다.
  * 착수 전 질문은 업종과 상관없이 엔진의 기본 질문 3개(`DEFAULT_BRIEF_QUESTIONS`)를 넣는다.
+ * 참고 사이트·참고 이미지는 기본 질문 2번이 이미 물어서 받을 자료에는 두지 않는다.
  */
 export const INDUSTRY_INTAKE_ITEMS: Record<Industry, string[]> = {
   web: seedIntakeItems,
-  design: ["가게·브랜드 이름(한글·영문)", "참고 이미지", "원하는 색이나 분위기"],
+  design: ["가게·브랜드 이름(한글·영문)", "원하는 색이나 분위기"],
   video: ["원본 영상 파일", "넣을 자막·문구", "원하는 배경음악(있으면)"],
   photo: ["촬영 장소 주소", "촬영 날짜·시간 후보", "꼭 찍을 장면"],
 };

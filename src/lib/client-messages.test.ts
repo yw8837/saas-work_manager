@@ -186,6 +186,18 @@ describe("고객에게 보낼 말 — 문구", () => {
     expect(situationMessage("revision-done", { job: used, link: LINK })).toContain("남은 수정은 0회예요.");
   });
 
+  it("납품 안내는 포함 수정이 남아 있으면 남은 횟수를 알리고, 없으면 지금 문장 그대로 쓴다", () => {
+    const lastLine = (job: Job) => situationMessage("delivery", { job, link: LINK }).split("\n").at(-1);
+    expect(lastLine(baseJob())).toBe("맡겨 주셔서 감사합니다. 포함 수정이 2회 남아 있으니, 고칠 부분이 보이면 이 대화로 말씀해 주세요.");
+    expect(lastLine({ ...withDoneRevision(baseJob(), "r1"), status: "completed" })).toBe(
+      "맡겨 주셔서 감사합니다. 포함 수정이 1회 남아 있으니, 고칠 부분이 보이면 이 대화로 말씀해 주세요.",
+    );
+    // 다 썼거나 포함 수정이 없는 주문은 지금 문장 그대로.
+    const used = withDoneRevision(withDoneRevision(baseJob(), "r1"), "r2");
+    expect(lastLine(used)).toBe("맡겨 주셔서 감사합니다. 더 필요한 게 생기면 이 대화로 편하게 말씀해 주세요.");
+    expect(lastLine(baseJob({ revisionLimit: 0 }))).toBe("맡겨 주셔서 감사합니다. 더 필요한 게 생기면 이 대화로 편하게 말씀해 주세요.");
+  });
+
   it("상황마다 설계의 뜻대로 쓴다", () => {
     const job = baseJob();
     expect(situationMessage("waiting", { job, link: LINK })).toContain("혹시 앞서 여쭤본 내용 보셨을까요?");

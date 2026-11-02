@@ -305,7 +305,8 @@ export function PackageManager() {
               <label className="catalogFullField"><span>설명</span><input value={selectedPackage.description ?? ""} onChange={(event) => setPackageDraft({ ...selectedPackage, description: event.target.value })} /></label>
               <label><span>기본 기간 (일)</span><input type="number" min="0" value={selectedPackage.durationDays} onChange={(event) => setPackageDraft({ ...selectedPackage, durationDays: numeric(event.target.value) })} /></label>
               <label><span>포함 수정 (회)</span><input type="number" min="0" value={selectedPackage.revisionLimit} onChange={(event) => setPackageDraft({ ...selectedPackage, revisionLimit: numeric(event.target.value) })} /></label>
-              <label><span>예상 원가 (원)</span><input type="number" min="0" value={selectedPackage.estimatedCost} onChange={(event) => setPackageDraft({ ...selectedPackage, estimatedCost: numeric(event.target.value) })} /></label>
+              {/* 0원이면 칸을 비워 흐린 예시 글이 보이게 한다(비운 칸은 0원으로 저장). */}
+              <label><span>예상 원가 (원)</span><input type="number" min="0" value={selectedPackage.estimatedCost || ""} placeholder="예: 플랫폼 수수료, 외주비" onChange={(event) => setPackageDraft({ ...selectedPackage, estimatedCost: numeric(event.target.value) })} /></label>
               {editShortfall !== null && (
                 <p className="marginWarning catalogFullField" data-testid="package-edit-margin-warning">
                   <CircleAlert size={14} aria-hidden="true" />

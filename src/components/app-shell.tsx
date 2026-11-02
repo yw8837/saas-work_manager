@@ -215,7 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {betaSurveyDue && feedbackFormUrl && (
           <aside className="betaSurveyBanner" aria-labelledby="beta-survey-title">
             <div>
-              <strong id="beta-survey-title">14일 동안 써보니 어떠셨나요?</strong>
+              <strong id="beta-survey-title">써 보니 어떠셨나요?</strong>
               <span>아쉬웠던 점과 가격 의견을 짧게 남겨주세요.</span>
             </div>
             <a href={feedbackFormUrl} target="_blank" rel="noopener noreferrer">설문 작성하기</a>

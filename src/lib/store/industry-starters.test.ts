@@ -93,11 +93,18 @@ describe("업종 예시 패키지", () => {
       }
     }
     expect(INDUSTRY_INTAKE_ITEMS).toEqual({
-      web: ["로고 파일(있으면)", "가게·회사 소개 글", "넣을 사진", "참고하고 싶은 사이트 주소"],
-      design: ["가게·브랜드 이름(한글·영문)", "참고 이미지", "원하는 색이나 분위기"],
+      web: ["로고 파일(있으면)", "가게·회사 소개 글", "넣을 사진"],
+      design: ["가게·브랜드 이름(한글·영문)", "원하는 색이나 분위기"],
       video: ["원본 영상 파일", "넣을 자막·문구", "원하는 배경음악(있으면)"],
       photo: ["촬영 장소 주소", "촬영 날짜·시간 후보", "꼭 찍을 장면"],
     });
+  });
+
+  it("받을 자료에는 '참고' 예시를 따로 두지 않는다(기본 질문 2번이 이미 묻는다)", () => {
+    expect(DEFAULT_BRIEF_QUESTIONS[1]).toContain("마음에 드는 예시(사이트·사진)");
+    for (const industry of INDUSTRY_ORDER) {
+      expect(INDUSTRY_INTAKE_ITEMS[industry].filter((item) => item.includes("참고")), industry).toEqual([]);
+    }
   });
 
   it("받을 자료·질문 기본값을 넣기 전에 저장된 예시도 손대지 않은 예시로 보고 업종을 바꿀 수 있다", () => {
