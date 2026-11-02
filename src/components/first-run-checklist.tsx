@@ -22,24 +22,25 @@ import {
 } from "@/lib/store/industry-starters";
 import { useWorkspace } from "./workspace-provider";
 
-const STEP_COPY: Record<FirstRunStepId, { title: string; body: string; image: string; alt: string }> = {
+// 그림은 사용설명서와 같은 캡처(e2e/capture/guide-screens.capture.ts)를 다시 쓴다. 크기는 그 파일 그대로.
+const STEP_COPY: Record<FirstRunStepId, { title: string; body: string; image: { src: string; width: number; height: number }; alt: string }> = {
   packages: {
     title: "내 일에 맞는 예시 패키지 고르기",
     body: "업종을 고르면 그 업종 예시 패키지로 바꿔 드려요. 금액은 예시라서 패키지 화면에서 내 조건으로 고쳐 쓰면 돼요.",
-    image: "/guide/02-packages.webp",
-    alt: "금액·기간·수정 횟수가 보이는 패키지 화면 예시",
+    image: { src: "/guide/02-packages.webp", width: 750, height: 1304 },
+    alt: "받을 자료·착수 전 질문 칸과 패키지 저장 버튼이 보이는 패키지 화면 예시",
   },
   "first-job": {
     title: "첫 일감 만들기",
     body: "고객, 시작일, 패키지, 옵션 네 가지만 고르면 금액·마감·할 일·수정 횟수가 채워져요.",
-    image: "/guide/03-new-job.webp",
-    alt: "고객과 패키지를 고르자 금액과 마감이 계산된 새 일감 화면 예시",
+    image: { src: "/guide/03-new-job.webp", width: 750, height: 2544 },
+    alt: "고객·시작일·패키지·옵션을 고르자 금액과 마감이 계산된 새 일감 화면 예시",
   },
   "send-link": {
     title: "고객에게 수정 요청 링크 보내기",
     body: "일감 화면에서 링크나 카톡 문구를 복사해 보내요. 고객은 로그인 없이 열어 수정 요청을 남겨요.",
-    image: "/guide/04-send-link.webp",
-    alt: "고객 수정 요청 링크 복사 버튼이 보이는 일감 화면 예시",
+    image: { src: "/guide/04-send-message.webp", width: 750, height: 824 },
+    alt: "카톡 문구 복사 버튼과 보낼 문구가 보이는 저장 직후 안내 예시",
   },
 };
 
@@ -189,7 +190,7 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
                 <figure className="firstRunShot">
                   {/* 설명서와 같은 정적 캡처를 다시 쓴다. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={copy.image} alt={copy.alt} width={750} height={1520} loading="lazy" decoding="async" />
+                  <img src={copy.image.src} alt={copy.alt} width={copy.image.width} height={copy.image.height} loading="lazy" decoding="async" />
                 </figure>
               )}
             </li>
