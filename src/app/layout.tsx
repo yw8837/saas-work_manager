@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { WorkspaceBoundary } from "@/components/workspace-boundary";
 import { deploymentOrigin } from "@/lib/deployment-origin";
-import { SITE_OPEN_GRAPH, SITE_TWITTER } from "@/lib/site-meta";
+import { SITE_OPEN_GRAPH, SITE_TWITTER, SITE_VERIFICATION } from "@/lib/site-meta";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "@/styles/theme.css";
 
@@ -31,6 +31,7 @@ export const metadata: Metadata = {
   },
   openGraph: SITE_OPEN_GRAPH,
   twitter: SITE_TWITTER,
+  verification: SITE_VERIFICATION,
 };
 
 export const viewport: Viewport = {

@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-11-02 (작업 집중 묶음 A~D `claude/work-focus`·PR #27 운영 배포 반영 / 베타 신청 브랜치에 main 병합)
+마지막 갱신: 2026-11-03 (HTML 에지 변형 막기 브랜치 `claude/html-no-transform`, PR #28·#29 운영 배포와 검색 등록 반영 / 베타 신청 브랜치에 main 병합)
 
 ## 제품 한 줄
 
@@ -12,13 +12,20 @@
 
 ## 지금 상태
 
-### 2026-11-02 작업 집중 묶음 A~D (브랜치 `claude/work-focus`, PR·배포 전)
+### 2026-11-03 HTML 에지 변형 막기 · 검색 등록 (브랜치 `claude/html-no-transform`, PR·배포 전)
+
+- 문제: 운영 주소의 HTML마다 Cloudflare Web Analytics 스크립트(`static.cloudflareinsights.com/beacon.min.js`, 토큰 `32918b1a…`)가 끼워져 CSP에 막히며 콘솔 오류를 남겼다. 우리 Cloudflare에는 끌 설정이 없었다: 도메인 RUM `off`, 계정 Web Analytics 사이트는 `yeolmaeapps.kr`뿐(토큰 다름), 감사 로그(2026-08-16부터)에 RUM 기록 없음. workers.dev, 옛 chatgpt.site, ChatGPT Sites에 남은 다른 주소(www·expat·home)에는 없다. 누가 넣는지는 확정하지 못했다.
+- 조치(사용자 선택 "코드로 막기"): `wrangler.jsonc`의 `main`을 `custom-worker.ts`로 바꿨다. OpenNext 처리기를 감싸 HTML 응답에 `Cache-Control: no-transform`을 붙여 에지가 본문을 못 고치게 하고(Cloudflare 문서상 no-transform이면 분석 스크립트 자동 삽입과 에지 압축이 꺼짐), 압축은 Content-Encoding을 정해 Workers 런타임에 맡긴다(br 먼저, 그다음 gzip). 코드 `src/lib/security/html-delivery.ts`.
+- 검색 등록: 구글 Search Console('URL 접두어', HTML 태그 확인, PR #29 `a5f53a9` 2026-11-02 운영 배포 Worker `3ce81d4a`)과 사이트맵 성공. Bing 웹마스터는 Search Console 가져오기로 일감체크 하나만 추가했고(2026-11-03) 사이트맵이 따라 들어와 처리 중이다. 네이버 서치어드바이저는 Claude 브라우저에서 안전 제한으로 막혀 사용자가 등록하고, 확인 값을 받으면 `SITE_VERIFICATION.other`에 넣어 배포한다.
+- Cloudflare 'Always Use HTTPS'를 켰다(2026-11-02, `http://` 요청이 301로 https 이동). 프록시하지 않는 다른 호스트는 영향 없다.
+
+### 2026-11-02 작업 집중 묶음 A~D (PR #28, 2026-11-02 main `a918865` 병합·21:25 운영 배포 Worker `214d1e10`)
 
 - 사용자 지시 요지(2026-11-02): "서비스 완성도 최고로 — 돈 내고 쓸 핵심 기능에 집중, 인터뷰 사항(세금·최소단가·클라이언트 소통) 반영, 외주 작업에만 집중, 흩어진 외주 통합, 사용설명서는 글보다 이미지 위주, 전부 진행". 설계 `docs/superpowers/specs/2026-11-02-work-focus-design.md`, 계획 `docs/superpowers/plans/2026-11-02-work-focus.md`. 조사 원본(시장·레퍼런스, 디자인 감사, SEO)은 저장소 밖 `E:/ilgamcheck-work/research-2026-11-02/`.
 - 담은 것: `PRODUCT.md` '기능 상태'의 이 브랜치 항목(A 무기 3개 쉽게, B 받은 곳·상황별 보낼 말, C 한 건 최소 남길 돈 경고·월별 정리 CSV, D 그림 위주 설명서, 디자인 감사 꼭 고칠 것 10개, 시장조사 반영, 검색 노출 정리, 설문 띠 기간 말 빼기).
 - 데이터: DB 변경·migration 없음. 작업공간 문서에 선택 칸 `Job.source`·`Job.completedAt`·`Job.startSharedAt`, `AppSettings.minMarginPerJob`을 더했다. 일감의 `startSharedAt`·`completedAt`은 두 기기가 따로 남기면 먼저 것으로 합치고, 그 밖은 기존 3갈래 합치기 그대로다.
 - 검증(배포 전): 단위 시험 전체 통과, 로컬 모드 빌드로 실제 화면 측정(휴대폰·데스크톱 첫 화면 기준 12개 통과, 첫 카톡 문구까지 누르기 5번, 콘솔 오류 0), 리뷰 3갈래(Codex 읽기 전용·표준 축·스펙 축) 지적 반영. `check:release`·원격 smoke 결과는 PR 본문과 배포 기록에 적는다.
-- 배포 뒤 할 일: 구글 폼 '써본 기능'에 "받은 곳·월별 정리", "최소 남길 돈 경고" 추가. 카카오톡에서 고객 링크 공유 미리보기('수정 요청 링크') 실제 확인. 검색 등록(Search Console·Bing·네이버 사이트맵 제출)과 Cloudflare 'Always Use HTTPS'는 사용자 계정 작업. 네이티브 앱의 CSV 내려받기는 확인하지 못했다.
+- 배포 뒤 할 일: 구글 폼 '써본 기능' 2개 추가, 구글·Bing 검색 등록, 'Always Use HTTPS'는 끝냈다(위 2026-11-03 항목). 남은 것: 카카오톡에서 고객 링크 공유 미리보기('수정 요청 링크') 실제 확인, 네이버 등록, 네이티브 앱의 CSV 내려받기 확인.
 
 ### 2026-11-02 MVP 무기 3개 고정 · 착수 전 질문 · 프로필 메뉴 (PR #27, 2026-11-02 main `e6b750f` 병합·09:26 운영 배포 Worker `22e58b24`)
 
@@ -223,10 +230,11 @@
 
 ## 다음 작업
 
-### 작업 집중 묶음 배포 (2026-11-02)
+### HTML 에지 변형 막기 배포 · 네이버 등록 (2026-11-03)
 
-1. `claude/work-focus` PR이 CI를 통과하고 병합되면 깨끗한 `main`에서 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번 절차로 배포한다(DB 변경 없음). 원격 smoke 뒤 운영에서 새 기능(받은 곳, 상황별 보낼 말, 최소 남길 돈 경고, 월별 정리, 새 설명서)을 확인한다.
-2. 위 '배포 뒤 할 일'을 처리한다. 운영 확인용 시험 일감은 사용자 데이터에 남기지 않는다.
+1. `claude/html-no-transform` PR이 CI를 통과하고 병합되면 깨끗한 `main`에서 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번 절차로 배포한다(DB 변경 없음). 배포 뒤 운영 HTML에 `cloudflareinsights` 스크립트가 없고 `Cache-Control`에 `no-transform`이 있는지, 압축이 `br`(gzip만 받으면 gzip)로 오는지, 주요 화면 콘솔 오류가 0인지 확인한다. 스크립트가 남으면 출처를 다시 찾는다. 되돌릴 때는 `main`을 `.open-next/worker.js`로 바꿔 배포한다.
+2. 네이버: 사용자가 서치어드바이저에 `https://ilgam.studioyeolmae.com`을 등록하고 'HTML 태그' 값을 주면 `SITE_VERIFICATION.other`에 `naver-site-verification`으로 넣어 배포한다. 그 뒤 사용자가 '소유확인'과 사이트맵 제출(`/sitemap.xml`)을 한다.
+3. 사람 확인이 남은 것: 카카오톡 공유 미리보기, 옛 chatgpt.site·workers.dev 주소 정리 여부(사용자 결정).
 
 ### Cloudflare 호스팅 독립 전환
 
