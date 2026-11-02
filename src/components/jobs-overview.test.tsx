@@ -105,3 +105,12 @@ it("거른 받은 곳에 맞는 일감이 없으면 그렇게 말하고 거르�
   fireEvent.click(screen.getByRole("button", { name: "거르기 풀기" }));
   expect(window.location.search).toBe("?filter=completed");
 });
+
+it("일감 목록 머리에 월별 정리로 가는 버튼이 있다", () => {
+  vi.mocked(useWorkspace).mockReturnValue({ jobs: [] } as unknown as ReturnType<typeof useWorkspace>);
+  window.history.replaceState({}, "", "/jobs");
+  render(<JobsOverview />);
+  const link = screen.getByTestId("open-monthly-summary");
+  expect(link).toHaveAttribute("href", "/jobs/summary");
+  expect(link).toHaveTextContent("월별 정리");
+});

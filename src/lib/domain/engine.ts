@@ -785,11 +785,13 @@ export function updateTaskStatus(
   };
 }
 
+/** 완료하면 완료 시각을 적고(월별 정리 기준), 다시 진행하면 그 칸을 지운다. */
 export function toggleJobCompletion(job: Job, now = new Date().toISOString()): Job {
   if (job.status === "archived") return job;
-  return {
-    ...job,
-    status: job.status === "completed" ? "active" : "completed",
-    updatedAt: now,
-  };
+  if (job.status === "completed") {
+    const reopened: Job = { ...job, status: "active", updatedAt: now };
+    delete reopened.completedAt;
+    return reopened;
+  }
+  return { ...job, status: "completed", completedAt: now, updatedAt: now };
 }

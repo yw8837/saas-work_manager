@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
+import { usePathname } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "./app-shell";
 import { useWorkspace } from "./workspace-provider";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/today" }));
+vi.mock("next/navigation", () => ({ usePathname: vi.fn(() => "/today") }));
 vi.mock("./workspace-provider", () => ({ useWorkspace: vi.fn() }));
 
 const baseWorkspace = {
@@ -105,5 +106,28 @@ describe("AppShell runtime status", () => {
     render(<AppShell><p>workspace</p></AppShell>);
 
     expect(screen.queryByText("14일 동안 써보니 어떠셨나요?")).not.toBeInTheDocument();
+  });
+});
+
+describe("AppShell 머리 제목", () => {
+  beforeEach(() => {
+    vi.mocked(useWorkspace).mockReturnValue(baseWorkspace);
+  });
+
+  afterEach(() => {
+    vi.mocked(usePathname).mockReturnValue("/today");
+  });
+
+  it("월별 정리 화면에서는 머리 제목이 일감 상세가 아니라 월별 정리다", () => {
+    vi.mocked(usePathname).mockReturnValue("/jobs/summary");
+    const { container } = render(<AppShell><p>workspace</p></AppShell>);
+    expect(container.querySelector(".topbarContext strong")).toHaveTextContent("월별 정리");
+    expect(screen.queryByText("일감 상세")).not.toBeInTheDocument();
+  });
+
+  it("일감 화면은 지금처럼 일감 상세다", () => {
+    vi.mocked(usePathname).mockReturnValue("/jobs/job_seed_mora");
+    const { container } = render(<AppShell><p>workspace</p></AppShell>);
+    expect(container.querySelector(".topbarContext strong")).toHaveTextContent("일감 상세");
   });
 });

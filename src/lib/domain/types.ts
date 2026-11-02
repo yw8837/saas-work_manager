@@ -180,6 +180,8 @@ export interface Job {
   briefQuestions?: BriefQuestion[];
   /** 주문을 받은 곳(선택). 없던 저장본·고르지 않은 일감에는 칸이 없다. */
   source?: OrderSource;
+  /** 일감을 완료한 시각(월별 정리의 기준). 완료를 되돌리면 칸을 지운다. 이 칸이 생기기 전에 완료한 저장본에는 없다. */
+  completedAt?: string;
   revisionPortalToken: string;
   revisionPortalEnabled: boolean;
   status: JobStatus;

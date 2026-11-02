@@ -5,6 +5,7 @@ import {
   AlarmClock,
   ArrowRight,
   BriefcaseBusiness,
+  CalendarRange,
   Check,
   CheckCircle2,
   ListFilter,
@@ -66,9 +67,14 @@ export function JobsOverview() {
           <h1>일감</h1>
           <p>진행 중인 고객과 마감, 수정 잔여 횟수를 같이 봐요.</p>
         </div>
-        <Link href="/jobs/new" className="primaryButton" data-testid="create-job-list">
-          <Plus size={18} /> 새 일감
-        </Link>
+        <div className="pageHeaderActions">
+          <Link href="/jobs/summary" className="secondaryButton" data-testid="open-monthly-summary">
+            <CalendarRange size={18} /> 월별 정리
+          </Link>
+          <Link href="/jobs/new" className="primaryButton" data-testid="create-job-list">
+            <Plus size={18} /> 새 일감
+          </Link>
+        </div>
       </header>
       {notice === "revision-unavailable" && (
         <p role="status">삭제되었거나 현재 계정에서 볼 수 없는 수정 요청이에요. 일감 목록을 확인해주세요.</p>

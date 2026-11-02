@@ -549,4 +549,27 @@ describe("job completion", () => {
     expect(reopened.status).toBe("active");
     expect(reopened.tasks.map((task) => task.status)).toEqual(active.tasks.map((task) => task.status));
   });
+
+  it("완료하면 completedAt이 생기고 되돌리면 칸이 사라진다", () => {
+    const active = composeJob({
+      jobId: "job_completed_at",
+      clientLabel: "완료 시각 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+    });
+    expect("completedAt" in active).toBe(false);
+
+    const completed = toggleJobCompletion(active, "2026-08-02T00:00:00.000Z");
+    expect(completed.status).toBe("completed");
+    expect(completed.completedAt).toBe("2026-08-02T00:00:00.000Z");
+    expect(completed.updatedAt).toBe("2026-08-02T00:00:00.000Z");
+
+    const reopened = toggleJobCompletion(completed, "2026-08-03T00:00:00.000Z");
+    expect(reopened.status).toBe("active");
+    expect("completedAt" in reopened).toBe(false);
+    expect(reopened.updatedAt).toBe("2026-08-03T00:00:00.000Z");
+
+    // 다시 완료하면 새 완료 시각을 적는다.
+    expect(toggleJobCompletion(reopened, "2026-08-04T00:00:00.000Z").completedAt).toBe("2026-08-04T00:00:00.000Z");
+  });
 });

@@ -44,6 +44,7 @@ function alertKindLabel(kind: InAppAlertKind) {
 
 function pageContext(pathname: string) {
   if (pathname.startsWith("/jobs/new")) return ["새 일감", "주문 네 가지만 입력하면 돼요"];
+  if (/^\/jobs\/summary\/?$/.test(pathname)) return ["월별 정리", "완료한 주문을 달마다 모아 봐요"];
   if (pathname.startsWith("/jobs/")) return ["일감 상세", "범위와 진행 상황을 한곳에서"];
   if (pathname.startsWith("/jobs")) return ["전체 일감", "진행 중인 고객을 빠르게 확인"];
   if (pathname.startsWith("/packages")) return ["패키지", "한 번 저장하고 다음 주문부터 재사용"];

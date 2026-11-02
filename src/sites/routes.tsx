@@ -7,6 +7,7 @@ import { FeedbackPanel } from "@/components/feedback-panel";
 import { JobDetail } from "@/components/job-detail";
 import { JobsOverview } from "@/components/jobs-overview";
 import { MarketingHome } from "@/components/marketing-home";
+import { MonthlySummary } from "@/components/monthly-summary";
 import { NewJobForm } from "@/components/new-job-form";
 import { PackageManager } from "@/components/package-manager";
 import { PolicyPage } from "@/components/policy-page";
@@ -24,6 +25,7 @@ export const SITE_ROUTE_PATHS = [
   "/today",
   "/jobs",
   "/jobs/new",
+  "/jobs/summary",
   "/jobs/:id",
   "/packages",
   "/settings",
@@ -74,6 +76,8 @@ export function AppRoutes() {
       <Route path="/today" element={<WorkspaceRoute><TodayDashboard /></WorkspaceRoute>} />
       <Route path="/jobs" element={<WorkspaceRoute><JobsOverview /></WorkspaceRoute>} />
       <Route path="/jobs/new" element={<WorkspaceRoute><NewJobForm /></WorkspaceRoute>} />
+      {/* 월별 정리는 `/jobs/:id`보다 먼저 둔다(일감 id로 읽히지 않게). */}
+      <Route path="/jobs/summary" element={<WorkspaceRoute><MonthlySummary /></WorkspaceRoute>} />
       <Route path="/jobs/:id" element={<JobDetailRoute />} />
       <Route path="/packages" element={<WorkspaceRoute><PackageManager /></WorkspaceRoute>} />
       <Route path="/settings" element={<WorkspaceRoute><SettingsPanel /></WorkspaceRoute>} />
