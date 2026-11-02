@@ -17,6 +17,24 @@ describe("고객 링크 화면", () => {
     expect(document.body.textContent).not.toMatch(/₩|\d원|010-/);
   });
 
+  // 서버가 주는 기본 제목은 이미 "고객 · 패키지" 모양이라, 맨 위 줄에 패키지 이름이 두 번 붙으면 안 된다.
+  it("제목이 패키지 이름으로 끝나면 맨 위 줄에 패키지 이름을 한 번만 보여 준다", () => {
+    const { unmount } = render(<PublicRevisionView title="카페 모라 · Basic 홈페이지" packageName="Basic 홈페이지" revision={revision} badgeLabel="보안 링크" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.getByText("카페 모라 · Basic 홈페이지")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("Basic 홈페이지 · Basic 홈페이지");
+    unmount();
+
+    // 제목이 패키지 이름과 같아도 한 번만.
+    const same = render(<PublicRevisionView title="Basic 홈페이지" packageName="Basic 홈페이지" revision={revision} badgeLabel="보안 링크" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.getByText("Basic 홈페이지")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("Basic 홈페이지 · Basic 홈페이지");
+    same.unmount();
+
+    // 제목이 패키지 이름으로 안 끝나면 지금처럼 "제목 · 패키지".
+    render(<PublicRevisionView title="브랜드 사이트" packageName="Standard" revision={revision} badgeLabel="보안 링크" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.getByText("브랜드 사이트 · Standard")).toBeInTheDocument();
+  });
+
   it("값을 받으면 작업자 이름·마감·진행 단계 칩(지금 단계 글자 표시)을 그린다", () => {
     render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} workerName="샘플 스튜디오" dueLabel="5일 남음" stage={1} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
     expect(screen.getByTestId("revision-worker")).toHaveTextContent("샘플 스튜디오");
