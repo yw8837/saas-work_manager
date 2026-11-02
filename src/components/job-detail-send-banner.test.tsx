@@ -36,6 +36,7 @@ function renderAt(url: string, options: { runtimeMode?: "local" | "hosted"; save
   jsdom.reconfigure({ url });
   vi.mocked(useWorkspace).mockReturnValue({
     jobs: [job(options.enabled ?? true, options.usedRevisions ?? 0)],
+    settings: {},
     hydrated: true,
     runtimeMode: options.runtimeMode ?? "hosted",
     saveStatus: options.saveStatus ?? "saved",
@@ -113,6 +114,7 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
     if (answerFirst) composed = toggleBriefQuestion_(composed);
     vi.mocked(useWorkspace).mockReturnValue({
       jobs: [{ ...composed, revisionPortalEnabled: true }],
+      settings: {},
       hydrated: true,
       runtimeMode: "hosted",
       saveStatus: "saved",

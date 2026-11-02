@@ -152,6 +152,8 @@ export interface AppSettings {
   betaCodeOnboardingCompletedAt?: string;
   /** 고객 링크 위에 보일 작업자(가게) 이름. 비우면 고객 링크에 이름을 보이지 않는다. */
   publicWorkerName?: string;
+  /** 한 건에 최소 남길 돈(원, 작업자 기준). 정했을 때만 덜 남는 패키지·주문을 한 줄로 알린다. 고객에게는 안 나간다. */
+  minMarginPerJob?: number;
 }
 
 export interface AppState {

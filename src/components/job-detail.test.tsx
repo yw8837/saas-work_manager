@@ -48,9 +48,10 @@ const createAddonSpy = vi.fn();
 const confirmAddonSpy = vi.fn();
 const setJobSourceSpy = vi.fn();
 
-function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted" } = {}) {
+function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted"; settings?: { minMarginPerJob?: number } } = {}) {
   vi.mocked(useWorkspace).mockReturnValue({
     jobs: [job],
+    settings: options.settings ?? {},
     hydrated: true,
     runtimeMode: options.runtimeMode ?? "local",
     saveStatus: "saved",
@@ -245,6 +246,24 @@ describe("JobDetail 고객에게 보낼 말", () => {
     const tasks = screen.getByRole("heading", { name: "작업 체크리스트" });
     expect(rail.compareDocumentPosition(messages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(messages.compareDocumentPosition(tasks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe("JobDetail 최소 남길 돈", () => {
+  it("기준보다 덜 남으면 '남는 돈(예상)' 칸 아래에 한 줄로 알린다", () => {
+    // 1,000,000원 − 예상 원가 250,000원 = 750,000원
+    renderDetail(baseJob(), { settings: { minMarginPerJob: 800_000 } });
+    const warning = screen.getByTestId("job-margin-warning");
+    expect(warning).toHaveTextContent("남는 돈 750,000원 · 내 기준보다 50,000원 적어요");
+    expect(screen.getByTestId("job-margin").closest("dl")).toContainElement(warning);
+  });
+
+  it("기준이 없거나 남는 돈이 기준 이상이면 알리지 않는다", () => {
+    const first = renderDetail();
+    expect(screen.queryByTestId("job-margin-warning")).not.toBeInTheDocument();
+    first.unmount();
+    renderDetail(baseJob(), { settings: { minMarginPerJob: 700_000 } });
+    expect(screen.queryByTestId("job-margin-warning")).not.toBeInTheDocument();
   });
 });
 

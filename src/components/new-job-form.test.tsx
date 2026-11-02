@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { createSeedState } from "@/lib/store";
+import { createSeedState, type AppSettings } from "@/lib/store";
 import { NewJobForm } from "./new-job-form";
 import { useWorkspace } from "./workspace-provider";
 
@@ -10,10 +10,10 @@ vi.mock("./workspace-provider", async () => ({
   ...await vi.importActual("./workspace-provider"), useWorkspace: vi.fn(),
 }));
 const create = vi.fn();
-function mockWorkspace(jobs: ReturnType<typeof createSeedState>["jobs"] = []) {
+function mockWorkspace(jobs: ReturnType<typeof createSeedState>["jobs"] = [], settings: Partial<AppSettings> = {}) {
   const state = createSeedState();
   vi.mocked(useWorkspace).mockReturnValue({
-    packages: state.packages, options: state.options, jobs, canCreateJob: true,
+    packages: state.packages, options: state.options, jobs, settings: { ...state.settings, ...settings }, canCreateJob: true,
     createJob: create, plan: "pro", limits: { activeJobs: Infinity, totalJobs: Infinity },
   } as unknown as ReturnType<typeof useWorkspace>);
 }
@@ -81,6 +81,29 @@ it("일감이 없으면 받은 곳이 비어 있고, 고른 받은 곳을 새 �
   fireEvent.change(screen.getByLabelText(/고객 이름/), { target: { value: "소개 고객" } });
   fireEvent.click(screen.getByTestId("submit-job-mobile"));
   expect(create.mock.calls[0][0]).toMatchObject({ clientLabel: "소개 고객", source: "referral" });
+});
+
+it("기준을 정했을 때만, 덜 남는 주문이면 새 일감 아래 띠와 미리보기에 한 줄로 알리고 만들기는 막지 않는다", () => {
+  mockWorkspace([], { minMarginPerJob: 700000 });
+  create.mockReturnValue("created-job");
+  render(<NewJobForm />);
+  // 첫 패키지(Basic 홈페이지): 790,000원 − 예상 원가 95,000원 = 695,000원
+  expect(screen.getByTestId("preview-margin-warning")).toHaveTextContent("기준보다 5,000원 적어요");
+  expect(screen.getByTestId("preview-panel-margin-warning")).toHaveTextContent("남는 돈 695,000원 · 내 기준보다 5,000원 적어요");
+  fireEvent.change(screen.getByLabelText(/고객 이름/), { target: { value: "덜 남는 주문" } });
+  fireEvent.click(screen.getByTestId("submit-job-mobile"));
+  expect(create).toHaveBeenCalledTimes(1);
+});
+
+it("기준이 없거나 남는 돈이 기준 이상이면 새 일감에서 알리지 않는다", () => {
+  const first = render(<NewJobForm />);
+  expect(screen.queryByTestId("preview-margin-warning")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("preview-panel-margin-warning")).not.toBeInTheDocument();
+  first.unmount();
+  mockWorkspace([], { minMarginPerJob: 600000 });
+  render(<NewJobForm />);
+  expect(screen.queryByTestId("preview-margin-warning")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("preview-panel-margin-warning")).not.toBeInTheDocument();
 });
 
 it("does not create a second job on repeated form submit", () => {

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   composeJob,
   latestOrderSource,
+  marginShortfall,
+  marginWarningText,
   ORDER_SOURCE_LABELS,
   ORDER_SOURCES,
   PLAN_LIMITS,
@@ -21,6 +23,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  CircleAlert,
   CircleDollarSign,
   ListChecks,
   PackageCheck,
@@ -73,7 +76,7 @@ function currentDate() {
 
 export function NewJobForm() {
   const router = useRouter();
-  const { packages, options, jobs, createJob, canCreateJob, jobLimitHit, limits, plan } = useWorkspace();
+  const { packages, options, jobs, settings, createJob, canCreateJob, jobLimitHit, limits, plan } = useWorkspace();
   const limitCopy = jobLimitCopy(jobLimitHit, limits, plan);
   const activePackages = packages.filter((item) => !item.archivedAt);
   const activeOptions = options.filter((item) => !item.archivedAt);
@@ -107,6 +110,9 @@ export function NewJobForm() {
       return null;
     }
   }, [clientLabel, packageId, optionIds, activePackages, activeOptions, startDate]);
+
+  // 한 건에 최소 남길 돈을 정했을 때만, 이 주문이 덜 남으면 한 줄로 알린다(만들기는 막지 않음).
+  const previewShortfall = preview ? marginShortfall(preview.job.margin, settings.minMarginPerJob) : null;
 
   const toggleOption = (id: string) => {
     setOptionIds((previous) =>
@@ -314,6 +320,13 @@ export function NewJobForm() {
                       {formatWon(preview.job.margin)}
                       {preview.job.amount > 0 && <span>남는 비율 {Math.round((preview.job.margin / preview.job.amount) * 100)}%</span>}
                     </dd>
+                    {previewShortfall !== null && (
+                      <dd className="marginWarning" data-testid="preview-panel-margin-warning">
+                        <CircleAlert size={13} aria-hidden="true" />
+                        <span className="srOnly">주의: </span>
+                        {marginWarningText(preview.job.margin, previewShortfall)}
+                      </dd>
+                    )}
                   </div>
                   <div>
                     <dt><CalendarDays size={16} /> 자동 마감</dt>
@@ -391,6 +404,13 @@ export function NewJobForm() {
                   ? `${formatShortDate(preview.job.dueDate)} 마감 · 수정 ${preview.job.revisionLimit}회`
                   : "패키지를 골라주세요"}
               </strong>
+              {previewShortfall !== null && (
+                <span className="marginWarningPill" data-testid="preview-margin-warning">
+                  <CircleAlert size={12} aria-hidden="true" />
+                  <span className="srOnly">주의: </span>
+                  기준보다 {formatWon(previewShortfall)} 적어요
+                </span>
+              )}
             </div>
             <button
               type="submit"
