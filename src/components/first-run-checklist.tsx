@@ -121,7 +121,6 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
                 {packagesDoneLine && (
                   <p className="firstRunDoneLine" data-testid="first-run-starter-line">
                     <span>{selectedIndustry ? `${INDUSTRY_LABELS[selectedIndustry]} 예시로 시작했어요` : "패키지를 정했어요"}</span>
-                    <span aria-hidden="true">·</span>
                     <button
                       type="button"
                       className="textButton"
@@ -132,7 +131,6 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
                     >
                       {selectedIndustry ? "다른 업종" : "업종 예시 고르기"}
                     </button>
-                    <span aria-hidden="true">·</span>
                     <Link href="/packages" className="inlineLink" onClick={() => markFirstRun("packagesReviewed")}>
                       패키지 확인하기 <ArrowUpRight size={16} />
                     </Link>

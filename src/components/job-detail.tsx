@@ -572,7 +572,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           aria-controls="job-fact-rail"
           data-testid="job-money-toggle"
         >
-          {moneyOpen ? "금액 접기" : "금액 보기"}
+          {moneyOpen ? "금액 접기" : "금액 보기"} <ChevronDown size={14} aria-hidden="true" />
         </button>
       </p>
 

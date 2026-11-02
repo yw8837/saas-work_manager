@@ -1798,6 +1798,11 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .firstRunDoneLine { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; }
 .firstRunDoneLine .textButton { text-decoration: underline; text-underline-offset: 3px; }
 .firstRunDoneLine .inlineLink { min-height: 44px; font-size: 14px; }
+/* 가운뎃점은 앞 항목 끝에 붙인다(줄이 바뀌어도 줄 맨 앞에 혼자 남지 않게). inline-block이라 버튼 밑줄이 번지지 않는다. */
+.firstRunDoneLine > :not(:last-child)::after { content: "·"; content: "·" / ""; display: inline-block; margin-left: 6px; color: var(--muted); font-weight: 400; text-decoration: none; }
+/* '금액 보기'는 펼침 표시를 달고, 펼치면 뒤집는다. */
+.jobFactLine .textButton { gap: 2px; }
+.jobFactLine .textButton[aria-expanded="true"] svg { transform: rotate(180deg); }
 @media (min-width: 1051px) {
   .jobPreview { position: sticky; top: 84px; }
 }

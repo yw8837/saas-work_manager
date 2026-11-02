@@ -142,3 +142,13 @@ describe("최소 남길 돈 경고는 화면마다 한 줄(시장조사 R7)", ()
     expect(bodies(baseTheme, ".jobPreview .marginWarning")).not.toMatch(/display:\s*none/);
   });
 });
+
+describe("써 보며 다듬기(2026-11-02 돌아보기)", () => {
+  it("첫 실행 접힌 줄의 가운뎃점은 앞 항목 끝에 붙어, 줄이 바뀌어도 줄 맨 앞에 혼자 남지 않는다", () => {
+    expect(bodies(theme, ".firstRunDoneLine > :not(:last-child)::after")).toMatch(/content:\s*"·"/);
+  });
+
+  it("'금액 보기'에는 펼침 표시가 있고, 펼치면 뒤집힌다", () => {
+    expect(bodies(theme, '.jobFactLine .textButton[aria-expanded="true"] svg')).toMatch(/rotate\(180deg\)/);
+  });
+});
