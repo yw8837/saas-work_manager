@@ -800,3 +800,9 @@ export function toggleJobCompletion(job: Job, now = new Date().toISOString()): J
   }
   return { ...job, status: "completed", completedAt: now, updatedAt: now };
 }
+
+/** 시작 안내를 처음 복사한 시각을 남긴다. 이미 남겼으면 그대로 둔다(처음 한 번만). */
+export function markStartShared(job: Job, now = new Date().toISOString()): Job {
+  if (job.startSharedAt) return job;
+  return { ...job, startSharedAt: now, updatedAt: now };
+}

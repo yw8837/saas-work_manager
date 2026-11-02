@@ -36,7 +36,7 @@ function localDateOf(iso: string): string {
 
 /**
  * 지금 일감 상태에 맞는 상황만 우선순위대로 준다. `today`는 이 기기 날짜(`localToday()`).
- * 반려·되돌린 수정 요청은 세지 않는다.
+ * 반려·되돌린 수정 요청은 세지 않는다. 시작 안내를 아직 안 보낸 진행 중 일감은 첫 연락이라 시작 안내가 맨 앞이다.
  */
 export function availableSituations(job: Job, today: string): MessageSituation[] {
   const active = job.status === "active";
@@ -54,7 +54,10 @@ export function availableSituations(job: Job, today: string): MessageSituation[]
     "out-of-scope": liveRevisions.some((revision) => revision.usage === "extra_scope") || job.addons.some((addon) => addon.status === "draft"),
     delivery: job.status === "completed" || (liveTasks.length > 0 && liveTasks.every((task) => task.status === "done")),
   };
-  return SITUATION_ORDER.filter((situation) => matches[situation]);
+  const order: MessageSituation[] = active && !job.startSharedAt
+    ? ["start", ...SITUATION_ORDER.filter((situation) => situation !== "start")]
+    : SITUATION_ORDER;
+  return order.filter((situation) => matches[situation]);
 }
 
 export function situationMessage(situation: MessageSituation, input: { job: Job; link: string | null }): string {

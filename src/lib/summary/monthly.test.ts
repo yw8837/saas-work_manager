@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { composeJob, type Job, type OrderSource, type PackageTemplate } from "@/lib/domain";
+import { composeJob, setJobSource, type Job, type OrderSource, type PackageTemplate } from "@/lib/domain";
 import {
   monthKeyOf,
   monthlySummary,
@@ -66,6 +66,15 @@ describe("월별 정리", () => {
     expect(october.rows).toEqual([
       { job: editedLater, completedAt: "2026-10-31T05:00:00.000Z", completedAtEstimated: false },
     ]);
+  });
+
+  it("완료 시각이 없는 예전 완료 일감은 받은 곳을 고쳐도 원래 달에 남는다", () => {
+    // 10월 15일에 마지막으로 고친(=완료한) 예전 일감의 받은 곳을 11월 2일에 정한다.
+    const legacy = completed("legacy_edit", undefined, { updatedAt: "2026-10-15T03:00:00.000Z" });
+    const edited = setJobSource(legacy, "kmong", "2026-11-02T01:00:00.000Z");
+    expect(edited.updatedAt).toBe("2026-11-02T01:00:00.000Z");
+    expect(monthlySummary([edited], "2026-10", TZ).rows.map((row) => row.job.id)).toEqual(["legacy_edit"]);
+    expect(monthlySummary([edited], "2026-11", TZ).rows).toEqual([]);
   });
 
   it("받은 곳별 합계와 진행 중 합계를 따로 낸다", () => {

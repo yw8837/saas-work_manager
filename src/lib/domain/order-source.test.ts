@@ -65,6 +65,20 @@ describe("받은 곳", () => {
     expect("source" in setJobSource(job, undefined)).toBe(false);
   });
 
+  it("완료 시각이 없는 예전 완료 일감은 받은 곳을 바꾸기 전에 마지막 수정 시각을 완료 시각으로 굳힌다", () => {
+    const legacy: Job = { ...jobAt("job_legacy", "2026-10-01T00:00:00.000Z"), status: "completed", updatedAt: "2026-10-15T03:00:00.000Z" };
+    expect("completedAt" in legacy).toBe(false);
+
+    const changed = setJobSource(legacy, "kmong", "2026-11-02T00:00:00.000Z");
+    expect(changed.completedAt).toBe("2026-10-15T03:00:00.000Z");
+    expect(changed.updatedAt).toBe("2026-11-02T00:00:00.000Z");
+
+    // 완료 시각이 이미 있거나 진행 중인 일감은 완료 시각을 건드리지 않는다.
+    const recorded: Job = { ...legacy, completedAt: "2026-10-10T00:00:00.000Z" };
+    expect(setJobSource(recorded, "kmong", "2026-11-02T00:00:00.000Z").completedAt).toBe("2026-10-10T00:00:00.000Z");
+    expect("completedAt" in setJobSource(jobAt("job_active", "2026-10-01T00:00:00.000Z"), "kmong", "2026-11-02T00:00:00.000Z")).toBe(false);
+  });
+
   it("최근 받은 곳은 받은 곳 없는 일감을 건너뛰고 가장 늦게 만든 일감의 값을 준다", () => {
     expect(latestOrderSource([])).toBeUndefined();
     const jobs = [

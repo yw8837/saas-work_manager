@@ -21,6 +21,8 @@ import {
   PLAN_LIMITS,
   completeRevision as applyCompletedRevision,
   markRevisionExtraScope as applyExtraScopeRevision,
+  markStartShared as applyStartShared,
+  pinLegacyCompletedAt,
   recordRevision as appendRevision,
   resolvePlanAccess,
   revertRevision as applyRevertedRevision,
@@ -143,6 +145,8 @@ type WorkspaceContextValue = AppState & {
   completeJob: (jobId: string) => void;
   /** 받은 곳을 바꾸거나 지운다(undefined). 고객 링크·수정 횟수와 상관없어 완료한 일감에서도 된다. */
   setJobSource: (jobId: string, source: OrderSource | undefined) => void;
+  /** 시작 안내(저장 직후 안내의 문구·링크, '시작 안내' 칩)를 처음 복사한 시각을 남긴다. 이미 남겼거나 진행 중이 아니면 그대로 둔다. */
+  markStartShared: (jobId: string) => void;
   deleteJob: (jobId: string) => void;
   setRevisionPortalEnabled: (jobId: string, enabled: boolean) => void;
   rotateRevisionPortalToken: (jobId: string) => string | null;
@@ -1454,6 +1458,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     updateJob(jobId, (job) => applyJobSource(job, source));
   }, [updateJob]);
 
+  // 복사할 때마다 불린다. 이미 남겼거나 진행 중이 아니면 상태를 다시 만들지 않는다(저장도 안 함).
+  const markStartShared = useCallback((jobId: string) => {
+    const target = stateRef.current.jobs.find((job) => job.id === jobId);
+    if (!target || target.status !== "active" || target.startSharedAt) return;
+    updateJob(jobId, (job) => (job.status === "active" ? applyStartShared(job) : job));
+  }, [updateJob]);
+
   const deleteJob = useCallback((jobId: string) => {
     commitState((current) => ({
       ...current,
@@ -1616,8 +1627,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [commitState, plan]);
 
   const updateJobLinks = useCallback((jobId: string, links: JobLink[]) => {
+    // 완료한 일감에서도 고칠 수 있어, 완료 시각이 없던 예전 일감은 먼저 굳힌다(월별 정리에서 달이 안 바뀌게).
     updateJob(jobId, (job) => ({
-      ...job,
+      ...pinLegacyCompletedAt(job),
       links: links.map((link) => ({ ...link })),
       updatedAt: new Date().toISOString(),
     }));
@@ -1765,6 +1777,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       toggleJobWaiting,
       completeJob,
       setJobSource,
+      markStartShared,
       deleteJob,
       setRevisionPortalEnabled,
       rotateRevisionPortalToken,
@@ -1785,7 +1798,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, setJobSource, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, setJobSource, markStartShared, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (

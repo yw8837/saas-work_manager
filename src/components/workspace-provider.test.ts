@@ -110,6 +110,23 @@ describe("hosted workspace serialization", () => {
     expect(merged.state.jobs[0].tasks[0].status).toBe("done");
   });
 
+  it("한 기기에서 남긴 시작 안내 보낸 시각이 병합 뒤 남는다(어느 쪽에서 남겨도)", () => {
+    const base = createSeedState("2026-08-15");
+    const local = clone(base);
+    const remote = clone(base);
+    expect("startSharedAt" in base.jobs[0]).toBe(false);
+    // 이 기기는 다른 칸을 고쳤고, 다른 기기는 시작 안내를 복사해 보낸 시각만 남겼다.
+    local.jobs[0].tasks[0].status = "done";
+    local.jobs[0].updatedAt = "2026-08-15T01:00:00.000Z";
+    remote.jobs[0] = { ...remote.jobs[0], startSharedAt: "2026-08-15T02:00:00.000Z", updatedAt: "2026-08-15T02:00:00.000Z" };
+
+    for (const merged of [mergeConcurrentWorkspaceState(base, local, remote), mergeConcurrentWorkspaceState(base, remote, local)]) {
+      expect(merged.conflicts).toEqual([]);
+      expect(merged.state.jobs[0].startSharedAt).toBe("2026-08-15T02:00:00.000Z");
+      expect(merged.state.jobs[0].tasks[0].status).toBe("done");
+    }
+  });
+
   it("두 기기가 각각 일감을 만들면 누적 카운터를 합산해 무료 한도를 우회할 수 없게 한다", () => {
     const base = createSeedState("2026-08-15");
     base.jobsCreatedTotal = 3;

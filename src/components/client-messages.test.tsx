@@ -19,11 +19,19 @@ const template: PackageTemplate = {
   intakeItems: ["로고 파일"],
 };
 
+/** 시작 안내를 이미 보낸 일감. 안 보낸 일감은 `notSentYet()`으로 만든다. */
 function job(overrides: Partial<Job> = {}): Job {
   return {
     ...composeJob({ jobId: "job_cm", revisionPortalToken: "token_cm", clientLabel: "카페 모라", startDate: "2026-10-30", package: template, now: "2026-10-30T00:00:00.000Z" }),
+    startSharedAt: "2026-10-30T00:10:00.000Z",
     ...overrides,
   };
+}
+
+function notSentYet(): Job {
+  const copy = job();
+  delete copy.startSharedAt;
+  return copy;
 }
 
 beforeEach(() => {
@@ -97,6 +105,34 @@ describe("고객에게 보낼 말", () => {
     render(<ClientMessages job={job()} link={null} today={TODAY} />);
     fireEvent.click(screen.getByTestId("client-message-chip-start"));
     expect(screen.getByTestId("client-message-preview")).not.toHaveTextContent("http");
+  });
+
+  it("시작 안내를 아직 안 보낸 일감은 '시작 안내'가 처음부터 골라져 있다", () => {
+    render(<ClientMessages job={notSentYet()} link={LINK} today={TODAY} />);
+    const chips = within(screen.getByRole("group", { name: "보낼 상황" })).getAllByRole("button");
+    expect(chips.map((chip) => chip.textContent)).toEqual(["시작 안내", "남은 것 요청", "시안 확인 부탁"]);
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("client-message-preview")).toHaveTextContent("Basic 홈페이지 작업의 수정 요청은 아래 링크에 한 번에 남겨주세요.");
+  });
+
+  it("'시작 안내'를 복사했을 때만 보낸 것으로 알린다(다른 칩·복사 실패는 알리지 않는다)", async () => {
+    const onStartShared = vi.fn();
+    writeText.mockResolvedValue();
+    const view = render(<ClientMessages job={notSentYet()} link={LINK} today={TODAY} onStartShared={onStartShared} />);
+    fireEvent.click(screen.getByTestId("client-message-chip-remaining"));
+    fireEvent.click(screen.getByTestId("client-message-copy"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(onStartShared).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("client-message-chip-start"));
+    fireEvent.click(screen.getByTestId("client-message-copy"));
+    await waitFor(() => expect(onStartShared).toHaveBeenCalledTimes(1));
+    view.unmount();
+
+    writeText.mockRejectedValue(new Error("blocked"));
+    render(<ClientMessages job={notSentYet()} link={LINK} today={TODAY} onStartShared={onStartShared} />);
+    await act(async () => { fireEvent.click(screen.getByTestId("client-message-copy")); });
+    expect(screen.getByTestId("client-message-text")).toBeVisible();
+    expect(onStartShared).toHaveBeenCalledTimes(1);
   });
 
   it("보낼 상황이 없으면 그리지 않는다", () => {

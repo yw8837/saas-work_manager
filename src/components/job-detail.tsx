@@ -84,6 +84,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     toggleJobWaiting,
     completeJob,
     setJobSource,
+    markStartShared,
     deleteJob,
     setRevisionPortalEnabled,
     rotateRevisionPortalToken,
@@ -279,6 +280,9 @@ export function JobDetail({ jobId }: { jobId: string }) {
       setNotice({ text: `자동 복사가 막혔어요. 이 주소를 직접 복사해 주세요: ${portalLink}`, tone: "error" });
     }
   };
+
+  // 시작 안내(저장 직후 안내의 문구·링크, '시작 안내' 칩)를 처음 복사한 시각을 남긴다. 그 뒤로 '고객에게 보낼 말'은 설계 순서로 고른다.
+  const recordStartShared = () => markStartShared(job.id);
 
   const dismissSendBanner = () => {
     setSendBannerDismissed(true);
@@ -553,6 +557,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           pendingMessage={portalEnabled ? "저장이 끝나면 보낼 수 있어요. 상단에 저장 완료가 표시될 때까지 잠시만 기다려 주세요." : "고객 수정 링크가 꺼져 있어요. 아래 고객 수정 요청 링크 카드에서 켜면 보낼 수 있어요."}
           localOnly={runtimeMode === "local"}
           onDismiss={dismissSendBanner}
+          onShared={recordStartShared}
         />
       )}
 
@@ -615,7 +620,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       <div className="detailGrid">
         <div className="detailMain">
           {/* 안내 띠를 닫으면 지금 상황에 맞는 문구를 다시 복사할 수 있다. 링크 준비 여부는 저장 직후 안내와 같다. */}
-          {!sendBannerOpen && <ClientMessages job={job} link={portalEnabled && portalSynced ? portalLink : null} today={localToday()} />}
+          {!sendBannerOpen && <ClientMessages job={job} link={portalEnabled && portalSynced ? portalLink : null} today={localToday()} onStartShared={recordStartShared} />}
 
           <section className="contentSection taskDetailSection">
             <div className="sectionHeadingRow">

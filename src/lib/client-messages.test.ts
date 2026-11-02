@@ -13,6 +13,7 @@ import {
   createAddon,
   displayJobTitle,
   markRevisionExtraScope,
+  markStartShared,
   recordRevision,
   revertRevision,
   updateTaskStatus,
@@ -42,8 +43,9 @@ const template: PackageTemplate = {
   briefQuestions: ["가장 하고 싶은 일은 무엇인가요?"],
 };
 
+/** 시작 안내를 이미 보낸 일감(설계 B2 순서를 본다). 안 보낸 일감은 `notSentYet`으로 만든다. */
 function baseJob(overrides: Partial<PackageTemplate> = {}): Job {
-  return composeJob({
+  const job = composeJob({
     jobId: "job_msg",
     revisionPortalToken: "token_msg",
     clientLabel: "카페 모라",
@@ -51,6 +53,13 @@ function baseJob(overrides: Partial<PackageTemplate> = {}): Job {
     package: { ...template, ...overrides },
     now: "2026-10-30T00:00:00.000Z",
   });
+  return { ...job, startSharedAt: "2026-10-30T00:10:00.000Z" };
+}
+
+function notSentYet(job: Job): Job {
+  const copy = { ...job };
+  delete copy.startSharedAt;
+  return copy;
 }
 
 function withDoneRevision(job: Job, id: string, at = TODAY_NOON): Job {
@@ -88,6 +97,18 @@ describe("고객에게 보낼 말 — 상황 고르기", () => {
     expect(availableSituations({ ...withDoneRevision(baseJob(), "r3"), status: "completed" }, TODAY)).toEqual(["delivery"]);
     const extra = markRevisionExtraScope(recordRevision(baseJob(), { revisionId: "r4", source: "public", body: "페이지 추가", submittedAt: TODAY_NOON }).job, "r4", TODAY_NOON);
     expect(availableSituations({ ...extra, status: "completed" }, TODAY)).toEqual(["out-of-scope", "delivery"]);
+  });
+
+  it("시작 안내를 아직 안 보낸 진행 중 일감은 시작 안내가 맨 앞이고, 보낸 뒤에는 설계 순서로 돌아간다", () => {
+    const fresh = notSentYet(baseJob());
+    expect(availableSituations(fresh, TODAY)).toEqual(["start", "remaining", "review"]);
+    let busy = withDoneRevision(fresh, "r1");
+    busy = updateTaskStatus(busy, busy.tasks[1].id, "waiting", TODAY_NOON);
+    expect(availableSituations(busy, TODAY)).toEqual(["start", "revision-done", "remaining", "waiting", "review"]);
+    // 한 번 보내면 남은 것 요청이 앞선다.
+    expect(availableSituations(markStartShared(fresh, TODAY_NOON), TODAY)).toEqual(["remaining", "review", "start"]);
+    // 끝난 일감에는 시작 안내가 없다.
+    expect(availableSituations({ ...fresh, status: "completed" }, TODAY)).toEqual(["delivery"]);
   });
 
   it("초안 추가요청이 있으면 범위 밖 안내, 할 일을 다 끝내면 납품 안내가 나온다", () => {

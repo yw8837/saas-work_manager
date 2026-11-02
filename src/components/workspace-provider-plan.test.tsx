@@ -169,6 +169,49 @@ describe("workspace 받은 곳", () => {
   });
 });
 
+describe("workspace 시작 안내 보낸 시각", () => {
+  it("처음 복사한 시각만 남기고(다시 불러도 저장하지 않음), 끝난 일감에는 남기지 않는다", async () => {
+    const base = twoActiveJobs();
+    await mountWith({}, base);
+    // 작업공간을 연 날짜 기록(첫 저장)이 끝난 뒤에 본다.
+    await waitFor(() => expect(workspace!.activityDates).toContain(localToday()));
+    const [first, second] = base.jobs.map((job) => job.id);
+    const find = (jobId: string) => workspace!.jobs.find((job) => job.id === jobId)!;
+    expect("startSharedAt" in find(first)).toBe(false);
+
+    act(() => workspace!.markStartShared(first));
+    const shared = find(first);
+    expect(shared.startSharedAt).toEqual(expect.any(String));
+    act(() => workspace!.markStartShared(first));
+    // 이미 남긴 일감은 상태를 다시 만들지 않는다(같은 객체 그대로).
+    expect(find(first)).toBe(shared);
+
+    act(() => workspace!.completeJob(second));
+    act(() => workspace!.markStartShared(second));
+    expect("startSharedAt" in find(second)).toBe(false);
+  });
+});
+
+describe("workspace 예전 완료 일감의 완료 시각", () => {
+  it("완료 시각이 없는 완료 일감의 받은 곳·작업 링크를 고치면 먼저 마지막 수정 시각을 완료 시각으로 굳힌다", async () => {
+    const base = twoActiveJobs();
+    // 완료 시각 칸이 생기기 전에 10월에 완료한 일감 두 건.
+    base.jobs = base.jobs.map((job) => ({ ...job, status: "completed" as const, updatedAt: "2026-10-15T03:00:00.000Z" }));
+    await mountWith({}, base);
+    const [first, second] = base.jobs.map((job) => job.id);
+    const find = (jobId: string) => workspace!.jobs.find((job) => job.id === jobId)!;
+    expect("completedAt" in find(first)).toBe(false);
+
+    act(() => workspace!.setJobSource(first, "kmong"));
+    expect(find(first).completedAt).toBe("2026-10-15T03:00:00.000Z");
+    expect(find(first).updatedAt > "2026-10-15T03:00:00.000Z").toBe(true);
+
+    act(() => workspace!.updateJobLinks(second, [{ id: "link_work", label: "작업 사이트", url: "https://example.com", kind: "work" }]));
+    expect(find(second).completedAt).toBe("2026-10-15T03:00:00.000Z");
+    expect(find(second).links).toHaveLength(1);
+  });
+});
+
 describe("workspace plan — 무료 한도", () => {
   it("누적 10건을 다 쓰면 일감이 하나도 없어도 막힌다", async () => {
     await mountWith({ jobsCreatedTotal: PLAN_LIMITS.free.totalJobs, trialStartedAt: EXPIRED_TRIAL });

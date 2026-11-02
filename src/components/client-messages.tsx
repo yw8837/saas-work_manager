@@ -12,8 +12,19 @@ import { markFirstRun } from "@/lib/first-run";
  * 일감 화면의 '고객에게 보낼 말'. 지금 일감 상태에 맞는 상황 칩만 보이고, 가장 알맞은 칩이 처음부터 골라져 있다.
  * 칩을 누르면 문구가 말풍선으로 바뀌고 '문구 복사' 한 번이면 끝. 복사가 막히면 같은 자리를 글상자로 바꿔 글을 선택해 둔다.
  * `link`는 링크가 켜져 있고 저장이 끝났을 때만 받는다(저장 직후 안내와 같은 계산).
+ * '시작 안내'를 복사하면 `onStartShared`로 알린다(일감에 처음 보낸 시각을 남기는 데 쓴다).
  */
-export function ClientMessages({ job, link, today }: { job: Job; link: string | null; today: string }) {
+export function ClientMessages({
+  job,
+  link,
+  today,
+  onStartShared,
+}: {
+  job: Job;
+  link: string | null;
+  today: string;
+  onStartShared?: () => void;
+}) {
   const [chosen, setChosen] = useState<MessageSituation | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -34,6 +45,7 @@ export function ClientMessages({ job, link, today }: { job: Job; link: string | 
       await navigator.clipboard.writeText(message);
       // 링크가 든 문구를 보냈으면 첫 실행 '고객에게 보내기'를 끝낸 것으로 본다(저장 직후 안내와 같다).
       if (link && message.includes(link)) markFirstRun("linkShared");
+      if (situation === "start") onStartShared?.();
       setCopyState("copied");
       window.setTimeout(() => setCopyState((value) => (value === "copied" ? "idle" : value)), 2200);
     } catch {

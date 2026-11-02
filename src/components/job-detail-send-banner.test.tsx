@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
 import { completeRevision, composeJob, recordRevision, type PackageTemplate } from "@/lib/domain";
@@ -32,6 +32,11 @@ function job(enabled = true, usedRevisions = 0) {
   return { ...composed, revisionPortalEnabled: enabled };
 }
 
+const markStartShared = vi.fn();
+beforeEach(() => {
+  markStartShared.mockReset();
+});
+
 function renderAt(url: string, options: { runtimeMode?: "local" | "hosted"; saveStatus?: "saved" | "saving"; enabled?: boolean; usedRevisions?: number } = {}) {
   jsdom.reconfigure({ url });
   vi.mocked(useWorkspace).mockReturnValue({
@@ -40,6 +45,7 @@ function renderAt(url: string, options: { runtimeMode?: "local" | "hosted"; save
     hydrated: true,
     runtimeMode: options.runtimeMode ?? "hosted",
     saveStatus: options.saveStatus ?? "saved",
+    markStartShared,
   } as unknown as ReturnType<typeof useWorkspace>);
   return render(<JobDetail jobId="job_send" />);
 }
@@ -102,6 +108,14 @@ describe("일감 저장 직후 상세", () => {
     expect(screen.getByText(/저장이 끝나면 보낼 수 있어요/)).toBeInTheDocument();
   });
 
+  it("저장 직후 안내에서 카톡 문구를 복사하면 이 일감에 시작 안내를 보낸 것으로 남긴다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderAt("https://ilgam.example/jobs/job_send?created=1");
+    fireEvent.click(screen.getByTestId("send-copy-message"));
+    await waitFor(() => expect(markStartShared).toHaveBeenCalledWith("job_send"));
+  });
+
   it("닫으면 사라지고 주소의 표시만 지운다(목록 복귀 정보는 남김)", () => {
     renderAt("https://ilgam.example/jobs/job_send?list=%2Fjobs%3Ffilter%3Dactive&created=1");
     fireEvent.click(screen.getByRole("button", { name: "고객에게 보내기 안내 닫기" }));
@@ -118,12 +132,13 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
     briefQuestions: ["이 작업으로 가장 하고 싶은 일은 무엇인가요?", "참고 예시가 있나요?"],
   };
 
-  function renderBrief(url: string, answerFirst = false) {
+  function renderBrief(url: string, answerFirst = false, startSharedAt?: string) {
     jsdom.reconfigure({ url });
     const toggleBriefQuestion = vi.fn();
     const updateBriefNote = vi.fn();
     let composed = composeJob({ jobId: "job_send", revisionPortalToken: "token_send", clientLabel: "보내기 고객", startDate: "2026-10-30", package: briefTemplate, now: "2026-10-30T00:00:00.000Z" });
     if (answerFirst) composed = toggleBriefQuestion_(composed);
+    if (startSharedAt) composed = { ...composed, startSharedAt };
     vi.mocked(useWorkspace).mockReturnValue({
       jobs: [{ ...composed, revisionPortalEnabled: true }],
       settings: {},
@@ -132,6 +147,7 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
       saveStatus: "saved",
       toggleBriefQuestion,
       updateBriefNote,
+      markStartShared,
     } as unknown as ReturnType<typeof useWorkspace>);
     render(<JobDetail jobId="job_send" />);
     return { toggleBriefQuestion, updateBriefNote };
@@ -168,10 +184,10 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
   it("'고객에게 보낼 말'의 남은 것 요청은 인사와 남은 자료·질문만 복사하고, 복사가 막히면 문구를 그대로 보여 준다", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
-    renderBrief("https://ilgam.example/jobs/job_send");
+    renderBrief("https://ilgam.example/jobs/job_send", false, "2026-10-30T00:10:00.000Z");
     // 착수 전 질문 구획에는 따로 복사 버튼을 두지 않는다.
     expect(within(screen.getByTestId("brief-section")).queryByRole("button", { name: /복사/ })).not.toBeInTheDocument();
-    // 아직 못 받은 자료·질문이 있으면 '남은 것 요청'이 처음부터 골라져 있다.
+    // 시작 안내를 보낸 뒤 아직 못 받은 자료·질문이 있으면 '남은 것 요청'이 처음부터 골라져 있다.
     expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByTestId("client-message-copy"));
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
@@ -182,7 +198,7 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
 
     cleanup();
     writeText.mockRejectedValueOnce(new Error("blocked"));
-    renderBrief("https://ilgam.example/jobs/job_send");
+    renderBrief("https://ilgam.example/jobs/job_send", false, "2026-10-30T00:10:00.000Z");
     fireEvent.click(screen.getByTestId("client-message-copy"));
     await waitFor(() => expect(screen.getByTestId("client-message-text")).toHaveValue(writeText.mock.calls[0][0]));
   });
@@ -198,5 +214,7 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
     expect(screen.getByTestId("client-message-preview").textContent).toBe(bannerMessage);
     fireEvent.click(screen.getByTestId("client-message-copy"));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(bannerMessage));
+    // '시작 안내' 칩 복사도 이 일감에 시작 안내를 보낸 것으로 남긴다.
+    await waitFor(() => expect(markStartShared).toHaveBeenCalledWith("job_send"));
   });
 });

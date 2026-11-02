@@ -182,6 +182,11 @@ export interface Job {
   source?: OrderSource;
   /** 일감을 완료한 시각(월별 정리의 기준). 완료를 되돌리면 칸을 지운다. 이 칸이 생기기 전에 완료한 저장본에는 없다. */
   completedAt?: string;
+  /**
+   * 시작 안내(저장 직후 안내의 문구·링크 복사, '시작 안내' 칩 복사)를 처음 복사한 시각. 한 번 남기면 바꾸지 않는다.
+   * 없으면 '고객에게 보낼 말'이 시작 안내를 먼저 고른다. 없던 저장본·아직 안 보낸 일감에는 칸이 없다.
+   */
+  startSharedAt?: string;
   revisionPortalToken: string;
   revisionPortalEnabled: boolean;
   status: JobStatus;

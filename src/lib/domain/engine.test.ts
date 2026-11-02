@@ -8,6 +8,7 @@ import {
   DomainValidationError,
   getRevisionSummary,
   markRevisionExtraScope,
+  markStartShared,
   normalizeIntakeLabels,
   pendingIntakeLabels,
   recordRevision,
@@ -633,5 +634,24 @@ describe("할 일 오류 문구", () => {
     for (const message of [blankKey, blankRemove, duplicate, addonDuplicate, confirmDuplicate]) {
       expect(message).not.toMatch(/할 일 키|키를/);
     }
+  });
+});
+
+describe("시작 안내 보낸 시각", () => {
+  it("처음 복사한 시각만 남기고, 다시 불러도 바꾸지 않는다", () => {
+    const job = composeJob({
+      jobId: "job_start_shared",
+      clientLabel: "시작 안내 고객",
+      startDate: "2026-08-01",
+      package: packageTemplate,
+      now: "2026-08-01T00:00:00.000Z",
+    });
+    expect("startSharedAt" in job).toBe(false);
+
+    const shared = markStartShared(job, "2026-08-01T01:00:00.000Z");
+    expect(shared.startSharedAt).toBe("2026-08-01T01:00:00.000Z");
+    expect(shared.updatedAt).toBe("2026-08-01T01:00:00.000Z");
+    // 처음 한 번만: 다시 복사해도 그대로 둔다.
+    expect(markStartShared(shared, "2026-08-02T00:00:00.000Z")).toBe(shared);
   });
 });

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FIRST_RUN_STORAGE_KEY } from "@/lib/first-run";
@@ -130,6 +130,32 @@ describe("저장 직후 고객에게 보내기", () => {
     expect(text.selectionEnd).toBe(message.length);
     expect(storage.getItem(FIRST_RUN_STORAGE_KEY)).toBeNull();
     frame.mockRestore();
+  });
+
+  it("카톡 문구나 링크를 복사하면 시작 안내를 보낸 것으로 알린다", async () => {
+    const onShared = vi.fn();
+    writeText.mockResolvedValue();
+    renderBanner({ onShared });
+    fireEvent.click(screen.getByTestId("send-copy-message"));
+    await waitFor(() => expect(onShared).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTestId("send-copy-link"));
+    await waitFor(() => expect(onShared).toHaveBeenCalledTimes(2));
+  });
+
+  it("복사가 막혔거나 저장이 끝나기 전이면 보낸 것으로 알리지 않는다", async () => {
+    const onShared = vi.fn();
+    writeText.mockRejectedValue(new Error("denied"));
+    const frame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { callback(0); return 0; });
+    renderBanner({ onShared });
+    await act(async () => { fireEvent.click(screen.getByTestId("send-copy-message")); });
+    expect(screen.getByRole("alert")).toHaveTextContent("자동 복사를 막았어요");
+    frame.mockRestore();
+    cleanup();
+
+    renderBanner({ onShared, ready: false });
+    fireEvent.click(screen.getByTestId("send-copy-message"));
+    fireEvent.click(screen.getByTestId("send-copy-link"));
+    expect(onShared).not.toHaveBeenCalled();
   });
 
   it("저장이 끝나기 전에는 보낼 수 없고 이유를 보여 준다", () => {

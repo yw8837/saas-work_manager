@@ -23,13 +23,22 @@ export function orderSourceLabel(value: unknown): string | undefined {
 }
 
 /**
+ * 완료 시각 칸이 생기기 전에 완료한 일감은 월별 정리가 마지막 수정 시각으로 달을 정한다.
+ * 완료한 일감을 고칠 때(받은 곳·작업 링크) 먼저 지금의 마지막 수정 시각을 완료 시각으로 굳혀, 고친 뒤에도 원래 달에 남게 한다.
+ */
+export function pinLegacyCompletedAt(job: Job): Job {
+  if (job.status !== "completed" || job.completedAt) return job;
+  return { ...job, completedAt: job.updatedAt };
+}
+
+/**
  * 받은 곳을 바꾸거나 지운다(undefined면 칸 자체를 뺀다). 같은 값이면 일감을 그대로 돌려준다.
  * 받은 곳은 고객 링크·수정 횟수와 상관없어 완료한 일감에도 쓴다(지난달 정리를 고칠 수 있게).
  */
 export function setJobSource(job: Job, source: OrderSource | undefined, now = new Date().toISOString()): Job {
   const next = normalizeOrderSource(source);
   if (job.source === next && (next !== undefined || !("source" in job))) return job;
-  const updated: Job = { ...job, updatedAt: now };
+  const updated: Job = { ...pinLegacyCompletedAt(job), updatedAt: now };
   if (next) updated.source = next;
   else delete updated.source;
   return updated;

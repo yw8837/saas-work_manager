@@ -27,6 +27,7 @@ export function SendToClientBanner({
   pendingMessage,
   localOnly,
   onDismiss,
+  onShared,
 }: {
   link: string;
   clientLabel: string;
@@ -45,6 +46,8 @@ export function SendToClientBanner({
   /** 이 브라우저 저장 모드: 링크가 이 브라우저에서만 열린다. */
   localOnly: boolean;
   onDismiss: () => void;
+  /** 카톡 문구나 링크를 복사했을 때 알린다(일감에 시작 안내를 처음 보낸 시각을 남기는 데 쓴다). */
+  onShared?: () => void;
 }) {
   const [copied, setCopied] = useState<CopyTarget | null>(null);
   const [copyFailed, setCopyFailed] = useState<CopyTarget | null>(null);
@@ -61,6 +64,7 @@ export function SendToClientBanner({
       setCopyFailed(null);
       setCopied(target);
       markFirstRun("linkShared");
+      onShared?.();
       window.setTimeout(() => setCopied((value) => (value === target ? null : value)), 2200);
     } catch {
       // 문구 글상자는 실패한 뒤에야 그려지므로, 선택하기 전에 바로 그려 둔다.
