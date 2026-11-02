@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { recordRevision } from "@/lib/domain";
 import { createSeedState } from "@/lib/store";
 import { TodayDashboard } from "./today-dashboard";
 import { useWorkspace } from "./workspace-provider";
@@ -73,8 +74,25 @@ describe("TodayDashboard 첫 실행 안내", () => {
   });
 });
 
-describe("TodayDashboard 수정 임박", () => {
-  it("수정을 한 번도 안 쓴 일감은 임박으로 세지 않는다", () => {
+describe("TodayDashboard 수정 거의 다 씀", () => {
+  it("요약 칸과 답변 대기 설명은 어려운 말('임박'·'작업 큐') 없이 누를 버튼 이름으로 쓴다", () => {
+    const job = { ...seed.jobs[0], status: "active" as const };
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job],
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask: vi.fn(),
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    const view = render(<TodayDashboard />);
+    expect(screen.getByText("수정 거의 다 씀")).toBeInTheDocument();
+    expect(screen.getByText("답이 오면 ‘답변 받음’을 눌러요.")).toBeInTheDocument();
+    expect(view.container).not.toHaveTextContent(/임박|큐/);
+  });
+
+  it("수정을 한 번도 안 쓴 일감은 '거의 다 씀'으로 세지 않는다", () => {
     // 기본 패키지는 포함 수정이 1회라, 쓰지도 않은 일감이 만들자마자 임박으로 잡히면 안 된다.
     const job = { ...seed.jobs[0], status: "active" as const, revisionLimit: 1, revisions: [] };
     vi.mocked(useWorkspace).mockReturnValue({
@@ -88,8 +106,85 @@ describe("TodayDashboard 수정 임박", () => {
     } as unknown as ReturnType<typeof useWorkspace>);
     render(<TodayDashboard />);
 
-    const near = screen.getByText("수정 임박").closest("div")!;
+    const near = screen.getByText("수정 거의 다 씀").closest("div")!;
     expect(near.textContent).toContain("0");
+  });
+});
+
+describe("TodayDashboard 우선 처리의 고객 요청", () => {
+  it("확인 대기 요청이 우선 처리에 보인다", () => {
+    const base = {
+      ...seed.jobs[0],
+      status: "active" as const,
+      dueDate: "2099-01-01",
+      tasks: [{ ...seed.jobs[0].tasks[0], id: "request-task", title: "시안 보내기", status: "todo" as const, dueDate: "2020-01-01" }],
+    };
+    const job = recordRevision(base, { revisionId: "revision_today", source: "public", body: "사진 교체 부탁드려요.", submittedAt: "2026-08-16T01:00:00.000Z" }).job;
+    const toggleTask = vi.fn();
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job],
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask,
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<TodayDashboard />);
+
+    const focus = screen.getByRole("heading", { name: "우선 처리" }).closest("section")!;
+    const row = within(focus).getByTestId(`today-pending-request-${job.id}`);
+    expect(row).toHaveTextContent("고객 요청 1건 확인 대기");
+    // 할 일처럼 체크하는 줄이 아니라, 누르면 그 일감의 수정 요청 구획으로 가는 줄이다.
+    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(row).getByRole("link")).toHaveAttribute("href", `/jobs/${job.id}#revisions`);
+
+    // 할 일 줄의 체크 동작은 그대로다.
+    fireEvent.click(within(focus).getByRole("button", { name: "시안 보내기 완료 처리" }));
+    expect(toggleTask).toHaveBeenCalledWith(job.id, "request-task");
+  });
+
+  it("확인 대기 요청이 없으면 요청 줄이 없다", () => {
+    const job = { ...seed.jobs[0], status: "active" as const };
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job],
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask: vi.fn(),
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<TodayDashboard />);
+    expect(screen.queryByTestId(`today-pending-request-${job.id}`)).not.toBeInTheDocument();
+  });
+});
+
+describe("TodayDashboard 받은 곳", () => {
+  it("우선 처리 줄의 일감 이름 옆에 받은 곳을 작게 보인다", () => {
+    const job = {
+      ...seed.jobs[0],
+      status: "active" as const,
+      source: "kmong" as const,
+      dueDate: "2099-01-01",
+      tasks: [{ ...seed.jobs[0].tasks[0], id: "source-task", title: "시안 보내기", status: "todo" as const, dueDate: "2020-01-01" }],
+    };
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job],
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask: vi.fn(),
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<TodayDashboard />);
+    const row = screen.getByRole("button", { name: "시안 보내기 완료 처리" }).closest("article")!;
+    expect(row).toHaveTextContent("모라스튜디오 브랜드 사이트 · 크몽");
+    // 다가오는 마감 줄에도 같은 모양으로 받은 곳을 붙인다.
+    const upcoming = document.querySelectorAll(".upcomingItem p");
+    expect(upcoming).toHaveLength(1);
+    expect(upcoming[0]).toHaveTextContent(/^모라스튜디오 브랜드 사이트 · 크몽$/);
   });
 });
 

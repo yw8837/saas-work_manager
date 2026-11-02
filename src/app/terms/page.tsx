@@ -8,6 +8,7 @@ const document = POLICY_PUBLICATION_MANIFEST.documents.terms;
 export const metadata: Metadata = {
   title: document.title,
   description: document.metadataDescription,
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {

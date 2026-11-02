@@ -302,13 +302,13 @@ export function SettingsPanel() {
 
         <section className="contentSection settingSection">
           <div className="sectionHeadingRow"><div><h2>대기 알림</h2></div><Smartphone size={20} /></div>
-          <label className="settingRow"><span><strong>2일 · 5일째 다시 보기</strong><small>Todo를 고객 대기로 바꾼 시각을 기준으로 계산해요.</small></span><input type="checkbox" checked={settings.waitingAlertsEnabled} onChange={(event) => updateSettings({ waitingAlertsEnabled: event.target.checked })} /></label>
+          <label className="settingRow"><span><strong>2일 · 5일째 다시 보기</strong><small>할 일을 고객 대기로 바꾼 시각을 기준으로 계산해요.</small></span><input type="checkbox" checked={settings.waitingAlertsEnabled} onChange={(event) => updateSettings({ waitingAlertsEnabled: event.target.checked })} /></label>
           <label className="settingTime"><span>인앱 알림 시간</span><input type="time" value={settings.waitingAlertTime} onChange={(event) => updateSettings({ waitingAlertTime: event.target.value })} /></label>
         </section>
 
         <section className="contentSection settingSection">
           <div className="sectionHeadingRow"><div><h2>수정 알림</h2></div><Send size={20} /></div>
-          <label className="settingRow"><span><strong>새 요청을 바로 표시</strong><small>고객 링크와 수동 기록 모두 같은 타임라인과 알림 큐에 남아요.</small></span><input type="checkbox" checked={settings.revisionAlertsEnabled} onChange={(event) => updateSettings({ revisionAlertsEnabled: event.target.checked })} /></label>
+          <label className="settingRow"><span><strong>새 요청을 바로 표시</strong><small>고객 링크로 온 요청과 직접 적은 요청 모두 같은 기록과 알림 목록에 남아요.</small></span><input type="checkbox" checked={settings.revisionAlertsEnabled} onChange={(event) => updateSettings({ revisionAlertsEnabled: event.target.checked })} /></label>
           <label className="settingRow"><span><strong>내용을 알림에서 표시</strong><small>공용 화면에서 보일 수 있으면 끄는 편이 안전해요.</small></span><input type="checkbox" checked={settings.privateNotificationDetails} onChange={(event) => updateSettings({ privateNotificationDetails: event.target.checked })} /></label>
         </section>
       </div>

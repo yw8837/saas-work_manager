@@ -4,6 +4,33 @@ export function buildBearerRouteHeaders(): SecurityHeader[] {
   return [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }];
 }
 
+/**
+ * 작업 화면(로그인 뒤)·API는 검색 결과에 남지 않게 한다. robots.txt로 막지 않고 이 헤더와
+ * 작업 화면 layout의 robots 메타로 막는다(robots.txt로 막으면 크롤러가 noindex를 못 읽는다).
+ */
+export function buildPrivateAreaHeaders(): SecurityHeader[] {
+  return [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
+}
+
+/** Next `headers()`에 거는 작업 화면·API 경로. `:path*`는 그 경로 자체와 하위 경로를 모두 맞춘다. */
+export const PRIVATE_AREA_ROUTE_SOURCES = [
+  "/today/:path*",
+  "/jobs/:path*",
+  "/packages/:path*",
+  "/settings/:path*",
+  "/feedback/:path*",
+  "/auth/:path*",
+  "/api/:path*",
+] as const;
+
+/**
+ * Sites Worker가 쓰는 같은 경로 판정(위 목록과 같은 경로). Sites 라우터처럼 대소문자를 가리지 않는다
+ * (`/JOBS`도 같은 화면이 열린다). 끝 슬래시(`/jobs/`)는 `(?:\/|$)`가 이미 받는다.
+ */
+export function isPrivateAreaPath(pathname: string): boolean {
+  return /^\/(?:today|jobs|packages|settings|feedback|auth|api)(?:\/|$)/i.test(pathname);
+}
+
 function configuredSupabaseSources(value = process.env.NEXT_PUBLIC_SUPABASE_URL): string[] {
   if (!value) return [];
 

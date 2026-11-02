@@ -227,12 +227,16 @@
 .appFrame .settingTime input { width: 150px; min-height: 44px; }
 .appFrame .catalogListItem[data-active="true"] { box-shadow: none; font-weight: 650; }
 .appFrame .selectedOptionSummary b { background: #e5e5e9; }
-.appFrame .jobActionBar { background: #242426; box-shadow: none; }
+.appFrame .jobActionBar { background: var(--ink); box-shadow: none; }
+/* 하단 행동 바: 주 버튼(일감 완료)만 흰 바탕, 나머지는 흰 테두리 버튼으로 위계를 보인다(감사 1번).
+   흰 반투명도 --paper 토큰을 55%·10%로 섞어 만든다(바꾸기 전과 같은 색). */
+.appFrame .jobActionBar .quietButton { color: var(--paper); background: transparent; border-color: color-mix(in srgb, var(--paper) 55%, transparent); }
+.appFrame .jobActionBar .quietButton:hover { background: color-mix(in srgb, var(--paper) 10%, transparent); border-color: var(--paper); }
 .appFrame :is(.actionToast, .mobileSubmitBar) { background: #242426; }
 .appFrame :is(.actionToast button, .mobileSubmitBar span) { color: #d1d1d6; }
 .appFrame .mobileSubmitBar .primaryButton { color: var(--ink); background: #fff; }
 .appFrame .mobileSubmitBar .primaryButton:hover { background: #ededf0; }
-.appFrame :is(.detailFeedback, .catalogSaved, .authFeedback.success, .permissionBadge, .permissionBadge.allowed) { border-color: var(--line-strong); }
+.appFrame :is(.catalogSaved, .authFeedback.success, .permissionBadge, .permissionBadge.allowed) { border-color: var(--line-strong); }
 .appFrame :is(.linkManagerSection, .browserTestSection, .blockedExternalSection) { background: var(--canvas); border-color: var(--line-strong); }
 .appFrame :is(.linkShortcutGrid a, .linkPresetButtons button, .effectToggle button[data-active="true"], .catalogTabs button[data-active="true"]) { border-color: var(--line-strong); }
 .appFrame :is(.catalogListItem:hover, .catalogListItem[data-active="true"], .alertPopoverItem:hover) { background: var(--canvas); }
@@ -304,6 +308,9 @@
   .appFrame .jobFactRail > div:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
   .appFrame .jobFactRail dd { font-size: 14px; overflow-wrap: anywhere; }
   .appFrame .jobFactRail .factIcon { display: none; }
+  /* '금액 보기'로 펼친 금액 칸 셋은 한 줄에 나란히(감사 2번) */
+  .appFrame .jobFactRail[data-money-open="true"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .appFrame .jobFactRail[data-money-open="true"] > div { border-bottom: 0; }
   .appFrame .portalLinkSection { padding: 18px; }
   .appFrame .mobileBottomNav { height: calc(70px + env(safe-area-inset-bottom, 0px)); }
   .appFrame .mobileSubmitBar { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }

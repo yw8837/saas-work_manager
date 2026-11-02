@@ -15,6 +15,7 @@ import type {
   TaskStatus,
   TaskTemplate,
 } from "./types";
+import { normalizeOrderSource } from "./order-source";
 
 export class DomainValidationError extends Error {
   constructor(
@@ -133,10 +134,13 @@ function cloneOption(template: OptionTemplate): OptionSnapshot {
 }
 
 function validateTask(task: TaskTemplate, source: string): void {
-  assertText(task.taskKey, `${source} 업무 키`);
-  assertText(task.title, `${source} 업무명`);
-  assertNonNegativeInteger(task.relativeDay, `${source} 업무 상대일`);
-  assertNonNegativeInteger(task.order, `${source} 업무 순서`);
+  // 할 일 키는 화면이 이름으로 만드는 내부 값이라 사용자가 적을 수 없다. 비어 있으면 그 할 일을 다시 넣게 한다.
+  if (!task.taskKey.trim()) {
+    throw new DomainValidationError(`${source}에 알아볼 수 없는 할 일이 있어요. 그 할 일을 지우고 다시 넣어 주세요.`, "INVALID_INPUT");
+  }
+  assertText(task.title, `${source} 할 일 이름`);
+  assertNonNegativeInteger(task.relativeDay, `${source} 할 일 날짜(시작 며칠 뒤)`);
+  assertNonNegativeInteger(task.order, `${source} 할 일 순서`);
 }
 
 function validatePackage(template: PackageTemplate): void {
@@ -164,7 +168,9 @@ function validateOption(option: OptionTemplate): void {
   assertNonNegativeInteger(option.revisionLimitDelta, `${option.name} 추가 수정`);
   option.taskDeltas.forEach((delta) => {
     if (delta.kind === "add") validateTask(delta.task, option.name);
-    else assertText(delta.taskKey, `${option.name} 제거 업무 키`);
+    else if (!delta.taskKey.trim()) {
+      throw new DomainValidationError(`${option.name}에서 뺄 할 일을 골라 주세요.`, "INVALID_INPUT");
+    }
   });
 }
 
@@ -221,9 +227,9 @@ function composeTasks(
 
   const duplicate = [...sourcesByKey.entries()].find(([, sources]) => sources.length > 1);
   if (duplicate) {
-    const [taskKey, sources] = duplicate;
+    const [, sources] = duplicate;
     throw new DomainValidationError(
-      `업무 키 '${taskKey}'가 ${sources.join(", ")}에 중복됩니다. 한 원천만 남겨주세요.`,
+      `${sources.join(", ")}에 겹치는 할 일이 있어요. 한 곳에만 남겨 주세요.`,
       "DUPLICATE_TASK_KEY",
     );
   }
@@ -396,6 +402,7 @@ export function composeJob(input: ComposeJobInput): Job {
   const calculatedDueDate = addCalendarDays(input.startDate, durationDays);
   const intakeLabels = normalizeIntakeLabels(input.package.intakeItems);
   const briefQuestions = normalizeBriefQuestions(input.package.briefQuestions);
+  const source = normalizeOrderSource(input.source);
 
   return {
     ...(intakeLabels.length > 0
@@ -404,6 +411,7 @@ export function composeJob(input: ComposeJobInput): Job {
     ...(briefQuestions.length > 0
       ? { briefQuestions: briefQuestions.map((question, index) => ({ id: `${jobId}_brief_${index + 1}`, question })) }
       : {}),
+    ...(source ? { source } : {}),
     id: jobId,
     clientLabel: input.clientLabel.trim(),
     title: input.title?.trim() || `${input.clientLabel.trim()} · ${input.package.name}`,
@@ -598,7 +606,7 @@ export function createAddon(job: Job, input: CreateAddonInput): Addon {
   for (const task of tasks) {
     if (allKeys.has(task.taskKey)) {
       throw new DomainValidationError(
-        `업무 키 '${task.taskKey}'가 기존 할 일과 중복됩니다. 다른 키를 입력해주세요.`,
+        "추가할 할 일이 이 일감의 다른 할 일과 겹쳐요. 다시 추가해 주세요.",
         "DUPLICATE_TASK_KEY",
       );
     }
@@ -639,7 +647,7 @@ export function confirmAddon(job: Job, addonId: string, confirmedAt = new Date()
     validateTask(task, addon.title);
     if (existingKeys.has(task.taskKey)) {
       throw new DomainValidationError(
-        `업무 키 '${task.taskKey}'가 기존 할 일과 중복됩니다.`,
+        "이 추가요청의 할 일이 일감의 다른 할 일과 겹쳐요. 추가요청을 취소하고 다시 만들어 주세요.",
         "DUPLICATE_TASK_KEY",
       );
     }
@@ -782,11 +790,19 @@ export function updateTaskStatus(
   };
 }
 
+/** 완료하면 완료 시각을 적고(월별 정리 기준), 다시 진행하면 그 칸을 지운다. */
 export function toggleJobCompletion(job: Job, now = new Date().toISOString()): Job {
   if (job.status === "archived") return job;
-  return {
-    ...job,
-    status: job.status === "completed" ? "active" : "completed",
-    updatedAt: now,
-  };
+  if (job.status === "completed") {
+    const reopened: Job = { ...job, status: "active", updatedAt: now };
+    delete reopened.completedAt;
+    return reopened;
+  }
+  return { ...job, status: "completed", completedAt: now, updatedAt: now };
+}
+
+/** 시작 안내를 처음 복사한 시각을 남긴다. 이미 남겼으면 그대로 둔다(처음 한 번만). */
+export function markStartShared(job: Job, now = new Date().toISOString()): Job {
+  if (job.startSharedAt) return job;
+  return { ...job, startSharedAt: now, updatedAt: now };
 }

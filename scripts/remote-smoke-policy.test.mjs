@@ -50,9 +50,25 @@ function successfulFetch(url) {
       },
     }, { headers: { "cache-control": "no-store" } }));
   }
-  if (["/", "/today", "/privacy", "/terms"].includes(path)) {
+  if (path === "/today") {
+    return Promise.resolve(new Response('<!doctype html><meta name="robots" content="noindex, nofollow">', {
+      headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex, nofollow", ...secureHeaders },
+    }));
+  }
+  if (path === "/") {
+    return Promise.resolve(new Response(
+      '<!doctype html><link rel="canonical" href="https://preview.vercel.app/"><meta property="og:image" content="https://preview.vercel.app/og/ilgamcheck-social.png">',
+      { headers: { "content-type": "text/html; charset=utf-8", ...secureHeaders } },
+    ));
+  }
+  if (["/guide", "/privacy", "/terms"].includes(path)) {
     return Promise.resolve(new Response("<!doctype html>", {
       headers: { "content-type": "text/html; charset=utf-8", ...secureHeaders },
+    }));
+  }
+  if (path === "/robots.txt") {
+    return Promise.resolve(new Response("User-agent: *\nAllow: /\n\nSitemap: https://preview.vercel.app/sitemap.xml\n", {
+      headers: { "content-type": "text/plain; charset=utf-8" },
     }));
   }
   if (path === "/manifest.webmanifest") {
@@ -93,8 +109,68 @@ describe("remote deployment smoke policy", () => {
     );
     expect(result.checks).toContain("/privacy(html/security-headers)");
     expect(result.checks).toContain("/terms(html/security-headers)");
+    expect(result.checks).toContain("/guide(html/security-headers)");
     expect(result.checks).toContain("manifest+icons");
     expect(result.checks).toContain("service-worker");
+  });
+
+  it("checks search exposure: robots.txt sitemap, workspace noindex, indexable public pages, landing canonical and og:image", async () => {
+    const result = await runRemoteSmoke("https://preview.vercel.app", successfulFetch);
+    expect(result.checks).toContain("robots.txt(sitemap)");
+    expect(result.checks).toContain("/today(noindex)");
+    expect(result.checks).toContain("public-pages(indexable)");
+    expect(result.checks).toContain("/(canonical/og:image)");
+  });
+
+  it("fails when the workspace is missing its X-Robots-Tag noindex header", async () => {
+    const indexableWorkspaceFetch = async (url, options) => {
+      if (new URL(url).pathname === "/today") {
+        return new Response("<!doctype html>", { headers: { "content-type": "text/html; charset=utf-8", ...secureHeaders } });
+      }
+      return successfulFetch(url, options);
+    };
+    await expect(runRemoteSmoke("https://preview.vercel.app", indexableWorkspaceFetch)).rejects.toThrow(/\/today: .*noindex/);
+  });
+
+  it("fails when a public page carries noindex in its header or robots meta", async () => {
+    for (const [path, headers, body] of [
+      ["/guide", { "x-robots-tag": "noindex, nofollow" }, "<!doctype html>"],
+      ["/terms", {}, '<!doctype html><meta name="robots" content="noindex, nofollow">'],
+    ]) {
+      const blockedPublicFetch = async (url, options) => {
+        if (new URL(url).pathname === path) {
+          return new Response(body, { headers: { "content-type": "text/html; charset=utf-8", ...secureHeaders, ...headers } });
+        }
+        return successfulFetch(url, options);
+      };
+      await expect(runRemoteSmoke("https://preview.vercel.app", blockedPublicFetch))
+        .rejects.toThrow(new RegExp(`${path}: .*noindex`));
+    }
+  });
+
+  it("fails when robots.txt has no Sitemap line", async () => {
+    const noSitemapFetch = async (url, options) => {
+      if (new URL(url).pathname === "/robots.txt") {
+        return new Response("User-agent: *\nAllow: /\n", { headers: { "content-type": "text/plain" } });
+      }
+      return successfulFetch(url, options);
+    };
+    await expect(runRemoteSmoke("https://preview.vercel.app", noSitemapFetch)).rejects.toThrow(/\/robots\.txt: .*Sitemap/);
+  });
+
+  it("fails when the landing page has no canonical link or og:image", async () => {
+    for (const body of [
+      '<!doctype html><meta property="og:image" content="https://preview.vercel.app/og/ilgamcheck-social.png">',
+      '<!doctype html><link rel="canonical" href="https://preview.vercel.app/">',
+    ]) {
+      const bareLandingFetch = async (url, options) => {
+        if (new URL(url).pathname === "/") {
+          return new Response(body, { headers: { "content-type": "text/html; charset=utf-8", ...secureHeaders } });
+        }
+        return successfulFetch(url, options);
+      };
+      await expect(runRemoteSmoke("https://preview.vercel.app", bareLandingFetch)).rejects.toThrow(/^\/: .*(canonical|og:image)/);
+    }
   });
 
   it("fails closed when the deployed runtime is local", async () => {

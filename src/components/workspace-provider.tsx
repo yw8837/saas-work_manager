@@ -21,12 +21,15 @@ import {
   PLAN_LIMITS,
   completeRevision as applyCompletedRevision,
   markRevisionExtraScope as applyExtraScopeRevision,
+  markStartShared as applyStartShared,
+  pinLegacyCompletedAt,
   recordRevision as appendRevision,
   resolvePlanAccess,
   revertRevision as applyRevertedRevision,
   toggleIntakeItem as applyIntakeToggle,
   toggleBriefQuestion as applyBriefToggle,
   setBriefQuestionNote as applyBriefNote,
+  setJobSource as applyJobSource,
   toggleJobCompletion,
   updateTaskStatus,
   BETA_GRANT_DAYS,
@@ -35,6 +38,7 @@ import {
   type JobLimitKind,
   type JobLink,
   type OptionTemplate,
+  type OrderSource,
   type PackageTemplate,
   type Plan,
   type PlanAccess,
@@ -97,6 +101,8 @@ type CreateJobInput = {
   startDate: string;
   packageId: string;
   optionIds: string[];
+  /** 주문을 받은 곳(선택). */
+  source?: OrderSource;
 };
 
 type WorkspaceContextValue = AppState & {
@@ -137,6 +143,10 @@ type WorkspaceContextValue = AppState & {
   updateBriefNote: (jobId: string, questionId: string, note: string) => void;
   toggleJobWaiting: (jobId: string) => void;
   completeJob: (jobId: string) => void;
+  /** 받은 곳을 바꾸거나 지운다(undefined). 고객 링크·수정 횟수와 상관없어 완료한 일감에서도 된다. */
+  setJobSource: (jobId: string, source: OrderSource | undefined) => void;
+  /** 시작 안내(저장 직후 안내의 문구·링크, '시작 안내' 칩)를 처음 복사한 시각을 남긴다. 이미 남겼거나 진행 중이 아니면 그대로 둔다. */
+  markStartShared: (jobId: string) => void;
   deleteJob: (jobId: string) => void;
   setRevisionPortalEnabled: (jobId: string, enabled: boolean) => void;
   rotateRevisionPortalToken: (jobId: string) => string | null;
@@ -293,6 +303,11 @@ function mergeWorkspaceValue(
 
   if (path.endsWith(".updatedAt") && typeof local === "string" && typeof remote === "string") {
     return { value: local > remote ? local : remote, conflicts: [] };
+  }
+
+  // 일감의 시작 안내 보낸 시각·완료 시각은 두 기기가 따로 남겨도 먼저 것을 남긴다(할 일·수정 요청의 완료 시각은 그대로 충돌).
+  if (/^workspace\.jobs\[[^\]]+\]\.(?:startSharedAt|completedAt)$/.test(path) && typeof local === "string" && typeof remote === "string") {
+    return { value: local < remote ? local : remote, conflicts: [] };
   }
 
   if (Array.isArray(local) && Array.isArray(remote) && Array.isArray(base)) {
@@ -555,7 +570,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
   const [authError, setAuthError] = useState<string | null>(
     hostedConfigurationError
-      ? "Hosted 모드 환경값이 빠졌어요. Supabase URL과 anon key를 연결해주세요."
+      ? "로그인 모드 환경값이 빠졌어요. Supabase URL과 anon key를 연결해주세요."
       : null,
   );
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -849,13 +864,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               clearHostedDraft(session.user.id);
             } catch (error) {
               if (isStaleActivation()) return;
-              const message = error instanceof Error ? error.message : "Hosted 첫 저장에 실패했어요.";
+              const message = error instanceof Error ? error.message : "서버에 첫 저장을 하지 못했어요.";
               writeHostedDraft(session.user.id, cached, draft?.baseVersion ?? 0, draft?.baseState ?? cached, message);
               remoteVersionRef.current = 0;
               lastSyncedStateRef.current = null;
               setCurrentState(cached);
               setSaveStatus("error");
-              setSaveError(saveFailureMessage(error, "Hosted 첫 저장에 실패했어요."));
+              setSaveError(saveFailureMessage(error, "서버에 첫 저장을 하지 못했어요."));
               setAuthStatus("signed_in");
               setHydrated(true);
               return;
@@ -912,7 +927,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                 if (isStaleActivation()) return;
                 recoveryError = error instanceof Error
                   ? error.message
-                  : "고객 수정 링크 동기화를 다시 완료하지 못했어요.";
+                  : "고객 수정 링크에 다시 반영하지 못했어요. 새로고침하면 다시 시도해요.";
               }
             }
 
@@ -1037,7 +1052,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           if (cancelled || currentActivation !== activation) return;
           setAuthStatus(nativePlatform() === "web" ? "configuration_error" : "offline");
-          setAuthError(error instanceof Error ? error.message : "Hosted 작업공간을 시작하지 못했어요.");
+          setAuthError(error instanceof Error ? error.message : "작업공간을 시작하지 못했어요.");
           setRealtimeStatus("error");
           setRealtimeError("실시간 연결을 시작하지 못했어요.");
           setHydrated(true);
@@ -1113,7 +1128,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async (redirectPath = "/today") => {
     const client = hostedClientRef.current;
-    if (!client) throw new Error("Hosted 로그인이 설정되지 않았어요.");
+    if (!client) throw new Error("로그인 설정이 빠져 있어요.");
     const safePath = redirectPath.startsWith("/") && !redirectPath.startsWith("//")
       ? redirectPath
       : "/today";
@@ -1358,6 +1373,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           package: selectedPackage,
           options: selectedOptions,
           revisionPortalToken: createSecurePortalToken(),
+          source: input.source,
         });
         createdJobId = job.id;
         return {
@@ -1441,6 +1457,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     },
     [commitState, plan],
   );
+
+  // 다른 동작은 완료한 일감을 막지만, 받은 곳은 지난달 정리를 고칠 수 있게 완료한 일감에서도 바꾼다.
+  const setJobSource = useCallback((jobId: string, source: OrderSource | undefined) => {
+    updateJob(jobId, (job) => applyJobSource(job, source));
+  }, [updateJob]);
+
+  // 복사할 때마다 불린다. 이미 남겼거나 진행 중이 아니면 상태를 다시 만들지 않는다(저장도 안 함).
+  const markStartShared = useCallback((jobId: string) => {
+    const target = stateRef.current.jobs.find((job) => job.id === jobId);
+    if (!target || target.status !== "active" || target.startSharedAt) return;
+    updateJob(jobId, (job) => (job.status === "active" ? applyStartShared(job) : job));
+  }, [updateJob]);
 
   const deleteJob = useCallback((jobId: string) => {
     commitState((current) => ({
@@ -1604,8 +1632,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [commitState, plan]);
 
   const updateJobLinks = useCallback((jobId: string, links: JobLink[]) => {
+    // 완료한 일감에서도 고칠 수 있어, 완료 시각이 없던 예전 일감은 먼저 굳힌다(월별 정리에서 달이 안 바뀌게).
     updateJob(jobId, (job) => ({
-      ...job,
+      ...pinLegacyCompletedAt(job),
       links: links.map((link) => ({ ...link })),
       updatedAt: new Date().toISOString(),
     }));
@@ -1752,6 +1781,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateBriefNote,
       toggleJobWaiting,
       completeJob,
+      setJobSource,
+      markStartShared,
       deleteJob,
       setRevisionPortalEnabled,
       rotateRevisionPortalToken,
@@ -1772,7 +1803,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, setJobSource, markStartShared, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (

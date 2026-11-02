@@ -10,11 +10,13 @@ import {
   Clock3,
   ExternalLink,
   MessageCircle,
+  MessageSquareText,
   Plus,
   RotateCcw,
 } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { FirstRunChecklist } from "./first-run-checklist";
+import { displayJobTitle, orderSourceLabel } from "@/lib/domain";
 import { emptyTodaySearch, subscribeTodayLocation, todaySearchSnapshot, updateTodayScope } from "@/lib/today-location";
 import {
   formatShortDate,
@@ -26,6 +28,12 @@ import {
 } from "./workspace-provider";
 
 type QueueItem = { job: Job; task: Task };
+
+/** 줄에 보이는 일감 이름. 받은 곳이 있으면 뒤에 작게 붙인다("Basic 홈페이지 · 크몽"). */
+function jobLine(job: Job) {
+  const source = orderSourceLabel(job.source);
+  return source ? `${displayJobTitle(job)} · ${source}` : displayJobTitle(job);
+}
 
 function todayISO() {
   const now = new Date();
@@ -70,7 +78,7 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
           </span>
         </div>
         <strong>{task.title}</strong>
-        <span className="taskContext">{job.title} · {formatShortDate(job.dueDate)} 마감</span>
+        <span className="taskContext">{jobLine(job)} · {formatShortDate(job.dueDate)} 마감</span>
       </Link>
       {(contactLink || workLink) && (
         <div className="taskQuickActions">
@@ -86,6 +94,22 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
           )}
         </div>
       )}
+    </article>
+  );
+}
+
+/** 고객이 링크로 남긴 확인 대기 요청. 체크하는 줄이 아니라 그 일감의 수정 요청 구획으로 가는 줄이다. */
+function RequestRow({ job, pending }: { job: Job; pending: number }) {
+  return (
+    <article className="taskRow" data-testid={`today-pending-request-${job.id}`}>
+      <span className="taskRowIcon" aria-hidden="true"><MessageSquareText size={18} /></span>
+      <Link href={`/jobs/${job.id}#revisions`} className="taskRowMain">
+        <div className="taskMetaLine">
+          <span className="clientName">{job.clientLabel}</span>
+        </div>
+        <strong>고객 요청 {pending}건 확인 대기</strong>
+        <span className="taskContext">{jobLine(job)}</span>
+      </Link>
     </article>
   );
 }
@@ -117,6 +141,11 @@ export function TodayDashboard() {
         .sort((a, b) => a.task.dueDate.localeCompare(b.task.dueDate)),
     [scopedJobs, now],
   );
+
+  // 확인 대기 요청은 맨 위 알림 한 줄에만 나오면 놓치기 쉬워 '우선 처리' 맨 앞에 일감마다 한 줄로 둔다.
+  const requestRows = scopedJobs
+    .map((job) => ({ job, pending: getRevisionSummary(job).pending }))
+    .filter((item) => item.pending > 0);
 
   const waitingJobs = scopedJobs.filter(
     (job) => job.status === "active" && job.tasks.some((task) => task.status === "waiting"),
@@ -187,7 +216,7 @@ export function TodayDashboard() {
         >
           <option value="">진행 중인 일감 전체 · {activeJobs.length}건</option>
           {activeJobs.map((job) => (
-            <option key={job.id} value={job.id}>{job.clientLabel} · {job.title}</option>
+            <option key={job.id} value={job.id}>{job.clientLabel} · {displayJobTitle(job)}</option>
           ))}
         </select>
         <Link href="/jobs">전체 일감 보기 <ArrowUpRight size={15} /></Link>
@@ -203,7 +232,7 @@ export function TodayDashboard() {
         <dl className="briefStats">
           <div><dt>오늘</dt><dd>{queue.length}</dd></div>
           <div><dt>고객 대기</dt><dd>{waitingJobs.length}</dd></div>
-          <div><dt>수정 임박</dt><dd>{nearRevisionLimit.length}</dd></div>
+          <div><dt>수정 거의 다 씀</dt><dd>{nearRevisionLimit.length}</dd></div>
         </dl>
       </section>
 
@@ -213,17 +242,20 @@ export function TodayDashboard() {
             <div className="sectionHeadingRow">
               <div>
                 <h2>우선 처리</h2>
-                <p>마감이 지난 일부터 보여줘요.</p>
+                <p>새 고객 요청과 마감이 지난 일부터 보여줘요.</p>
               </div>
-              <span className="sectionCount">{queue.length}개</span>
+              <span className="sectionCount">{requestRows.length + queue.length}개</span>
             </div>
 
             <div className="taskList">
+              {requestRows.map((item) => (
+                <RequestRow key={`request-${item.job.id}`} job={item.job} pending={item.pending} />
+              ))}
               {queue.length > 0 ? (
                 visibleQueue.map((item) => (
                   <QueueRow key={`${item.job.id}-${item.task.id}`} item={item} onComplete={handleComplete} />
                 ))
-              ) : (
+              ) : requestRows.length === 0 && (
                   <div className="clearState">
                     <CheckCircle2 size={24} />
                     <div><strong>급한 일은 모두 끝났어요</strong><span>마음 편히 다음 작업에 집중하세요.</span></div>
@@ -240,7 +272,7 @@ export function TodayDashboard() {
 
           <section className="contentSection waitingSection">
             <div className="sectionHeadingRow">
-              <div><h2>고객 답변 대기</h2><p>답이 오면 한 번 눌러 다시 작업 큐로 보내요.</p></div>
+              <div><h2>고객 답변 대기</h2><p>답이 오면 ‘답변 받음’을 눌러요.</p></div>
               <span className="sectionCount muted">{waitingJobs.length}건</span>
             </div>
             {waitingJobs.length ? (
@@ -255,7 +287,7 @@ export function TodayDashboard() {
                       <span className="waitingAvatar">{job.clientLabel.slice(0, 1)}</span>
                       <Link href={`/jobs/${job.id}`} className="waitingMain">
                         <strong>{job.clientLabel}</strong>
-                        <span>{job.title} · {waitingTask?.title ?? "고객 답변 대기 중"}</span>
+                        <span>{jobLine(job)} · {waitingTask?.title ?? "고객 답변 대기 중"}</span>
                       </Link>
                       <span className="waitingDays">{days}일째</span>
                       <button type="button" className="compactButton" onClick={() => toggleJobWaiting(job.id)}>답변 받음</button>
@@ -289,7 +321,7 @@ export function TodayDashboard() {
                 return (
                   <Link href={`/jobs/${job.id}`} className="upcomingItem" key={job.id}>
                     <div className="upcomingTop"><span>{job.clientLabel}</span><strong>{getDday(job.dueDate)}</strong></div>
-                    <p>{job.title}</p>
+                    <p>{jobLine(job)}</p>
                     <div className="progressLine" aria-label={`${progress}% 완료`}><span style={{ width: `${progress}%` }} /></div>
                     <span className="progressCaption">{finished}/{job.tasks.length} 완료</span>
                   </Link>

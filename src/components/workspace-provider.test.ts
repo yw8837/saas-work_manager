@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { completeRevision, getRevisionSummary, recordRevision } from "@/lib/domain";
 import { createSeedState } from "@/lib/store";
 import { describe, expect, it } from "vitest";
@@ -89,6 +91,66 @@ describe("hosted workspace serialization", () => {
     const conflict = mergeConcurrentWorkspaceState(base, local, conflictingRemote);
     expect(conflict.conflicts).toContain("workspace.jobs[job_seed_mora].clientLabel");
     expect(conflict.state.jobs[0].clientLabel).toBe("로컬 편집");
+  });
+
+  it("다른 기기에서 바꾼 받은 곳이 병합 뒤 남는다", () => {
+    const base = createSeedState("2026-08-15");
+    const local = clone(base);
+    const remote = clone(base);
+    expect("source" in base.jobs[0]).toBe(false);
+    // 이 기기는 다른 칸을 고쳤고, 다른 기기는 받은 곳만 정했다.
+    local.jobs[0].tasks[0].status = "done";
+    local.jobs[0].updatedAt = "2026-08-15T01:00:00.000Z";
+    remote.jobs[0] = { ...remote.jobs[0], source: "referral", updatedAt: "2026-08-15T02:00:00.000Z" };
+
+    const merged = mergeConcurrentWorkspaceState(base, local, remote);
+
+    expect(merged.conflicts).toEqual([]);
+    expect(merged.state.jobs[0].source).toBe("referral");
+    expect(merged.state.jobs[0].tasks[0].status).toBe("done");
+  });
+
+  it("한 기기에서 남긴 시작 안내 보낸 시각이 병합 뒤 남는다(어느 쪽에서 남겨도)", () => {
+    const base = createSeedState("2026-08-15");
+    const local = clone(base);
+    const remote = clone(base);
+    expect("startSharedAt" in base.jobs[0]).toBe(false);
+    // 이 기기는 다른 칸을 고쳤고, 다른 기기는 시작 안내를 복사해 보낸 시각만 남겼다.
+    local.jobs[0].tasks[0].status = "done";
+    local.jobs[0].updatedAt = "2026-08-15T01:00:00.000Z";
+    remote.jobs[0] = { ...remote.jobs[0], startSharedAt: "2026-08-15T02:00:00.000Z", updatedAt: "2026-08-15T02:00:00.000Z" };
+
+    for (const merged of [mergeConcurrentWorkspaceState(base, local, remote), mergeConcurrentWorkspaceState(base, remote, local)]) {
+      expect(merged.conflicts).toEqual([]);
+      expect(merged.state.jobs[0].startSharedAt).toBe("2026-08-15T02:00:00.000Z");
+      expect(merged.state.jobs[0].tasks[0].status).toBe("done");
+    }
+  });
+
+  it("두 기기가 시작 안내 보낸 시각·완료 시각을 각각 남겨도 충돌 없이 먼저 것을 남긴다", () => {
+    const base = createSeedState("2026-08-15");
+    const local = clone(base);
+    const remote = clone(base);
+    local.jobs[0] = { ...local.jobs[0], startSharedAt: "2026-08-15T03:00:00.000Z", completedAt: "2026-08-15T05:00:00.000Z", updatedAt: "2026-08-15T05:00:00.000Z" };
+    remote.jobs[0] = { ...remote.jobs[0], startSharedAt: "2026-08-15T02:00:00.000Z", completedAt: "2026-08-15T06:00:00.000Z", updatedAt: "2026-08-15T06:00:00.000Z" };
+
+    for (const merged of [mergeConcurrentWorkspaceState(base, local, remote), mergeConcurrentWorkspaceState(base, remote, local)]) {
+      expect(merged.conflicts).toEqual([]);
+      expect(merged.state.jobs[0].startSharedAt).toBe("2026-08-15T02:00:00.000Z");
+      expect(merged.state.jobs[0].completedAt).toBe("2026-08-15T05:00:00.000Z");
+    }
+  });
+
+  it("할 일의 완료 시각은 일감 규칙을 따르지 않고 지금처럼 충돌로 남긴다", () => {
+    const base = createSeedState("2026-08-15");
+    const local = clone(base);
+    const remote = clone(base);
+    local.jobs[0].tasks[0] = { ...local.jobs[0].tasks[0], completedAt: "2026-08-15T03:00:00.000Z" };
+    remote.jobs[0].tasks[0] = { ...remote.jobs[0].tasks[0], completedAt: "2026-08-15T02:00:00.000Z" };
+
+    expect(mergeConcurrentWorkspaceState(base, local, remote).conflicts).toEqual([
+      `workspace.jobs[${base.jobs[0].id}].tasks[${base.jobs[0].tasks[0].id}].completedAt`,
+    ]);
   });
 
   it("두 기기가 각각 일감을 만들면 누적 카운터를 합산해 무료 한도를 우회할 수 없게 한다", () => {
@@ -282,5 +344,19 @@ describe("hosted workspace serialization", () => {
 
     clearHostedDraft("owner-a", storage);
     expect(storage.getItem(hostedDraftKey("owner-a"))).toBeNull();
+  });
+});
+
+describe("화면에 보이는 저장 오류 문구", () => {
+  it("'동기화' 같은 어려운 말 대신 쉬운 말을 쓴다(주석은 그대로 둔다)", () => {
+    for (const file of ["src/components/workspace-provider.tsx", "src/lib/supabase/workspace.ts"]) {
+      // 주석 줄은 빼고, 남은 줄의 따옴표 글만 본다.
+      const literals = readFileSync(resolve(process.cwd(), file), "utf8")
+        .split("\n")
+        .filter((line) => !/^\s*(\/\/|\/?\*)/.test(line))
+        .flatMap((line) => [...line.matchAll(/(["'`])(?:\\.|(?!\1).)*\1/g)].map((match) => match[0]));
+      expect(literals.length, file).toBeGreaterThan(0);
+      expect(literals.filter((text) => text.includes("동기화")), file).toEqual([]);
+    }
   });
 });

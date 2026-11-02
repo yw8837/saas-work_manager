@@ -95,6 +95,20 @@ describe("일감 상세 실제 저장·상태 회귀검사", () => {
     await waitFor(() => expect(loadState(window.localStorage).jobs[0].tasks[0].status).toBe("todo"));
   });
 
+  it("일감 완료는 화면 아래 알림의 '되돌리기'로 닫힌 고객 링크까지 원래대로 돌아간다", async () => {
+    render(detail());
+    fireEvent.click(await screen.findByTestId("complete-job"));
+    await waitFor(() => expect(loadState(window.localStorage).jobs[0].status).toBe("completed"));
+    expect(loadState(window.localStorage).jobs[0].revisionPortalEnabled).toBe(false);
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("일감을 완료했어요. 고객 링크도 닫혔어요.");
+
+    fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    await waitFor(() => expect(loadState(window.localStorage).jobs[0].status).toBe("active"));
+    expect(loadState(window.localStorage).jobs[0].revisionPortalEnabled).toBe(true);
+    expect(screen.getByText("링크 켜짐")).toBeInTheDocument();
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
   it("저장소를 읽기 전에는 잘못된 누락 안내 대신 로딩을 표시한다", async () => {
     const initial = renderToString(detail());
     expect(initial).not.toContain("일감을 찾을 수 없어요");

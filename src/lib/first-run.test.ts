@@ -38,6 +38,11 @@ describe("첫 실행 체크리스트 단계", () => {
     expect(firstRunSteps({ jobs: [], flags: { ...NO_FLAGS, packagesReviewed: true }, packagesCustomized: false })[0].done).toBe(true);
   });
 
+  it("손대지 않은 업종 예시 세트(처음엔 웹)를 그대로 쓰고 있으면 1단계는 끝난 것으로 본다", () => {
+    expect(firstRunSteps({ jobs: [], flags: NO_FLAGS, packagesCustomized: false, starterSet: true })[0].done).toBe(true);
+    expect(firstRunSteps({ jobs: [], flags: NO_FLAGS, packagesCustomized: false, starterSet: false })[0].done).toBe(false);
+  });
+
   it("일감이 있으면 1·2단계 완료, 링크를 복사하면 3단계 완료", () => {
     const steps = firstRunSteps({ jobs: [job()], flags: NO_FLAGS, packagesCustomized: false });
     expect(steps.map((step) => step.done)).toEqual([true, true, false]);

@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
-import { DomainValidationError, completeRevision, composeJob, createAddon, confirmAddon, markRevisionExtraScope, recordRevision, revertRevision, toggleIntakeItem, type PackageTemplate } from "@/lib/domain";
+import { DomainValidationError, completeRevision, composeJob, createAddon, confirmAddon, markRevisionExtraScope, recordRevision, revertRevision, toggleIntakeItem, toggleJobCompletion, type PackageTemplate } from "@/lib/domain";
 import { JobDetail } from "./job-detail";
 import { useWorkspace } from "./workspace-provider";
 
@@ -46,20 +46,25 @@ const toggleIntakeSpy = vi.fn();
 const cancelAddonSpy = vi.fn();
 const createAddonSpy = vi.fn();
 const confirmAddonSpy = vi.fn();
+const setJobSourceSpy = vi.fn();
+const completeJobSpy = vi.fn();
+const setPortalSpy = vi.fn();
+const markStartSharedSpy = vi.fn();
 
-function renderDetail(job = baseJob()) {
+function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted"; saveStatus?: "saved" | "saving"; settings?: { minMarginPerJob?: number } } = {}) {
   vi.mocked(useWorkspace).mockReturnValue({
     jobs: [job],
+    settings: options.settings ?? {},
     hydrated: true,
-    runtimeMode: "local",
-    saveStatus: "saved",
+    runtimeMode: options.runtimeMode ?? "local",
+    saveStatus: options.saveStatus ?? "saved",
     toggleTask: vi.fn(),
     toggleIntake: toggleIntakeSpy,
     toggleJobWaiting: vi.fn(),
-    completeJob: vi.fn(),
+    completeJob: completeJobSpy,
     deleteJob: vi.fn(),
-    setRevisionPortalEnabled: vi.fn(),
-    rotateRevisionPortalToken: vi.fn(),
+    setRevisionPortalEnabled: setPortalSpy,
+    rotateRevisionPortalToken: vi.fn(() => "token_rotated"),
     recordRevision: recordRevisionSpy,
     revertRevision: revertRevisionSpy,
     completeRevision: completeRevisionSpy,
@@ -68,6 +73,8 @@ function renderDetail(job = baseJob()) {
     createAddon: createAddonSpy,
     confirmAddon: confirmAddonSpy,
     cancelAddon: cancelAddonSpy,
+    setJobSource: setJobSourceSpy,
+    markStartShared: markStartSharedSpy,
   } as unknown as ReturnType<typeof useWorkspace>);
   return render(<JobDetail jobId={job.id} />);
 }
@@ -82,6 +89,178 @@ beforeEach(() => {
   cancelAddonSpy.mockReset();
   createAddonSpy.mockReset();
   confirmAddonSpy.mockReset();
+  setJobSourceSpy.mockReset();
+  completeJobSpy.mockReset();
+  setPortalSpy.mockReset();
+  markStartSharedSpy.mockReset();
+});
+
+/** 제공자가 상태를 바꾼 뒤의 화면: 같은 동작 함수에 일감만 바꿔 다시 그린다. */
+function showUpdated(view: ReturnType<typeof render>, job: ReturnType<typeof baseJob>) {
+  const current = vi.mocked(useWorkspace).mock.results.at(-1)!.value as ReturnType<typeof useWorkspace>;
+  vi.mocked(useWorkspace).mockReturnValue({ ...current, jobs: [job] });
+  view.rerender(<JobDetail jobId={job.id} />);
+}
+
+describe("JobDetail 하단 바 '일감 완료'", () => {
+  it("버튼은 바와 구분되는 흰 바탕이고, 휴대폰에서도 '일감 완료'라고 대상을 말한다", () => {
+    renderDetail();
+    const button = screen.getByTestId("complete-job");
+    expect(button).toHaveClass("invertedButton");
+    expect(button).not.toHaveClass("primaryButton");
+    expect(within(button).getByText("일감 완료")).toHaveClass("buttonLabelMobile");
+  });
+
+  it("누르면 바로 완료하고 화면 아래 '되돌리기' 알림을 띄우며, 되돌리면 고객 링크도 다시 연다", () => {
+    const view = renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+    expect(completeJobSpy).toHaveBeenCalledWith("job_detail");
+    const toast = screen.getByTestId("job-toast");
+    expect(toast).toHaveAttribute("role", "status");
+    expect(toast).toHaveTextContent("일감을 완료했어요. 고객 링크도 닫혔어요.");
+
+    // 제공자는 완료하면서 링크를 닫는다.
+    showUpdated(view, { ...toggleJobCompletion(baseJob(), "2026-08-02T00:00:00.000Z"), revisionPortalEnabled: false });
+    fireEvent.click(within(screen.getByTestId("job-toast")).getByRole("button", { name: "되돌리기" }));
+    expect(completeJobSpy).toHaveBeenCalledTimes(2);
+    expect(completeJobSpy).toHaveBeenLastCalledWith("job_detail");
+    expect(setPortalSpy).toHaveBeenCalledWith("job_detail", true);
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("링크를 꺼 둔 일감은 링크 말을 빼고, 되돌려도 링크를 켜지 않는다", () => {
+    const off = { ...baseJob(), revisionPortalEnabled: false };
+    const view = renderDetail(off);
+    fireEvent.click(screen.getByTestId("complete-job"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("일감을 완료했어요.");
+    expect(screen.getByTestId("job-toast")).not.toHaveTextContent("고객 링크");
+    showUpdated(view, toggleJobCompletion(off, "2026-08-02T00:00:00.000Z"));
+    fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(completeJobSpy).toHaveBeenCalledTimes(2);
+    expect(setPortalSpy).not.toHaveBeenCalled();
+  });
+
+  it("이미 다시 진행한 뒤에는 알림의 '되돌리기'가 일감을 또 바꾸지 않는다", () => {
+    const view = renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+    // 알림이 떠 있는 동안 다른 길(다른 기기 등)로 이미 다시 진행 중이 됐다.
+    showUpdated(view, baseJob());
+    fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(completeJobSpy).toHaveBeenCalledTimes(1);
+    expect(setPortalSpy).not.toHaveBeenCalled();
+  });
+
+  it("완료한 일감은 '다시 진행'으로 보이고 누르면 알림 없이 다시 진행한다", () => {
+    renderDetail(toggleJobCompletion(baseJob(), "2026-08-02T00:00:00.000Z"));
+    const button = screen.getByTestId("complete-job");
+    expect(within(button).getByText("다시 진행", { selector: ".buttonLabelMobile" })).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(completeJobSpy).toHaveBeenCalledWith("job_detail");
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 처리 결과 알림", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function pendingJob() {
+    return recordRevision(baseJob(), { revisionId: "revision_toast", source: "public", body: "사진 교체", submittedAt: "2026-08-02T00:00:00.000Z" }).job;
+  }
+
+  it("처리 결과는 맨 아래 문단이 아니라 화면 아래 알림 하나로 보이고 잠시 뒤 닫힌다", () => {
+    vi.useFakeTimers();
+    renderDetail(pendingJob());
+    fireEvent.click(screen.getByTestId("complete-revision-revision_toast"));
+    const toast = screen.getByTestId("job-toast");
+    expect(toast).toHaveClass("actionToast");
+    expect(toast).toHaveAttribute("role", "status");
+    expect(toast).toHaveTextContent("수정 완료로 1회를 썼어요. 고객 링크에도 남은 횟수가 바로 반영돼요.");
+    expect(document.querySelector(".detailFeedback")).toBeNull();
+
+    // 다른 처리를 하면 알림은 하나로 바뀐다(쌓이지 않음).
+    fireEvent.click(screen.getByTestId("extra-revision-revision_toast"));
+    expect(screen.getAllByTestId("job-toast")).toHaveLength(1);
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("추가 작업으로 분류했어요.");
+
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("되돌리기 알림은 안에 포커스가 있는 동안 저절로 닫히지 않고, 포커스가 나가면 처음부터 다시 센다", () => {
+    vi.useFakeTimers();
+    renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+    const undo = within(screen.getByTestId("job-toast")).getByRole("button", { name: "되돌리기" });
+
+    act(() => { undo.focus(); });
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(screen.getByTestId("job-toast")).toBeInTheDocument();
+
+    act(() => { undo.blur(); });
+    act(() => { vi.advanceTimersByTime(5_999); });
+    expect(screen.getByTestId("job-toast")).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("되돌리기 알림은 마우스가 올라가 있는 동안에도 멈춘다", () => {
+    vi.useFakeTimers();
+    renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+
+    fireEvent.mouseEnter(screen.getByTestId("job-toast"));
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(screen.getByTestId("job-toast")).toBeInTheDocument();
+
+    fireEvent.mouseLeave(screen.getByTestId("job-toast"));
+    act(() => { vi.advanceTimersByTime(6_000); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("되돌리기를 누르고 닫힌 뒤 다시 띄운 알림은 처음처럼 저절로 닫힌다", () => {
+    vi.useFakeTimers();
+    const view = renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+    const undo = within(screen.getByTestId("job-toast")).getByRole("button", { name: "되돌리기" });
+    act(() => { undo.focus(); });
+    fireEvent.mouseEnter(screen.getByTestId("job-toast"));
+    // 되돌리기를 누르면 알림이 사라진다(포커스·마우스가 머문 채로 지워진다).
+    showUpdated(view, toggleJobCompletion(baseJob(), "2026-08-02T00:00:00.000Z"));
+    fireEvent.click(undo);
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+
+    showUpdated(view, baseJob());
+    fireEvent.click(screen.getByTestId("complete-job"));
+    act(() => { vi.advanceTimersByTime(6_000); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("되돌리기가 없는 처리 결과 알림은 포커스가 있어도 지금처럼 닫힌다", () => {
+    vi.useFakeTimers();
+    renderDetail(pendingJob());
+    fireEvent.click(screen.getByTestId("complete-revision-revision_toast"));
+    const close = within(screen.getByTestId("job-toast")).getByRole("button", { name: "닫기" });
+    act(() => { close.focus(); });
+    fireEvent.mouseEnter(screen.getByTestId("job-toast"));
+    act(() => { vi.advanceTimersByTime(4_000); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("오류는 경고 알림으로 띄우고 닫을 때까지 둔다", () => {
+    vi.useFakeTimers();
+    completeRevisionSpy.mockImplementation(() => { throw new Error("저장하지 못했어요."); });
+    renderDetail(pendingJob());
+    fireEvent.click(screen.getByTestId("complete-revision-revision_toast"));
+    const toast = screen.getByTestId("job-toast");
+    expect(toast).toHaveAttribute("role", "alert");
+    expect(toast).toHaveTextContent("저장하지 못했어요.");
+    act(() => { vi.advanceTimersByTime(10_000); });
+    expect(screen.getByTestId("job-toast")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId("job-toast")).getByRole("button", { name: "닫기" }));
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
 });
 
 describe("JobDetail 고객 수정 링크", () => {
@@ -124,15 +303,284 @@ describe("JobDetail 고객 수정 링크", () => {
 
     expect(writeText).toHaveBeenCalledWith(`${origin}/r/token_detail`);
   });
+
+  it("'링크 복사'에 성공하면 시작 안내를 보낸 것으로 남기고, 복사가 막히면 남기지 않는다", async () => {
+    const writeText = vi.fn().mockRejectedValueOnce(new Error("blocked")).mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderDetail();
+
+    fireEvent.click(screen.getByTestId("copy-revision-portal"));
+    await waitFor(() => expect(screen.getByTestId("job-toast")).toHaveTextContent("자동 복사가 막혔어요"));
+    expect(markStartSharedSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("copy-revision-portal"));
+    await waitFor(() => expect(markStartSharedSpy).toHaveBeenCalledWith("job_detail"));
+    expect(markStartSharedSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("'링크 복사' 뒤 시작 안내 기록이 실패해도 복사는 됐으니 복사가 막혔다고 알리지 않는다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    markStartSharedSpy.mockImplementation(() => { throw new Error("저장 실패"); });
+    renderDetail();
+
+    fireEvent.click(screen.getByTestId("copy-revision-portal"));
+    await waitFor(() => expect(screen.getByText("링크를 복사했어요")).toBeInTheDocument());
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(markStartSharedSpy).toHaveBeenCalledWith("job_detail");
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 새 요청 띠", () => {
+  it("확인 대기 요청이 있으면 제목 아래에 띠를 보이고 수정 요청 구획으로 보낸다", () => {
+    renderDetail(recordRevision(baseJob(), {
+      revisionId: "revision_strip",
+      source: "public",
+      body: "사진 교체 부탁드려요.",
+      submittedAt: "2026-08-02T00:00:00.000Z",
+    }).job);
+
+    const strip = screen.getByTestId("pending-request-strip");
+    expect(strip).toHaveTextContent("고객 요청 1건이 확인을 기다려요");
+    expect(strip.closest("a") ?? strip.querySelector("a")).toHaveAttribute("href", "#revisions");
+    // 제목 바로 아래, 핵심 정보 줄보다 위에 둔다.
+    const title = screen.getByRole("heading", { level: 1, name: "상세 고객" });
+    expect(title.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
+    expect(strip.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("확인 대기 요청이 없으면 띠가 없다", () => {
+    renderDetail();
+    expect(screen.queryByTestId("pending-request-strip")).not.toBeInTheDocument();
+    // 반려한 요청은 기다리는 요청이 아니다.
+    const rejected = revertRevision(
+      recordRevision(baseJob(), { revisionId: "revision_rejected", source: "public", body: "질문", submittedAt: "2026-08-02T00:00:00.000Z" }).job,
+      "revision_rejected",
+      "질문이라 대화창으로 답함",
+      "2026-08-02T01:00:00.000Z",
+    );
+    renderDetail(rejected);
+    expect(screen.queryByTestId("pending-request-strip")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 받은 곳", () => {
+  it("제목 위 받은 곳을 두 번 눌러 바꾸거나 지우고, 완료한 일감에서도 된다", () => {
+    const job = { ...toggleJobCompletion(baseJob(), "2026-08-02T00:00:00.000Z"), source: "kmong" as const };
+    renderDetail(job);
+    const button = screen.getByTestId("job-source");
+    expect(button).toHaveTextContent("크몽");
+    expect(screen.queryByRole("group", { name: "받은 곳" })).not.toBeInTheDocument();
+
+    fireEvent.click(button);
+    // 고를 수도 비울 수도 있는 칩이라 라디오가 아니라 누름 버튼 묶음이다.
+    const group = screen.getByRole("group", { name: "받은 곳" });
+    expect(within(group).queryAllByRole("radio")).toHaveLength(0);
+    expect(within(group).getByTestId("job-source-kmong")).toHaveAttribute("aria-pressed", "true");
+    expect(within(group).getByTestId("job-source-kmong")).not.toHaveAttribute("aria-checked");
+    fireEvent.click(within(group).getByTestId("job-source-soomgo"));
+    expect(setJobSourceSpy).toHaveBeenCalledWith(job.id, "soomgo");
+    expect(screen.queryByRole("group", { name: "받은 곳" })).not.toBeInTheDocument();
+
+    // 고른 받은 곳을 다시 누르면 지운다.
+    fireEvent.click(button);
+    fireEvent.click(screen.getByTestId("job-source-kmong"));
+    expect(setJobSourceSpy).toHaveBeenLastCalledWith(job.id, undefined);
+  });
+
+  it("받은 곳이 없는 예전 일감은 '받은 곳'으로 보이고 골라 넣을 수 있다", () => {
+    renderDetail();
+    const button = screen.getByTestId("job-source");
+    expect(button).toHaveTextContent("받은 곳");
+    fireEvent.click(button);
+    for (const chip of within(screen.getByRole("group", { name: "받은 곳" })).getAllByRole("button")) {
+      expect(chip).toHaveAttribute("aria-pressed", "false");
+    }
+    fireEvent.click(screen.getByTestId("job-source-referral"));
+    expect(setJobSourceSpy).toHaveBeenCalledWith("job_detail", "referral");
+  });
+});
+
+describe("JobDetail 쉬운 말·짧은 설명", () => {
+  it("수정 횟수 규칙은 접기 하나로 모으고, 고객 링크 구획의 긴 설명은 뺀다", () => {
+    renderDetail();
+    const summary = screen.getByText("수정 횟수는 이렇게 세요");
+    const rules = summary.closest("details");
+    expect(rules).not.toBeNull();
+    expect(rules).toHaveTextContent(
+      "고객 요청은 먼저 확인 대기로 들어와요. 고친 뒤 ‘수정 완료’를 누르면 1회를 써요. 질문·중복은 ‘반려’, 범위 밖은 ‘추가 작업으로’를 눌러요. 둘 다 횟수를 안 써요.",
+    );
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(portal).not.toHaveTextContent("먼저 확인 대기로 들어와요");
+    // 로컬 모드 안내는 상황에 꼭 필요한 문장이라 그대로 둔다.
+    expect(portal).toHaveTextContent("지금은 이 브라우저에 저장하는 모드라 링크도 이 브라우저에서만 열려요.");
+    expect(screen.getByText("초안으로 적어 두고, 고객이 동의하면 확정해요. 확정하면 금액·마감·할 일에 반영돼요.")).toBeInTheDocument();
+  });
+
+  it("로그인 모드의 고객 링크 안내는 앞말 없이 짧게 쓴다", () => {
+    renderDetail(baseJob(), { runtimeMode: "hosted" });
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(portal).toHaveTextContent("저장이 끝나면 링크에 반영돼요. 재발급하면 이전 주소는 못 써요.");
+    expect(portal).not.toHaveTextContent("Hosted");
+  });
+
+  it("수정 요청 구획은 '기록', 주문 조건 구획은 쉬운 말로 쓴다", () => {
+    renderDetail();
+    expect(screen.getByRole("heading", { name: "수정 요청 기록" })).toBeInTheDocument();
+    expect(screen.getByText("주문할 때 조건을 그대로 보관해요.")).toBeInTheDocument();
+    // '로그인'은 쉬운 말이라 두고, 개발 말 '로그'·'스냅샷'·'Hosted'만 막는다.
+    expect(document.body).not.toHaveTextContent(/로그(?!인|아웃)|스냅샷|Hosted/);
+  });
+
+  it("추가요청 입력과 기록에 Todo 대신 할 일을 쓴다", () => {
+    renderDetail();
+    fireEvent.click(screen.getByTestId("open-addon"));
+    expect(screen.getByLabelText(/추가 할 일/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/시작 며칠 뒤/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Todo/);
+  });
+});
+
+describe("JobDetail 제목 줄", () => {
+  it("자동 제목이 윗줄 패키지 이름과 같으면 제목 아래 줄을 숨긴다", () => {
+    // 자동 제목 "상세 고객 · 상세 패키지"는 고객 이름을 떼면 패키지 이름과 같다.
+    renderDetail();
+    const header = screen.getByRole("heading", { level: 1, name: "상세 고객" }).closest("header")!;
+    expect(within(header).getAllByText("상세 패키지")).toHaveLength(1);
+    expect(header.querySelector("h1 + p")).toBeNull();
+  });
+
+  it("사용자가 바꾼 제목은 제목 아래 줄에 그대로 보인다", () => {
+    renderDetail({ ...baseJob(), title: "메뉴판 리뉴얼" });
+    const header = screen.getByRole("heading", { level: 1, name: "상세 고객" }).closest("header")!;
+    expect(within(header).getByText("메뉴판 리뉴얼")).toBeInTheDocument();
+    expect(within(header).getByText("상세 패키지")).toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 휴대폰 첫 화면", () => {
+  it("핵심 정보는 한 줄로 요약하고 금액·원가·남는 돈은 '금액 보기'로 펼친다", () => {
+    renderDetail();
+    const line = screen.getByTestId("job-fact-line");
+    // 마감일 · 남은 수정 · 할 일(진행). 마감까지 남은 날은 오늘 날짜에 따라 바뀐다.
+    expect(line.querySelector("span")!.textContent).toMatch(/^8월 11일 마감 .+ · 남은 수정 2회 · 할 일 0\/1$/);
+    expect(line).not.toHaveTextContent(/원/);
+
+    const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
+    const toggle = within(line).getByRole("button", { name: "금액 보기" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute("aria-controls", rail.id);
+    expect(rail).toHaveAttribute("data-money-open", "false");
+    // 금액 칸 셋만 '금액 보기'에 딸린다(마감·남은 수정·진행률은 위 한 줄과 같아서).
+    expect(rail.querySelectorAll(".jobFactMoney")).toHaveLength(3);
+    expect(within(rail).getByTestId("job-estimated-cost").closest(".jobFactMoney")).not.toBeNull();
+    expect(within(rail).getByTestId("job-margin").closest(".jobFactMoney")).not.toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveTextContent("금액 접기");
+    expect(rail).toHaveAttribute("data-money-open", "true");
+  });
+});
+
+describe("JobDetail 고객 링크 쉬운 말", () => {
+  it("저장이 끝나기 전 링크 상태는 '동기화' 대신 '링크 저장 중'으로 보인다", () => {
+    renderDetail(baseJob(), { runtimeMode: "hosted", saveStatus: "saving" });
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(within(portal).getByRole("status")).toHaveTextContent("링크 저장 중");
+    expect(document.body).not.toHaveTextContent(/동기화/);
+  });
+
+  it("링크를 끄거나 재발급하면 '폐기' 대신 쉬운 말로 알린다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderDetail(baseJob(), { runtimeMode: "hosted" });
+    fireEvent.click(screen.getByTestId("toggle-revision-portal"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("링크를 끄는 중이에요. 상단에 저장 완료가 표시되면 이 주소로 요청을 받지 않아요.");
+    fireEvent.click(screen.getByTestId("rotate-revision-portal"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("새 링크를 저장 중이에요. 상단에 저장 완료가 표시되면 이전 주소는 더 못 써요.");
+    expect(document.body).not.toHaveTextContent(/폐기/);
+    confirm.mockRestore();
+  });
+
+  it("이 브라우저 저장 모드에서 재발급하면 이전 주소는 더 못 쓴다고 알린다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderDetail();
+    fireEvent.click(screen.getByTestId("rotate-revision-portal"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("새 수정 링크를 발급했어요. 이전 주소는 더 못 써요.");
+    confirm.mockRestore();
+  });
+});
+
+describe("JobDetail 수정 요청 기록 구획", () => {
+  it("구획 제목과 같은 이름이던 버튼은 '요청 직접 적기'로 부른다", () => {
+    renderDetail();
+    expect(screen.getByRole("heading", { name: "수정 요청 기록" })).toBeInTheDocument();
+    expect(screen.getByTestId("record-revision")).toHaveTextContent("요청 직접 적기");
+    expect(screen.queryByRole("button", { name: "수정 요청 기록" })).not.toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 고객에게 보낼 말", () => {
+  it("핵심 정보 줄 바로 아래, 할 일 목록보다 위에 둔다", () => {
+    renderDetail();
+    const messages = screen.getByTestId("client-messages");
+    const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
+    const tasks = screen.getByRole("heading", { name: "작업 체크리스트" });
+    expect(rail.compareDocumentPosition(messages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(messages.compareDocumentPosition(tasks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("같은 화면에서 다른 일감으로 넘어가면 앞 일감에서 고른 칩을 이어 쓰지 않는다", () => {
+    const view = renderDetail();
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByTestId("client-message-chip-review"));
+    expect(screen.getByTestId("client-message-chip-review")).toHaveAttribute("aria-pressed", "true");
+
+    // Sites는 알림 팝오버로 다른 일감을 열어도 화면을 새로 만들지 않고 일감만 바꿔 다시 그린다.
+    const other = composeJob({
+      jobId: "job_other",
+      revisionPortalToken: "token_other",
+      clientLabel: "다른 고객",
+      startDate: "2026-08-01",
+      package: template,
+      now: "2026-08-01T00:00:00.000Z",
+    });
+    showUpdated(view, other);
+    expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("client-message-chip-review")).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+describe("JobDetail 최소 남길 돈", () => {
+  // 경고는 값을 정하는 패키지 화면과 주문 전 새 일감에만 한 줄 둔다. 이미 만든 주문에는 띄우지 않는다(잔소리 방지).
+  it("기준보다 덜 남아도 일감 화면에는 경고를 띄우지 않고 남는 돈만 보인다", () => {
+    // 1,000,000원 − 예상 원가 250,000원 = 750,000원
+    renderDetail(baseJob(), { settings: { minMarginPerJob: 800_000 } });
+    expect(screen.queryByTestId("job-margin-warning")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("내 기준보다");
+    expect(screen.getByTestId("job-margin")).toHaveTextContent("750,000원");
+  });
+
+  it("기준이 없거나 남는 돈이 기준 이상이면 알리지 않는다", () => {
+    const first = renderDetail();
+    expect(screen.queryByTestId("job-margin-warning")).not.toBeInTheDocument();
+    first.unmount();
+    renderDetail(baseJob(), { settings: { minMarginPerJob: 700_000 } });
+    expect(screen.queryByTestId("job-margin-warning")).not.toBeInTheDocument();
+  });
 });
 
 describe("JobDetail 원가·마진 노출", () => {
-  it("계약 금액 옆에 예상 원가와 예상 마진·마진율을 그대로 보여준다", () => {
+  it("계약 금액 옆에 예상 원가와 남는 돈(예상)·남는 비율을 그대로 보여준다", () => {
     renderDetail();
 
     expect(screen.getByTestId("job-estimated-cost")).toHaveTextContent("250,000원");
+    expect(screen.getByText("남는 돈(예상)")).toBeInTheDocument();
     expect(screen.getByTestId("job-margin")).toHaveTextContent("750,000원");
-    expect(screen.getByTestId("job-margin")).toHaveTextContent("마진율 75%");
+    expect(screen.getByTestId("job-margin")).toHaveTextContent("남는 비율 75%");
+    expect(screen.getByRole("region", { name: "일감 핵심 정보" })).not.toHaveTextContent(/마진/);
   });
 
   it("추가요청을 확정하면 화면의 원가·마진도 같이 움직인다", () => {

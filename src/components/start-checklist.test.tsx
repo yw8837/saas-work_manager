@@ -6,9 +6,6 @@ import { StartChecklist } from "./start-checklist";
 function renderWithNote(note: string | undefined, onNote = vi.fn()) {
   const props = {
     jobId: "job_x",
-    clientLabel: "고객",
-    pendingIntake: [],
-    pendingQuestions: ["참고 예시가 있나요?"],
     active: true,
     onToggle: vi.fn(),
     onNote,

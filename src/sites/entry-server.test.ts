@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ILGAMCHECK_RUNTIME_CONTRACT } from "@/lib/supabase";
 import { runtimePublicConfigDigest } from "@/lib/runtime-public-config";
@@ -152,8 +154,10 @@ describe("Sites Worker entry", () => {
       expect(response.status).toBe(200);
       expect(response.headers.get("referrer-policy")).toBe("no-referrer");
       expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+      // 고객 링크·체험은 noarchive까지 막는다. beta.example.test는 운영 주소(ilgam.studioyeolmae.com)가 아니라
+      // 작업 화면이 아닌 /guide도 noindex다(운영 주소 기준 공개 페이지는 아래 '검색 노출' 시험).
       expect(response.headers.get("x-robots-tag")).toBe(
-        path.startsWith("/r/") || path.startsWith("/demo/") ? "noindex, nofollow, noarchive" : null,
+        path.startsWith("/r/") || path.startsWith("/demo/") ? "noindex, nofollow, noarchive" : "noindex, nofollow",
       );
       const html = await response.text();
       expect(html).toContain("__ILGAMCHECK_PUBLIC_ENV__");
@@ -458,5 +462,117 @@ describe("Sites Worker entry", () => {
 
     expect(response.status).toBe(403);
     expect(assets.fetch).not.toHaveBeenCalled();
+  });
+});
+
+const PRODUCTION_ORIGIN = "https://ilgam.studioyeolmae.com";
+const shellOnlyAssets = {
+  fetch: async (request: Request) => new URL(request.url).pathname === "/app-shell.payload"
+    ? new Response("<html><head></head><body>일감체크</body></html>")
+    : new Response("not found", { status: 404 }),
+};
+
+function htmlRequest(url: string) {
+  return new Request(url, { headers: { Accept: "text/html" } });
+}
+
+describe("Sites 검색 노출 헤더", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    "/today", "/today?invite=TESTCODE", "/jobs", "/jobs/new", "/jobs/summary", "/jobs/job.with.dots",
+    "/packages", "/settings", "/feedback", "/auth/callback",
+  ])("운영 주소에서도 작업 화면 %s는 noindex, nofollow로 검색에서 뺀다", async (path) => {
+    const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
+  it.each(["/", "/guide", "/privacy", "/terms"])("운영 주소의 공개 페이지 %s에는 noindex가 없다", async (path) => {
+    const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBeNull();
+  });
+
+  it.each(["/r/key", "/demo/r"])("운영 주소에서도 고객 링크·체험 %s는 noarchive까지 막는다", async (path) => {
+    const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+  });
+
+  // 라우터(react-router)는 대소문자를 가리지 않고 끝 슬래시도 같은 화면으로 연다. 판정도 같게 한다(토큰 값은 그대로).
+  it.each(["/r/key/", "/R/key", "/r/Key.With.Dots/", "/demo/r/", "/DEMO/R", "/Demo/r/"])(
+    "대소문자·끝 슬래시가 달라도 고객 링크·체험 %s는 noarchive까지 막는다",
+    async (path) => {
+      const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+      expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+    },
+  );
+
+  it.each(["/JOBS", "/Today/", "/jobs/Summary/", "/PACKAGES"])("대소문자·끝 슬래시가 달라도 작업 화면 %s는 noindex, nofollow", async (path) => {
+    const response = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: shellOnlyAssets });
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
+  it.each([
+    "https://ilgamcheck.bsfire1237.workers.dev",
+    "https://ilgamcheck-beta.bsfire1237.chatgpt.site",
+    "https://www.ilgam.studioyeolmae.com",
+  ])("운영 주소가 아닌 호스트 %s로 오면 공개 페이지도 검색에서 뺀다", async (origin) => {
+    for (const path of ["/", "/guide", "/privacy", "/terms"]) {
+      const response = await worker.fetch(htmlRequest(`${origin}${path}`), { ASSETS: shellOnlyAssets });
+      expect(response.headers.get("x-robots-tag"), path).toBe("noindex, nofollow");
+    }
+  });
+
+  it("운영 주소는 빌드 때 정한 NEXT_PUBLIC_SITE_ORIGIN을 따른다", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ORIGIN", "https://beta.example.test");
+    const own = await worker.fetch(htmlRequest("https://beta.example.test/guide"), { ASSETS: shellOnlyAssets });
+    const other = await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}/guide`), { ASSETS: shellOnlyAssets });
+    expect(own.headers.get("x-robots-tag")).toBeNull();
+    expect(other.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
+  it("API JSON 응답도 검색에서 뺀다", async () => {
+    const response = await worker.fetch(new Request(`${PRODUCTION_ORIGIN}/api/public-config`), { NEXT_PUBLIC_STORAGE_MODE: "hosted" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
+  it("운영 주소의 robots.txt는 noindex 없이 그대로 나간다", async () => {
+    const assets = { fetch: async () => new Response("User-agent: *\nAllow: /\n", { headers: { "Content-Type": "text/plain" } }) };
+    const response = await worker.fetch(new Request(`${PRODUCTION_ORIGIN}/robots.txt`), { ASSETS: assets });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBeNull();
+    await expect(response.text()).resolves.toBe("User-agent: *\nAllow: /\n");
+  });
+});
+
+describe("Sites 고객 링크·체험 공유 미리보기", () => {
+  // 모든 화면이 같은 첫 화면(index.html)을 쓰므로, 실제 첫 화면 파일로 응답을 만든다.
+  const indexHtml = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
+  const indexAssets = {
+    fetch: async (request: Request) => new URL(request.url).pathname === "/app-shell.payload"
+      ? new Response(indexHtml)
+      : new Response("not found", { status: 404 }),
+  };
+  const pageHtml = async (path: string) => (await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: indexAssets })).text();
+
+  it.each(["/r/token_abc", "/r/key.with.dots", "/demo/r", "/r/token_abc/", "/R/token_abc", "/demo/r/", "/DEMO/R"])("%s는 소개용 슬로건·그림 대신 차분한 공유 미리보기를 낸다", async (path) => {
+    const html = await pageHtml(path);
+    expect(html).toContain('property="og:title" content="수정 요청 링크"');
+    expect(html).toContain('property="og:description" content="작업자가 보낸 수정 요청 페이지예요. 로그인 없이 열려요."');
+    expect(html).toContain('name="twitter:card" content="summary"');
+    expect(html).not.toMatch(/property="og:image|name="twitter:image|property="og:url/);
+    // 실행 설정 주입은 그대로 한다.
+    expect(html).toContain("__ILGAMCHECK_PUBLIC_ENV__");
+  });
+
+  it.each(["/", "/guide", "/jobs/job_1"])("%s는 소개용 공유 미리보기를 그대로 둔다", async (path) => {
+    const html = await pageHtml(path);
+    expect(html).toContain('property="og:title" content="일감체크 · 운영은 덜고 작업에 집중하세요"');
+    expect(html).toContain('property="og:image"');
+    expect(html).not.toContain("수정 요청 링크");
   });
 });

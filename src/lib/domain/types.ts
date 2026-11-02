@@ -3,6 +3,8 @@ export type ISODate = string;
 export type TaskStatus = "todo" | "waiting" | "done" | "cancelled";
 export type JobStatus = "active" | "completed" | "archived";
 export type RevisionSource = "public" | "manual";
+/** 주문을 받은 곳(수주처). 작업자 화면에서만 쓰고 고객 문구·고객 링크에는 넣지 않는다. */
+export type OrderSource = "kmong" | "soomgo" | "referral" | "direct" | "other";
 export type RevisionChannel =
   | "kakao"
   | "kmong"
@@ -176,6 +178,16 @@ export interface Job {
   intakeItems?: IntakeItem[];
   /** 패키지의 '착수 전 질문'을 일감을 만들 때 복사한 것. 없던 저장본에서는 비어 있다. */
   briefQuestions?: BriefQuestion[];
+  /** 주문을 받은 곳(선택). 없던 저장본·고르지 않은 일감에는 칸이 없다. */
+  source?: OrderSource;
+  /** 일감을 완료한 시각(월별 정리의 기준). 완료를 되돌리면 칸을 지운다. 이 칸이 생기기 전에 완료한 저장본에는 없다. */
+  completedAt?: string;
+  /**
+   * 시작 안내(저장 직후 안내의 문구·링크 복사, '시작 안내' 칩 복사)를 처음 복사한 시각. 한 번 남기면 바꾸지 않는다.
+   * 없고 진행된 흔적(받은 자료·답·끝낸 할 일·수정 기록·추가요청)도 없으면 '고객에게 보낼 말'이 시작 안내를 먼저 고른다.
+   * 없던 저장본·아직 안 보낸 일감에는 칸이 없다.
+   */
+  startSharedAt?: string;
   revisionPortalToken: string;
   revisionPortalEnabled: boolean;
   status: JobStatus;
@@ -193,6 +205,8 @@ export interface ComposeJobInput {
   jobId?: string;
   now?: string;
   revisionPortalToken?: string;
+  /** 주문을 받은 곳(선택). */
+  source?: OrderSource;
 }
 
 export interface RecordRevisionInput {

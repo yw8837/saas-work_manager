@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { WorkspaceProvider } from "@/components/workspace-provider";
+import { deploymentOrigin } from "@/lib/deployment-origin";
 import worker from "./entry-server";
 import { isStandaloneRoutePath } from "./routes";
 import { SiteShell } from "./site-shell";
@@ -59,8 +60,9 @@ describe("Sites 셸: 베타 신청·확인·수신거부·운영자 경로", () 
     ["/r/customer-token/", "noindex, nofollow, noarchive"],
     ["/apply/", null],
   ])("Worker가 %s HTML에 검색 차단 헤더(%s)를 붙인다", async (path, robots) => {
+    // 운영 주소 기준으로 본다. 운영 주소가 아닌 호스트는 공개 화면도 검색에서 뺀다(아래 시험).
     const response = await worker.fetch(
-      new Request(`https://beta.example.test${path}`, { headers: { Accept: "text/html" } }),
+      new Request(`${deploymentOrigin()}${path}`, { headers: { Accept: "text/html" } }),
       {
         ASSETS: {
           fetch: async (request) => new URL(request.url).pathname === "/app-shell.payload"
@@ -74,5 +76,21 @@ describe("Sites 셸: 베타 신청·확인·수신거부·운영자 경로", () 
     expect(response.headers.get("x-robots-tag")).toBe(robots);
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(await response.text()).not.toContain(TOKEN);
+  });
+
+  it("운영 주소가 아닌 호스트(workers.dev·옛 주소)에서는 공개 화면 /apply도 검색에서 뺀다", async () => {
+    const response = await worker.fetch(
+      new Request("https://beta.example.test/apply", { headers: { Accept: "text/html" } }),
+      {
+        ASSETS: {
+          fetch: async (request) => new URL(request.url).pathname === "/app-shell.payload"
+            ? new Response("<html><head></head><body>일감체크</body></html>")
+            : new Response("not found", { status: 404 }),
+        },
+        NEXT_PUBLIC_STORAGE_MODE: "hosted",
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
   });
 });

@@ -14,14 +14,14 @@ export function normalizeRoutePath(pathname: string): string {
   return trimmed === "" ? "/" : trimmed;
 }
 
-/** 검색 결과에 남기지 않을 경로: 고객 링크·체험 링크·베타 주소 확인·수신거부·운영자 화면. */
+/** 검색 결과에 남기지 않을 경로: 고객 링크·체험 링크·베타 주소 확인·수신거부·운영자 화면. 라우터처럼 대소문자를 가리지 않는다(판정만, 토큰 값은 그대로). */
 export function isNoindexRoutePath(pathname: string): boolean {
   const normalized = normalizeRoutePath(pathname);
-  return /^\/r\/[^/]+$/.test(normalized)
-    || /^\/demo(?:\/|$)/.test(normalized)
-    || /^\/apply\/confirm\/[^/]+$/.test(normalized)
-    || /^\/u\/[^/]+$/.test(normalized)
-    || /^\/ops(?:\/|$)/.test(normalized);
+  return /^\/r\/[^/]+$/i.test(normalized)
+    || /^\/demo(?:\/|$)/i.test(normalized)
+    || /^\/apply\/confirm\/[^/]+$/i.test(normalized)
+    || /^\/u\/[^/]+$/i.test(normalized)
+    || /^\/ops(?:\/|$)/i.test(normalized);
 }
 
 export function isStandaloneRoutePath(pathname: string): boolean {
