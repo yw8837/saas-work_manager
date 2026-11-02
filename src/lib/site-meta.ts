@@ -40,6 +40,46 @@ export const SITE_TWITTER = {
   images: [SITE_OG_IMAGE.url],
 } satisfies NonNullable<Metadata["twitter"]>;
 
+/**
+ * 고객 링크(/r/…)와 체험(/demo/r)의 공유 미리보기. 고객이 광고로 오해하지 않게 소개용 슬로건·그림 대신 차분한 값을 쓴다.
+ * 그림이 없으니 트위터 카드는 작은 카드(summary)로 둔다.
+ */
+export const CUSTOMER_LINK_SHARE_TITLE = "수정 요청 링크";
+export const CUSTOMER_LINK_SHARE_DESCRIPTION = "작업자가 보낸 수정 요청 페이지예요. 로그인 없이 열려요.";
+
+export const CUSTOMER_LINK_OPEN_GRAPH = {
+  type: "website",
+  locale: "ko_KR",
+  siteName: SITE_NAME,
+  title: CUSTOMER_LINK_SHARE_TITLE,
+  description: CUSTOMER_LINK_SHARE_DESCRIPTION,
+} satisfies NonNullable<Metadata["openGraph"]>;
+
+export const CUSTOMER_LINK_TWITTER = {
+  card: "summary",
+  title: CUSTOMER_LINK_SHARE_TITLE,
+  description: CUSTOMER_LINK_SHARE_DESCRIPTION,
+} satisfies NonNullable<Metadata["twitter"]>;
+
+/**
+ * Vite Sites 빌드는 모든 화면이 같은 첫 화면(index.html)을 쓰므로, 고객 링크·체험 응답에서만 공유 미리보기 태그를 바꾼다.
+ * 소개 그림과 첫 화면 주소(og:url)는 뺀다. og:url이 첫 화면을 가리키면 미리보기가 첫 화면 것으로 바뀔 수 있다.
+ */
+export function withCustomerLinkShareMeta(html: string): string {
+  const contents: Array<[RegExp, string]> = [
+    [/(<meta\s+property="og:title"\s+content=")[^"]*(")/, CUSTOMER_LINK_SHARE_TITLE],
+    [/(<meta\s+property="og:description"\s+content=")[^"]*(")/, CUSTOMER_LINK_SHARE_DESCRIPTION],
+    [/(<meta\s+name="twitter:card"\s+content=")[^"]*(")/, CUSTOMER_LINK_TWITTER.card],
+    [/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, CUSTOMER_LINK_SHARE_TITLE],
+    [/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/, CUSTOMER_LINK_SHARE_DESCRIPTION],
+  ];
+  let result = html.replace(/<meta\s+(?:property="og:(?:url|image(?::\w+)?)"|name="twitter:image")[^>]*>\s*/g, "");
+  for (const [pattern, value] of contents) {
+    result = result.replace(pattern, (_match, open: string, close: string) => `${open}${value}${close}`);
+  }
+  return result;
+}
+
 /** script 안에 넣을 JSON. `<`를 <로 바꿔 글 속 `</script>`가 태그를 닫지 못하게 한다. */
 export function serializeJsonLd(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");

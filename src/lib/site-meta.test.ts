@@ -5,17 +5,24 @@ import { metadata as workspaceMetadata } from "@/app/(workspace)/layout";
 import { metadata as guideMetadata } from "@/app/guide/page";
 import { metadata as rootMetadata } from "@/app/layout";
 import { metadata as landingMetadata } from "@/app/page";
+import { metadata as demoRevisionMetadata } from "@/app/demo/r/page";
 import { metadata as privacyMetadata } from "@/app/privacy/page";
+import { metadata as revisionMetadata } from "@/app/r/[token]/page";
 import { metadata as termsMetadata } from "@/app/terms/page";
 import { renderDeploymentHtml } from "./deployment-origin";
 import {
+  CUSTOMER_LINK_OPEN_GRAPH,
+  CUSTOMER_LINK_TWITTER,
   LANDING_DESCRIPTION,
   LANDING_TITLE,
   landingJsonLd,
   serializeJsonLd,
   SITE_OG_IMAGE,
   SITE_OPEN_GRAPH,
+  SITE_SOCIAL_DESCRIPTION,
+  SITE_SOCIAL_TITLE,
   SITE_TWITTER,
+  withCustomerLinkShareMeta,
 } from "./site-meta";
 
 const ORIGIN = "https://ilgam.studioyeolmae.com";
@@ -73,6 +80,40 @@ describe("공유 미리보기·대표 주소", () => {
     expect(html).toContain(`property="og:image:height" content="${SITE_OG_IMAGE.height}"`);
     expect(html).toContain(`property="og:image:alt" content="${SITE_OG_IMAGE.alt}"`);
     expect(html).toContain(`name="twitter:card" content="${SITE_TWITTER.card}"`);
+  });
+});
+
+describe("고객 링크·체험 공유 미리보기", () => {
+  const TITLE = "수정 요청 링크";
+  const DESCRIPTION = "작업자가 보낸 수정 요청 페이지예요. 로그인 없이 열려요.";
+  /** og:·twitter: 공유 미리보기 태그만 모은다. */
+  const shareTags = (html: string) => html.match(/<meta\s+(?:property="og:|name="twitter:)[^>]*>/g) ?? [];
+
+  it("고객이 광고로 오해하지 않게 소개용 슬로건·그림 대신 차분한 제목·설명을 쓴다(Next 메타)", () => {
+    expect(CUSTOMER_LINK_OPEN_GRAPH).toEqual({ type: "website", locale: "ko_KR", siteName: "일감체크", title: TITLE, description: DESCRIPTION });
+    expect(CUSTOMER_LINK_TWITTER).toEqual({ card: "summary", title: TITLE, description: DESCRIPTION });
+    for (const [path, metadata] of [["/r/[token]", revisionMetadata], ["/demo/r", demoRevisionMetadata]] as const) {
+      expect(metadata.openGraph, path).toBe(CUSTOMER_LINK_OPEN_GRAPH);
+      expect(metadata.twitter, path).toBe(CUSTOMER_LINK_TWITTER);
+      expect(metadata.robots, path).toBe("noindex, nofollow, noarchive");
+    }
+  });
+
+  it("Vite Sites 첫 화면(index.html)의 공유 미리보기 태그를 같은 값으로 바꾸고 소개 그림·첫 화면 주소는 뺀다", () => {
+    const html = withCustomerLinkShareMeta(renderDeploymentHtml(readFileSync(resolve(process.cwd(), "index.html"), "utf8")));
+    expect(html).toContain(`property="og:title" content="${TITLE}"`);
+    expect(html).toContain(`property="og:description" content="${DESCRIPTION}"`);
+    expect(html).toContain('name="twitter:card" content="summary"');
+    expect(html).toContain(`name="twitter:title" content="${TITLE}"`);
+    expect(html).toContain(`name="twitter:description" content="${DESCRIPTION}"`);
+    const tags = shareTags(html).join("\n");
+    expect(tags).not.toMatch(/og:image|twitter:image|og:url/);
+    expect(tags).not.toContain(SITE_SOCIAL_TITLE);
+    expect(tags).not.toContain(SITE_SOCIAL_DESCRIPTION);
+    // 나머지 head(문자 집합·보안 정책·아이콘)는 그대로 둔다.
+    expect(html).toContain('<meta charset="UTF-8" />');
+    expect(html).toContain('http-equiv="Content-Security-Policy"');
+    expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest" />');
   });
 });
 

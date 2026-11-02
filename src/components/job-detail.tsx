@@ -38,7 +38,7 @@ import { localToday } from "@/lib/store";
 import { ClientMessages } from "./client-messages";
 import { SendToClientBanner } from "./send-to-client-banner";
 import { StartChecklist } from "./start-checklist";
-import { displayJobTitle, marginShortfall, marginWarningText, normalizeOrderSource, ORDER_SOURCE_LABELS, ORDER_SOURCES, pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
+import { displayJobTitle, normalizeOrderSource, ORDER_SOURCE_LABELS, ORDER_SOURCES, pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { nativePlatform } from "@/lib/native/platform";
 import {
@@ -73,7 +73,6 @@ function formatTimelineDate(value: string) {
 export function JobDetail({ jobId }: { jobId: string }) {
   const {
     jobs,
-    settings,
     hydrated,
     runtimeMode,
     saveStatus,
@@ -192,8 +191,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const progress = Math.round((doneTasks / Math.max(job.tasks.length, 1)) * 100);
   const delayed = job.status !== "completed" && job.dueDate < new Date().toISOString().slice(0, 10);
   const marginRate = job.amount > 0 ? Math.round((job.margin / job.amount) * 100) : null;
-  // 한 건에 최소 남길 돈을 정했을 때만, 덜 남는 주문이면 '남는 돈(예상)' 칸 아래에 한 줄로 알린다.
-  const marginShort = marginShortfall(job.margin, settings.minMarginPerJob);
+  // 최소 남길 돈 경고는 패키지 화면과 새 일감에만 둔다. 이미 만든 주문(일감 화면)에는 띄우지 않는다(잔소리 방지).
   const portalEnabled = job.status === "active" && job.revisionPortalEnabled;
   const portalSynced = runtimeMode === "local" || saveStatus === "saved";
   const currentSource = normalizeOrderSource(job.source);
@@ -598,13 +596,6 @@ export function JobDetail({ jobId }: { jobId: string }) {
             <dd data-testid="job-margin">
               {formatWon(job.margin)} <small>{marginRate === null ? "금액 없음" : `남는 비율 ${marginRate}%`}</small>
             </dd>
-            {marginShort !== null && (
-              <dd className="marginWarning" data-testid="job-margin-warning">
-                <CircleAlert size={13} aria-hidden="true" />
-                <span className="srOnly">주의: </span>
-                {marginWarningText(job.margin, marginShort)}
-              </dd>
-            )}
           </dl>
         </div>
         <div>

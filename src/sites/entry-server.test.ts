@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ILGAMCHECK_RUNTIME_CONTRACT } from "@/lib/supabase";
 import { runtimePublicConfigDigest } from "@/lib/runtime-public-config";
@@ -530,5 +532,33 @@ describe("Sites 검색 노출 헤더", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("x-robots-tag")).toBeNull();
     await expect(response.text()).resolves.toBe("User-agent: *\nAllow: /\n");
+  });
+});
+
+describe("Sites 고객 링크·체험 공유 미리보기", () => {
+  // 모든 화면이 같은 첫 화면(index.html)을 쓰므로, 실제 첫 화면 파일로 응답을 만든다.
+  const indexHtml = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
+  const indexAssets = {
+    fetch: async (request: Request) => new URL(request.url).pathname === "/app-shell.payload"
+      ? new Response(indexHtml)
+      : new Response("not found", { status: 404 }),
+  };
+  const pageHtml = async (path: string) => (await worker.fetch(htmlRequest(`${PRODUCTION_ORIGIN}${path}`), { ASSETS: indexAssets })).text();
+
+  it.each(["/r/token_abc", "/r/key.with.dots", "/demo/r"])("%s는 소개용 슬로건·그림 대신 차분한 공유 미리보기를 낸다", async (path) => {
+    const html = await pageHtml(path);
+    expect(html).toContain('property="og:title" content="수정 요청 링크"');
+    expect(html).toContain('property="og:description" content="작업자가 보낸 수정 요청 페이지예요. 로그인 없이 열려요."');
+    expect(html).toContain('name="twitter:card" content="summary"');
+    expect(html).not.toMatch(/property="og:image|name="twitter:image|property="og:url/);
+    // 실행 설정 주입은 그대로 한다.
+    expect(html).toContain("__ILGAMCHECK_PUBLIC_ENV__");
+  });
+
+  it.each(["/", "/guide", "/jobs/job_1"])("%s는 소개용 공유 미리보기를 그대로 둔다", async (path) => {
+    const html = await pageHtml(path);
+    expect(html).toContain('property="og:title" content="일감체크 · 운영은 덜고 작업에 집중하세요"');
+    expect(html).toContain('property="og:image"');
+    expect(html).not.toContain("수정 요청 링크");
   });
 });

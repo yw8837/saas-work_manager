@@ -7,6 +7,7 @@ import {
 } from "@/lib/security/headers";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
+import { withCustomerLinkShareMeta } from "@/lib/site-meta";
 import {
   ILGAMCHECK_PUBLIC_ENV_KEYS,
   type IlgamcheckPublicEnvironment,
@@ -70,6 +71,11 @@ function robotsHeaders(url: URL): SecurityHeader[] {
   return [];
 }
 
+/** 고객 수정 요청 링크(/r/토큰)와 그 체험(/demo/r) 화면. */
+function isCustomerLinkPage(pathname: string): boolean {
+  return /^\/r\/[^/]+$/.test(pathname) || /^\/demo\/r\/?$/.test(pathname);
+}
+
 function withSecurityHeaders(
   response: Response,
   request: Request,
@@ -114,7 +120,9 @@ async function finalizeStaticResponse(
     return secured;
   }
 
-  const html = await secured.text();
+  const shellHtml = await secured.text();
+  // 고객 링크·체험은 공유 미리보기를 소개용 대신 차분한 값으로 바꾼다(Next 메타와 같은 값).
+  const html = isCustomerLinkPage(new URL(request.url).pathname) ? withCustomerLinkShareMeta(shellHtml) : shellHtml;
   const runtimeScript = `<script>globalThis.__ILGAMCHECK_PUBLIC_ENV__=${serializedPublicEnvironment(environment)};</script>`;
   const injectedHtml = html.includes("</head>")
     ? html.replace("</head>", `${runtimeScript}</head>`)

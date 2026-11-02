@@ -130,3 +130,15 @@ describe("휴대폰 터치 44px(감사 10번)", () => {
     expect(area).toMatch(/inset:\s*-6px/);
   });
 });
+
+describe("최소 남길 돈 경고는 화면마다 한 줄(시장조사 R7)", () => {
+  it("새 일감: 아래 띠가 보이는 폭(1050px 이하)에서는 미리보기 패널의 경고를 숨겨 아래 띠 한 곳에만 보인다", () => {
+    const tablet = mediaBlocks(theme, "(max-width: 1050px)");
+    expect(bodies(tablet, ".mobileSubmitBar")).toMatch(/display:\s*flex/);
+    expect(bodies(tablet, ".jobPreview .marginWarning")).toMatch(/display:\s*none/);
+    expect(bodies(tablet, ".marginWarningPill")).not.toMatch(/display:\s*none/);
+    // 데스크톱(기본)에서는 아래 띠가 없어 미리보기 패널의 경고 한 곳만 보인다.
+    expect(rulesMentioning(baseTheme, ".mobileSubmitBar").some((rule) => rule.selector === ".mobileSubmitBar" && /display:\s*none/.test(rule.body))).toBe(true);
+    expect(bodies(baseTheme, ".jobPreview .marginWarning")).not.toMatch(/display:\s*none/);
+  });
+});

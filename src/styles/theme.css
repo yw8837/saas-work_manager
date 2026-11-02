@@ -1720,9 +1720,13 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .marginWarning { display: flex; align-items: flex-start; gap: 4px; margin: 4px 0 0; color: var(--red); font-size: 13px; font-weight: 650; line-height: 1.45; word-break: keep-all; font-variant-numeric: tabular-nums; }
 .marginWarning svg { flex: none; margin-top: 2px; }
 .catalogListItem .marginWarning { display: flex; margin-top: 4px; overflow: visible; color: var(--red); white-space: normal; text-overflow: clip; }
-.appFrame .jobFactRail .marginWarning { margin-top: 6px; font-size: 13px; }
 .appFrame .previewMetrics .marginWarning { margin-top: 6px; font-size: 12px; }
 .appFrame .mobileSubmitBar .marginWarningPill { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; padding: 2px 8px; color: var(--red); background: var(--red-soft); border-radius: 5px; font-size: 12px; font-weight: 650; line-height: 1.4; white-space: nowrap; }
+/* 최소 남길 돈 경고는 화면마다 한 줄(시장조사 R7). 새 일감은 아래 띠가 보이는 폭(1050px 이하)에서는 띠에만,
+   그보다 넓으면 미리보기 패널에만 보인다. 일감 화면(이미 만든 주문)에는 띄우지 않는다. */
+@media (max-width: 1050px) {
+  .jobPreview .marginWarning { display: none; }
+}
 
 /* 월별 정리(작업 8): 차트 없이 숫자 줄, ◀ ▶ 44px, 합계 바로 아래 내려받기 두 개. 색은 중립(체리 안 씀). */
 .monthlySummaryPage { max-width: 760px; }

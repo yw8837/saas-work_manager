@@ -441,12 +441,13 @@ describe("JobDetail 고객에게 보낼 말", () => {
 });
 
 describe("JobDetail 최소 남길 돈", () => {
-  it("기준보다 덜 남으면 '남는 돈(예상)' 칸 아래에 한 줄로 알린다", () => {
+  // 경고는 값을 정하는 패키지 화면과 주문 전 새 일감에만 한 줄 둔다. 이미 만든 주문에는 띄우지 않는다(잔소리 방지).
+  it("기준보다 덜 남아도 일감 화면에는 경고를 띄우지 않고 남는 돈만 보인다", () => {
     // 1,000,000원 − 예상 원가 250,000원 = 750,000원
     renderDetail(baseJob(), { settings: { minMarginPerJob: 800_000 } });
-    const warning = screen.getByTestId("job-margin-warning");
-    expect(warning).toHaveTextContent("남는 돈 750,000원 · 내 기준보다 50,000원 적어요");
-    expect(screen.getByTestId("job-margin").closest("dl")).toContainElement(warning);
+    expect(screen.queryByTestId("job-margin-warning")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("내 기준보다");
+    expect(screen.getByTestId("job-margin")).toHaveTextContent("750,000원");
   });
 
   it("기준이 없거나 남는 돈이 기준 이상이면 알리지 않는다", () => {
