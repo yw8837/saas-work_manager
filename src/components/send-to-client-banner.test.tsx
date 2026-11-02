@@ -65,11 +65,17 @@ describe("저장 직후 고객에게 보내기", () => {
     expect(document.querySelector("details")).toBeNull();
   });
 
+  it("주 버튼이 문구라서 링크 설명 줄과 긴 주소 칸은 처음부터 보이지 않는다", () => {
+    renderBanner();
+    expect(screen.queryByTestId("send-to-client-link")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByTestId("send-to-client-banner")).not.toHaveTextContent("로그인 없이 수정 요청을 남기고");
+  });
+
   it("링크를 복사하면 주소를 그대로 복사하고 첫 실행 3단계 표시를 남긴다", async () => {
     writeText.mockResolvedValue();
     renderBanner();
     expect(screen.getByRole("heading", { name: /이제 고객에게 보내세요/ })).toBeInTheDocument();
-    expect(screen.getByTestId("send-to-client-link")).toHaveValue(LINK);
 
     fireEvent.click(screen.getByTestId("send-copy-link"));
     await waitFor(() => expect(screen.getByTestId("send-copy-link")).toHaveTextContent("링크를 복사했어요"));
@@ -88,13 +94,15 @@ describe("저장 직후 고객에게 보내기", () => {
     expect(copied).not.toMatch(/원|₩/);
   });
 
-  it("자동 복사가 막히면 안내를 띄우고 주소 칸을 선택해 직접 복사하게 한다", async () => {
+  it("자동 복사가 막히면 안내를 띄우고 그때 주소 칸을 보여 선택해 두어 직접 복사하게 한다", async () => {
     writeText.mockRejectedValue(new Error("denied"));
     const frame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { callback(0); return 0; });
     renderBanner();
-    const input = screen.getByTestId("send-to-client-link") as HTMLInputElement;
+    expect(screen.queryByTestId("send-to-client-link")).not.toBeInTheDocument();
 
     await act(async () => { fireEvent.click(screen.getByTestId("send-copy-link")); });
+    const input = screen.getByTestId("send-to-client-link") as HTMLInputElement;
+    expect(input).toHaveValue(LINK);
     expect(screen.getByRole("alert")).toHaveTextContent("자동 복사를 막았어요");
     expect(document.activeElement).toBe(input);
     expect(input.selectionStart).toBe(0);

@@ -102,6 +102,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const job = jobs.find((item) => item.id === jobId);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
+  // 휴대폰에서 금액·원가·남는 돈 칸은 '금액 보기'를 눌렀을 때만 보인다(데스크톱은 늘 6칸).
+  const [moneyOpen, setMoneyOpen] = useState(false);
   const handleDeleteJob = () => {
     if (!job) return;
     if (!window.confirm(`'${job.clientLabel}' 일감을 삭제할까요? 관련 할 일·수정 기록도 함께 사라지고, 되돌릴 수 없어요.`)) return;
@@ -195,6 +197,10 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const portalSynced = runtimeMode === "local" || saveStatus === "saved";
   const currentSource = normalizeOrderSource(job.source);
   const sourceLabel = currentSource ? ORDER_SOURCE_LABELS[currentSource] : undefined;
+  const shownTitle = displayJobTitle(job);
+  const dueDday = getDday(job.dueDate);
+  // 저장 직후 안내 띠가 열려 있는 동안은 같은 문구가 두 벌 보이지 않게 '고객에게 보낼 말'을 숨긴다.
+  const sendBannerOpen = sendBannerRequested && !sendBannerDismissed && job.status === "active";
   const notify = (text: string) => setNotice({ text, tone: "ok" });
   const notifyError = (error: unknown, fallback: string) =>
     setNotice({ text: error instanceof Error ? error.message : fallback, tone: "error" });
@@ -475,7 +481,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
               </div>
             )}
             <h1>{job.clientLabel}</h1>
-            <p>{displayJobTitle(job)}</p>
+            {/* 자동 제목이 윗줄 패키지 이름과 같으면 두 번 보이지 않게 뺀다(사용자가 바꾼 제목은 그대로). */}
+            {shownTitle !== job.packageSnapshot.name && <p>{shownTitle}</p>}
           </div>
         </div>
         <div className="detailHeaderActions">
@@ -533,11 +540,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
         </a>
       )}
 
-      {sendBannerRequested && !sendBannerDismissed && job.status === "active" && (
+      {sendBannerOpen && (
         <SendToClientBanner
           link={portalLink}
           clientLabel={job.clientLabel}
-          title={displayJobTitle(job)}
+          title={shownTitle}
           included={revision.included}
           remaining={revision.remaining}
           pendingIntake={pendingIntake}
@@ -549,20 +556,37 @@ export function JobDetail({ jobId }: { jobId: string }) {
         />
       )}
 
-      <section className="jobFactRail" aria-label="일감 핵심 정보">
+      {/* 휴대폰 첫 화면에는 사실 6칸 대신 이 한 줄만 보인다(데스크톱에서는 숨김). 금액은 '금액 보기'로 펼친다. */}
+      <p className="jobFactLine" data-testid="job-fact-line">
+        <span>
+          {dueDday === "오늘 마감" ? dueDday : `${formatShortDate(job.dueDate)} 마감 ${dueDday}`} · 남은 수정 {revision.remaining}회 · 할 일 {doneTasks}/{job.tasks.length}
+        </span>
+        <button
+          type="button"
+          className="textButton"
+          onClick={() => setMoneyOpen((open) => !open)}
+          aria-expanded={moneyOpen}
+          aria-controls="job-fact-rail"
+          data-testid="job-money-toggle"
+        >
+          {moneyOpen ? "금액 접기" : "금액 보기"}
+        </button>
+      </p>
+
+      <section id="job-fact-rail" className="jobFactRail" data-money-open={moneyOpen} aria-label="일감 핵심 정보">
         <div>
           <span className="factIcon"><CalendarDays size={18} /></span>
-          <dl><dt>마감</dt><dd>{formatShortDate(job.dueDate)} <small>{getDday(job.dueDate)}</small></dd></dl>
+          <dl><dt>마감</dt><dd>{formatShortDate(job.dueDate)} <small>{dueDday}</small></dd></dl>
         </div>
-        <div>
+        <div className="jobFactMoney">
           <span className="factIcon"><CircleDollarSign size={18} /></span>
           <dl><dt>계약 금액</dt><dd>{formatWon(job.amount)}</dd></dl>
         </div>
-        <div>
+        <div className="jobFactMoney">
           <span className="factIcon"><Wallet size={18} /></span>
           <dl><dt>예상 원가</dt><dd data-testid="job-estimated-cost">{formatWon(job.estimatedCost)}</dd></dl>
         </div>
-        <div>
+        <div className="jobFactMoney">
           <span className="factIcon"><TrendingUp size={18} /></span>
           <dl>
             <dt>남는 돈(예상)</dt>
@@ -590,8 +614,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
       <div className="detailGrid">
         <div className="detailMain">
-          {/* 안내 띠를 닫아도 지금 상황에 맞는 문구를 다시 복사할 수 있다. 링크 준비 여부는 저장 직후 안내와 같다. */}
-          <ClientMessages job={job} link={portalEnabled && portalSynced ? portalLink : null} today={localToday()} />
+          {/* 안내 띠를 닫으면 지금 상황에 맞는 문구를 다시 복사할 수 있다. 링크 준비 여부는 저장 직후 안내와 같다. */}
+          {!sendBannerOpen && <ClientMessages job={job} link={portalEnabled && portalSynced ? portalLink : null} today={localToday()} />}
 
           <section className="contentSection taskDetailSection">
             <div className="sectionHeadingRow">
@@ -686,7 +710,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
                 aria-expanded={revisionOpen}
                 aria-controls="revision-entry-form"
               >
-                <RotateCcw size={15} /> 수정 요청 기록
+                <RotateCcw size={15} /> 요청 직접 적기
               </button>
             </div>
 

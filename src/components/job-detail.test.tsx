@@ -350,6 +350,57 @@ describe("JobDetail 쉬운 말·짧은 설명", () => {
   });
 });
 
+describe("JobDetail 제목 줄", () => {
+  it("자동 제목이 윗줄 패키지 이름과 같으면 제목 아래 줄을 숨긴다", () => {
+    // 자동 제목 "상세 고객 · 상세 패키지"는 고객 이름을 떼면 패키지 이름과 같다.
+    renderDetail();
+    const header = screen.getByRole("heading", { level: 1, name: "상세 고객" }).closest("header")!;
+    expect(within(header).getAllByText("상세 패키지")).toHaveLength(1);
+    expect(header.querySelector("h1 + p")).toBeNull();
+  });
+
+  it("사용자가 바꾼 제목은 제목 아래 줄에 그대로 보인다", () => {
+    renderDetail({ ...baseJob(), title: "메뉴판 리뉴얼" });
+    const header = screen.getByRole("heading", { level: 1, name: "상세 고객" }).closest("header")!;
+    expect(within(header).getByText("메뉴판 리뉴얼")).toBeInTheDocument();
+    expect(within(header).getByText("상세 패키지")).toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 휴대폰 첫 화면", () => {
+  it("핵심 정보는 한 줄로 요약하고 금액·원가·남는 돈은 '금액 보기'로 펼친다", () => {
+    renderDetail();
+    const line = screen.getByTestId("job-fact-line");
+    // 마감일 · 남은 수정 · 할 일(진행). 마감까지 남은 날은 오늘 날짜에 따라 바뀐다.
+    expect(line.querySelector("span")!.textContent).toMatch(/^8월 11일 마감 .+ · 남은 수정 2회 · 할 일 0\/1$/);
+    expect(line).not.toHaveTextContent(/원/);
+
+    const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
+    const toggle = within(line).getByRole("button", { name: "금액 보기" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute("aria-controls", rail.id);
+    expect(rail).toHaveAttribute("data-money-open", "false");
+    // 금액 칸 셋만 '금액 보기'에 딸린다(마감·남은 수정·진행률은 위 한 줄과 같아서).
+    expect(rail.querySelectorAll(".jobFactMoney")).toHaveLength(3);
+    expect(within(rail).getByTestId("job-estimated-cost").closest(".jobFactMoney")).not.toBeNull();
+    expect(within(rail).getByTestId("job-margin").closest(".jobFactMoney")).not.toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveTextContent("금액 접기");
+    expect(rail).toHaveAttribute("data-money-open", "true");
+  });
+});
+
+describe("JobDetail 수정 요청 기록 구획", () => {
+  it("구획 제목과 같은 이름이던 버튼은 '요청 직접 적기'로 부른다", () => {
+    renderDetail();
+    expect(screen.getByRole("heading", { name: "수정 요청 기록" })).toBeInTheDocument();
+    expect(screen.getByTestId("record-revision")).toHaveTextContent("요청 직접 적기");
+    expect(screen.queryByRole("button", { name: "수정 요청 기록" })).not.toBeInTheDocument();
+  });
+});
+
 describe("JobDetail 고객에게 보낼 말", () => {
   it("핵심 정보 줄 바로 아래, 할 일 목록보다 위에 둔다", () => {
     renderDetail();

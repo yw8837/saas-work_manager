@@ -307,6 +307,9 @@
   .appFrame .jobFactRail > div:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
   .appFrame .jobFactRail dd { font-size: 14px; overflow-wrap: anywhere; }
   .appFrame .jobFactRail .factIcon { display: none; }
+  /* '금액 보기'로 펼친 금액 칸 셋은 한 줄에 나란히(감사 2번) */
+  .appFrame .jobFactRail[data-money-open="true"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .appFrame .jobFactRail[data-money-open="true"] > div { border-bottom: 0; }
   .appFrame .portalLinkSection { padding: 18px; }
   .appFrame .mobileBottomNav { height: calc(70px + env(safe-area-inset-bottom, 0px)); }
   .appFrame .mobileSubmitBar { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }

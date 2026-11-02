@@ -34,8 +34,57 @@ function rulesMentioning(css, selector) {
     .map((match) => ({ selector: match[1].trim(), body: match[2] }));
 }
 
+/** `@media` 블록을 모두 뺀 기본(데스크톱) 규칙만. */
+function outsideMedia(css) {
+  let result = "";
+  let from = 0;
+  let start = css.indexOf("@media", from);
+  while (start !== -1) {
+    result += css.slice(from, start);
+    let depth = 0;
+    let index = css.indexOf("{", start);
+    for (; index < css.length; index += 1) {
+      if (css[index] === "{") depth += 1;
+      else if (css[index] === "}" && --depth === 0) break;
+    }
+    from = index + 1;
+    start = css.indexOf("@media", from);
+  }
+  return result + css.slice(from);
+}
+
 const bodies = (css, selector) => rulesMentioning(css, selector).map((rule) => rule.body).join("\n");
+const baseTheme = outsideMedia(theme);
 const mobileTheme = mediaBlocks(theme, "(max-width: 760px)");
+const mobileWorkspace = mediaBlocks(workspace, "(max-width: 760px)");
+
+describe("휴대폰 일감 첫 화면에 '문구 복사'가 들어오게(감사 2·3번)", () => {
+  it("'더보기'는 따로 한 줄을 쓰지 않고 제목 묶음 오른쪽 위로 올린다", () => {
+    expect(bodies(mobileTheme, ".detailHeader")).toMatch(/position:\s*relative/);
+    expect(bodies(mobileTheme, ".detailHeader .detailMore")).toMatch(/position:\s*absolute/);
+  });
+
+  it("핵심 정보는 휴대폰에서만 한 줄 요약이고, 금액 칸 셋은 '금액 보기'를 펼쳤을 때만 보인다", () => {
+    expect(bodies(baseTheme, ".jobFactLine")).toMatch(/display:\s*none/);
+    expect(bodies(mobileTheme, ".jobFactLine")).toMatch(/display:\s*flex/);
+    expect(bodies(mobileTheme, '.jobFactRail[data-money-open="false"]')).toMatch(/display:\s*none/);
+    expect(bodies(mobileTheme, '.jobFactRail[data-money-open="true"] > div:not(.jobFactMoney)')).toMatch(/display:\s*none/);
+    expect(bodies(mobileWorkspace, '.appFrame .jobFactRail[data-money-open="true"]')).toMatch(/grid-template-columns:\s*repeat\(3/);
+  });
+
+  it("말풍선은 휴대폰에서 160px까지만 쓰고 안에서 스크롤한다", () => {
+    expect(bodies(mobileTheme, ".clientMessageBubble")).toMatch(/max-height:\s*160px/);
+    expect(bodies(mobileTheme, ".sendToClientMessage")).toMatch(/max-height:\s*160px/);
+  });
+
+  it("'문구 복사'는 구획 머리 버튼이라 휴대폰에서 줄 전체로 늘이지 않는다", () => {
+    expect(bodies(mobileTheme, ".clientMessageCopy")).not.toMatch(/width:\s*100%/);
+  });
+
+  it("저장 직후 띠의 '링크만 복사'·'고객 화면 미리보기'는 휴대폰에서 한 줄 두 칸", () => {
+    expect(bodies(mobileTheme, ".sendToClientActions > .secondaryButton")).toMatch(/flex:\s*1 1 0/);
+  });
+});
 
 describe("어두운 면 위 키보드 포커스(감사 6번)", () => {
   it("일감 하단 바·새 일감 하단 바·알림 위에서는 흰 포커스 링을 쓴다", () => {

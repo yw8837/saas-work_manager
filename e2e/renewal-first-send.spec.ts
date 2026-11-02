@@ -52,7 +52,9 @@ test("3·5·1번: 첫 실행 체크리스트 → 업종 예시 → 첫 일감 �
   expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   await noHorizontalOverflow(page);
 
-  const link = await page.getByTestId("send-to-client-link").inputValue();
+  // 띠에는 긴 주소 칸이 없다(복사가 막혔을 때만 보임). 링크는 고객 화면 미리보기 주소로 확인한다.
+  await expect(page.getByTestId("send-to-client-link")).toHaveCount(0);
+  const link = (await page.getByTestId("send-preview").getAttribute("href")) ?? "";
   expect(link).toMatch(/\/r\/[A-Za-z0-9_-]+$/);
 
   await expect(page.getByTestId("send-copy-link")).toContainText("링크만 복사");

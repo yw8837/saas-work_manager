@@ -1539,7 +1539,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .sendToClientHead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .sendToClientIcon { display: grid; place-items: center; width: 36px; height: 36px; color: var(--on-primary); background: var(--ink); border-radius: var(--radius); }
 .sendToClientHead h2 { margin: 0; font-size: 18px; line-height: 1.4; word-break: keep-all; }
-.sendToClientHead p { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }
 .sendToClientClose { width: 44px; height: 44px; padding: 0; color: var(--muted); background: transparent; }
 .sendToClientLink { display: grid; gap: 6px; min-width: 0; }
 .sendToClientLink > span { color: var(--muted); font-size: 12px; font-weight: 600; }
@@ -1670,7 +1669,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .sendToClientBanner { padding: 16px; }
   .sendToClientActions > * { flex: 1 1 100%; }
   .clientMessageChip { min-height: 44px; }
-  .clientMessageCopy { width: 100%; }
   .publicRevisionWorker { font-size: 22px; }
   .publicRevisionCounter strong { font-size: 36px; }
   .firstRunHead { grid-template-columns: minmax(0, 1fr) auto; }
@@ -1776,4 +1774,19 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .revisionRowActions .revisionRevertButton { min-height: 44px; min-width: 44px; padding-inline: 8px; font-size: 13px; }
   .avatarButton { position: relative; }
   .avatarButton::after { content: ""; position: absolute; inset: -6px; }
+}
+/* 2·3. 일감 화면 휴대폰 첫 화면: 핵심 정보는 한 줄 요약(금액은 '금액 보기'), '더보기'는 제목 묶음 오른쪽 위,
+   말풍선은 160px까지. 저장 직후 띠의 보조 버튼 둘은 한 줄 두 칸. 데스크톱은 그대로. */
+.jobFactLine { display: none; }
+@media (max-width: 760px) {
+  .detailHeader { position: relative; }
+  .detailHeader .detailMore { position: absolute; top: 0; right: 0; }
+  .detailHeader .detailTitleLine { padding-right: 52px; }
+  .detailHeaderActions { margin-top: 0; }
+  .detailHeaderActions:has(> a) { margin-top: 13px; }
+  .jobFactLine { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; margin: 0 0 16px; padding: 4px 0; color: var(--ink); border-block: 1px solid var(--line); font-size: 14px; font-weight: 600; line-height: 1.5; font-variant-numeric: tabular-nums; }
+  .jobFactRail[data-money-open="false"] { display: none; }
+  .jobFactRail[data-money-open="true"] > div:not(.jobFactMoney) { display: none; }
+  .clientMessageBubble, .sendToClientMessage { max-height: 160px; }
+  .sendToClientActions > .secondaryButton { flex: 1 1 0; min-width: 0; padding-inline: 8px; font-size: 14px; line-height: 1.3; text-align: center; white-space: normal; }
 }

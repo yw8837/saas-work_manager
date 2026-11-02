@@ -12,7 +12,8 @@ type CopyTarget = "link" | "message";
 /**
  * 일감을 저장한 직후(?created=1) 상세 맨 위에 뜨는 "이제 고객에게 보내세요" 띠.
  * 카톡 문구 복사(주) · 링크만 복사 · 고객 화면 미리보기. 보낼 문구는 버튼 아래 말풍선으로 펼쳐 보여 준다.
- * 복사가 막히면 복사하려던 것(링크면 주소 칸, 문구면 문구 글상자)을 선택해 직접 복사하게 한다.
+ * 주 버튼이 문구라서 링크 설명 줄과 긴 주소 칸은 두지 않는다(링크는 문구·미리보기에 들어 있음).
+ * 복사가 막히면 복사하려던 것(링크면 그때 주소 칸을 보여, 문구면 문구 글상자)을 선택해 직접 복사하게 한다.
  */
 export function SendToClientBanner({
   link,
@@ -79,24 +80,25 @@ export function SendToClientBanner({
         <span className="sendToClientIcon" aria-hidden="true"><Send size={18} /></span>
         <div>
           <h2 id="send-to-client-title">일감을 저장했어요. 이제 고객에게 보내세요</h2>
-          <p>고객은 이 링크에서 로그인 없이 수정 요청을 남기고, 남은 횟수를 바로 봐요.</p>
         </div>
         <button type="button" className="iconButton sendToClientClose" onClick={onDismiss} aria-label="고객에게 보내기 안내 닫기">
           <X size={18} />
         </button>
       </div>
 
-      <label className="sendToClientLink">
-        <span>고객 수정 요청 링크</span>
-        <input
-          ref={linkInputRef}
-          readOnly
-          value={link}
-          onFocus={(event) => event.currentTarget.select()}
-          aria-describedby={copyFailed === "link" ? "send-to-client-copy-failed" : undefined}
-          data-testid="send-to-client-link"
-        />
-      </label>
+      {copyFailed === "link" && (
+        <label className="sendToClientLink">
+          <span>고객 수정 요청 링크</span>
+          <input
+            ref={linkInputRef}
+            readOnly
+            value={link}
+            onFocus={(event) => event.currentTarget.select()}
+            aria-describedby="send-to-client-copy-failed"
+            data-testid="send-to-client-link"
+          />
+        </label>
+      )}
 
       <div className="sendToClientActions">
         <button type="button" className="primaryButton" onClick={() => copy("message")} disabled={!ready} data-testid="send-copy-message">

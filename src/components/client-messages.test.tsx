@@ -47,6 +47,16 @@ describe("고객에게 보낼 말", () => {
     expect(screen.getByTestId("client-message-preview")).toHaveTextContent("[보내 주실 자료] - 로고 파일");
   });
 
+  it("'문구 복사'는 구획 머리 오른쪽에 있어 머리가 보이면 복사도 보인다", () => {
+    render(<ClientMessages job={job()} link={LINK} today={TODAY} />);
+    const copy = screen.getByTestId("client-message-copy");
+    const headingRow = screen.getByRole("heading", { name: "고객에게 보낼 말" }).closest(".sectionHeadingRow");
+    expect(headingRow).toContainElement(copy);
+    // 칩·말풍선보다 앞에 둔다.
+    expect(copy.compareDocumentPosition(screen.getByRole("group", { name: "보낼 상황" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(copy.compareDocumentPosition(screen.getByTestId("client-message-preview")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("칩을 누르면 미리보기가 바뀐다", () => {
     render(<ClientMessages job={job()} link={LINK} today={TODAY} />);
     fireEvent.click(screen.getByTestId("client-message-chip-start"));

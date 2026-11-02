@@ -125,8 +125,9 @@ test.describe("로그인 뒤 화면", () => {
     await page.locator(".portalLinkSection > small").evaluate((element) => { (element as HTMLElement).style.display = "none"; });
     await page.locator("[data-testid=send-to-client-banner] [data-local-only]").evaluate((element) => { (element as HTMLElement).style.display = "none"; });
     // 캡처 서버 주소(127.0.0.1) 대신 실제 서비스 주소 형태로 보여 준다. 토큰은 가짜 예시 값 그대로다.
-    await page.getByTestId("send-to-client-link").evaluate((element: HTMLInputElement) => {
-      element.value = element.value.replace(/^https?:\/\/[^/]+/, "https://ilgam.studioyeolmae.com");
+    // 띠에는 주소 칸이 없어졌으니(복사가 막혔을 때만 보임) 말풍선 문구 안의 주소를 바꾼다.
+    await page.getByTestId("send-message-preview").evaluate((element) => {
+      element.textContent = (element.textContent ?? "").replace(/https?:\/\/[^/\s]+/g, "https://ilgam.studioyeolmae.com");
     });
     await scrollToSection(page, "[data-testid=send-to-client-banner]");
     await save(page, "04-send-link");

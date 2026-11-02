@@ -46,10 +46,14 @@ export function ClientMessages({ job, link, today }: { job: Job; link: string | 
 
   return (
     <section className="contentSection clientMessagesSection" aria-labelledby="client-messages-title" data-testid="client-messages">
+      {/* 복사 버튼은 구획 머리 오른쪽(같은 화면의 다른 구획과 같은 자리). 머리가 보이면 복사도 보인다. */}
       <div className="sectionHeadingRow">
         <div>
           <h2 id="client-messages-title">고객에게 보낼 말</h2>
         </div>
+        <button type="button" className="compactButton emphasized clientMessageCopy" onClick={copy} data-testid="client-message-copy">
+          {copyState === "copied" ? <Check size={15} /> : <Copy size={15} />} {copyState === "copied" ? "복사했어요" : "문구 복사"}
+        </button>
       </div>
       <div className="clientMessageChips" role="group" aria-label="보낼 상황">
         {situations.map((item) => (
@@ -88,9 +92,6 @@ export function ClientMessages({ job, link, today }: { job: Job; link: string | 
           {message}
         </div>
       )}
-      <button type="button" className="compactButton emphasized clientMessageCopy" onClick={copy} data-testid="client-message-copy">
-        {copyState === "copied" ? <Check size={15} /> : <Copy size={15} />} {copyState === "copied" ? "복사했어요" : "문구 복사"}
-      </button>
     </section>
   );
 }

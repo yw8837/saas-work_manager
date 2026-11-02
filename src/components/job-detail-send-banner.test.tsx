@@ -53,11 +53,23 @@ describe("일감 저장 직후 상세", () => {
   it("?created=1이면 헤더 바로 아래에 보내기 안내를 띄우고 실제 고객 링크를 담는다", () => {
     renderAt("https://ilgam.example/jobs/job_send?created=1");
     const banner = screen.getByTestId("send-to-client-banner");
-    expect(screen.getByTestId("send-to-client-link")).toHaveValue("https://ilgam.example/r/token_send");
+    // 주소 칸은 빼고(복사가 막혔을 때만 보임) 문구와 미리보기에 실제 링크를 담는다.
+    expect(screen.queryByTestId("send-to-client-link")).not.toBeInTheDocument();
+    expect(screen.getByTestId("send-preview")).toHaveAttribute("href", "https://ilgam.example/r/token_send");
+    expect(screen.getByTestId("send-message-preview")).toHaveTextContent("https://ilgam.example/r/token_send");
     // 모바일에서도 첫 화면에 보이도록 핵심 정보 띠보다 앞에 둔다.
     const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
     expect(banner.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByTestId("send-copy-link")).toBeEnabled();
+  });
+
+  it("안내 띠가 열려 있으면 보낼 문구가 두 벌 보이지 않게 '고객에게 보낼 말' 구획을 숨기고, 닫으면 보인다", () => {
+    renderAt("https://ilgam.example/jobs/job_send?created=1");
+    expect(screen.getByTestId("send-to-client-banner")).toBeInTheDocument();
+    expect(screen.queryByTestId("client-messages")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("client-message-copy")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "고객에게 보내기 안내 닫기" }));
+    expect(screen.getByTestId("client-messages")).toBeInTheDocument();
   });
 
   it("체크리스트에서 온 ?send=1도 같은 안내를 띄운다", () => {
