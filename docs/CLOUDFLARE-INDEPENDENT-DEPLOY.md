@@ -8,6 +8,7 @@
 - PR #23(`57a4eff`)으로 운영 bootstrap 플래그 모순을 고쳤다. 운영 Worker `ilgamcheck`에 Supabase 서버 키를 Worker secret으로 등록하고 가입 켬으로 최종 배포했다(버전 `7ce18edc-57ae-41d1-ad6c-2028584d545e`). 운영 및 Preview Worker는 별개다.
 - 비공개 원본 백업 `D:/SaaS/01_일감체크/스테이션/회의록/2026-11-01-studioyeolmae-DNS-원본.md`의 28개 레코드를 Cloudflare zone과 대조했다. 네임서버를 Cloudflare로 전환한 뒤 `ilgam` Sites CNAME 한 건만 제거하고 Worker Custom Domain으로 연결했다. 다른 호스트와 Daum MX는 보존했다. 전환 직후 `npm run smoke:remote -- https://ilgam.studioyeolmae.com` 통과, 기존 Google 계정의 `/today` 복귀·계정 저장·실시간 연결·누적 일감 1건 표시 확인. 단, 일감 생성·고객 요청 쓰기 및 모바일 실기기 검증은 아직이다.
 - PR #21의 DB migration과 신청 기능은 독립 배포 경로와 별개의 운영 관문이다. 검증 전에는 함께 배포하지 않는다.
+- Worker 진입 파일은 `custom-worker.ts`다(2026-11-03). OpenNext가 만든 `.open-next/worker.js`의 fetch 처리기를 감싸 HTML 응답에 `Cache-Control: no-transform`을 붙이고 압축 방식(br, 안 되면 gzip)을 정한다. 운영 주소에 우리 계정에 없는 Cloudflare 분석 스크립트가 끼워져 CSP에 막히던 것을 막기 위해서다(`src/lib/security/html-delivery.ts`). `wrangler.jsonc`의 `main`을 `.open-next/worker.js`로 되돌리면 이 보호가 빠진다.
 
 ## Claude가 독립적으로 수정·배포하는 순서
 

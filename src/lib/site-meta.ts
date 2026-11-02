@@ -43,7 +43,7 @@ export const SITE_TWITTER = {
 /**
  * 검색 등록 소유 확인 값. 페이지에 그대로 공개되는 메타 태그라 비밀이 아니다.
  * google: Search Console 'URL 접두어' 속성 https://ilgam.studioyeolmae.com/ (2026-11-02 등록).
- * 네이버·Bing 값을 받으면 `other`에 더한다.
+ * Bing은 Search Console 가져오기로 확인돼 값이 필요 없다(2026-11-03). 네이버 값을 받으면 `other`에 더한다.
  */
 export const SITE_VERIFICATION = {
   google: "UXU-m-sHhK9ieaTSVBB9l6gzZgAdUwdineCgXQjQa5g",
