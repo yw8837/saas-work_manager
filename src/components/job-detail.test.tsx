@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
@@ -47,6 +47,8 @@ const cancelAddonSpy = vi.fn();
 const createAddonSpy = vi.fn();
 const confirmAddonSpy = vi.fn();
 const setJobSourceSpy = vi.fn();
+const completeJobSpy = vi.fn();
+const setPortalSpy = vi.fn();
 
 function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted"; settings?: { minMarginPerJob?: number } } = {}) {
   vi.mocked(useWorkspace).mockReturnValue({
@@ -58,9 +60,9 @@ function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hoste
     toggleTask: vi.fn(),
     toggleIntake: toggleIntakeSpy,
     toggleJobWaiting: vi.fn(),
-    completeJob: vi.fn(),
+    completeJob: completeJobSpy,
     deleteJob: vi.fn(),
-    setRevisionPortalEnabled: vi.fn(),
+    setRevisionPortalEnabled: setPortalSpy,
     rotateRevisionPortalToken: vi.fn(),
     recordRevision: recordRevisionSpy,
     revertRevision: revertRevisionSpy,
@@ -86,6 +88,116 @@ beforeEach(() => {
   createAddonSpy.mockReset();
   confirmAddonSpy.mockReset();
   setJobSourceSpy.mockReset();
+  completeJobSpy.mockReset();
+  setPortalSpy.mockReset();
+});
+
+/** 제공자가 상태를 바꾼 뒤의 화면: 같은 동작 함수에 일감만 바꿔 다시 그린다. */
+function showUpdated(view: ReturnType<typeof render>, job: ReturnType<typeof baseJob>) {
+  const current = vi.mocked(useWorkspace).mock.results.at(-1)!.value as ReturnType<typeof useWorkspace>;
+  vi.mocked(useWorkspace).mockReturnValue({ ...current, jobs: [job] });
+  view.rerender(<JobDetail jobId={job.id} />);
+}
+
+describe("JobDetail 하단 바 '일감 완료'", () => {
+  it("버튼은 바와 구분되는 흰 바탕이고, 휴대폰에서도 '일감 완료'라고 대상을 말한다", () => {
+    renderDetail();
+    const button = screen.getByTestId("complete-job");
+    expect(button).toHaveClass("invertedButton");
+    expect(button).not.toHaveClass("primaryButton");
+    expect(within(button).getByText("일감 완료")).toHaveClass("buttonLabelMobile");
+  });
+
+  it("누르면 바로 완료하고 화면 아래 '되돌리기' 알림을 띄우며, 되돌리면 고객 링크도 다시 연다", () => {
+    const view = renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+    expect(completeJobSpy).toHaveBeenCalledWith("job_detail");
+    const toast = screen.getByTestId("job-toast");
+    expect(toast).toHaveAttribute("role", "status");
+    expect(toast).toHaveTextContent("일감을 완료했어요. 고객 링크도 닫혔어요.");
+
+    // 제공자는 완료하면서 링크를 닫는다.
+    showUpdated(view, { ...toggleJobCompletion(baseJob(), "2026-08-02T00:00:00.000Z"), revisionPortalEnabled: false });
+    fireEvent.click(within(screen.getByTestId("job-toast")).getByRole("button", { name: "되돌리기" }));
+    expect(completeJobSpy).toHaveBeenCalledTimes(2);
+    expect(completeJobSpy).toHaveBeenLastCalledWith("job_detail");
+    expect(setPortalSpy).toHaveBeenCalledWith("job_detail", true);
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("링크를 꺼 둔 일감은 링크 말을 빼고, 되돌려도 링크를 켜지 않는다", () => {
+    const off = { ...baseJob(), revisionPortalEnabled: false };
+    const view = renderDetail(off);
+    fireEvent.click(screen.getByTestId("complete-job"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("일감을 완료했어요.");
+    expect(screen.getByTestId("job-toast")).not.toHaveTextContent("고객 링크");
+    showUpdated(view, toggleJobCompletion(off, "2026-08-02T00:00:00.000Z"));
+    fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(completeJobSpy).toHaveBeenCalledTimes(2);
+    expect(setPortalSpy).not.toHaveBeenCalled();
+  });
+
+  it("이미 다시 진행한 뒤에는 알림의 '되돌리기'가 일감을 또 바꾸지 않는다", () => {
+    const view = renderDetail();
+    fireEvent.click(screen.getByTestId("complete-job"));
+    // 알림이 떠 있는 동안 다른 길(다른 기기 등)로 이미 다시 진행 중이 됐다.
+    showUpdated(view, baseJob());
+    fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(completeJobSpy).toHaveBeenCalledTimes(1);
+    expect(setPortalSpy).not.toHaveBeenCalled();
+  });
+
+  it("완료한 일감은 '다시 진행'으로 보이고 누르면 알림 없이 다시 진행한다", () => {
+    renderDetail(toggleJobCompletion(baseJob(), "2026-08-02T00:00:00.000Z"));
+    const button = screen.getByTestId("complete-job");
+    expect(within(button).getByText("다시 진행", { selector: ".buttonLabelMobile" })).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(completeJobSpy).toHaveBeenCalledWith("job_detail");
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 처리 결과 알림", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function pendingJob() {
+    return recordRevision(baseJob(), { revisionId: "revision_toast", source: "public", body: "사진 교체", submittedAt: "2026-08-02T00:00:00.000Z" }).job;
+  }
+
+  it("처리 결과는 맨 아래 문단이 아니라 화면 아래 알림 하나로 보이고 잠시 뒤 닫힌다", () => {
+    vi.useFakeTimers();
+    renderDetail(pendingJob());
+    fireEvent.click(screen.getByTestId("complete-revision-revision_toast"));
+    const toast = screen.getByTestId("job-toast");
+    expect(toast).toHaveClass("actionToast");
+    expect(toast).toHaveAttribute("role", "status");
+    expect(toast).toHaveTextContent("수정 완료로 1회를 썼어요. 고객 링크에도 남은 횟수가 바로 반영돼요.");
+    expect(document.querySelector(".detailFeedback")).toBeNull();
+
+    // 다른 처리를 하면 알림은 하나로 바뀐다(쌓이지 않음).
+    fireEvent.click(screen.getByTestId("extra-revision-revision_toast"));
+    expect(screen.getAllByTestId("job-toast")).toHaveLength(1);
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("추가 작업으로 분류했어요.");
+
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("오류는 경고 알림으로 띄우고 닫을 때까지 둔다", () => {
+    vi.useFakeTimers();
+    completeRevisionSpy.mockImplementation(() => { throw new Error("저장하지 못했어요."); });
+    renderDetail(pendingJob());
+    fireEvent.click(screen.getByTestId("complete-revision-revision_toast"));
+    const toast = screen.getByTestId("job-toast");
+    expect(toast).toHaveAttribute("role", "alert");
+    expect(toast).toHaveTextContent("저장하지 못했어요.");
+    act(() => { vi.advanceTimersByTime(10_000); });
+    expect(screen.getByTestId("job-toast")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId("job-toast")).getByRole("button", { name: "닫기" }));
+    expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
 });
 
 describe("JobDetail 고객 수정 링크", () => {

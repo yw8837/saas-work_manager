@@ -115,9 +115,10 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 ::selection { background: #f5e9d4; color: #181d26; }
 /* WCAG 2.4.11: 3:1 이상이 필요해 반투명 링 대신 잉크색 실선을 쓴다. */
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-/* 어두운 면 위에서는 반대로 밝은 링으로 뒤집는다. */
+/* 어두운 면 위에서는 반대로 밝은 링으로 뒤집는다(일감 하단 바·새 일감 하단 바·알림 포함). */
 .sideNav :focus-visible, .revisionSection :focus-visible, .finalCta :focus-visible,
-.productSceneBody :focus-visible, .appSidebar :focus-visible { outline-color: var(--paper); }
+.productSceneBody :focus-visible, .appSidebar :focus-visible,
+.jobActionBar :focus-visible, .mobileSubmitBar :focus-visible, .actionToast :focus-visible { outline-color: var(--paper); }
 
 .srOnly {
   position: absolute !important;
@@ -1044,7 +1045,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .smallIconButton { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); color: var(--ink-soft); }
 .smallIconButton:hover { color: var(--blue); border-color: var(--blue); }
 .sectionExplain { margin: -4px 0 13px; color: var(--muted); font-size: 12px; }
-.detailFeedback { display: flex; align-items: center; gap: 7px; margin: 14px 0 -4px; padding: 10px 12px; color: var(--green); background: var(--green-soft); border: 1px solid #bde7d1; font-size: 12px; font-weight: 600; }
 .addonForm, .linkEditor { display: grid; gap: 10px; padding: 13px; margin-bottom: 12px; background: var(--canvas); border: 1px solid var(--line); }
 .addonForm label, .optionEffectFields label, .optionRemoveField { display: grid; gap: 5px; }
 .addonForm label > span, .optionEffectFields label > span, .optionRemoveField > span { color: var(--ink-soft); font-size: 11px; font-weight: 600; }
@@ -1454,7 +1454,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .catalogTaskRow label span { top: 12px; font-size: 12px; }
 .catalogListHead .smallIconButton { width: 44px; height: 44px; }
 @media (max-width: 760px) {
-  .pageSurface :is(.compactButton, .textButton, .effectToggle button, .linkPresetButtons button) { min-height: 44px; }
+  .pageSurface :is(.compactButton, .textButton, .textOnlyButton, .effectToggle button, .linkPresetButtons button) { min-height: 44px; }
   .catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 86px 44px; gap: 6px; }
   .firstJobGuide { padding: 24px 20px; }
   .firstJobGuide > .primaryButton { width: 100%; }
@@ -1757,4 +1757,23 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 @media (max-width: 760px) {
   .summaryTotals dd { font-size: 23px; }
   .summaryDownloads > .secondaryButton { flex: 1 1 100%; }
+}
+
+/* ============================================================
+   디자인 감사 꼭 고칠 것(작업 8.7, research-2026-11-02/design-review.md 0.2절).
+   새 색은 없다. 체리는 쓰지 않는다.
+   ============================================================ */
+/* 5. 일감 화면 처리 결과 알림: 하단 행동 바 위에 하나만 띄운다. 되돌리기·닫기도 손가락 크기. */
+.jobDetailPage .actionToast { bottom: 84px; max-width: min(520px, calc(100vw - 56px)); }
+.jobDetailPage .actionToast > svg { flex: none; }
+.jobDetailPage .actionToast > span { min-width: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.jobDetailPage .actionToast button { flex: none; min-height: 44px; margin-left: auto; padding: 0 10px; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 760px) {
+  /* 하단 탭(70px) + 하단 행동 바(66px) + 8px 위 */
+  .jobDetailPage .actionToast { bottom: calc(144px + env(safe-area-inset-bottom, 0px)); max-width: none; }
+  /* 10. '반려·되돌리기' 글 버튼은 44px, 옆 버튼과 8px. 프로필 버튼은 보이는 원(33px)은 두고 누르는 영역만 45px. */
+  .revisionRowActions { gap: 8px; }
+  .revisionRowActions .revisionRevertButton { min-height: 44px; min-width: 44px; padding-inline: 8px; font-size: 13px; }
+  .avatarButton { position: relative; }
+  .avatarButton::after { content: ""; position: absolute; inset: -6px; }
 }

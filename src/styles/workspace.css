@@ -228,11 +228,14 @@
 .appFrame .catalogListItem[data-active="true"] { box-shadow: none; font-weight: 650; }
 .appFrame .selectedOptionSummary b { background: #e5e5e9; }
 .appFrame .jobActionBar { background: #242426; box-shadow: none; }
+/* 하단 행동 바: 주 버튼(일감 완료)만 흰 바탕, 나머지는 흰 테두리 버튼으로 위계를 보인다(감사 1번). */
+.appFrame .jobActionBar .quietButton { color: #fff; background: transparent; border-color: rgb(255 255 255 / 55%); }
+.appFrame .jobActionBar .quietButton:hover { background: rgb(255 255 255 / 10%); border-color: #fff; }
 .appFrame :is(.actionToast, .mobileSubmitBar) { background: #242426; }
 .appFrame :is(.actionToast button, .mobileSubmitBar span) { color: #d1d1d6; }
 .appFrame .mobileSubmitBar .primaryButton { color: var(--ink); background: #fff; }
 .appFrame .mobileSubmitBar .primaryButton:hover { background: #ededf0; }
-.appFrame :is(.detailFeedback, .catalogSaved, .authFeedback.success, .permissionBadge, .permissionBadge.allowed) { border-color: var(--line-strong); }
+.appFrame :is(.catalogSaved, .authFeedback.success, .permissionBadge, .permissionBadge.allowed) { border-color: var(--line-strong); }
 .appFrame :is(.linkManagerSection, .browserTestSection, .blockedExternalSection) { background: var(--canvas); border-color: var(--line-strong); }
 .appFrame :is(.linkShortcutGrid a, .linkPresetButtons button, .effectToggle button[data-active="true"], .catalogTabs button[data-active="true"]) { border-color: var(--line-strong); }
 .appFrame :is(.catalogListItem:hover, .catalogListItem[data-active="true"], .alertPopoverItem:hover) { background: var(--canvas); }

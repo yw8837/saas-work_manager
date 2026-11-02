@@ -127,7 +127,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [addonDays, setAddonDays] = useState("0");
   const [addonTaskTitle, setAddonTaskTitle] = useState("");
   const [addonTaskDay, setAddonTaskDay] = useState("0");
-  const [detailFeedback, setDetailFeedback] = useState("");
+  // 처리 결과는 화면 아래 알림 하나로 보인다(맨 아래 문단은 휴대폰에서 안 보임). 일감 완료만 '되돌리기'를 단다.
+  const [notice, setNotice] = useState<{ text: string; tone: "ok" | "error"; undo?: { linkWasOn: boolean } } | null>(null);
   const [sendBannerDismissed, setSendBannerDismissed] = useState(false);
   const sendBannerRequested = useMemo(() => {
     const params = new URLSearchParams(locationSearch);
@@ -156,6 +157,13 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
     return () => window.cancelAnimationFrame(frame);
   }, [revisionFocusRequest, revisionOpen]);
+
+  useEffect(() => {
+    // 오류는 읽고 닫을 때까지 두고, 처리 결과는 잠시 뒤 닫는다(되돌리기가 있으면 조금 더 길게).
+    if (!notice || notice.tone === "error") return;
+    const timer = window.setTimeout(() => setNotice(null), notice.undo ? 6000 : 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   if (!hydrated) {
     return <div className="pageSurface missingJob" role="status" aria-live="polite"><p>일감을 불러오고 있어요.</p></div>;
@@ -187,6 +195,32 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const portalSynced = runtimeMode === "local" || saveStatus === "saved";
   const currentSource = normalizeOrderSource(job.source);
   const sourceLabel = currentSource ? ORDER_SOURCE_LABELS[currentSource] : undefined;
+  const notify = (text: string) => setNotice({ text, tone: "ok" });
+  const notifyError = (error: unknown, fallback: string) =>
+    setNotice({ text: error instanceof Error ? error.message : fallback, tone: "error" });
+
+  // 일감 완료는 확인 창 없이 바로 하고, 화면 아래 알림의 '되돌리기'로 되돌린다(닫힌 고객 링크도 다시 연다).
+  const handleCompleteJob = () => {
+    if (job.status !== "active") {
+      setNotice(null);
+      completeJob(job.id);
+      return;
+    }
+    completeJob(job.id);
+    setNotice({
+      text: portalEnabled ? "일감을 완료했어요. 고객 링크도 닫혔어요." : "일감을 완료했어요.",
+      tone: "ok",
+      undo: { linkWasOn: portalEnabled },
+    });
+  };
+
+  const undoCompleteJob = (linkWasOn: boolean) => {
+    setNotice(null);
+    // 알림이 떠 있는 사이 이미 다시 진행했으면 또 바꾸지 않는다.
+    if (job.status !== "completed") return;
+    completeJob(job.id);
+    if (linkWasOn) setRevisionPortalEnabled(job.id, true);
+  };
 
   // 메신저·전화로 받은 요청을 적는다. 기본은 확인 대기, 이미 고쳤으면 '수정 완료로 기록'으로 바로 1회를 쓴다.
   const saveManualRevision = (completed: boolean) => {
@@ -196,7 +230,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       setRevisionBody("");
       setRevisionOpen(false);
     } catch (error) {
-      setDetailFeedback(error instanceof Error ? error.message : "수정 요청을 기록하지 못했어요.");
+      notifyError(error, "수정 요청을 기록하지 못했어요.");
     }
   };
 
@@ -208,18 +242,18 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const handleCompleteRevision = (revisionId: string) => {
     try {
       completeRevision(job.id, revisionId);
-      setDetailFeedback("수정 완료로 1회를 썼어요. 고객 링크에도 남은 횟수가 바로 반영돼요.");
+      notify("수정 완료로 1회를 썼어요. 고객 링크에도 남은 횟수가 바로 반영돼요.");
     } catch (error) {
-      setDetailFeedback(error instanceof Error ? error.message : "수정 완료로 처리하지 못했어요.");
+      notifyError(error, "수정 완료로 처리하지 못했어요.");
     }
   };
 
   const handleExtraScopeRevision = (revisionId: string) => {
     try {
       markRevisionExtraScope(job.id, revisionId);
-      setDetailFeedback("추가 작업으로 분류했어요. 금액·기간은 아래 추가요청에 기록하세요.");
+      notify("추가 작업으로 분류했어요. 금액·기간은 아래 추가요청에 기록하세요.");
     } catch (error) {
-      setDetailFeedback(error instanceof Error ? error.message : "추가 작업으로 분류하지 못했어요.");
+      notifyError(error, "추가 작업으로 분류하지 못했어요.");
     }
   };
 
@@ -236,7 +270,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      setDetailFeedback(`자동 복사가 막혔어요. 이 주소를 직접 복사해 주세요: ${portalLink}`);
+      setNotice({ text: `자동 복사가 막혔어요. 이 주소를 직접 복사해 주세요: ${portalLink}`, tone: "error" });
     }
   };
 
@@ -255,7 +289,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     const enabled = !job.revisionPortalEnabled;
     setRevisionPortalEnabled(job.id, enabled);
     setCopied(false);
-    setDetailFeedback(runtimeMode === "hosted"
+    notify(runtimeMode === "hosted"
       ? enabled
         ? "링크를 켜는 중이에요. 상단에 저장 완료가 표시되면 공유할 수 있어요."
         : "링크를 끄는 중이에요. 상단에 저장 완료가 표시되면 기존 주소가 폐기돼요."
@@ -271,7 +305,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     const nextToken = rotateRevisionPortalToken(job.id);
     if (!nextToken) return;
     setCopied(false);
-    setDetailFeedback(runtimeMode === "hosted"
+    notify(runtimeMode === "hosted"
       ? "새 링크를 저장 중이에요. 상단에 저장 완료가 표시되면 기존 주소가 폐기돼요."
       : "새 수정 링크를 발급했어요. 기존 주소는 폐기됐어요.");
   };
@@ -279,7 +313,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const openLinkEditor = () => {
     setLinkDrafts(job.links.map((link) => ({ ...link })));
     setLinkError("");
-    setDetailFeedback("");
+    setNotice(null);
     setLinkEditorOpen(true);
   };
 
@@ -307,7 +341,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     }
     updateJobLinks(job.id, links);
     setLinkEditorOpen(false);
-    setDetailFeedback("작업 링크를 반영했어요. 저장 여부는 상단에서 확인해 주세요.");
+    notify("작업 링크를 반영했어요. 저장 여부는 상단에서 확인해 주세요.");
   };
 
   const submitRevert = (event: FormEvent<HTMLFormElement>) => {
@@ -319,13 +353,13 @@ export function JobDetail({ jobId }: { jobId: string }) {
       setRevertTargetId(null);
       setRevertReason("");
       // 횟수가 돌아오는 것은 '수정 완료'로 센(used) 요청뿐이다. 추가 작업 요청은 원래 횟수를 쓰지 않았다.
-      setDetailFeedback(usage === "pending"
+      notify(usage === "pending"
         ? "요청을 반려했어요. 원문은 남기고 횟수는 쓰지 않았어요."
         : usage === "used"
           ? "수정 요청을 되돌렸어요. 원문은 그대로 두고 사용 횟수에서 뺐어요."
           : "추가 작업 요청을 되돌렸어요. 원문은 그대로 두었고 남은 횟수는 바뀌지 않아요.");
     } catch (error) {
-      setDetailFeedback(error instanceof Error ? error.message : "수정 요청을 되돌리지 못했어요.");
+      notifyError(error, "수정 요청을 되돌리지 못했어요.");
     }
   };
 
@@ -334,9 +368,9 @@ export function JobDetail({ jobId }: { jobId: string }) {
     if (job.status !== "active") return;
     try {
       confirmAddon(job.id, addonId);
-      setDetailFeedback("추가요청을 확정해 합계·마감·할 일에 반영했어요.");
+      notify("추가요청을 확정해 합계·마감·할 일에 반영했어요.");
     } catch (error) {
-      setDetailFeedback(error instanceof Error ? error.message : "추가요청을 확정하지 못했어요.");
+      notifyError(error, "추가요청을 확정하지 못했어요.");
     }
   };
 
@@ -349,11 +383,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
     }
     try {
       cancelAddon(job.id, addonId);
-      setDetailFeedback(confirmed
+      notify(confirmed
         ? "추가요청을 취소했어요. 금액·원가·마감은 확정 전으로 돌아갔고, 이미 처리한 할 일은 그대로 남았어요."
         : "추가요청 초안을 취소했어요. 기록은 그대로 남아요.");
     } catch (error) {
-      setDetailFeedback(error instanceof Error ? error.message : "추가요청을 취소하지 못했어요.");
+      notifyError(error, "추가요청을 취소하지 못했어요.");
     }
   };
 
@@ -377,9 +411,9 @@ export function JobDetail({ jobId }: { jobId: string }) {
       setAddonTaskTitle("");
       setAddonTaskDay("0");
       setAddonOpen(false);
-      setDetailFeedback("추가요청 초안을 만들었어요. 확정 전에는 합계에 반영되지 않아요.");
+      notify("추가요청 초안을 만들었어요. 확정 전에는 합계에 반영되지 않아요.");
     } catch (error) {
-      setDetailFeedback(error instanceof Error ? error.message : "추가요청을 저장하지 못했어요.");
+      notifyError(error, "추가요청을 저장하지 못했어요.");
     }
   };
 
@@ -924,8 +958,6 @@ export function JobDetail({ jobId }: { jobId: string }) {
         </aside>
       </div>
 
-      {detailFeedback && <div className="detailFeedback" role="status"><Check size={15} /> {detailFeedback}</div>}
-
       <div className="jobActionBar">
         <div className="actionBarInfo">
           <span className={delayed ? "actionBarStatus delayed" : "actionBarStatus"}><Clock3 size={15} /> {getDday(job.dueDate)}</span>
@@ -953,13 +985,27 @@ export function JobDetail({ jobId }: { jobId: string }) {
             <span className="buttonLabelDesktop">수정 기록</span>
             <span className="buttonLabelMobile">수정</span>
           </button>
-          <button type="button" className="primaryButton" onClick={() => completeJob(job.id)} data-testid="complete-job" aria-label={job.status === "completed" ? "다시 진행" : "일감 완료하기"}>
+          {/* 어두운 바 위 주 버튼은 흰 바탕으로 뒤집어 바와 구분한다. 할 일 하나가 아니라 일감 전체를 끝낸다고 휴대폰에서도 말한다. */}
+          <button type="button" className="invertedButton" onClick={handleCompleteJob} data-testid="complete-job" aria-label={job.status === "completed" ? "다시 진행" : "일감 완료하기"}>
             {job.status === "completed" ? <Undo2 size={17} /> : <CheckCircle2 size={17} />}
             <span className="buttonLabelDesktop">{job.status === "completed" ? "다시 진행" : "일감 완료하기"}</span>
-            <span className="buttonLabelMobile">{job.status === "completed" ? "재진행" : "완료"}</span>
+            <span className="buttonLabelMobile">{job.status === "completed" ? "다시 진행" : "일감 완료"}</span>
           </button>
         </div>
       </div>
+
+      {/* 하단 바 바로 뒤에 둬서 '일감 완료' 다음 Tab이 '되돌리기'로 간다. 동작은 하나만(되돌리기 또는 닫기). */}
+      {notice && (
+        <div className="actionToast" role={notice.tone === "error" ? "alert" : "status"} data-tone={notice.tone} data-testid="job-toast">
+          {notice.tone === "error" ? <CircleAlert size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
+          <span>{notice.text}</span>
+          {notice.undo ? (
+            <button type="button" onClick={() => undoCompleteJob(notice.undo!.linkWasOn)}>되돌리기</button>
+          ) : (
+            <button type="button" onClick={() => setNotice(null)}>닫기</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
