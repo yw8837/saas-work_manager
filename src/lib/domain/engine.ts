@@ -16,6 +16,7 @@ import type {
   TaskTemplate,
 } from "./types";
 import { normalizeOrderSource } from "./order-source";
+import { jobFeeRate, marginAfterFee, normalizeFeeRate } from "./platform-fee";
 
 export class DomainValidationError extends Error {
   constructor(
@@ -403,6 +404,7 @@ export function composeJob(input: ComposeJobInput): Job {
   const intakeLabels = normalizeIntakeLabels(input.package.intakeItems);
   const briefQuestions = normalizeBriefQuestions(input.package.briefQuestions);
   const source = normalizeOrderSource(input.source);
+  const feeRate = normalizeFeeRate(input.feeRate);
 
   return {
     ...(intakeLabels.length > 0
@@ -412,6 +414,7 @@ export function composeJob(input: ComposeJobInput): Job {
       ? { briefQuestions: briefQuestions.map((question, index) => ({ id: `${jobId}_brief_${index + 1}`, question })) }
       : {}),
     ...(source ? { source } : {}),
+    ...(feeRate > 0 ? { feeRate } : {}),
     id: jobId,
     clientLabel: input.clientLabel.trim(),
     title: input.title?.trim() || `${input.clientLabel.trim()} · ${input.package.name}`,
@@ -424,7 +427,7 @@ export function composeJob(input: ComposeJobInput): Job {
     optionSnapshots: options.map(cloneOption),
     amount,
     estimatedCost,
-    margin: amount - estimatedCost,
+    margin: marginAfterFee(amount, estimatedCost, feeRate),
     revisionLimit,
     tasks: composeTasks(jobId, input.startDate, input.package, options, durationDays),
     revisions: [],
@@ -681,7 +684,7 @@ export function confirmAddon(job: Job, addonId: string, confirmedAt = new Date()
     ...job,
     amount: nextAmount,
     estimatedCost: nextEstimatedCost,
-    margin: nextAmount - nextEstimatedCost,
+    margin: marginAfterFee(nextAmount, nextEstimatedCost, jobFeeRate(job)),
     calculatedDueDate: nextDueDate,
     dueDate: nextDueDate,
     tasks: [...shiftDeadlineTasks(job, addon.durationDaysDelta), ...addonTasks],
@@ -723,7 +726,7 @@ export function cancelAddon(job: Job, addonId: string, cancelledAt = new Date().
     ...job,
     amount: nextAmount,
     estimatedCost: nextEstimatedCost,
-    margin: nextAmount - nextEstimatedCost,
+    margin: marginAfterFee(nextAmount, nextEstimatedCost, jobFeeRate(job)),
     calculatedDueDate: shiftCalendarDays(job.calculatedDueDate, -addon.durationDaysDelta),
     dueDate: shiftCalendarDays(job.dueDate, -addon.durationDaysDelta),
     // 범위를 취소해도 "이미 손댄 일"의 기록은 지우지 않는다.

@@ -9,6 +9,7 @@ import {
 } from "./monthly";
 
 const TZ = "Asia/Seoul";
+const CSV_HEADER = "완료일,고객,일감,받은 곳,주문 금액(추가요청 포함),추가요청 금액,수수료(원),수수료 뺀 금액,예상 원가,남는 돈(예상),시작일,마감일";
 
 const basicPackage: PackageTemplate = {
   id: "pkg_basic",
@@ -94,11 +95,11 @@ describe("월별 정리", () => {
     const summary = monthlySummary(jobs, "2026-11", TZ);
 
     expect(summary.month).toBe("2026-11");
-    expect(summary.totals).toEqual({ amount: 2_880_000, estimatedCost: 325_000, margin: 2_555_000, count: 4 });
+    expect(summary.totals).toEqual({ amount: 2_880_000, fee: 0, netAmount: 2_880_000, estimatedCost: 325_000, margin: 2_555_000, count: 4 });
     expect(summary.bySource).toEqual([
-      { source: "kmong", label: "크몽", amount: 2_080_000, count: 2 },
-      { source: "referral", label: "소개", amount: 500_000, count: 1 },
-      { source: "none", label: "받은 곳 없음", amount: 300_000, count: 1 },
+      { source: "kmong", label: "크몽", amount: 2_080_000, fee: 0, netAmount: 2_080_000, count: 2 },
+      { source: "referral", label: "소개", amount: 500_000, fee: 0, netAmount: 500_000, count: 1 },
+      { source: "none", label: "받은 곳 없음", amount: 300_000, fee: 0, netAmount: 300_000, count: 1 },
     ]);
     expect(summary.inProgress).toEqual({ amount: 1_780_000, count: 2 });
     // 목록은 늦게 완료한 것부터.
@@ -107,7 +108,7 @@ describe("월별 정리", () => {
 
   it("완료한 일감이 없는 달은 0으로 비어 있다", () => {
     const summary = monthlySummary([makeJob("a1", { status: "active" })], "2026-11", TZ);
-    expect(summary.totals).toEqual({ amount: 0, estimatedCost: 0, margin: 0, count: 0 });
+    expect(summary.totals).toEqual({ amount: 0, fee: 0, netAmount: 0, estimatedCost: 0, margin: 0, count: 0 });
     expect(summary.bySource).toEqual([]);
     expect(summary.rows).toEqual([]);
     expect(summary.inProgress.count).toBe(1);
@@ -134,8 +135,8 @@ describe("월별 정리", () => {
     const csv = summaryCsv(jobs, { kind: "month", month: "2026-11" }, TZ);
 
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    // 무슨 금액인지 열 이름에 밝힌다(주문 금액·예상 원가·남는 돈(예상)).
-    expect(csv.slice(1).startsWith("완료일,고객,일감,받은 곳,패키지,주문 금액,예상 원가,남는 돈(예상),시작일,마감일\r\n")).toBe(true);
+    // 무슨 금액인지 열 이름에 밝힌다. '일감'과 '패키지'가 같은 값으로 두 번 나오지 않게 한 열로 합쳤다.
+    expect(csv.slice(1).startsWith(`${CSV_HEADER}\r\n`)).toBe(true);
     // 줄바꿈은 CRLF. 따옴표 밖에 맨 LF가 없다(글 칸 안 줄바꿈은 따옴표 안에 남는다).
     const outsideQuotes = csv.replace(/"(?:[^"]|"")*"/g, "");
     expect(outsideQuotes).toContain("\r\n");
@@ -144,16 +145,16 @@ describe("월별 정리", () => {
 
     expect(csv).toContain("\"'=SUM(A1)\"");
     expect(csv).toContain("\"카페 \"\"모라\"\", 2호점\"");
-    expect(csv).toContain("\"메뉴판\n리뉴얼\"");
+    expect(csv).toContain("\"메뉴판\n리뉴얼 (Basic 홈페이지)\"");
     expect(csv).toContain("\"'+82 고객\"");
-    expect(csv).toContain("\"'-할인 @이벤트\"");
+    expect(csv).toContain("\"'-할인 @이벤트 (Basic 홈페이지)\"");
     expect(csv).toContain("\"'@모라\"");
     // 숫자 칸은 따옴표 없이 숫자로 둔다. 손해(음수)도 수식이 아니라 숫자다.
-    expect(csv).toContain(",300000,310000,-10000,");
+    expect(csv).toContain(",300000,0,0,300000,310000,-10000,");
 
     const lines = csv.slice(1).split("\r\n");
     expect(lines[1]).toBe(
-      "\"2026-11-03\",\"'=SUM(A1)\",\"Basic 홈페이지\",\"크몽\",\"Basic 홈페이지\",790000,95000,695000,\"2026-10-27\",\"2026-11-03\"",
+      "\"2026-11-03\",\"'=SUM(A1)\",\"Basic 홈페이지\",\"크몽\",790000,0,0,790000,95000,695000,\"2026-10-27\",\"2026-11-03\"",
     );
     // 링크 토큰·수정 요청 내용은 넣지 않는다.
     expect(csv).not.toContain("secret-portal-token");
@@ -175,6 +176,53 @@ describe("월별 정리", () => {
     ]);
     expect(rowsOf(summaryCsv(jobs, { kind: "month", month: "2025-12" }, TZ))).toEqual(["\"2025-12-31\""]);
     expect(rowsOf(summaryCsv(jobs, { kind: "month", month: "2026-09" }, TZ))).toEqual([]);
+  });
+
+  it("수수료를 뗀 일감은 합계·받은 곳별에 수수료 뺀 금액을 내고, 남는 돈(예상)도 수수료까지 뺀다", () => {
+    const jobs = [
+      completed("k1", "2026-11-02T01:00:00Z", { source: "kmong", amount: 1_410_000, estimatedCost: 95_000, feeRate: 20 }),
+      completed("k2", "2026-11-03T01:00:00Z", { source: "kmong", amount: 500_000, estimatedCost: 0, feeRate: 15.5 }),
+      // 비율이 없는 예전 일감은 0으로 본다.
+      completed("r1", "2026-11-10T01:00:00Z", { source: "referral", amount: 500_000, estimatedCost: 50_000 }),
+    ];
+
+    const summary = monthlySummary(jobs, "2026-11", TZ);
+
+    expect(summary.totals).toEqual({
+      amount: 2_410_000, fee: 282_000 + 77_500, netAmount: 2_410_000 - 359_500,
+      estimatedCost: 145_000, margin: 2_410_000 - 359_500 - 145_000, count: 3,
+    });
+    expect(summary.bySource).toEqual([
+      { source: "kmong", label: "크몽", amount: 1_910_000, fee: 359_500, netAmount: 1_550_500, count: 2 },
+      { source: "referral", label: "소개", amount: 500_000, fee: 0, netAmount: 500_000, count: 1 },
+    ]);
+  });
+
+  it("CSV에 수수료(원)·수수료 뺀 금액·확정한 추가요청 금액을 넣고, 일감 이름이 패키지와 다르면 괄호로 붙인다", () => {
+    const addons: Job["addons"] = [
+      { id: "a1", jobId: "fee", title: "페이지 추가", amountDelta: 100_000, estimatedCostDelta: 0, durationDaysDelta: 0, tasks: [], status: "confirmed", createdAt: "2026-11-02T00:00:00Z", confirmedAt: "2026-11-02T01:00:00Z" },
+      { id: "a2", jobId: "fee", title: "초안", amountDelta: 50_000, estimatedCostDelta: 0, durationDaysDelta: 0, tasks: [], status: "draft", createdAt: "2026-11-02T00:00:00Z" },
+      { id: "a3", jobId: "fee", title: "취소", amountDelta: 70_000, estimatedCostDelta: 0, durationDaysDelta: 0, tasks: [], status: "cancelled", createdAt: "2026-11-02T00:00:00Z", cancelledAt: "2026-11-02T02:00:00Z" },
+    ];
+    const jobs = [
+      completed("fee", "2026-11-03T01:00:00Z", {
+        clientLabel: "카페 모라", title: "카페 모라 · Basic 홈페이지", source: "kmong",
+        amount: 1_510_000, estimatedCost: 95_000, feeRate: 20, addons, startDate: "2026-11-03", dueDate: "2026-11-10",
+      }),
+      completed("named", "2026-11-04T01:00:00Z", { clientLabel: "모라", title: "로고 리뉴얼", amount: 300_000, estimatedCost: 0 }),
+    ];
+
+    const lines = summaryCsv(jobs, { kind: "month", month: "2026-11" }, TZ).slice(1).split("\r\n");
+
+    expect(lines[0]).toBe(CSV_HEADER);
+    expect(lines[1]).toBe(
+      "\"2026-11-03\",\"카페 모라\",\"Basic 홈페이지\",\"크몽\",1510000,100000,302000,1208000,95000,1113000,\"2026-11-03\",\"2026-11-10\"",
+    );
+    expect(lines[2]).toBe(
+      "\"2026-11-04\",\"모라\",\"로고 리뉴얼 (Basic 홈페이지)\",\"\",300000,0,0,300000,0,300000,\"2026-11-01\",\"2026-11-08\"",
+    );
+    // 같은 이름이 한 줄에 두 번 나오지 않는다(예전: "Basic 홈페이지","크몽","Basic 홈페이지").
+    expect(lines[1].split("Basic 홈페이지").length - 1).toBe(1);
   });
 
   it("파일 이름과 달 옮기기", () => {

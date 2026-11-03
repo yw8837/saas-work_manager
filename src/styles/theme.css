@@ -1862,3 +1862,22 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .workflowSection .workflowInner { grid-template-columns: 1fr; gap: 28px; }
 }
 .flowAutoTag { margin-right: 2px; color: var(--blue); font-weight: 650; }
+
+/* 받은 곳별 떼이는 비율(설정)과 '수수료 빼고 받는 돈' 줄 */
+.feeRateGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px 14px; padding-top: 10px; border-top: 1px solid #edf0f4; }
+.feeRateField { display: grid; gap: 4px; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+.feeRateInput { display: flex; align-items: center; gap: 6px; }
+.feeRateInput input { width: 100%; max-width: 96px; min-height: 44px; padding: 0 8px; text-align: right; font-variant-numeric: tabular-nums; }
+.feeRateInput input[aria-invalid="true"] { border-color: var(--red); }
+.feeRateError { color: var(--red); font-size: 12px; font-weight: 600; line-height: 1.45; word-break: keep-all; }
+.feeNote { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
+.summarySourceList .summarySourceNet { grid-column: 1 / -1; margin-top: -6px; color: var(--muted); font-size: 12px; text-align: right; }
+/* 수수료 줄이 생겨 핵심 정보가 7칸이면 넓은 화면에서는 4칸씩 두 줄로 놓는다(3칸이면 마지막 줄에 한 칸만 남음). */
+@media (min-width: 1181px) {
+  .appFrame .jobFactRail:has(> div:nth-child(7)) { grid-template-columns: repeat(4, 1fr); }
+  .appFrame .jobFactRail:has(> div:nth-child(7)) > div:nth-child(4) { border-bottom: 1px solid var(--line); }
+}
+/* 휴대폰 '금액 보기'에서 수수료 줄이 생겨 금액 칸이 4개면 2칸씩 두 줄로 놓는다. */
+@media (max-width: 760px) {
+  .appFrame .jobFactRail[data-money-open="true"]:has(> div:nth-child(7)) { grid-template-columns: 1fr 1fr; }
+}

@@ -29,6 +29,7 @@ import {
 } from "@/lib/notifications";
 import { PLAN_LIMITS, PLAN_NAMES, PLAN_PRICES, TRIAL_DAYS, type Plan } from "@/lib/domain";
 import { InstallAppCard } from "./install-app-card";
+import { FeeRateSettings } from "./fee-rate-settings";
 import { useWorkspace } from "./workspace-provider";
 import { nativePlatform } from "@/lib/native/platform";
 import { NativePushSettings } from "./native-push-settings";
@@ -286,6 +287,8 @@ export function SettingsPanel() {
         </label>
         <p className="planPrice">적으면 고객 링크 맨 위에 보여요. 비워 두면 이름 없이 마감일·진행 단계·남은 수정 횟수만 보여요.</p>
       </section>
+
+      <FeeRateSettings />
 
       <div className="settingsGrid">
         <section className="contentSection settingSection">

@@ -1,5 +1,7 @@
 import {
+  confirmedAddonAmount,
   displayJobTitle,
+  jobFee,
   normalizeOrderSource,
   ORDER_SOURCE_LABELS,
   ORDER_SOURCES,
@@ -18,8 +20,9 @@ export type MonthlySummaryRow = { job: Job; completedAt: string; completedAtEsti
 
 export type MonthlySummary = {
   month: string;
-  totals: { amount: number; estimatedCost: number; margin: number; count: number };
-  bySource: Array<{ source: OrderSource | "none"; label: string; amount: number; count: number }>;
+  /** fee = 받은 곳에서 떼이는 돈(일감마다 남긴 비율), netAmount = 수수료 빼고 받는 돈, margin = 금액 − 수수료 − 예상 원가. */
+  totals: { amount: number; fee: number; netAmount: number; estimatedCost: number; margin: number; count: number };
+  bySource: Array<{ source: OrderSource | "none"; label: string; amount: number; fee: number; netAmount: number; count: number }>;
   rows: MonthlySummaryRow[];
   inProgress: { amount: number; count: number };
 };
@@ -28,8 +31,11 @@ export type SummaryCsvRange = { kind: "month"; month: string } | { kind: "year";
 
 export const NO_SOURCE_LABEL = "받은 곳 없음";
 
-/** 무슨 금액인지 열 이름에 밝힌다(주문 금액 = 주문 조건 + 확정한 추가요청, 원가·남는 돈은 예상). 화면 합계 이름과 같은 말. */
-const CSV_HEADER = "완료일,고객,일감,받은 곳,패키지,주문 금액,예상 원가,남는 돈(예상),시작일,마감일";
+/**
+ * 무슨 금액인지 열 이름에 밝힌다(주문 금액 = 주문 조건 + 확정한 추가요청, 수수료는 일감마다 남긴 비율, 원가·남는 돈은 예상).
+ * '일감'과 '패키지'는 거의 늘 같은 값이라 한 열로 합쳤다(일감 이름이 패키지와 다를 때만 괄호로 패키지를 붙임).
+ */
+const CSV_HEADER = "완료일,고객,일감,받은 곳,주문 금액(추가요청 포함),추가요청 금액,수수료(원),수수료 뺀 금액,예상 원가,남는 돈(예상),시작일,마감일";
 /** 엑셀이 수식으로 읽을 수 있는 첫 글자(OWASP CSV 주입 목록: = + - @ 탭 CR). */
 const FORMULA_START = /^[=+\-@\t\r]/;
 
@@ -85,16 +91,24 @@ function completedRows(jobs: Job[], inRange: (month: string) => boolean, timeZon
 export function monthlySummary(jobs: Job[], month: string, timeZone: string): MonthlySummary {
   const rows = completedRows(jobs, (key) => key === month, timeZone)
     .sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt));
-  const totals = { amount: 0, estimatedCost: 0, margin: 0, count: rows.length };
-  const groups = new Map<OrderSource | "none", { amount: number; count: number }>();
+  const totals = { amount: 0, fee: 0, netAmount: 0, estimatedCost: 0, margin: 0, count: rows.length };
+  const groups = new Map<OrderSource | "none", { amount: number; fee: number; netAmount: number; count: number }>();
   for (const { job } of rows) {
+    const fee = jobFee(job);
     totals.amount += job.amount;
+    totals.fee += fee;
     totals.estimatedCost += job.estimatedCost;
     const key = normalizeOrderSource(job.source) ?? "none";
-    const group = groups.get(key) ?? { amount: 0, count: 0 };
-    groups.set(key, { amount: group.amount + job.amount, count: group.count + 1 });
+    const group = groups.get(key) ?? { amount: 0, fee: 0, netAmount: 0, count: 0 };
+    groups.set(key, {
+      amount: group.amount + job.amount,
+      fee: group.fee + fee,
+      netAmount: group.netAmount + job.amount - fee,
+      count: group.count + 1,
+    });
   }
-  totals.margin = totals.amount - totals.estimatedCost;
+  totals.netAmount = totals.amount - totals.fee;
+  totals.margin = totals.netAmount - totals.estimatedCost;
 
   const bySource: MonthlySummary["bySource"] = [];
   for (const key of [...ORDER_SOURCES, "none" as const]) {
@@ -123,6 +137,13 @@ function numberCell(value: number): string {
   return Number.isFinite(value) ? String(Math.round(value)) : "0";
 }
 
+/** CSV '일감' 칸: 보이는 일감 이름. 패키지 이름과 다를 때만 괄호로 패키지를 붙인다(같은 이름이 두 번 나오지 않게). */
+function csvJobName(job: Job): string {
+  const title = displayJobTitle(job);
+  const packageName = job.packageSnapshot.name;
+  return title === packageName ? title : `${title} (${packageName})`;
+}
+
 /**
  * 표 파일(CSV). 엑셀에서 한글이 안 깨지게 BOM, 줄바꿈 CRLF, 완료일 순(오래된 것부터).
  * 링크 토큰·수정 요청 내용은 넣지 않는다. 브라우저 안에서 만들어 사용자 기기로만 내려간다.
@@ -135,15 +156,18 @@ export function summaryCsv(jobs: Job[], range: SummaryCsvRange, timeZone: string
     .sort((a, b) => Date.parse(a.completedAt) - Date.parse(b.completedAt));
   const lines = [CSV_HEADER];
   for (const { job, completedAt } of rows) {
+    const fee = jobFee(job);
     lines.push([
       textCell(dateKeyOf(completedAt, timeZone)),
       textCell(job.clientLabel),
-      textCell(displayJobTitle(job)),
+      textCell(csvJobName(job)),
       textCell(orderSourceLabel(job.source) ?? ""),
-      textCell(job.packageSnapshot.name),
       numberCell(job.amount),
+      numberCell(confirmedAddonAmount(job)),
+      numberCell(fee),
+      numberCell(job.amount - fee),
       numberCell(job.estimatedCost),
-      numberCell(job.amount - job.estimatedCost),
+      numberCell(job.amount - fee - job.estimatedCost),
       textCell(job.startDate),
       textCell(job.dueDate),
     ].join(","));
