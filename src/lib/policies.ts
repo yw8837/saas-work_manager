@@ -53,6 +53,15 @@ export const TERMS_VERSION = POLICY_PUBLICATION_MANIFEST.documents.terms.version
 export const PRIVACY_VERSION = POLICY_PUBLICATION_MANIFEST.documents.privacy.version;
 export const POLICY_EFFECTIVE_DATE = POLICY_PUBLICATION_MANIFEST.effectiveDateLabel;
 
+/**
+ * 예전 버전에 동의한 계정의 다시 동의 화면에 보이는 '바뀐 점' 한 줄.
+ * 버전을 올리면 이 문구도 같이 고쳐야 한다(시험이 version 일치를 강제한다).
+ */
+export const POLICY_CHANGE_NOTICE = {
+  version: "2026-11-03-beta.4",
+  summary: "베타 이용 코드 Pro 기간 14일 · 호스팅 사업자 Cloudflare로 표기",
+} as const;
+
 export type PolicyAcceptance = {
   termsVersion: string;
   privacyVersion: string;

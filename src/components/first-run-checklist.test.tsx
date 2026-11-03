@@ -125,15 +125,16 @@ describe("오늘 화면 첫 실행 체크리스트", () => {
   });
 
   it("단계 그림 설명은 잘린 그림 칸(최대 높이 240px)에 실제로 보이는 부분만 말한다", () => {
-    // 1단계: 패키지 그림은 위쪽(받을 자료·착수 전 질문 칸)만 보이고 맨 아래 저장 버튼은 칸 밖이다.
+    // 칸(폭 200px·최대 높이 240px)에 750px 폭 그림은 높이 900px까지 보인다.
+    // 1단계: 패키지 그림(722px)은 받을 자료·착수 전 질문 칸과 저장 버튼까지 다 보인다.
     let view = show({ packages: [...starter.packages, ...INDUSTRY_STARTERS.design.packages] });
     expect(screen.getByTestId("first-run-step-packages")).toHaveAttribute("data-state", "current");
-    expect(screen.getByRole("img")).toHaveAttribute("alt", "받을 자료·착수 전 질문 칸이 보이는 패키지 화면 예시");
+    expect(screen.getByRole("img")).toHaveAttribute("alt", "받을 자료·착수 전 질문 칸과 패키지 저장 버튼이 보이는 패키지 화면 예시");
     view.unmount();
-    // 2단계: 새 일감 그림은 위쪽(고객 이름·받은 곳·시작일)만 보이고 패키지·옵션·금액·마감은 칸 밖이다.
+    // 2단계: 새 일감 그림(970px)은 고객 이름·시작일·패키지·옵션 칸이 보이고 맨 아래 '일감 만들기' 바 일부만 칸 밖이다.
     view = show();
     expect(screen.getByTestId("first-run-step-first-job")).toHaveAttribute("data-state", "current");
-    expect(screen.getByRole("img")).toHaveAttribute("alt", "고객 이름·받은 곳·시작일이 보이는 새 일감 화면 예시");
+    expect(screen.getByRole("img")).toHaveAttribute("alt", "고객 이름·시작일·패키지·옵션 칸이 보이는 새 일감 화면 예시");
     view.unmount();
     // 3단계: 저장 직후 안내 그림은 칸 안에 다 들어간다.
     show({ jobs: [job()] });

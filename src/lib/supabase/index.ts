@@ -13,7 +13,7 @@ export {
   probeHostedPolicyPublicationContract,
   probeHostedRuntimeContract,
 } from "./runtime-contract";
-export { hasCurrentPolicyAcceptance, recordCurrentPolicyAcceptance } from "./policy";
+export { readPolicyAcceptanceState, recordCurrentPolicyAcceptance, type PolicyAcceptanceState } from "./policy";
 export {
   loadHostedSubscription,
   redeemHostedInviteCode,
