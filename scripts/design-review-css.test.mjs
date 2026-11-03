@@ -176,6 +176,34 @@ describe("토큰 밖 색 정리(리뷰 표준)", () => {
   });
 });
 
+describe("웹 공개 페이지 디자인 A(2026-11-03, DESIGN-A 3절 5번)", () => {
+  const webScope = bodies(baseTheme, ".marketingPage, .guidePage, .policyPage");
+
+  it("웹 구역 안에서만 강조색(산호)·주 버튼을 파랑 하나로 덮는다", () => {
+    expect(webScope).toMatch(/--web-accent:\s*#2563eb/);
+    expect(webScope).toMatch(/--coral:\s*var\(--web-accent\)/);
+    expect(webScope).toMatch(/--primary:\s*var\(--web-accent\)/);
+    expect(webScope).toMatch(/--canvas:\s*#f2f4f6/);
+    // 공통 :root 값은 웹 갈래가 건드리지 않는다.
+    expect(bodies(theme, ":root")).toMatch(/--coral:\s*#aa2d00/);
+  });
+
+  it("복숭아·포레스트·크림·짙은 띠를 첫 화면에서 걷어낸다", () => {
+    expect(bodies(baseTheme, ".promiseBand p")).not.toMatch(/var\(--(peach|forest|cream)\)/);
+    expect(bodies(baseTheme, ".workflowSection")).not.toMatch(/var\(--cream\)/);
+    expect(bodies(baseTheme, ".revisionSection")).not.toMatch(/surface-dark/);
+    expect(bodies(baseTheme, ".finalCta")).toMatch(/background:\s*var\(--blue-soft\)/);
+  });
+
+  it("제품 미리보기는 테두리·그림자 없는 흰 카드, 모서리 20px", () => {
+    // 규칙 앞의 주석이 선택자 글에 붙어 오므로 마지막 줄만 본다.
+    const scene = rulesMentioning(baseTheme, ".productScene").find((rule) => /(^|\n)\.productScene$/.test(rule.selector));
+    expect(scene.body).toMatch(/border:\s*0/);
+    expect(scene.body).toMatch(/box-shadow:\s*none/);
+    expect(scene.body).toMatch(/--web-preview-radius,\s*20px/);
+  });
+});
+
 describe("착수 전 질문 '답 받음'(작업 9가 찾음)", () => {
   it("긴 질문 옆 '답 받음'·'받음' 글은 줄어들지 않아 한 글자씩 세로로 찌그러지지 않는다", () => {
     expect(bodies(theme, ".intakeToggle small")).toMatch(/flex:\s*none/);

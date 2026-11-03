@@ -181,7 +181,7 @@ export function MarketingHome() {
               <p>직원을 뽑기엔 아직 이르고, 잡일은 이미 많다면</p>
             <h2>운영은 덜고, 작업에 더 집중하세요.</h2>
           </div>
-          <Link href="/today" className="invertedButton">
+          <Link href="/today" className="primaryButton">
             무료로 시작하기
             <ArrowRight size={18} />
           </Link>
