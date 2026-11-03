@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
@@ -11,18 +11,27 @@ import {
 } from "@/lib/policies";
 import { recordCurrentPolicyAcceptance } from "./policy";
 
-const migration = readFileSync(resolve(
-  process.cwd(),
-  "supabase/migrations/202608160005_policy_acceptances.sql",
-), "utf8");
-const currentAcceptanceMigration = readFileSync(resolve(
-  process.cwd(),
-  "supabase/migrations/202608240010_public_signup_policy.sql",
-), "utf8");
-const currentPublicationMigration = readFileSync(resolve(
-  process.cwd(),
-  "supabase/migrations/202608260012_google_oauth_policy.sql",
-), "utf8");
+const MIGRATIONS = resolve(process.cwd(), "supabase/migrations");
+
+/** 그 함수를 마지막으로 정의한 migration의, 마지막 정의 부분만 돌려준다. 파일 이름을 박아두면 버전을 올릴 때마다 낡는다. */
+function latestFunctionDefinition(fn: string): string {
+  const marker = `create or replace function public.${fn}(`;
+  const file = readdirSync(MIGRATIONS)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .filter((name) => readFileSync(resolve(MIGRATIONS, name), "utf8").includes(marker))
+    .at(-1);
+  if (!file) return "";
+  const body = readFileSync(resolve(MIGRATIONS, file), "utf8");
+  const tail = body.slice(body.lastIndexOf(marker));
+  const end = tail.indexOf("$$;", tail.indexOf("$$") + 2);
+  return end < 0 ? tail : tail.slice(0, end);
+}
+
+const migration = readFileSync(resolve(MIGRATIONS, "202608160005_policy_acceptances.sql"), "utf8");
+const currentAcceptanceFunction = latestFunctionDefinition("accept_current_policies");
+const currentSignupTrigger = latestFunctionDefinition("record_signup_policy_acceptance");
+const currentPublicationFunction = latestFunctionDefinition("get_ilgamcheck_policy_publication_contract");
 
 describe("hosted policy acceptance contract", () => {
   it("keeps acceptance evidence immutable and owner-readable only", () => {
@@ -34,8 +43,11 @@ describe("hosted policy acceptance contract", () => {
   });
 
   it("records only the exact visible versions through a narrow authenticated RPC or signup trigger", () => {
-    expect(currentAcceptanceMigration).toContain(`p_terms_version <> '${TERMS_VERSION}'`);
-    expect(currentAcceptanceMigration).toContain(`p_privacy_version <> '${PRIVACY_VERSION}'`);
+    expect(currentAcceptanceFunction).toContain(`p_terms_version <> '${TERMS_VERSION}'`);
+    expect(currentAcceptanceFunction).toContain(`p_privacy_version <> '${PRIVACY_VERSION}'`);
+    expect(currentSignupTrigger).toContain(`->> 'ilgamcheck_terms_version' = '${TERMS_VERSION}'`);
+    expect(currentSignupTrigger).toContain(`->> 'ilgamcheck_privacy_version' = '${PRIVACY_VERSION}'`);
+    expect(currentSignupTrigger).toContain(`values (new.id, '${TERMS_VERSION}', '${PRIVACY_VERSION}', 'signup')`);
     expect(migration).toContain("security definer");
     expect(migration).toContain("set search_path = ''");
     expect(migration).toContain("on_auth_user_record_policy_acceptance");
@@ -43,10 +55,10 @@ describe("hosted policy acceptance contract", () => {
     expect(migration).toContain("grant execute on function public.accept_current_policies(text, text) to authenticated");
     expect(migration).not.toContain("grant execute on function public.accept_current_policies(text, text) to anon");
     // 런타임 계약 버전은 이후 마이그레이션에서 올라간다. 그 검증은 runtime-contract.test.ts가 맡는다.
-    expect(currentPublicationMigration).toContain(`'termsVersion', '${TERMS_VERSION}'`);
-    expect(currentPublicationMigration).toContain(`'privacyVersion', '${PRIVACY_VERSION}'`);
-    expect(currentPublicationMigration).toContain(`'bundleDigest', '${POLICY_PUBLICATION_MANIFEST.bundleDigest}'`);
-    expect(currentPublicationMigration).toContain(`'finalized', ${POLICY_PUBLICATION_MANIFEST.finalized}`);
+    expect(currentPublicationFunction).toContain(`'termsVersion', '${TERMS_VERSION}'`);
+    expect(currentPublicationFunction).toContain(`'privacyVersion', '${PRIVACY_VERSION}'`);
+    expect(currentPublicationFunction).toContain(`'bundleDigest', '${POLICY_PUBLICATION_MANIFEST.bundleDigest}'`);
+    expect(currentPublicationFunction).toContain(`'finalized', ${POLICY_PUBLICATION_MANIFEST.finalized}`);
   });
 
   it("sends the current versions to the RPC", async () => {

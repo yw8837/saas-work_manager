@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "finalized": false,
-  "effectiveDate": "2026-08-24",
-  "effectiveDateLabel": "2026년 8월 24일",
-  "bundleDigest": "sha256:5779800438a9fcd031740a8632879a21d499087a7384749e2266548c2cf164c1",
+  "effectiveDate": "2026-11-03",
+  "effectiveDateLabel": "2026년 11월 3일",
+  "bundleDigest": "sha256:daa8974f1ae7a7397ecc5213aac21f59023feb7d38883ce96af46b72af09bed1",
   "shared": {
     "draftNoticeTitle": "베타 서비스 정책 안내",
-    "draftNoticeBody": "일감체크는 Google 계정으로 가입하고 로그인할 수 있는 베타 서비스입니다. 베타 이용 코드는 가입 후 30일 Pro 권한을 제공하며, 유료 결제·정기결제·환불 정책은 실제 도입 전에 별도로 확정해 안내합니다.",
+    "draftNoticeBody": "일감체크는 Google 계정으로 가입하고 로그인할 수 있는 베타 서비스입니다. 베타 이용 코드는 가입 후 14일 Pro 권한을 제공하며, 유료 결제·정기결제·환불 정책은 실제 도입 전에 별도로 확정해 안내합니다.",
     "operatorHeading": "운영자 및 문의",
     "operatorLabel": "운영자",
     "supportLabel": "문의",
@@ -19,8 +19,8 @@
       "eyebrow": "Privacy",
       "title": "개인정보처리방침",
       "metadataDescription": "일감체크 베타의 개인정보 처리 기준",
-      "version": "2026-08-24-beta.3",
-      "contentDigest": "sha256:19a3e8c730df5be516298aae5c3ae0d287a730786f35490b6fc97ae0d372ee8b",
+      "version": "2026-11-03-beta.4",
+      "contentDigest": "sha256:af4ea2b5126b9e67acde571ca37ee324865cf6bdbeeafec8df929281972b94e3",
       "lead": "일감체크는 1인 사업자의 일감 관리를 돕는 베타 서비스입니다. 아래 내용은 현재 구현된 인증·작업공간·고객 수정 링크 흐름을 기준으로 작성했으며, 결제 정보는 아직 수집하지 않습니다.",
       "sections": [
         {
@@ -129,8 +129,8 @@
       "eyebrow": "Terms",
       "title": "이용약관",
       "metadataDescription": "일감체크 베타 이용약관",
-      "version": "2026-08-24-beta.3",
-      "contentDigest": "sha256:e57ca5b43c66c95dfa12bdd28cc2bf25d14bbf261d4aad6bdcff9ea3ecf2500a",
+      "version": "2026-11-03-beta.4",
+      "contentDigest": "sha256:a0789ea1b44fc04af5a57b1c8fb21225612dd3766117b337f08d8a171b9ffc59",
       "lead": "이 약관은 일감체크 베타의 이용 조건을 정합니다. 누구나 Google 계정으로 가입하고 로그인할 수 있으며, 현재는 유료 결제나 외부 플랫폼의 주문 중개 기능을 제공하지 않습니다.",
       "sections": [
         {
@@ -153,7 +153,7 @@
               "type": "list",
               "items": [
                 "Google 계정으로 가입하고 로그인할 수 있습니다. 계정별 무료 플랜 한도가 적용됩니다.",
-                "30일 Pro 이용 코드는 가입 방식이 아니라 계정에 기간 한정 Pro 권한을 적용하는 수단입니다.",
+                "14일 Pro 이용 코드는 가입 방식이 아니라 계정에 기간 한정 Pro 권한을 적용하는 수단입니다.",
                 "계정 정보는 정확하게 유지하고 인증 수단을 다른 사람과 공유하지 않아야 합니다.",
                 "베타 중 기능, 저장 구조와 화면이 바뀔 수 있으며 중요한 변경은 사전에 안내합니다."
               ]

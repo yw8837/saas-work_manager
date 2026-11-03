@@ -10,8 +10,8 @@ describe("public policy publication manifest", () => {
     const manifest = loadPolicyPublicationManifest();
     expect(validatePolicyPublicationManifest(manifest)).toMatchObject({
       finalized: false,
-      termsVersion: "2026-08-24-beta.3",
-      privacyVersion: "2026-08-24-beta.3",
+      termsVersion: "2026-11-03-beta.4",
+      privacyVersion: "2026-11-03-beta.4",
     });
   });
 
