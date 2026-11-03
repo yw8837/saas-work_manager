@@ -50,17 +50,17 @@ function browserTimeZone() {
 }
 
 /**
- * 오늘 화면 맨 위 '이번 달 돈' 카드(디자인 A). 숫자는 월별 정리·수수료 함수만 묶은 thisMonthMoney.
- * 휴대폰에서는 일감 화면처럼 '금액 보기'를 눌러야 금액이 보이고, 데스크톱은 CSS로 늘 펼친다.
+ * 오늘 화면 맨 위 '받을 돈' 카드(디자인 A). 숫자는 월별 정리·수수료 함수만 묶은 thisMonthMoney.
+ * 돈이 먼저 보여야 해서 휴대폰에서도 처음엔 펼쳐 두고, '금액 접기'로 접을 수 있다(데스크톱은 CSS로 늘 펼침).
  */
 function MonthMoneyCard({ jobs }: { jobs: Job[] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const timeZone = browserTimeZone();
   const money = thisMonthMoney(jobs, monthKeyOf(new Date().toISOString(), timeZone), timeZone);
   return (
-    <section className="monthMoneyCard" aria-label="이번 달 돈" data-money-open={open}>
+    <section className="monthMoneyCard" aria-label="받을 돈" data-money-open={open}>
       <div className="monthMoneyHead">
-        <h2>이번 달 받을 돈{money.fee > 0 && <small> · 수수료 빼고</small>}</h2>
+        <h2>받을 돈<small> · 진행 중 {money.inProgress.count}건{money.fee > 0 && ", 수수료 빼고"}</small></h2>
         <button
           type="button"
           className="textButton monthMoneyToggle"
@@ -72,22 +72,25 @@ function MonthMoneyCard({ jobs }: { jobs: Job[] }) {
         </button>
       </div>
       <div id="month-money-body" className="monthMoneyBody">
-        <strong className="monthMoneyTotal" data-testid="month-money-total">{formatWon(money.total)}</strong>
+        <strong className="monthMoneyTotal" data-testid="month-money-total">{formatWon(money.receivable)}</strong>
         <dl className="monthMoneyCells">
-          <div data-testid="month-money-in-progress">
-            <dt>작업 중 · {money.inProgress.count}건</dt>
-            <dd>{formatWon(money.inProgress.amount)}</dd>
-          </div>
+          {/* 수수료가 없으면 진행 중 금액이 큰 숫자와 같아서 칸을 두지 않는다. */}
+          {money.fee > 0 && (
+            <>
+              <div data-testid="month-money-in-progress">
+                <dt>진행 중 금액 · {money.inProgress.count}건</dt>
+                <dd>{formatWon(money.inProgress.amount)}</dd>
+              </div>
+              <div data-testid="month-money-fee">
+                <dt>수수료</dt>
+                <dd>−{formatWon(money.fee)}</dd>
+              </div>
+            </>
+          )}
           <div data-testid="month-money-completed">
             <dt>이번 달 완료 · {money.completed.count}건</dt>
             <dd>{formatWon(money.completed.amount)}</dd>
           </div>
-          {money.fee > 0 && (
-            <div data-testid="month-money-fee">
-              <dt>수수료</dt>
-              <dd>−{formatWon(money.fee)}</dd>
-            </div>
-          )}
         </dl>
         <Link href="/jobs/summary" className="inlineLink monthMoneyLink">월별 정리 <ArrowUpRight size={14} /></Link>
       </div>

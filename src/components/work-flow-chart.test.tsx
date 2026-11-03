@@ -38,4 +38,11 @@ describe("주문 하나가 끝나기까지 흐름도", () => {
     expect(within(section).getByRole("heading", { level: 3, name: "주문 하나가 끝나기까지" })).toBeInTheDocument();
     expect(within(section).getAllByRole("listitem")).toHaveLength(FLOW_STEPS.length);
   });
+
+  it("설명서 맨 위 주 버튼(파랑)은 '무료로 시작하기' 하나이고, 고객 화면 체험은 보조 버튼이다", () => {
+    render(<UserGuide />);
+    const start = screen.getByRole("link", { name: "무료로 시작하기" });
+    expect(start).toHaveClass("primaryButton");
+    expect(screen.getByTestId("guide-demo-link")).toHaveClass("secondaryButton");
+  });
 });

@@ -23,8 +23,8 @@ function completed(id: string, completedAt: string, overrides: Partial<Job> = {}
   return { ...makeJob(id, { status: "completed", updatedAt: completedAt, ...overrides }), completedAt };
 }
 
-describe("오늘 화면 '이번 달 돈' 카드 숫자", () => {
-  it("작업 중 = 월별 정리의 진행 중 합계, 완료 = 그달 완료 합계, 받을 돈 = 둘을 더한 값(수수료 없으면 그대로)", () => {
+describe("오늘 화면 '받을 돈' 카드 숫자", () => {
+  it("진행 중 = 월별 정리의 진행 중 합계, 완료 = 그달 완료 합계, 받을 돈 = 진행 중 합계(이미 끝난 일감은 더하지 않음)", () => {
     const jobs = [
       makeJob("a1", { amount: 1_580_000 }),
       makeJob("a2", { amount: 200_000 }),
@@ -38,10 +38,10 @@ describe("오늘 화면 '이번 달 돈' 카드 숫자", () => {
     expect(money.inProgress).toEqual({ amount: summary.inProgress.amount, count: 2 });
     expect(money.completed).toEqual({ amount: summary.totals.amount, count: 1 });
     expect(money.fee).toBe(0);
-    expect(money.total).toBe(1_580_000 + 200_000 + 790_000);
+    expect(money.receivable).toBe(1_580_000 + 200_000);
   });
 
-  it("수수료가 있으면 받을 돈은 수수료 빼고(진행 중은 일감마다 jobFee, 완료는 월별 정리의 수수료)", () => {
+  it("수수료가 있으면 받을 돈은 진행 중 일감마다 jobFee를 뺀 값(완료 일감 수수료는 섞지 않음)", () => {
     const jobs = [
       makeJob("a1", { amount: 1_000_000, feeRate: 20 }),
       makeJob("a2", { amount: 500_000 }),
@@ -50,15 +50,14 @@ describe("오늘 화면 '이번 달 돈' 카드 숫자", () => {
     const money = thisMonthMoney(jobs, "2026-11", TZ);
     expect(money.inProgress.amount).toBe(1_500_000);
     expect(money.completed.amount).toBe(1_410_000);
-    // 진행 중 200,000 + 완료 282,000(월별 정리 수수료와 같음)
-    expect(money.fee).toBe(200_000 + monthlySummary(jobs, "2026-11", TZ).totals.fee);
-    expect(money.fee).toBe(482_000);
-    expect(money.total).toBe(1_500_000 + 1_410_000 - 482_000);
+    // 진행 중 일감 수수료만: a1 1,000,000 × 20% = 200,000
+    expect(money.fee).toBe(200_000);
+    expect(money.receivable).toBe(1_500_000 - 200_000);
   });
 
   it("일감이 없으면 모두 0", () => {
     expect(thisMonthMoney([], "2026-11", TZ)).toEqual({
-      total: 0, inProgress: { amount: 0, count: 0 }, completed: { amount: 0, count: 0 }, fee: 0,
+      receivable: 0, inProgress: { amount: 0, count: 0 }, completed: { amount: 0, count: 0 }, fee: 0,
     });
   });
 });

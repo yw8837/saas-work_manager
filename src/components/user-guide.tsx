@@ -135,10 +135,10 @@ export function UserGuide() {
           <h1>그림으로 보는 일감체크</h1>
           <p>주문 하나가 끝나기까지 흐름을 먼저 보고, 아래 그림으로 화면을 따라 해 보세요.</p>
           <div className="guideIntroActions">
-            <Link href="/demo/r" className="primaryButton" data-testid="guide-demo-link">
+            <Link href="/today" className="primaryButton">무료로 시작하기</Link>
+            <Link href="/demo/r" className="secondaryButton" data-testid="guide-demo-link">
               <MousePointerClick size={18} aria-hidden="true" /> 고객이 받는 화면 눌러 보기
             </Link>
-            <Link href="/today" className="secondaryButton">무료로 시작하기</Link>
           </div>
         </section>
 

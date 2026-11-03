@@ -382,7 +382,7 @@ describe("TodayDashboard 일감마다 한 줄", () => {
   });
 });
 
-describe("TodayDashboard '이번 달 돈' 카드(디자인 A)", () => {
+describe("TodayDashboard '받을 돈' 카드(디자인 A)", () => {
   const nowIso = new Date().toISOString();
   const base = { ...seed.jobs[0], revisions: [], dueDate: "2099-01-01" };
   const active = { ...base, id: "money-active", status: "active" as const, amount: 1_000_000, feeRate: 20 };
@@ -402,12 +402,12 @@ describe("TodayDashboard '이번 달 돈' 카드(디자인 A)", () => {
     return render(<TodayDashboard />);
   }
 
-  it("맨 위 카드에 받을 돈 큰 숫자 하나와 작업 중·완료·수수료 칸을 보인다(수수료 빼고 기준)", () => {
+  it("맨 위 카드에 받을 돈(진행 중, 수수료 빼고) 큰 숫자 하나와 진행 중·수수료·이번 달 완료 칸을 보인다", () => {
     setup([active, activeNoFee, done] as typeof seed.jobs);
-    const card = screen.getByRole("region", { name: "이번 달 돈" });
+    const card = screen.getByRole("region", { name: "받을 돈" });
     // 오늘 화면 맨 위(일감 범위 고르기·요약보다 먼저)
     expect(card.compareDocumentPosition(screen.getByLabelText("오늘 업무 요약")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(card).getByTestId("month-money-total")).toHaveTextContent("2,090,000원");
+    expect(within(card).getByTestId("month-money-total")).toHaveTextContent("1,300,000원");
     expect(card).toHaveTextContent("수수료 빼고");
     expect(within(card).getByTestId("month-money-in-progress")).toHaveTextContent("1,500,000원");
     expect(within(card).getByTestId("month-money-in-progress")).toHaveTextContent("2건");
@@ -415,28 +415,30 @@ describe("TodayDashboard '이번 달 돈' 카드(디자인 A)", () => {
     expect(within(card).getByTestId("month-money-fee")).toHaveTextContent("200,000원");
   });
 
-  it("수수료가 없으면 수수료 칸과 '수수료 빼고' 말을 숨긴다", () => {
+  it("수수료가 없으면 수수료 칸·'수수료 빼고' 말·큰 숫자와 같은 진행 중 금액 칸을 숨긴다", () => {
     setup([activeNoFee, done] as typeof seed.jobs);
-    const card = screen.getByRole("region", { name: "이번 달 돈" });
-    expect(within(card).getByTestId("month-money-total")).toHaveTextContent("1,290,000원");
+    const card = screen.getByRole("region", { name: "받을 돈" });
+    expect(within(card).getByTestId("month-money-total")).toHaveTextContent("500,000원");
     expect(within(card).queryByTestId("month-money-fee")).not.toBeInTheDocument();
+    // 수수료가 없으면 큰 숫자와 같은 '진행 중 금액' 칸은 두 번 보이지 않는다.
+    expect(within(card).queryByTestId("month-money-in-progress")).not.toBeInTheDocument();
     expect(card).not.toHaveTextContent("수수료 빼고");
   });
 
-  it("휴대폰 '금액 보기' 규칙을 따른다: 처음엔 접혀 있고 누르면 펼친다(데스크톱은 CSS로 늘 펼침)", () => {
+  it("돈이 먼저 보이게 휴대폰에서도 처음엔 펼쳐 두고, 접기를 누르면 접는다", () => {
     setup([active] as typeof seed.jobs);
-    const card = screen.getByRole("region", { name: "이번 달 돈" });
-    const toggle = within(card).getByRole("button", { name: /금액 보기/ });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(card).toHaveAttribute("data-money-open", "false");
-    fireEvent.click(toggle);
-    expect(within(card).getByRole("button", { name: /금액 접기/ })).toHaveAttribute("aria-expanded", "true");
+    const card = screen.getByRole("region", { name: "받을 돈" });
+    const toggle = within(card).getByRole("button", { name: /금액 접기/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(card).toHaveAttribute("data-money-open", "true");
+    fireEvent.click(toggle);
+    expect(within(card).getByRole("button", { name: /금액 보기/ })).toHaveAttribute("aria-expanded", "false");
+    expect(card).toHaveAttribute("data-money-open", "false");
   });
 
   it("월별 정리로 가는 링크가 있다", () => {
     setup([active] as typeof seed.jobs);
-    const card = screen.getByRole("region", { name: "이번 달 돈" });
+    const card = screen.getByRole("region", { name: "받을 돈" });
     expect(within(card).getByRole("link", { name: /월별 정리/ })).toHaveAttribute("href", "/jobs/summary");
   });
 });
