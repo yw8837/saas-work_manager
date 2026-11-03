@@ -65,9 +65,13 @@ test("여러 일감의 작업 범위와 반응형 화면", async ({ page }, test
   await expect(scope.getByRole("option", { name: "디자인 고객 A · 브랜드 로고 제작", exact: true })).toHaveCount(1);
   await expect(scope.getByRole("option", { name: "디자인 고객 A · 홈페이지 제작", exact: true })).toHaveCount(1);
   await scope.selectOption("visual-job-0");
-  await expect(page.locator(".taskRow")).toHaveCount(2);
+  // 오늘 화면은 일감마다 한 줄: 가장 급한 할 일 하나에 나머지는 'n개 더'로 붙는다(고객 확인 대기 할 일은 빼고 셈).
+  await expect(page.locator(".taskRow")).toHaveCount(1);
+  await expect(page.getByTestId("task-more-visual-job-0")).toContainText("1개 더");
   await page.getByTestId("task-toggle-visual-job-0-task-0").click();
   await expect(page.locator(".taskRow")).toHaveCount(1);
+  await expect(page.getByTestId("task-toggle-visual-job-0-task-2")).toBeVisible();
+  await expect(page.getByTestId("task-more-visual-job-0")).toHaveCount(0);
   await scope.selectOption("");
   await expect(page.locator(".taskRow")).toHaveCount(6);
   for (const title of titles.slice(0, 2)) {
@@ -104,7 +108,7 @@ test("여러 일감의 작업 범위와 반응형 화면", async ({ page }, test
       await expect(page.locator(".jobTableRow")).toHaveCount(2);
     }
     if (name === "settings") {
-      await expect(page.locator(".planBadge.pro")).toHaveCSS("color", "rgb(36, 36, 38)");
+      await expect(page.locator(".planBadge.pro")).toHaveCSS("color", "rgb(25, 31, 40)");
       await expect(page.getByText("아직 준비 중인 기능", { exact: true })).toBeVisible();
     }
   }
