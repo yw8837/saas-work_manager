@@ -333,7 +333,9 @@ test.describe("주문 30초 등록", () => {
   test("주문 오면 네 가지 고르기", async ({ page }) => {
     await page.goto("/jobs/new");
     await page.locator("#clientLabel").fill(SAMPLE_CLIENT_LABEL);
-    // 받은 곳은 가장 최근 일감(크몽)이 먼저 골라져 있다.
+    // 받은 곳은 비어 있고 지난번 받은 곳(크몽)이 힌트로 보인다. 그림에는 크몽을 골라 둔다.
+    await expect(page.getByTestId("order-source-hint")).toHaveText("지난번: 크몽");
+    await page.getByTestId("order-source-kmong").click();
     await expect(page.getByTestId("order-source-kmong")).toHaveAttribute("aria-pressed", "true");
     await page.locator("label.packageChoice").filter({ hasText: "STANDARD 로고" }).click();
     await page.locator("label.optionChoice").filter({ hasText: "원본 파일" }).click();

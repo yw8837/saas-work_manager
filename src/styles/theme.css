@@ -555,7 +555,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .briefMessage strong, .briefMessage p { display: block; }
 .briefMessage strong { font-size: 14px; }
 .briefMessage p { margin: 3px 0 0; overflow: hidden; color: #b8c3d5; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.briefStats { display: grid; grid-template-columns: repeat(3, 88px); margin: 0; background: rgba(255,255,255,.04); }
+.briefStats { display: grid; grid-template-columns: repeat(4, 88px); margin: 0; background: rgba(255,255,255,.04); }
 .briefStats div { display: flex; flex-direction: column-reverse; align-items: center; justify-content: center; border-left: 1px solid rgba(255,255,255,.09); }
 .briefStats dt { color: #9eabc0; font-size: 10px; }
 .briefStats dd { margin: 0; font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -932,7 +932,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .todayBrief { grid-template-columns: 1fr; }
   .briefMessage { padding: 15px; }
   .briefMessage p { white-space: normal; }
-  .briefStats { grid-template-columns: repeat(3, 1fr); border-top: 1px solid rgba(255,255,255,.09); }
+  .briefStats { grid-template-columns: repeat(4, 1fr); border-top: 1px solid rgba(255,255,255,.09); }
   .briefStats div { min-height: 58px; border-left: 1px solid rgba(255,255,255,.09); }
   .briefStats div:first-child { border-left: 0; }
   .dashboardAside { grid-template-columns: 1fr; }
@@ -1103,7 +1103,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .catalogTaskRow label { position: relative; }
 .catalogTaskRow label input { min-height: 37px; padding: 0 24px 0 8px; }
 .catalogTaskRow label span { position: absolute; right: 8px; top: 9px; color: var(--muted); font-size: 10px; }
-.catalogActions { display: flex; gap: 8px; margin-top: 17px; }
+.catalogActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 17px; }
 .optionTodoEffect { padding: 14px; margin: 18px 0 0; border: 1px solid var(--line); }
 .optionTodoEffect legend { padding: 0 5px; color: var(--ink-soft); font-size: 11px; font-weight: 600; }
 .effectToggle { display: flex; gap: 5px; margin-bottom: 11px; }
@@ -1233,8 +1233,8 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .catalogSaved { margin-top: 12px; }
   .catalogGrid, .settingsGrid, .browserTestSection, .blockedExternalSection, .accountStatusSection, .accountDangerSection { grid-template-columns: 1fr; }
   .catalogList { min-width: 0; }
-  .catalogItems { display: flex; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding: 3px; gap: 4px; }
-  .catalogItems .catalogListItem { flex: 0 0 230px; min-height: 80px; border: 1px solid var(--line); border-radius: var(--radius-sm); scroll-snap-align: start; }
+  .catalogItems { display: grid; padding: 3px; gap: 4px; }
+  .catalogItems .catalogListItem { min-height: 64px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
   .catalogItems .catalogListItem strong, .catalogItems .catalogListItem span { white-space: normal; overflow: visible; }
   .catalogEditor { padding: 16px; }
   .catalogFieldGrid { grid-template-columns: 1fr 1fr; }
@@ -1862,3 +1862,29 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .workflowSection .workflowInner { grid-template-columns: 1fr; gap: 28px; }
 }
 .flowAutoTag { margin-right: 2px; color: var(--blue); font-weight: 650; }
+
+/* 패키지 화면: 저장 안 한 변경 표시(저장 버튼 옆) */
+.catalogUnsaved { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+/* 착수 전 질문: 질문마다 입력 칸 하나 */
+.briefQuestionField { min-width: 0; margin: 0; padding: 0; border: 0; }
+.briefQuestionField legend { margin-bottom: 5px; padding: 0; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+.briefQuestionEditor { display: grid; gap: 7px; }
+.briefQuestionRow { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: center; }
+.briefQuestionRow input { min-height: 44px; padding: 0 10px; }
+.briefQuestionRow .smallIconButton { width: 44px; height: 44px; }
+.briefQuestionEditor > .compactButton { justify-self: start; min-height: 44px; }
+@media (max-width: 760px) {
+  /* 할 일 이름이 잘리지 않게: 이름은 한 줄 전체, 날짜·삭제는 그 아래 머리글 열에 맞춘다. */
+  .catalogTaskHead, .catalogTaskRow { grid-template-columns: minmax(0, 1fr) 96px 44px; }
+  .catalogTaskRow { row-gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .catalogTaskRow > input { grid-column: 1 / -1; }
+  .catalogTaskRow > label { grid-column: 2; }
+  .catalogTaskRow > .smallIconButton { grid-column: 3; }
+}
+/* 새 일감: 지난번 받은 곳 힌트 */
+.sourceHint { color: var(--muted); font-size: 13px; }
+/* 첫 실행: 예시 금액 안내 */
+.firstRunSamplePrice { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; margin: 6px 0 0; color: var(--ink-soft); font-size: 14px; }
+.firstRunSamplePrice .inlineLink { min-height: 44px; font-size: 14px; }
+/* 오늘 화면: 한 일감의 밀린 할 일 개수 */
+.taskMore { display: block; margin-bottom: 2px; color: var(--ink-soft); font-size: 12px; font-weight: 600; }

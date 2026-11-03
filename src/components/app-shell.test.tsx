@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { usePathname } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "./app-shell";
@@ -131,5 +131,35 @@ describe("AppShell 머리 제목", () => {
     vi.mocked(usePathname).mockReturnValue("/jobs/job_seed_mora");
     const { container } = render(<AppShell><p>workspace</p></AppShell>);
     expect(container.querySelector(".topbarContext strong")).toHaveTextContent("일감 상세");
+  });
+});
+
+describe("AppShell 새 일감 버튼", () => {
+  beforeEach(() => {
+    vi.mocked(useWorkspace).mockReturnValue(baseWorkspace);
+  });
+
+  afterEach(() => {
+    vi.mocked(usePathname).mockReturnValue("/today");
+  });
+
+  it.each(["/today", "/jobs", "/jobs/job_seed_mora", "/packages", "/settings"])("데스크톱 사이드바에 '새 일감' 버튼이 늘 있다(%s)", (path) => {
+    vi.mocked(usePathname).mockReturnValue(path);
+    const { container } = render(<AppShell><p>workspace</p></AppShell>);
+    const sidebar = container.querySelector(".desktopSidebar") as HTMLElement;
+    const create = within(sidebar).getByRole("link", { name: /새 일감/ });
+    expect(create).toHaveAttribute("href", "/jobs/new");
+    // 휴대폰 하단 바는 지금처럼 다섯 칸(오늘·일감·새 일감·패키지·설정)이다.
+    const bottom = screen.getByRole("navigation", { name: "모바일 주요 메뉴" });
+    expect(within(bottom).getAllByRole("link").map((link) => link.textContent?.trim())).toEqual(["오늘", "일감", "새 일감", "패키지", "설정"]);
+  });
+
+  it("새 일감 화면에서는 사이드바 버튼이 지금 위치로 표시된다", () => {
+    vi.mocked(usePathname).mockReturnValue("/jobs/new");
+    const { container } = render(<AppShell><p>workspace</p></AppShell>);
+    const sidebar = container.querySelector(".desktopSidebar") as HTMLElement;
+    expect(within(sidebar).getByRole("link", { name: /새 일감/ })).toHaveAttribute("aria-current", "page");
+    // 일감 메뉴는 새 일감 화면에서 '지금 위치'로 겹쳐 표시하지 않는다.
+    expect(within(sidebar).getByRole("link", { name: /^일감\s*\d+$/ })).not.toHaveAttribute("aria-current");
   });
 });

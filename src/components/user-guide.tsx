@@ -49,7 +49,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
         id: "new-job",
         title: "주문이 오면 네 가지만 골라요",
         caption: "고객·시작일·패키지·옵션을 고르면 금액·마감·할 일이 채워져요.",
-        detail: "받은 곳은 지난 주문 것이 먼저 골라져 있어요.",
+        detail: "받은 곳은 비워 두고, 지난 주문의 받은 곳을 옆에 작게 알려 줘요.",
         image: { src: "/guide/03-new-job.webp", alt: "새 일감 화면. 고객 이름·시작일·패키지·옵션에 1~4번, 아래 일감 만들기 버튼에 5번 표시. 받은 곳은 크몽이 골라져 있음", width: 750, height: 2544 },
       },
     ],

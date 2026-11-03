@@ -161,6 +161,11 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
                     {industryMessage.text}
                   </p>
                 )}
+                {actionable && step.id === "first-job" && usesOnlyStarterPackages(packages) && (
+                  <p className="firstRunSamplePrice" data-testid="first-run-sample-price">
+                    예시 금액이에요 · <Link href="/packages" className="inlineLink" onClick={() => markFirstRun("packagesReviewed")}>바꾸기</Link>
+                  </p>
+                )}
                 {actionable && step.id === "first-job" && (
                   <div className="firstRunActions">
                     <Link href="/jobs/new" className={current ? "primaryButton" : "secondaryButton"} data-testid="first-run-create-job">
