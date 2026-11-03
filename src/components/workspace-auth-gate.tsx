@@ -8,10 +8,10 @@ import { Brand } from "./brand";
 import { useWorkspace } from "./workspace-provider";
 import {
   getSupabaseBrowserClient,
-  hasCurrentPolicyAcceptance,
+  readPolicyAcceptanceState,
   recordCurrentPolicyAcceptance,
 } from "@/lib/supabase";
-import { currentPolicyAcceptance } from "@/lib/policies";
+import { POLICY_CHANGE_NOTICE, TERMS_VERSION, currentPolicyAcceptance } from "@/lib/policies";
 import { nativePlatform } from "@/lib/native/platform";
 import { subscribeNativeAuth, nativeAuthStatus, cancelNativeOAuth } from "@/lib/native/auth-runtime";
 import { NativeOfflineWorkspace } from "./native-offline-workspace";
@@ -26,6 +26,8 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [policyGateStatus, setPolicyGateStatus] = useState<"idle" | "checking" | "required" | "accepted" | "error">("idle");
   const [policyGateError, setPolicyGateError] = useState<string | null>(null);
+  // 예전 버전 동의 기록만 있는 계정(약관이 바뀜). 처음 가입하는 계정은 false.
+  const [policyChanged, setPolicyChanged] = useState(false);
   const [inviteReady, setInviteReady] = useState(false);
 
   // 초대 링크(/today?invite=CODE): 주소에서 바로 지우고 Google 로그인 왕복 동안만 이 탭에 보관한다.
@@ -55,9 +57,12 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
 
       setPolicyGateStatus("checking");
       setPolicyGateError(null);
-      void hasCurrentPolicyAcceptance(client)
-        .then((accepted) => {
-          if (active) setPolicyGateStatus(accepted ? "accepted" : "required");
+      setPolicyChanged(false);
+      void readPolicyAcceptanceState(client)
+        .then((state) => {
+          if (!active) return;
+          setPolicyChanged(state === "outdated");
+          setPolicyGateStatus(state === "current" ? "accepted" : "required");
         })
         .catch((error: unknown) => {
           if (!active) return;
@@ -133,7 +138,10 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           <Brand />
           <span className="authIcon"><ShieldCheck size={23} /></span>
           <div className="authHeading">
-            <h1>첫 사용 전 동의가 필요해요</h1>
+            <h1>{policyChanged ? "약관이 바뀌었어요" : "첫 사용 전 동의가 필요해요"}</h1>
+            {policyChanged && POLICY_CHANGE_NOTICE.version === TERMS_VERSION && (
+              <p className="authPolicyChange">{POLICY_CHANGE_NOTICE.summary}</p>
+            )}
             <p>현재 정책을 확인하고 동의하면 작업공간을 바로 열 수 있어요.</p>
           </div>
           <form className="authForm" onSubmit={(event) => {

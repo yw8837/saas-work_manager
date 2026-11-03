@@ -1,5 +1,6 @@
 -- 2026-11-03 사용자 결정 "약관도 14일로": 베타 이용 코드 Pro 기간(20261103150000)에 맞춰
--- 약관·개인정보처리방침 문구의 30일을 14일로 고치고 정책 버전을 2026-11-03-beta.4로 올린다.
+-- 약관·개인정보처리방침 문구의 30일을 14일로 고치고, 개인정보처리방침의 호스팅 처리자를 실제 호스팅인
+-- Cloudflare로 바로잡고(2026-11-01 전환), 정책 버전을 2026-11-03-beta.4로 올린다.
 -- 동의 RPC·가입 트리거·공개 계약 함수를 화면 manifest(src/lib/policy-publication-manifest.json)와 같은 값으로 맞춘다.
 -- 옛 동의 기록(policy_acceptances의 beta.3 행)은 지우지 않는다. 앱은 beta.4 기록이 없는 계정에 동의 화면을 다시 띄운다.
 -- 런타임 계약 버전(get_ilgamcheck_runtime_contract, 202608250011)은 202608260012처럼 그대로 둔다.
@@ -80,7 +81,7 @@ set search_path = ''
 as $$
   select jsonb_build_object(
     'finalized', false,
-    'bundleDigest', 'sha256:daa8974f1ae7a7397ecc5213aac21f59023feb7d38883ce96af46b72af09bed1',
+    'bundleDigest', 'sha256:893f6274790fc040aac49950bc44f7d4f0f58b38c8e1f9060372bcf80020567a',
     'termsVersion', '2026-11-03-beta.4',
     'privacyVersion', '2026-11-03-beta.4'
   );

@@ -3,7 +3,7 @@
   "finalized": false,
   "effectiveDate": "2026-11-03",
   "effectiveDateLabel": "2026년 11월 3일",
-  "bundleDigest": "sha256:daa8974f1ae7a7397ecc5213aac21f59023feb7d38883ce96af46b72af09bed1",
+  "bundleDigest": "sha256:893f6274790fc040aac49950bc44f7d4f0f58b38c8e1f9060372bcf80020567a",
   "shared": {
     "draftNoticeTitle": "베타 서비스 정책 안내",
     "draftNoticeBody": "일감체크는 Google 계정으로 가입하고 로그인할 수 있는 베타 서비스입니다. 베타 이용 코드는 가입 후 14일 Pro 권한을 제공하며, 유료 결제·정기결제·환불 정책은 실제 도입 전에 별도로 확정해 안내합니다.",
@@ -20,7 +20,7 @@
       "title": "개인정보처리방침",
       "metadataDescription": "일감체크 베타의 개인정보 처리 기준",
       "version": "2026-11-03-beta.4",
-      "contentDigest": "sha256:af4ea2b5126b9e67acde571ca37ee324865cf6bdbeeafec8df929281972b94e3",
+      "contentDigest": "sha256:317712b240ddd2705021062a8a161096a899982fae76ce0af080c005e9043fbf",
       "lead": "일감체크는 1인 사업자의 일감 관리를 돕는 베타 서비스입니다. 아래 내용은 현재 구현된 인증·작업공간·고객 수정 링크 흐름을 기준으로 작성했으며, 결제 정보는 아직 수집하지 않습니다.",
       "sections": [
         {
@@ -72,12 +72,12 @@
               "headers": ["처리자", "업무", "처리 범위와 위치"],
               "rows": [
                 ["Supabase", "Google OAuth 인증, 데이터베이스, 실시간 동기화", "계정·작업공간 데이터 / 주 데이터베이스는 서울(ap-northeast-2), 지원·백업 하위처리자는 국외 가능"],
-                ["OpenAI Sites", "웹 애플리케이션 호스팅, CDN, 접근 제어, 보안·오류 로그", "요청·기술 로그 / 글로벌 전송망"]
+                ["Cloudflare", "Cloudflare Workers 웹 호스팅, CDN, 보안·오류 로그", "요청·기술 로그 / 글로벌 전송망"]
               ]
             },
             {
               "type": "note",
-              "text": "Supabase 주 데이터베이스는 서울 리전으로 생성하는 것을 배포 조건으로 삼습니다. 다만 Supabase와 OpenAI Sites의 지원·보안·전송망 및 하위처리자가 국외에서 일부 정보를 처리할 수 있습니다. 실제 이전 국가·시점·방법과 거부 절차는 서비스 제공자와 운영 주체의 최신 문서를 확인한 뒤 법률 검토를 거쳐 유료 출시 전에 구체적으로 갱신합니다."
+              "text": "Supabase 주 데이터베이스는 서울 리전으로 생성하는 것을 배포 조건으로 삼습니다. 다만 Supabase와 Cloudflare의 지원·보안·전송망 및 하위처리자가 국외에서 일부 정보를 처리할 수 있습니다. 실제 이전 국가·시점·방법과 거부 절차는 서비스 제공자와 운영 주체의 최신 문서를 확인한 뒤 법률 검토를 거쳐 유료 출시 전에 구체적으로 갱신합니다."
             },
             {
               "type": "links",
@@ -85,7 +85,8 @@
               "items": [
                 { "label": "Supabase 리전 안내", "href": "https://supabase.com/docs/guides/platform/regions" },
                 { "label": "Supabase DPA", "href": "https://supabase.com/downloads/docs/Supabase%2BDPA%2B260601.pdf" },
-                { "label": "OpenAI 개인정보처리방침", "href": "https://openai.com/policies/privacy-policy/" }
+                { "label": "Cloudflare 개인정보처리방침", "href": "https://www.cloudflare.com/privacypolicy/" },
+                { "label": "Cloudflare DPA", "href": "https://www.cloudflare.com/cloudflare-customer-dpa/" }
               ]
             }
           ]

@@ -1170,6 +1170,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .authIcon.error { color: var(--red); background: var(--red-soft); }
 .authHeading h1, .authCard > h1 { margin: 0 0 6px; font-size: 26px; }
 .authHeading p, .authCard > p { margin: 0; color: var(--ink-soft); font-size: 13px; }
+.authHeading p.authPolicyChange { margin: 0 0 6px; color: var(--ink); font-weight: 600; }
 .authCard > small { color: var(--muted); font-size: 11px; line-height: 1.55; }
 .authCard > small a { color: var(--blue); text-decoration: underline; }
 .authForm { display: grid; gap: 12px; }

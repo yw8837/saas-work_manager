@@ -9,7 +9,7 @@ import {
   TERMS_VERSION,
   currentPolicyAcceptance,
 } from "@/lib/policies";
-import { recordCurrentPolicyAcceptance } from "./policy";
+import { readPolicyAcceptanceState, recordCurrentPolicyAcceptance } from "./policy";
 
 const MIGRATIONS = resolve(process.cwd(), "supabase/migrations");
 
@@ -80,5 +80,47 @@ describe("hosted policy acceptance contract", () => {
 
     await expect(recordCurrentPolicyAcceptance(client, currentPolicyAcceptance()))
       .rejects.toThrow("정책 동의 기록을 저장하지 못했어요: migration missing");
+  });
+});
+
+describe("내 정책 동의 기록 상태(다시 동의 화면용)", () => {
+  function fakeClient(result: { data: unknown; error: unknown }) {
+    const select = vi.fn().mockResolvedValue(result);
+    const from = vi.fn(() => ({ select }));
+    return { client: { from, rpc: vi.fn() } as unknown as SupabaseClient, from, select };
+  }
+
+  it("기존 테이블 조회만 쓴다(새 RPC·새 권한 없음): 본인 행은 RLS가 거른다", async () => {
+    const { client, from, select } = fakeClient({ data: [], error: null });
+    await readPolicyAcceptanceState(client);
+    expect(from).toHaveBeenCalledWith("policy_acceptances");
+    expect(select).toHaveBeenCalledWith("terms_version, privacy_version");
+    expect((client as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc).not.toHaveBeenCalled();
+  });
+
+  it("지금 버전 기록이 있으면 current", async () => {
+    const { client } = fakeClient({ data: [
+      { terms_version: "2026-08-24-beta.3", privacy_version: "2026-08-24-beta.3" },
+      { terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION },
+    ], error: null });
+    await expect(readPolicyAcceptanceState(client)).resolves.toBe("current");
+  });
+
+  it("예전 버전 기록만 있으면 outdated", async () => {
+    const { client } = fakeClient({ data: [
+      { terms_version: "2026-08-24-beta.3", privacy_version: "2026-08-24-beta.3" },
+    ], error: null });
+    await expect(readPolicyAcceptanceState(client)).resolves.toBe("outdated");
+  });
+
+  it("기록이 하나도 없으면 none(처음 가입)", async () => {
+    const { client } = fakeClient({ data: [], error: null });
+    await expect(readPolicyAcceptanceState(client)).resolves.toBe("none");
+  });
+
+  it("조회 실패는 숨기지 않는다", async () => {
+    const { client } = fakeClient({ data: null, error: { message: "permission denied" } });
+    await expect(readPolicyAcceptanceState(client))
+      .rejects.toThrow("정책 동의 기록을 확인하지 못했어요: permission denied");
   });
 });

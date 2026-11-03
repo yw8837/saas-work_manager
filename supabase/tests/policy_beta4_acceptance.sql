@@ -90,6 +90,19 @@ begin
       raise exception 'publication_contract_mismatch: %', contract;
     end if;
 
+    -- 7-1) 다시 동의 화면용 조회: 로그인 사용자(authenticated)가 기존 select 권한·RLS만으로
+    --      본인의 모든 버전 기록을 읽고, 남의 기록은 못 읽는다(새 권한 없음).
+    perform set_config('request.jwt.claim.sub', existing_user::text, true);
+    execute 'set local role authenticated';
+    select count(*) into row_count from public.policy_acceptances;
+    if row_count <> 2 then
+      execute 'reset role';
+      raise exception 'own_rows_visible_count: %', row_count;
+    end if;
+    select count(*) into row_count from public.policy_acceptances where owner_id <> existing_user;
+    execute 'reset role';
+    if row_count <> 0 then raise exception 'other_rows_visible: %', row_count; end if;
+
     -- 8) 권한은 그대로: 동의 RPC는 로그인 사용자만, 트리거 함수는 아무도 직접 실행 못 한다.
     if has_function_privilege('anon', 'public.accept_current_policies(text,text)', 'execute')
       or not has_function_privilege('authenticated', 'public.accept_current_policies(text,text)', 'execute')
