@@ -2,14 +2,11 @@
 
 import Link from "next/link";
 import {
-  AlarmClock,
   ArrowRight,
   BriefcaseBusiness,
   CalendarRange,
   Check,
-  CheckCircle2,
   ListFilter,
-  MessageSquareText,
   Plus,
   Search,
 } from "lucide-react";
@@ -19,13 +16,10 @@ import {
   emptyJobListSearch, jobListHref, jobListSearchSnapshot, readJobListLocation,
   subscribeJobListLocation, updateJobListLocation,
 } from "@/lib/jobs-list-location";
-import {
-  formatShortDate,
-  formatWon,
-  getDday,
-  getRevisionSummary,
-  useWorkspace,
-} from "./workspace-provider";
+import { localTodayISO } from "@/lib/due-tile";
+import { jobChips } from "@/lib/job-chips";
+import { DueTile, StateChip } from "./due-tile";
+import { formatWon, useWorkspace } from "./workspace-provider";
 
 export function JobsOverview() {
   const { jobs } = useWorkspace();
@@ -33,6 +27,7 @@ export function JobsOverview() {
   const { filter, query, source } = readJobListLocation(search);
   const notice = new URLSearchParams(search).get("notice");
   const returnHref = jobListHref({ filter, query, source });
+  const today = localTodayISO();
 
   // 상태·검색 거르기를 지난 일감. 받은 곳 거르기 숫자도 이것으로 세서 보이는 목록과 숫자가 맞게 한다.
   // 일감 수가 많지 않아 렌더마다 거른다(받은 곳 거르기가 이 결과를 다시 쓰므로 수동 메모는 두지 않음).
@@ -140,15 +135,14 @@ export function JobsOverview() {
           <span aria-hidden="true" />
         </div>
         {filtered.map((job) => {
-          const waiting = job.tasks.some((task) => task.status === "waiting");
           const done = job.tasks.filter((task) => task.status === "done").length;
           const progress = Math.round((done / Math.max(job.tasks.length, 1)) * 100);
-          const revision = getRevisionSummary(job);
+          const chips = jobChips(job, today);
           const rowSource = orderSourceLabel(job.source);
           return (
             <Link href={`/jobs/${job.id}?list=${encodeURIComponent(returnHref)}`} className="jobTableRow" key={job.id}>
               <div className="jobIdentity">
-                <span className="jobInitial">{job.clientLabel.slice(0, 1)}</span>
+                <DueTile dueDate={job.dueDate} today={today} done={job.status === "completed"} />
                 <div>
                   <strong>{job.clientLabel}</strong>
                   <span>
@@ -158,25 +152,15 @@ export function JobsOverview() {
                 </div>
               </div>
               <div className="jobStatusCell">
-                {job.status === "completed" ? (
-                  <span className="statusBadge completed"><CheckCircle2 size={14} /> 완료</span>
-                ) : waiting ? (
-                  <span className="statusBadge waiting"><MessageSquareText size={14} /> 고객 대기</span>
-                ) : (
-                  <span className={job.dueDate < new Date().toISOString().slice(0, 10) ? "statusBadge delayed" : "statusBadge active"}>
-                    {job.dueDate < new Date().toISOString().slice(0, 10) && <AlarmClock size={14} />}
-                    {getDday(job.dueDate)}
-                  </span>
-                )}
-                <small>{formatShortDate(job.dueDate)} 마감</small>
+                <StateChip chip={chips.status} />
+                {chips.extras.map((chip) => <StateChip key={chip.label} chip={chip} />)}
               </div>
               <div className="tableProgress">
                 <span><b>{done}</b> / {job.tasks.length}</span>
                 <div className="progressLine"><span style={{ width: `${progress}%` }} /></div>
               </div>
               <div className="revisionCell">
-                <strong>{revision.remaining}회</strong>
-                <span>남음</span>
+                <StateChip chip={chips.revision} />
               </div>
               <div className="amountCell">{formatWon(job.amount)}</div>
               <ArrowRight className="rowArrow" size={17} />

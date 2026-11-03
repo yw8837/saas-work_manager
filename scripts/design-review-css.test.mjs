@@ -105,7 +105,7 @@ describe("어두운 면 위 키보드 포커스(감사 6번)", () => {
     for (const selector of [".jobActionBar :focus-visible", ".mobileSubmitBar :focus-visible", ".actionToast :focus-visible"]) {
       expect(bodies(theme, selector), selector).toMatch(/outline-color:\s*var\(--paper\)/);
     }
-    // 작업 화면의 --paper는 흰색이다(어두운 바 #242426 위 대비 15.49:1).
+    // 작업 화면의 --paper는 흰색이다(어두운 바 --ink #191f28 위 대비 16.56:1, 디자인 A 2026-11-03).
     expect(workspace).toMatch(/--paper:\s*#fff;/);
   });
 });
@@ -170,8 +170,8 @@ describe("토큰 밖 색 정리(리뷰 표준)", () => {
     expect(bodies(workspace, ".appFrame .jobActionBar")).toMatch(/background:\s*var\(--ink\)/);
     expect(bodies(workspace, ".appFrame .jobActionBar .quietButton")).toMatch(/border-color:\s*color-mix\(in srgb, var\(--paper\) 55%, transparent\)/);
     expect(bodies(workspace, ".appFrame .jobActionBar .quietButton:hover")).toMatch(/background:\s*color-mix\(in srgb, var\(--paper\) 10%, transparent\)/);
-    // 작업 화면의 --ink·--paper는 바꾸기 전 값(#242426·#fff)과 같다.
-    expect(workspace).toMatch(/--ink:\s*#242426;/);
+    // 디자인 A(2026-11-03)로 작업 화면 --ink를 #242426 → #191f28로 바꿨다. 바는 계속 토큰(--ink) 색만 쓴다.
+    expect(workspace).toMatch(/--ink:\s*#191f28;/);
     expect(workspace).toMatch(/--paper:\s*#fff;/);
   });
 });
