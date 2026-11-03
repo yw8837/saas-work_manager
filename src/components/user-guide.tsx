@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, MousePointerClick } from "lucide-react";
 
 import { Brand } from "./brand";
+import { WorkFlowChart } from "./work-flow-chart";
 
 /** 그림 한 장. 그림이 먼저, 아래에 제목 한 줄·설명 한 줄. 더 긴 글은 '자세히' 접기에만 둔다. */
 export type GuideShot = {
@@ -132,7 +133,7 @@ export function UserGuide() {
       <main className="guideMain">
         <section className="guideIntro">
           <h1>그림으로 보는 일감체크</h1>
-          <p>주문부터 월별 정리까지 그림 여덟 장이면 돼요.</p>
+          <p>주문 하나가 끝나기까지 흐름을 먼저 보고, 아래 그림으로 화면을 따라 해 보세요.</p>
           <div className="guideIntroActions">
             <Link href="/demo/r" className="primaryButton" data-testid="guide-demo-link">
               <MousePointerClick size={18} aria-hidden="true" /> 고객이 받는 화면 눌러 보기
@@ -140,6 +141,9 @@ export function UserGuide() {
             <Link href="/today" className="secondaryButton">무료로 시작하기</Link>
           </div>
         </section>
+
+        {/* 처음 보는 사람이 한눈에 알도록 흐름도를 그림보다 먼저 둔다. */}
+        <WorkFlowChart headingId="guide-flow-title" />
 
         {/* 가입은 한 번뿐이라 맨 위에 작게 둔다. */}
         <figure className="guideSignup" data-testid="guide-signup">

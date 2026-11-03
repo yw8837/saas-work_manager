@@ -1153,7 +1153,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       provider: "google",
       options: {
         redirectTo: new URL(safePath, window.location.origin).toString(),
-        ...(reauthenticating ? { queryParams: { prompt: "select_account" } } : {}),
+        // 늘 계정 고르는 화면을 띄운다. 구글 계정이 하나만 로그인돼 있으면 고르는 화면 없이 그 계정으로 들어가 버린다.
+        queryParams: { prompt: "select_account" },
       },
     });
     if (error) {

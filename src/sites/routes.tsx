@@ -1,4 +1,4 @@
-import { Route, Routes, useParams, useSearchParams } from "react-router-dom";
+import { Route, Routes, useParams } from "react-router-dom";
 
 import { AppShell } from "@/components/app-shell";
 import { BetaActivationGate } from "@/components/beta-activation-gate";
@@ -60,8 +60,7 @@ function JobDetailRoute() {
 }
 
 function FeedbackRoute() {
-  const [params] = useSearchParams();
-  return <WorkspaceRoute><FeedbackPanel mode={params.get("mode") === "exit" ? "exit" : "general"} /></WorkspaceRoute>;
+  return <WorkspaceRoute><FeedbackPanel /></WorkspaceRoute>;
 }
 
 function RevisionRoute() {

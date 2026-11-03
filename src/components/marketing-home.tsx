@@ -6,12 +6,12 @@ import {
   CheckCircle2,
   ChevronRight,
   Coffee,
-  MousePointer2,
   MousePointerClick,
   PackageCheck,
 } from "lucide-react";
 import { Brand } from "./brand";
 import { ProductPreview } from "./product-preview";
+import { WorkFlowChart } from "./work-flow-chart";
 import { getPublicServiceConfig } from "@/lib/policies";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
 import { BUSINESS_IDENTITY } from "@/lib/business-identity";
@@ -95,20 +95,7 @@ export function MarketingHome() {
               <h2>처음 한 번만 정리하면,<br />다음 주문부터는 고르기만.</h2>
               <p>패키지를 한 번 저장해두면, 주문마다 반복되던 할 일과 마감이 바로 펼쳐져요.</p>
             </div>
-            <ol className="workflowRail">
-              <li>
-                <span>처음 한 번</span>
-                <div><PackageCheck size={21} /><strong>내 패키지 저장</strong><p>금액, 기간, 수정 횟수와 기본 할 일을 등록해요.</p></div>
-              </li>
-              <li>
-                <span>주문이 오면</span>
-                <div><MousePointer2 size={21} /><strong>네 가지만 선택</strong><p>고객, 시작일, 패키지, 옵션만 고르면 계산이 끝나요.</p></div>
-              </li>
-              <li>
-                <span>매일 아침</span>
-                <div><CheckCircle2 size={21} /><strong>오늘 화면에서 처리</strong><p>완료, 대기, 수정 사용을 한두 번의 탭으로 남겨요.</p></div>
-              </li>
-            </ol>
+            <WorkFlowChart headingId="landing-flow-title" headingLevel="h3" />
           </div>
         </section>
 

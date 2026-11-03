@@ -406,7 +406,6 @@ export function SettingsPanel() {
         </div>
         <div className="browserTestActions">
           <Link className="quietButton" href="/feedback">의견 보내기</Link>
-          <Link className="quietButton" href="/feedback?mode=exit">그만두는 이유 알려주기</Link>
         </div>
       </section>
 

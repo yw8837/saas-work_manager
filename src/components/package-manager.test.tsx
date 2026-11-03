@@ -12,6 +12,7 @@ vi.mock("./workspace-provider", async () => ({
 const updateSettings = vi.fn();
 const savePackage = vi.fn();
 const saveOption = vi.fn();
+const archivePackage = vi.fn();
 
 function mockWorkspace(settings: Partial<AppSettings> = {}) {
   const state = createStarterState("2026-11-02");
@@ -21,7 +22,7 @@ function mockWorkspace(settings: Partial<AppSettings> = {}) {
     settings: { ...state.settings, ...settings },
     updateSettings,
     savePackage,
-    archivePackage: vi.fn(),
+    archivePackage,
     saveOption,
     archiveOption: vi.fn(),
     canCreatePackage: true,
@@ -34,6 +35,7 @@ beforeEach(() => {
   updateSettings.mockReset();
   savePackage.mockReset();
   saveOption.mockReset();
+  archivePackage.mockReset();
   mockWorkspace();
 });
 
@@ -135,5 +137,17 @@ describe("한 건에 최소 남길 돈", () => {
     expect(fresh).toHaveValue(null);
     fireEvent.click(screen.getByTestId("save-package"));
     expect(savePackage).toHaveBeenCalledWith(expect.objectContaining({ estimatedCost: 0 }));
+  });
+});
+
+describe("패키지 삭제", () => {
+  it("'보관' 대신 '패키지 삭제' 버튼이 보이고, 확인하면 목록에서 뺀다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<PackageManager />);
+    expect(screen.queryByRole("button", { name: "보관" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "패키지 삭제" }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("이미 만든 일감"));
+    expect(archivePackage).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
   });
 });

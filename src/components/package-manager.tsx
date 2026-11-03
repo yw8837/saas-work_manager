@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Check, ChevronRight, CircleAlert, ClipboardList, PackagePlus, Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { Check, ChevronRight, CircleAlert, ClipboardList, PackagePlus, Plus, Save, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { BRIEF_QUESTION_LIMIT, createDomainId, DEFAULT_BRIEF_QUESTIONS, INTAKE_ITEM_LIMIT, marginShortfall, marginWarningText, normalizeBriefQuestions, normalizeIntakeLabels, parseFloorInput, PLAN_PRICES, type OptionTemplate, type PackageTemplate, type TaskTemplate } from "@/lib/domain";
 import { markFirstRun } from "@/lib/first-run";
@@ -349,7 +349,7 @@ export function PackageManager() {
               )}
             </div>
             <TaskRows tasks={selectedPackage.tasks} onChange={(tasks) => setPackageDraft({ ...selectedPackage, tasks })} />
-            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentPackage} data-testid="save-package"><Save size={16} /> 패키지 저장</button>{!packageDraft && <button type="button" className="quietButton" onClick={() => { if (window.confirm("이 패키지를 새 일감 선택 목록에서 보관할까요? 기존 일감은 바뀌지 않아요.")) { archivePackage(selectedPackage.id); flashSaved("패키지를 보관했어요."); } }}><Archive size={16} /> 보관</button>}</div>
+            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentPackage} data-testid="save-package"><Save size={16} /> 패키지 저장</button>{!packageDraft && <button type="button" className="quietButton" data-testid="delete-package" onClick={() => { if (window.confirm("이 패키지를 지울까요? 이미 만든 일감의 금액·마감·할 일은 그대로예요.")) { archivePackage(selectedPackage.id); flashSaved("패키지를 지웠어요."); } }}><Trash2 size={16} /> 패키지 삭제</button>}</div>
           </section>
         </div>
       ) : (
@@ -393,7 +393,7 @@ export function PackageManager() {
                 </label>
               )}
             </fieldset>
-            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentOption} data-testid="save-option"><Save size={16} /> 옵션 저장</button>{!optionDraft && <button type="button" className="quietButton" onClick={() => { if (window.confirm("이 옵션을 새 일감 선택 목록에서 보관할까요?")) { archiveOption(selectedOption.id); flashSaved("옵션을 보관했어요."); } }}><Archive size={16} /> 보관</button>}</div>
+            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentOption} data-testid="save-option"><Save size={16} /> 옵션 저장</button>{!optionDraft && <button type="button" className="quietButton" data-testid="delete-option" onClick={() => { if (window.confirm("이 옵션을 지울까요? 이미 만든 일감은 그대로예요.")) { archiveOption(selectedOption.id); flashSaved("옵션을 지웠어요."); } }}><Trash2 size={16} /> 옵션 삭제</button>}</div>
           </section>
         </div>
       )}
