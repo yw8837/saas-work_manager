@@ -31,14 +31,23 @@ export function startReminderMessage(input: { clientLabel: string; pendingIntake
   return lines.length > 0 ? [greetingFor(input.clientLabel), ...lines].join("\n") : "";
 }
 
+/** "2026-11-10" → "11월 10일". 형식이 다르면 빈 문자열이다. */
+function monthDay(value: string | undefined): string {
+  const match = /^\d{4}-(\d{2})-(\d{2})$/.exec(value ?? "");
+  return match ? `${Number(match[1])}월 ${Number(match[2])}일` : "";
+}
+
 /**
- * 시작 안내 문구. `link`가 null이면(링크가 꺼졌거나 저장 중) 링크 줄을 빼고 요청도 이 대화로 받는다고 쓴다.
+ * 시작 안내 문구. 순서: 인사 → 보내 주실 자료·알려 주실 것 → 완성 예정일 → 수정 요청 설명과 바로 다음 줄 링크 → 횟수 규칙 한 줄.
+ * `link`가 null이면(링크가 꺼졌거나 저장 중) 링크 줄을 빼고 요청도 이 대화로 받는다고 쓴다. `dueDate`가 없으면 완성 예정 줄을 뺀다.
  */
 export function clientShareMessage(input: {
   clientLabel: string;
   title: string;
   included: number;
   remaining?: number;
+  /** 일감 마감일(YYYY-MM-DD). 고객에게는 '완성 예정'으로 알린다. */
+  dueDate?: string;
   link: string | null;
   pendingIntake?: string[];
   pendingQuestions?: string[];
@@ -47,23 +56,21 @@ export function clientShareMessage(input: {
   const title = input.title.trim();
   const remaining = input.remaining ?? input.included;
   const link = input.link;
-  // 고객이 대화창을 떠나 링크를 열 이유(남은 횟수·마감 확인)와 지금 규칙을 먼저 알린다.
+  const due = monthDay(input.dueDate);
   // 수정 횟수는 접수가 아니라 작업자가 수정을 마칠 때 쓴다(engine.ts completeRevision). 다 쓴 뒤의 요청은 추가 작업으로 따로 협의한다.
   const revisionLine = input.included <= 0
     ? "요청 내용은 접수 시각과 함께 기록돼요."
     : remaining > 0
-      ? link
-        ? `포함된 수정 ${input.included}회 중 남은 횟수와 마감을 링크에서 바로 볼 수 있어요. 요청은 링크에 한 번에 남겨 주시면, 제가 수정을 마칠 때마다 1회씩 세요.`
-        : `남은 포함 수정은 ${remaining}회이고, 제가 수정을 마칠 때마다 1회씩 세요.`
+      ? `수정을 마칠 때마다 포함 수정 1회로 셉니다. 남은 포함 수정은 ${remaining}회예요.`
       : `포함된 수정 ${input.included}회를 모두 써서, 새 요청은 추가 작업으로 따로 말씀드릴게요.`;
   return [
     greeting,
-    link
-      ? `${title ? `${title} ` : ""}작업의 수정 요청은 아래 링크에 한 번에 남겨주세요. 로그인 없이 열려요.`
-      : `${title ? `${title} ` : ""}작업의 수정 요청은 이 대화로 한 번에 모아 주세요.`,
-    revisionLine,
     ...startChecklistLines(input),
-    "질문은 이 대화로 편하게 주시고, 답도 여기로 드릴게요.",
-    ...(link ? [link] : []),
+    ...(due ? [`${title ? `${title} ` : ""}작업은 ${due} 완성 예정이에요.`] : []),
+    // 링크는 설명 바로 다음 줄에 둔다("아래 링크"가 가리키는 곳이 바로 보이게).
+    ...(link
+      ? ["수정 요청은 아래 링크에 한 번에 남겨 주세요. 로그인 없이 열려요.", link]
+      : ["수정 요청은 이 대화로 한 번에 모아 주세요."]),
+    revisionLine,
   ].join("\n");
 }

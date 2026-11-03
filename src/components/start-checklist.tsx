@@ -1,14 +1,14 @@
 "use client";
 
 import { CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { BriefQuestion } from "@/lib/domain";
 
 /**
  * 일감 상세의 '착수 전 질문'.
  * 답은 고객이 평소 대화창으로 보낸다. 작업자는 옮겨 적지 않고 받았다고 체크만 하고, 메모는 필요할 때만 남긴다.
- * 남은 자료·질문을 다시 보내는 문구는 '고객에게 보낼 말'(client-messages.tsx)의 '남은 것 요청'에서 복사한다.
+ * 남은 자료·질문을 다시 보내는 문구는 구획 머리의 `action`('남은 것만 문구 복사', 일감 화면이 넘김)이나 '고객에게 보낼 말'의 '남은 것 요청'에서 복사한다.
  */
 export function StartChecklist({
   jobId,
@@ -16,12 +16,15 @@ export function StartChecklist({
   active,
   onToggle,
   onNote,
+  action,
 }: {
   jobId: string;
   questions: BriefQuestion[];
   active: boolean;
   onToggle: (jobId: string, questionId: string) => void;
   onNote: (jobId: string, questionId: string, note: string) => void;
+  /** 구획 머리 오른쪽에 둘 행동(남은 것만 문구 복사). */
+  action?: ReactNode;
 }) {
   const answered = questions.filter((item) => item.answeredAt).length;
 
@@ -34,6 +37,7 @@ export function StartChecklist({
           <h2 id="brief-title">착수 전 질문</h2>
           <p className="sectionHint">{answered}/{questions.length} 답 받음 · 고객은 평소 대화창으로 답해요</p>
         </div>
+        {action}
       </div>
       <ul className="intakeList">
         {questions.map((item) => (

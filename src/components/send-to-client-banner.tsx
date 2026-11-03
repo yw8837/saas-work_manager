@@ -21,6 +21,7 @@ export function SendToClientBanner({
   title,
   included,
   remaining,
+  dueDate,
   pendingIntake,
   pendingQuestions,
   ready,
@@ -35,6 +36,8 @@ export function SendToClientBanner({
   included: number;
   /** 지금 남은 포함 수정. 다 쓴 주문에 "1회로 세요"라고 보내지 않으려고 받는다. */
   remaining?: number;
+  /** 일감 마감일(YYYY-MM-DD). 문구에 '완성 예정'으로 들어간다. */
+  dueDate?: string;
   /** 아직 받지 못한 '시작 전 받을 자료'. 고객이 링크를 안 열어도 대화창에서 보내게 문구에 넣는다. */
   pendingIntake?: string[];
   /** 아직 답을 받지 못한 '착수 전 질문'. */
@@ -53,7 +56,7 @@ export function SendToClientBanner({
   const [copyFailed, setCopyFailed] = useState<CopyTarget | null>(null);
   const linkInputRef = useRef<HTMLInputElement>(null);
   const messageTextRef = useRef<HTMLTextAreaElement>(null);
-  const message = clientShareMessage({ clientLabel, title, included, remaining, link, pendingIntake, pendingQuestions });
+  const message = clientShareMessage({ clientLabel, title, included, remaining, dueDate, link, pendingIntake, pendingQuestions });
 
   const copy = async (target: CopyTarget) => {
     if (!ready) return;

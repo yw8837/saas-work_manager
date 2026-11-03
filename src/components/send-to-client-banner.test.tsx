@@ -187,11 +187,11 @@ describe("저장 직후 고객에게 보내기", () => {
     expect(screen.getByText("저장이 끝나면 보낼 수 있어요.")).toBeInTheDocument();
   });
 
-  it("남은 포함 수정이 없는 일감이면 카톡 문구가 '1회씩 세요'가 아니라 추가 작업으로 따로 말한다고 쓴다", () => {
+  it("남은 포함 수정이 없는 일감이면 카톡 문구가 '1회로 셉니다'가 아니라 추가 작업으로 따로 말한다고 쓴다", () => {
     renderBanner({ included: 2, remaining: 0 });
     const preview = screen.getByTestId("send-message-preview");
     expect(preview).toHaveTextContent("포함된 수정 2회를 모두 써서, 새 요청은 추가 작업으로 따로 말씀드릴게요.");
-    expect(preview).not.toHaveTextContent("1회씩 세요");
+    expect(preview).not.toHaveTextContent("1회로 셉니다");
   });
 
   it("고객 화면 미리보기는 새 탭으로 같은 링크를 열고, 닫기를 누르면 알린다", () => {
