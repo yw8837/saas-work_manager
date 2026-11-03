@@ -9,7 +9,7 @@ const auth = vi.hoisted(() => ({
   authStatus: "signed_out" as "signed_out" | "signed_in" | "offline",
   signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
-  hasAcceptance: vi.fn(),
+  acceptanceState: vi.fn(),
   recordAcceptance: vi.fn(),
   client: {} as object | null,
 }));
@@ -47,7 +47,7 @@ vi.mock("./workspace-provider", () => ({
 
 vi.mock("@/lib/supabase", () => ({
   getSupabaseBrowserClient: vi.fn(() => auth.client),
-  hasCurrentPolicyAcceptance: auth.hasAcceptance,
+  readPolicyAcceptanceState: auth.acceptanceState,
   recordCurrentPolicyAcceptance: auth.recordAcceptance,
 }));
 
@@ -61,7 +61,7 @@ describe("WorkspaceAuthGate Google login", () => {
     auth.authStatus = "signed_out";
     auth.signInWithGoogle.mockReset().mockResolvedValue(undefined);
     auth.signOut.mockReset().mockResolvedValue(undefined);
-    auth.hasAcceptance.mockReset().mockResolvedValue(false);
+    auth.acceptanceState.mockReset().mockResolvedValue("none");
     auth.recordAcceptance.mockReset().mockResolvedValue(undefined);
     auth.client = {};
     vi.stubEnv("NEXT_PUBLIC_OPERATOR_NAME", "테스트 운영자");
@@ -127,7 +127,8 @@ describe("WorkspaceAuthGate Google login", () => {
 
     expect(screen.queryByText("private workspace")).not.toBeInTheDocument();
     await screen.findByRole("heading", { name: "첫 사용 전 동의가 필요해요" });
-    expect(auth.hasAcceptance).toHaveBeenCalledWith(auth.client);
+    expect(auth.acceptanceState).toHaveBeenCalledWith(auth.client);
+    expect(screen.queryByText("베타 이용 코드 Pro 기간 14일 · 호스팅 사업자 Cloudflare로 표기")).not.toBeInTheDocument();
 
     const consent = screen.getByRole("checkbox");
     fireEvent.click(consent);
@@ -138,6 +139,34 @@ describe("WorkspaceAuthGate Google login", () => {
       { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION },
     ));
     expect(await screen.findByText("private workspace")).toBeInTheDocument();
+  });
+
+  it("예전 버전에 동의한 계정에는 '약관이 바뀌었어요'와 바뀐 점을 보여 주고 새 버전 동의를 받는다", async () => {
+    auth.authStatus = "signed_in";
+    auth.acceptanceState.mockResolvedValue("outdated");
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+
+    await screen.findByRole("heading", { name: "약관이 바뀌었어요" });
+    expect(screen.getByText("베타 이용 코드 Pro 기간 14일 · 호스팅 사업자 Cloudflare로 표기")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "첫 사용 전 동의가 필요해요" })).not.toBeInTheDocument();
+    expect(screen.queryByText("private workspace")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "동의하고 작업공간 열기" }));
+    await waitFor(() => expect(auth.recordAcceptance).toHaveBeenCalledWith(
+      auth.client,
+      { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION },
+    ));
+    expect(await screen.findByText("private workspace")).toBeInTheDocument();
+  });
+
+  it("지금 버전에 이미 동의한 계정은 동의 화면 없이 바로 연다", async () => {
+    auth.authStatus = "signed_in";
+    auth.acceptanceState.mockResolvedValue("current");
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+
+    expect(await screen.findByText("private workspace")).toBeInTheDocument();
+    expect(auth.recordAcceptance).not.toHaveBeenCalled();
   });
 });
 

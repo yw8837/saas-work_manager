@@ -8,7 +8,7 @@ import type {
 } from "@/lib/beta/apply-copy";
 import type { BetaAdStatus, BetaNoticeKind } from "@/lib/beta/rules";
 
-/** 베타 신청·광고 동의 RPC. 표는 직접 읽지 않고 migration 20261102020000의 함수만 부른다. */
+/** 베타 신청·광고 동의 RPC. 표는 직접 읽지 않고 migration 20261104010000의 함수만 부른다. */
 
 export type BetaApplicationInput = {
   email: string;

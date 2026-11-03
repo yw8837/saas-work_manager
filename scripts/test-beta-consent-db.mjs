@@ -865,7 +865,7 @@ try {
     const ids = [];
     for (const email of emails) ids.push((await latestApplication(email)).id);
     await db.query("update public.beta_applications set purge_after = now() - interval '1 day' where id = any($1::uuid[])", [ids]);
-    const source = await readFile(resolve("supabase/migrations/20261102020000_beta_application_consent.sql"), "utf8");
+    const source = await readFile(resolve("supabase/migrations/20261104010000_beta_application_consent.sql"), "utf8");
     const purge = source.slice(source.indexOf("create function public.beta_ops_purge_expired()"));
     assert.match(purge.slice(0, 2000), /order by [a-z_.]*email_hash/);
     assert.match(purge.slice(0, 2000), /beta_lock_email\(/);
@@ -874,7 +874,7 @@ try {
     assert.equal(await expireAndPurge(ids[0]), 3);
   });
 
-  const migrationSource = await readFile(resolve("supabase/migrations/20261102020000_beta_application_consent.sql"), "utf8");
+  const migrationSource = await readFile(resolve("supabase/migrations/20261104010000_beta_application_consent.sql"), "utf8");
   const functionBody = (name) => {
     const start = migrationSource.indexOf(`create function ${name}(`);
     assert.ok(start >= 0, name);

@@ -25,20 +25,28 @@ export const FLOW_STEPS: FlowStep[] = [
   { id: "complete", actor: "me", title: "납품하고 '일감 완료'", action: "끝난 주문을 완료로 바꿔요.", auto: "월별 정리에 매출이 모여요" },
 ];
 
+/**
+ * showHeading=false면 제목을 그리지 않는다. 바깥(설명서 단계 구획)이 같은 제목으로 이름을 가지므로 구획 이름을 겹쳐 달지 않는다.
+ * compact는 설명서 첫 단계용 요약: 할 일 설명 줄을 빼고 제목·자동 줄만 남겨 휴대폰 한 화면에 들어가게 한다.
+ */
 export function WorkFlowChart({
   headingId,
   heading = "주문 하나가 끝나기까지",
   headingLevel = "h2",
+  showHeading = true,
+  compact = false,
 }: {
   headingId: string;
   heading?: string;
   headingLevel?: "h2" | "h3";
+  showHeading?: boolean;
+  compact?: boolean;
 }) {
   const Heading = headingLevel;
   return (
-    <section className="flowChart" aria-labelledby={headingId} data-testid="work-flow-chart">
+    <section className="flowChart" data-compact={compact || undefined} aria-labelledby={showHeading ? headingId : undefined} data-testid="work-flow-chart">
       <div className="flowChartHead">
-        <Heading id={headingId}>{heading}</Heading>
+        {showHeading && <Heading id={headingId}>{heading}</Heading>}
         <p className="flowLegend" aria-label="표시 뜻">
           <span className="flowWho" data-actor="me">나</span> 내가 할 일
           <span className="flowWho" data-actor="customer">고객</span> 고객이 할 일
@@ -54,7 +62,7 @@ export function WorkFlowChart({
                 <span className="flowWho" data-actor={step.actor}>{FLOW_ACTOR_LABEL[step.actor]}</span>
                 <strong>{step.title}</strong>
               </p>
-              <p className="flowAction">{step.action}</p>
+              {!compact && <p className="flowAction">{step.action}</p>}
             </div>
             {step.auto ? (
               <p className="flowAuto">

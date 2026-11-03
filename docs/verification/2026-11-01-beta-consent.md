@@ -10,7 +10,7 @@
 
 | 구분 | 파일 |
 |---|---|
-| DB | `supabase/migrations/20261102020000_beta_application_consent.sql` |
+| DB | `supabase/migrations/20261104010000_beta_application_consent.sql` |
 | DB 동작 시험(PGlite) | `scripts/test-beta-consent-db.mjs` (CI: `.github/workflows/release-gate.yml`) |
 | 권한 회귀 | `supabase/tests/rpc_execution_surface.sql` 24→35행, `scripts/test-native-push-db.mjs` 기대 35 |
 | 규칙·문구·초안 | `src/lib/beta/apply-copy.ts`, `rules.ts`, `mail-drafts.ts`, `ops-backend.ts` |
@@ -101,7 +101,7 @@ DB = `node scripts/test-beta-consent-db.mjs`, 단위 = `npx vitest run`, E2E = `
 ## 독립 리뷰 반영 (Codex 읽기 전용 리뷰, 2026-11-01)
 
 원문: `D:/SaaS/01_일감체크/스테이션/과제/2-MVP/검토-codex-2026-11-01-신청기능.md` (7건: 높음 2·중간 4·낮음 1).
-작업자(Claude) 보고: 건마다 실패하는 시험을 먼저 만들어 실패(RED)를 확인한 뒤 고치고 통과(GREEN)시켰다. 이 작업 순서는 작업자의 실행 기록이며, 독립 재검토에서 따로 입증되지는 않았다(재검토는 현재 코드의 통과 여부만 확인). migration(당시 이름 `20261101090000`)은 아직 어디에도 적용되지 않아 새 migration을 쌓지 않고 같은 파일을 고쳤다. 2026-11-02 운영에 `20261101140000`이 먼저 적용돼서, 이 파일은 순서를 맞추려고 이름만 `20261102020000`으로 바꿨다(내용 변경 없음).
+작업자(Claude) 보고: 건마다 실패하는 시험을 먼저 만들어 실패(RED)를 확인한 뒤 고치고 통과(GREEN)시켰다. 이 작업 순서는 작업자의 실행 기록이며, 독립 재검토에서 따로 입증되지는 않았다(재검토는 현재 코드의 통과 여부만 확인). migration(당시 이름 `20261101090000`)은 아직 어디에도 적용되지 않아 새 migration을 쌓지 않고 같은 파일을 고쳤다. 2026-11-02 운영에 `20261101140000`이 먼저 적용돼서, 이 파일은 순서를 맞추려고 이름만 `20261102020000`으로 바꿨다(내용 변경 없음). 2026-11-04 운영에 `20261103120000`·`20261103150000`·`20261103160000`이 먼저 적용돼서 같은 이유로 이름만 `20261104010000`으로 다시 바꿨다(내용 변경 없음, `db push`가 지난 날짜 파일을 `--include-all` 없이는 올리지 않음).
 
 | # | 심각도 | 원인 | 수정 | 시험 이름 |
 |---|---|---|---|---|

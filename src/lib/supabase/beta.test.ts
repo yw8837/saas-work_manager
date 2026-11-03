@@ -11,7 +11,7 @@ import {
 } from "./beta";
 
 const sql = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261102020000_beta_application_consent.sql"),
+  resolve(process.cwd(), "supabase/migrations/20261104010000_beta_application_consent.sql"),
   "utf8",
 );
 
