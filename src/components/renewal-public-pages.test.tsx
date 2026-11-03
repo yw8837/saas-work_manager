@@ -1,9 +1,9 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PLAN_LIMITS } from "@/lib/domain";
 import { MarketingHome } from "./marketing-home";
-import { GUIDE_CHAPTERS, GUIDE_SIGNUP, UserGuide } from "./user-guide";
+import { GUIDE_STEPS, UserGuide } from "./user-guide";
 
 describe("랜딩 히어로", () => {
   it("보조 버튼은 가입 없이 고객 화면 체험으로 간다", () => {
@@ -72,119 +72,112 @@ describe("랜딩 문구는 지금 동작(수정 완료 때 차감·직접 등록
   });
 });
 
-describe("그림 사용설명서", () => {
-  const allShots = () => [GUIDE_SIGNUP, ...GUIDE_CHAPTERS.flatMap((chapter) => chapter.shots)];
+describe("그림 사용설명서(한 장씩 보기)", () => {
+  beforeEach(() => window.history.replaceState(null, "", "/guide"));
+  afterEach(() => window.history.replaceState(null, "", "/guide"));
 
-  it("무기 3개 순서의 장 4개에 그림 8장, 맨 위에 가입 그림 1장", () => {
-    expect(GUIDE_CHAPTERS.map((chapter) => chapter.title)).toEqual(["주문 30초 등록", "시작 안내 한 방", "수정 범위 정리", "더 편하게"]);
-    expect(GUIDE_CHAPTERS.map((chapter) => chapter.shots.length)).toEqual([2, 2, 2, 2]);
+  /** 첫 단계부터 '다음'을 눌러 가며 단계마다 fn을 부른다. */
+  const walk = (fn: (index: number) => void) => {
     render(<UserGuide />);
-    const strip = screen.getByRole("navigation", { name: "네 장 한눈에 보기" });
-    for (const chapter of GUIDE_CHAPTERS) {
-      const section = document.getElementById(chapter.id)!;
-      expect(section.querySelectorAll("img")).toHaveLength(chapter.shots.length);
-    }
-    expect(within(screen.getByTestId("guide-signup")).getByRole("img")).toHaveAttribute("src", GUIDE_SIGNUP.image.src);
-    // 목차 띠 밖의 그림 = 장 그림 8장 + 가입 1장
-    expect(Array.from(document.images).filter((image) => !strip.contains(image))).toHaveLength(9);
+    GUIDE_STEPS.forEach((_, index) => {
+      fn(index);
+      if (index < GUIDE_STEPS.length - 1) fireEvent.click(screen.getByTestId("guide-next"));
+    });
+  };
+
+  it("무기 3개 순서의 장 4개(장마다 그림 2장)가 가입 그림 뒤에 이어진다", () => {
+    const chapters = GUIDE_STEPS.filter((step) => step.chapter).map((step) => step.chapter);
+    expect(chapters).toEqual(["주문 30초 등록", "주문 30초 등록", "시작 안내 한 방", "시작 안내 한 방", "수정 범위 정리", "수정 범위 정리", "더 편하게", "더 편하게"]);
+    expect(GUIDE_STEPS.filter((step) => step.image)).toHaveLength(9);
   });
 
-  it("모든 그림에 설명(alt)이 있고, 맨 위 목차 띠 그림만 장식이라 비워 둔다", () => {
-    for (const shot of allShots()) expect(shot.image.alt.trim(), shot.id).not.toBe("");
-    render(<UserGuide />);
-    const strip = screen.getByRole("navigation", { name: "네 장 한눈에 보기" });
-    for (const image of Array.from(document.images)) {
-      if (strip.contains(image)) expect(image.getAttribute("alt")).toBe("");
-      else expect(image.getAttribute("alt")?.trim()).toBeTruthy();
-      // 일감 화면 구획 이름('수정 요청 기록')과 같은 말을 쓰고, 그림 설명에도 '로그'를 쓰지 않는다.
-      expect(image.alt).not.toMatch(/로그(?!인|아웃)/);
-    }
-  });
-
-  it("그림이 먼저, 그 아래 제목 한 줄(24자 이하)과 설명 한 줄(40자 이하), 긴 글은 '자세히' 접기에만", () => {
-    for (const shot of allShots()) {
-      expect(shot.title.length, shot.title).toBeLessThanOrEqual(24);
-      expect(shot.caption.length, shot.caption).toBeLessThanOrEqual(40);
-    }
-    render(<UserGuide />);
-    for (const shot of GUIDE_CHAPTERS.flatMap((chapter) => chapter.shots)) {
-      const item = document.getElementById(shot.id)!;
-      const [figure, title, caption] = Array.from(item.children);
-      expect(figure.tagName).toBe("FIGURE");
-      expect(title).toHaveTextContent(shot.title);
-      expect(caption).toHaveTextContent(shot.caption);
-      const details = item.querySelector("details");
-      if (shot.detail) {
-        expect(details?.querySelector("summary")).toHaveTextContent("자세히");
-        expect(details).toHaveTextContent(shot.detail);
+  it("단계마다 그림(또는 흐름도)은 하나, 설명(alt)이 있고 '로그'를 쓰지 않는다", () => {
+    walk((index) => {
+      const stage = screen.getByTestId("guide-step");
+      const images = stage.querySelectorAll("img");
+      const step = GUIDE_STEPS[index];
+      if (step.image) {
+        expect(images).toHaveLength(1);
+        expect(images[0].getAttribute("alt")?.trim()).toBeTruthy();
+        expect(images[0].alt).not.toMatch(/로그(?!인|아웃)/);
       } else {
-        expect(details).toBeNull();
+        expect(images).toHaveLength(0);
+        expect(within(stage).getByTestId("work-flow-chart")).toBeInTheDocument();
       }
-    }
-  });
-
-  it("'자세히' 접기는 보이는 글은 그대로 두고, 낭독기에는 그림 제목을 붙여 서로 다른 이름으로 읽힌다", () => {
-    const withDetail = GUIDE_CHAPTERS.flatMap((chapter) => chapter.shots).filter((shot) => shot.detail);
-    expect(withDetail).toHaveLength(7);
-    expect(new Set(withDetail.map((shot) => shot.title)).size).toBe(withDetail.length);
-    render(<UserGuide />);
-    const summaries = Array.from(document.querySelectorAll(".guideDetail summary"));
-    expect(summaries).toHaveLength(withDetail.length);
-    summaries.forEach((summary, index) => {
-      const title = withDetail[index].title;
-      expect(summary.closest("li")?.id).toBe(withDetail[index].id);
-      // 그림 제목은 숨김 글로만 붙인다. 숨김 글을 빼면 보이는 글은 '자세히' 하나다.
-      expect(summary.querySelector(".srOnly")).toHaveTextContent(title);
-      const visible = summary.cloneNode(true) as HTMLElement;
-      visible.querySelectorAll(".srOnly").forEach((node) => node.remove());
-      expect(visible.textContent?.trim()).toBe("자세히");
-      expect(summary).toHaveAccessibleName(`자세히, ${title}`);
     });
   });
 
-  it("장마다 '직접 해 보기' 링크는 하나씩, 맨 위 목차 띠는 네 장으로 이어진다", () => {
-    render(<UserGuide />);
-    for (const chapter of GUIDE_CHAPTERS) {
-      const links = within(document.getElementById(chapter.id)!).getAllByRole("link", { name: /직접 해 보기/ });
-      expect(links).toHaveLength(1);
-      expect(links[0]).toHaveAttribute("href", chapter.tryIt.href);
-    }
-    const strip = screen.getByRole("navigation", { name: "네 장 한눈에 보기" });
-    expect(within(strip).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(GUIDE_CHAPTERS.map((chapter) => `#${chapter.id}`));
+  it("제목 → 설명 → 그림 순서, 긴 글은 '자세히' 접기에만", () => {
+    walk((index) => {
+      const step = GUIDE_STEPS[index];
+      const stage = screen.getByTestId("guide-step");
+      expect(screen.getByTestId("guide-step-title")).toHaveTextContent(step.title);
+      expect(stage.querySelector(".guideStageCaption")).toHaveTextContent(step.caption);
+      const title = screen.getByTestId("guide-step-title");
+      const media = stage.querySelector("img, [data-testid=work-flow-chart]")!;
+      expect(title.compareDocumentPosition(media) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const details = stage.querySelector("details");
+      if (step.detail) {
+        expect(details?.querySelector("summary")).toHaveTextContent("자세히");
+        expect(details).toHaveTextContent(step.detail);
+      } else {
+        expect(details).toBeNull();
+      }
+    });
   });
 
-  it("설명서 글은 예전(1,094자)보다 짧다", () => {
-    render(<UserGuide />);
-    // 기준은 화면에 보이는 글이다. 낭독기 전용 숨김 글('자세히'에 붙인 그림 제목)은 화면에 안 보이니 세지 않는다.
-    // 숨김 글은 '자세히' 이름에만 쓴다(긴 글을 숨김 글로 감춰 이 기준을 넘기지 못하게).
-    expect(Array.from(document.querySelectorAll(".srOnly")).every((node) => node.parentElement?.tagName === "SUMMARY")).toBe(true);
-    const shown = document.body.cloneNode(true) as HTMLElement;
-    shown.querySelectorAll(".srOnly").forEach((node) => node.remove());
-    // 2026-11-03 사용자 지시로 맨 위에 흐름도를 더했다. 흐름도는 따로 450자 아래로 묶고, 나머지 설명서 글은 예전 기준을 그대로 지킨다.
-    const chart = shown.querySelector('[data-testid="work-flow-chart"]')!;
-    expect((chart.textContent ?? "").replace(/\s+/g, " ").trim().length).toBeLessThan(450);
-    chart.remove();
-    const text = (shown.textContent ?? "").replace(/\s+/g, " ").trim();
-    expect(text.length).toBeLessThan(1094);
-    // 돌아보기(화면 innerText)는 줄마다 띄어 세서 textContent보다 길게 나온다(예전 설명서 1,097 대 1,061).
-    // 글 조각 사이를 한 칸씩 띄워 같은 기준으로도 잰다(접힌 '자세히' 글도 센다).
-    const walker = document.createTreeWalker(shown, NodeFilter.SHOW_TEXT);
-    const parts: string[] = [];
-    while (walker.nextNode()) parts.push(walker.currentNode.textContent ?? "");
-    expect(parts.join(" ").replace(/\s+/g, " ").trim().length).toBeLessThan(1094);
+  it("'자세히' 접기는 보이는 글은 그대로 두고, 낭독기에는 단계 제목을 붙여 읽힌다", () => {
+    const withDetail = GUIDE_STEPS.filter((step) => step.detail);
+    expect(withDetail).toHaveLength(7);
+    expect(new Set(withDetail.map((step) => step.title)).size).toBe(withDetail.length);
+    walk((index) => {
+      const step = GUIDE_STEPS[index];
+      const summary = screen.getByTestId("guide-step").querySelector(".guideDetail summary");
+      if (!step.detail) return;
+      expect(summary?.querySelector(".srOnly")).toHaveTextContent(step.title);
+      const visible = summary!.cloneNode(true) as HTMLElement;
+      visible.querySelectorAll(".srOnly").forEach((node) => node.remove());
+      expect(visible.textContent?.trim()).toBe("자세히");
+      expect(summary).toHaveAccessibleName(`자세히, ${step.title}`);
+    });
   });
 
-  it("시작 안내 장은 링크 없이 답해도 된다고, 수정 범위 장은 확인 대기 → 수정 완료 때 1회를, 맨 아래는 아직 안 되는 것을 알려 준다", () => {
+  it("설명서 글(단계 전부 더한 것)은 예전(1,094자)보다 짧다", () => {
+    let total = 0;
+    walk((index) => {
+      if (index === 0) {
+        // 머리·진행 표시·바닥글은 한 번만 센다(낭독 알림·단계 구획은 뺀다).
+        const chrome = document.body.cloneNode(true) as HTMLElement;
+        chrome.querySelectorAll('.srOnly, [data-testid="guide-step"]').forEach((node) => node.remove());
+        total += (chrome.textContent ?? "").replace(/\s+/g, " ").trim().length;
+      }
+      // 화면에 보이는 단계 글만 센다. 낭독기 전용 숨김 글과 흐름도(따로 450자 아래로 묶음)는 뺀다.
+      const shown = screen.getByTestId("guide-step").cloneNode(true) as HTMLElement;
+      shown.querySelectorAll(".srOnly").forEach((node) => node.remove());
+      const chart = shown.querySelector('[data-testid="work-flow-chart"]');
+      if (chart) {
+        expect((chart.textContent ?? "").replace(/\s+/g, " ").trim().length).toBeLessThan(450);
+        chart.remove();
+      }
+      total += (shown.textContent ?? "").replace(/\s+/g, " ").trim().length;
+    });
+    expect(total).toBeLessThan(1094);
+  });
+
+  it("시작 안내 단계는 링크 없이 답해도 된다고, 수정 범위 단계는 확인 대기 → 수정 완료 때 1회를, 마지막은 아직 안 되는 것을 알려 준다", () => {
+    const text = (id: string) => {
+      const step = GUIDE_STEPS.find((item) => item.id === id)!;
+      return [step.title, step.caption, step.detail ?? ""].join(" ");
+    };
+    expect(text("check-answers")).toContain("고객은 링크 없이 대화창으로 답해도 돼요");
+    expect(text("send-message")).toContain("자동으로 보내지지는 않아요");
+    expect(text("revisions")).toContain("요청은 확인 대기로 들어와요");
+    expect(text("revisions")).toContain("고친 뒤 '수정 완료'를 누를 때 1회를 써요");
+    expect(text("revisions")).toContain("질문·중복은 '반려', 범위 밖은 '추가 작업으로'를 눌러요. 둘 다 횟수를 안 써요.");
+    expect(text("monthly")).toContain("세금 계산이나 신고는 하지 않아요");
+    for (const step of GUIDE_STEPS) expect(text(step.id)).not.toContain("접수되는 즉시");
+    window.history.replaceState(null, "", `/guide#step-${GUIDE_STEPS.length}`);
     render(<UserGuide />);
-    const start = document.getElementById("start");
-    expect(start).toHaveTextContent("고객은 링크 없이 대화창으로 답해도 돼요");
-    expect(start).toHaveTextContent("자동으로 보내지지는 않아요");
-    const scope = document.getElementById("scope");
-    expect(scope).toHaveTextContent("요청은 확인 대기로 들어와요");
-    expect(scope).toHaveTextContent("고친 뒤 '수정 완료'를 누를 때 1회를 써요");
-    expect(scope).toHaveTextContent("질문·중복은 '반려', 범위 밖은 '추가 작업으로'를 눌러요. 둘 다 횟수를 안 써요.");
-    expect(document.getElementById("more")).toHaveTextContent("세금 계산이나 신고는 하지 않아요");
-    expect(document.body.textContent).not.toContain("접수되는 즉시");
     const notYet = screen.getByTestId("guide-not-yet");
     expect(within(notYet).getByRole("heading", { name: "아직 안 되는 것" })).toBeInTheDocument();
     expect(notYet).toHaveTextContent("자동으로 가져오지 않아요");

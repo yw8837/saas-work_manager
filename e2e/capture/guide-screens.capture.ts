@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 
 import {
   composeJob,
@@ -28,6 +28,8 @@ import { createSeedState, STORAGE_KEY } from "../../src/lib/store";
  * 실제 계정·고객·Supabase는 쓰지 않으며, 로그인 화면은 가짜 프로젝트 주소로 hosted 화면만 띄우고
  * supabase.co로 가는 요청은 모두 끊는다. Google 버튼은 누르지 않는다.
  * 그림마다 누를 곳을 annotate()로 표시하고, 필요한 부분만 잘라 저장한다.
+ * 설명서는 한 화면에 한 단계씩 보여서, 그림 한 장이 휴대폰 한 화면 안(2배율 750×1100px 이하)에 들어가야 한다.
+ * 긴 화면은 필요한 조각만 찍어 위아래로 잇고, 건너뛴 자리에 물결 띠를 넣는다(shoot → saveImage).
  * 실행: NEXT_PUBLIC_STORAGE_MODE=local npm run build 뒤 npx playwright test -c playwright.guide.config.ts
  */
 const DATE = "2026-10-30";
@@ -39,7 +41,17 @@ const SERVICE_ORIGIN = "https://ilgam.studioyeolmae.com";
 const TOP_BAR = 58;
 /** 휴대폰 하단 메뉴(70px)와 그 위에 붙는 바(일감 완료·일감 만들기) 자리. 장면이 이 아래로 들어가지 않게 화면을 늘린다. */
 const BOTTOM_BARS = 150;
-const MARK_INK = "#242426";
+/**
+ * 누를 곳 표시 색. 디자인 A로 화면이 파래져서 파랑·흑연 표시는 묻힌다. 화면에 없는 주황으로 눈에 띄게 하고,
+ * 흰 테두리를 둘러 파랑 버튼 위에서도 구분되게 한다(2026-11-04 사용자 지시). 주황은 그림 속 표시에만 쓴다.
+ */
+const MARK = "#ff6b00";
+/** 그림 한 장의 최대 높이(2배율 px). 휴대폰 한 화면에 제목·그림·'다음' 버튼이 같이 들어가는 크기. */
+const MAX_IMAGE_HEIGHT = 1100;
+/** 조각 사이에 넣는 '건너뜀' 띠 높이(CSS px). */
+const CUT_BAND = 14;
+const CANVAS = "#f2f4f6";
+const CUT_LINE = "#b8bfc7";
 
 test.use({ timezoneId: "Asia/Seoul", locale: "ko-KR" });
 
@@ -173,16 +185,18 @@ async function regionBox(page: Page, region: string[]) {
 }
 
 /**
- * 누를 곳 표시. 대상 둘레에 흑연색 3px + 흰 2px 테두리(둥근 모서리)와 번호 동그라미를 문서 위 절대 위치로 그린다.
- * 체리색은 쓰지 않는다(DESIGN.md: 체리는 주의에만). 화면에 붙은(fixed·sticky) 바 안의 대상은 화면 기준으로 그린다.
- * 찍은 뒤 save()가 지운다.
+ * 누를 곳 표시. 대상 둘레에 주황 4px 테두리(안팎으로 흰 2px)와 주황 번호 동그라미를 문서 위 절대 위치로 그린다.
+ * 화면에 붙은(fixed·sticky) 바 안의 대상은 화면 기준으로 그린다. 찍은 뒤 shoot()가 지운다.
  */
-async function annotate(page: Page, marks: Array<{ selector: string; n: number }>) {
+/**
+ * badge: "side"면 번호를 테두리 왼쪽 위 모서리에 두지 않는다(조각으로 자를 때 테두리 위로 튀어나와 윗줄 글이 잘려 보이지 않게).
+ */
+async function annotate(page: Page, marks: Array<{ selector: string; n: number }>, options: { badge?: "corner" | "side" } = {}) {
   for (const mark of marks) await expect(page.locator(mark.selector).first()).toBeVisible();
-  await page.evaluate(([items, ink]) => {
+  await page.evaluate(([items, ink, side]) => {
     const pageWidth = document.documentElement.clientWidth;
-    const gap = 5;
-    const badgeSize = 26;
+    const gap = 6;
+    const badgeSize = 30;
     for (const { selector, n } of items) {
       const target = document.querySelector(selector);
       if (!target) throw new Error(`표시할 대상이 없어요: ${selector}`);
@@ -209,9 +223,9 @@ async function annotate(page: Page, marks: Array<{ selector: string; n: number }
         width: `${right - left}px`,
         height: `${rect.height + gap * 2}px`,
         boxSizing: "border-box",
-        border: `3px solid ${ink}`,
+        border: `4px solid ${ink}`,
         borderRadius: "12px",
-        boxShadow: "0 0 0 2px #fff",
+        boxShadow: "0 0 0 2px #fff, inset 0 0 0 2px #fff",
         pointerEvents: "none",
         zIndex: "2147483646",
       });
@@ -232,7 +246,7 @@ async function annotate(page: Page, marks: Array<{ selector: string; n: number }
       const middle = top + (rect.height + gap * 2) / 2 - badgeSize / 2;
       const spots: Array<[number, number]> = [
         [left - badgeSize - 2, middle],
-        [left - badgeSize / 2, top - badgeSize / 2],
+        ...(side ? [] : [[left - badgeSize / 2, top - badgeSize / 2] as [number, number]]),
       ];
       const [badgeLeft, badgeTop] = spots.find(([x, y]) => free(x, y))
         ?? [Math.min(Math.max(2, left - badgeSize / 2), pageWidth - badgeSize - 2), middle];
@@ -250,21 +264,23 @@ async function annotate(page: Page, marks: Array<{ selector: string; n: number }
         placeItems: "center",
         color: "#fff",
         background: ink,
-        border: "2px solid #fff",
+        border: "2.5px solid #fff",
         borderRadius: "50%",
-        font: "700 14px/1 Pretendard, system-ui, sans-serif",
+        boxShadow: "0 1px 3px rgb(0 0 0 / 30%)",
+        font: "800 16px/1 Pretendard, system-ui, sans-serif",
         fontVariantNumeric: "tabular-nums",
         pointerEvents: "none",
         zIndex: "2147483647",
       });
       document.body.append(ring, badge);
     }
-  }, [marks, MARK_INK] as const);
+  }, [marks, MARK, options.badge === "side"] as const);
 }
 
-/** 장면 영역과 표시를 감싸는 부분만 휴대폰 폭 그대로 잘라 webp로 저장하고 표시를 지운다. */
-async function save(page: Page, name: string, region: string[], pad: number | { top: number; bottom: number } = 14) {
-  mkdirSync(OUTPUT, { recursive: true });
+type Pad = number | { top: number; bottom: number };
+
+/** 장면 영역과 표시를 감싸는 부분만 휴대폰 폭 그대로 잘라 PNG로 돌려주고 표시를 지운다. */
+async function shoot(page: Page, region: string[], pad: Pad = 14): Promise<Buffer> {
   const viewport = page.viewportSize()!;
   const box = await regionBox(page, region);
   const { top: padTop, bottom: padBottom } = typeof pad === "number" ? { top: pad, bottom: pad } : pad;
@@ -275,11 +291,52 @@ async function save(page: Page, name: string, region: string[], pad: number | { 
     animations: "disabled",
     clip: { x: 0, y: top, width: viewport.width, height: bottom - top },
   });
-  const output = resolve(OUTPUT, `${name}.webp`);
-  const info = await sharp(png).webp({ quality: 82 }).toFile(output);
   await page.evaluate(() => document.querySelectorAll("[data-guide-mark]").forEach((element) => element.remove()));
+  return png;
+}
+
+/** 조각 사이 '건너뜀' 띠: canvas 면에 물결선 하나. 화면 일부를 뺐다는 표시다. */
+function cutBand(width: number, height: number): Buffer {
+  const mid = height / 2;
+  const step = 12;
+  let path = `M0 ${mid}`;
+  for (let x = 0; x < width; x += step * 2) path += ` q${step / 2} -6 ${step} 0 t${step} 0`;
+  return Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="${CANVAS}"/><path d="${path}" fill="none" stroke="${CUT_LINE}" stroke-width="3" stroke-linecap="round"/></svg>`,
+  );
+}
+
+/** 조각들을 위아래로 이어(사이에 건너뜀 띠) webp로 저장한다. 휴대폰 한 화면 높이를 넘으면 실패시킨다. */
+async function saveImage(name: string, pieces: Buffer[]) {
+  mkdirSync(OUTPUT, { recursive: true });
+  const metas = await Promise.all(pieces.map((piece) => sharp(piece).metadata()));
+  const width = metas[0].width!;
+  const scale = Math.round(width / 375);
+  const band = CUT_BAND * scale;
+  const height = metas.reduce((sum, meta) => sum + meta.height!, 0) + band * (pieces.length - 1);
+  const layers: OverlayOptions[] = [];
+  let y = 0;
+  pieces.forEach((piece, index) => {
+    if (index > 0) {
+      layers.push({ input: cutBand(width, band), top: y, left: 0 });
+      y += band;
+    }
+    layers.push({ input: piece, top: y, left: 0 });
+    y += metas[index].height!;
+  });
+  const output = resolve(OUTPUT, `${name}.webp`);
+  const info = await sharp({ create: { width, height, channels: 3, background: CANVAS } })
+    .composite(layers)
+    .webp({ quality: 82 })
+    .toFile(output);
   // 찍은 크기를 알려 준다. user-guide.tsx·first-run-checklist.tsx의 width·height를 이 값으로 맞춘다.
-  console.log(`[guide] ${name}.webp ${info.width}x${info.height}`);
+  console.log(`[guide] ${name}.webp ${info.width}x${info.height} (조각 ${pieces.map((_, index) => metas[index].height).join("+")})`);
+  expect(info.height, `${name}은 휴대폰 한 화면(${MAX_IMAGE_HEIGHT}px) 안이어야 해요`).toBeLessThanOrEqual(MAX_IMAGE_HEIGHT);
+}
+
+/** 한 조각만 찍어 바로 저장한다. */
+async function save(page: Page, name: string, region: string[], pad: Pad = 14) {
+  await saveImage(name, [await shoot(page, region, pad)]);
 }
 
 /** 주소를 실제 서비스 주소 형태로 바꿔 보여 준다(글만 바꾸고 화면 크기는 그대로). */
@@ -320,14 +377,19 @@ test.describe("주문 30초 등록", () => {
     await page.goto("/packages");
     await page.locator(".catalogListItem").filter({ hasText: "STANDARD 로고" }).click();
     await expect(page.locator(".catalogEditorHead h2")).toHaveText("STANDARD 로고");
-    const region = ["label:has([data-testid=package-intake-items])", "[data-testid=save-package]"];
-    await frame(page, region);
+    // 받을 자료 칸과 착수 전 질문 첫 칸까지 찍고, 나머지 질문·할 일 목록은 건너뛰어 저장 버튼을 잇는다.
+    const firstQuestion = "[data-testid=package-brief-questions] textarea";
+    const fields = ["label:has([data-testid=package-intake-items])", firstQuestion];
+    await frame(page, fields);
     await annotate(page, [
       { selector: "[data-testid=package-intake-items]", n: 1 },
-      { selector: "[data-testid=package-brief-questions]", n: 2 },
-      { selector: "[data-testid=save-package]", n: 3 },
+      { selector: firstQuestion, n: 2 },
     ]);
-    await save(page, "02-packages", region, 10);
+    const top = await shoot(page, fields, { top: 10, bottom: 0 });
+    const actions = ["[data-testid=save-package]"];
+    await frame(page, actions);
+    await annotate(page, [{ selector: "[data-testid=save-package]", n: 3 }], { badge: "side" });
+    await saveImage("02-packages", [top, await shoot(page, actions, { top: 3, bottom: 12 })]);
   });
 
   test("주문 오면 네 가지 고르기", async ({ page }) => {
@@ -340,25 +402,25 @@ test.describe("주문 30초 등록", () => {
     await page.locator("label.packageChoice").filter({ hasText: "STANDARD 로고" }).click();
     await page.locator("label.optionChoice").filter({ hasText: "원본 파일" }).click();
     await page.locator("#clientLabel").blur();
-    const region = [".composerFields .formSection:nth-of-type(1)", "label.optionChoice[data-selected=true]"];
-    await frame(page, region);
-    // 고른 옵션 바로 아래에 금액·마감이 채워진 '일감 만들기' 바(화면 아래 고정)가 오게 화면 높이를 맞춘다. 하단 메뉴(70px)는 그림 밖이다.
+    // 누를 곳 다섯 군데만 칸 위주로 차례로 찍어 잇는다(한 화면 높이 안에 들게 칸 제목 줄은 뺌): 고객 이름 / 시작일 / 고른 패키지 / 고른 옵션 /
+    // 금액·마감이 채워진 '일감 만들기' 바(화면 아래 고정). 받은 곳 칩·다른 패키지는 건너뛴다.
+    const pieces: Buffer[] = [];
+    const steps: Array<{ region: string[]; mark: string; n: number }> = [
+      { region: ["#clientLabel"], mark: "#clientLabel", n: 1 },
+      { region: ["#startDate"], mark: "#startDate", n: 2 },
+      { region: ["label.packageChoice[data-selected=true]"], mark: "label.packageChoice[data-selected=true]", n: 3 },
+      { region: ["label.optionChoice[data-selected=true]"], mark: "label.optionChoice[data-selected=true]", n: 4 },
+    ];
+    for (const step of steps) {
+      await frame(page, step.region);
+      await annotate(page, [{ selector: step.mark, n: step.n }], { badge: "side" });
+      pieces.push(await shoot(page, step.region, 3));
+    }
     const bar = ".mobileSubmitBar";
     await expect(page.locator(bar)).toBeVisible();
-    const docked = await page.evaluate(([last, barSelector]) => ({
-      regionBottom: document.querySelector(last)!.getBoundingClientRect().bottom,
-      barHeight: document.querySelector(barSelector)!.getBoundingClientRect().height,
-    }), [region[1], bar] as const);
-    await page.setViewportSize({ width: page.viewportSize()!.width, height: Math.ceil(docked.regionBottom + 24 + docked.barHeight + 70) });
-    await page.waitForTimeout(250);
-    await annotate(page, [
-      { selector: "#clientLabel", n: 1 },
-      { selector: "#startDate", n: 2 },
-      { selector: "label.packageChoice[data-selected=true]", n: 3 },
-      { selector: "label.optionChoice[data-selected=true]", n: 4 },
-      { selector: "[data-testid=submit-job-mobile]", n: 5 },
-    ]);
-    await save(page, "03-new-job", [...region, bar], { top: 10, bottom: 0 });
+    await annotate(page, [{ selector: "[data-testid=submit-job-mobile]", n: 5 }], { badge: "side" });
+    pieces.push(await shoot(page, [bar], 0));
+    await saveImage("03-new-job", pieces);
   });
 });
 
@@ -392,13 +454,15 @@ test.describe("시작 안내 한 방", () => {
   test("답·자료 오면 체크", async ({ page }) => {
     await seedStorage(page, progressedOrder());
     await page.goto(`/jobs/${SAMPLE_ORDER_ID}`);
-    const region = ["[data-testid=intake-section]", "[data-testid=brief-section]"];
-    await frame(page, region);
-    await annotate(page, [
-      { selector: `[data-testid=intake-toggle-${SAMPLE_ORDER_ID}_intake_2]`, n: 1 },
-      { selector: `[data-testid=brief-toggle-${SAMPLE_ORDER_ID}_brief_1]`, n: 2 },
-    ]);
-    await save(page, "05-checklist", region);
+    const intake = ["[data-testid=intake-section]"];
+    await frame(page, intake);
+    await annotate(page, [{ selector: `[data-testid=intake-toggle-${SAMPLE_ORDER_ID}_intake_2]`, n: 1 }]);
+    const first = await shoot(page, intake, { top: 14, bottom: 3 });
+    // 착수 전 질문은 머리와 첫 질문(답 메모 칸 포함)까지만.
+    const brief = ["[data-testid=brief-section] .sectionHeadingRow", `li.briefItem:has([data-testid=brief-toggle-${SAMPLE_ORDER_ID}_brief_1])`];
+    await frame(page, brief);
+    await annotate(page, [{ selector: `[data-testid=brief-toggle-${SAMPLE_ORDER_ID}_brief_1]`, n: 2 }]);
+    await saveImage("05-checklist", [first, await shoot(page, brief, { top: 14, bottom: 3 })]);
   });
 });
 
@@ -442,9 +506,13 @@ test.describe("수정 범위 정리 · 더 편하게", () => {
     await page.goto("/jobs/summary");
     await expect(page.getByTestId("summary-month-title")).toHaveText("2026년 10월");
     await expect(page.getByTestId("summary-total-count")).toHaveText("1건");
-    const region = [".monthlySummaryPage .formPageHeader", "[data-testid=summary-source-soomgo]"];
-    await frame(page, region);
+    // 달 이동 줄은 빼고(내려받기 버튼에 달이 보임) 합계·내려받기, 받은 곳별을 잇는다.
+    const totals = [".summaryTotals", "[data-testid=summary-download-month]"];
+    await frame(page, totals);
     await annotate(page, [{ selector: "[data-testid=summary-download-month]", n: 1 }]);
-    await save(page, "09-monthly", region);
+    const first = await shoot(page, totals, { top: 14, bottom: 2 });
+    const sources = ["#summary-source-title", "[data-testid=summary-source-soomgo]"];
+    await frame(page, sources);
+    await saveImage("09-monthly", [first, await shoot(page, sources)]);
   });
 });
