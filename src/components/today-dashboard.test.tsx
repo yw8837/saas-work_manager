@@ -381,3 +381,82 @@ describe("TodayDashboard 일감마다 한 줄", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });
+
+describe("TodayDashboard '이번 달 돈' 카드(디자인 A)", () => {
+  const nowIso = new Date().toISOString();
+  const base = { ...seed.jobs[0], revisions: [], dueDate: "2099-01-01" };
+  const active = { ...base, id: "money-active", status: "active" as const, amount: 1_000_000, feeRate: 20 };
+  const activeNoFee = { ...base, id: "money-active-2", status: "active" as const, amount: 500_000 };
+  const done = { ...base, id: "money-done", status: "completed" as const, amount: 790_000, completedAt: nowIso, updatedAt: nowIso };
+
+  function setup(currentJobs: typeof seed.jobs) {
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: currentJobs,
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask: vi.fn(),
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    return render(<TodayDashboard />);
+  }
+
+  it("맨 위 카드에 받을 돈 큰 숫자 하나와 작업 중·완료·수수료 칸을 보인다(수수료 빼고 기준)", () => {
+    setup([active, activeNoFee, done] as typeof seed.jobs);
+    const card = screen.getByRole("region", { name: "이번 달 돈" });
+    // 오늘 화면 맨 위(일감 범위 고르기·요약보다 먼저)
+    expect(card.compareDocumentPosition(screen.getByLabelText("오늘 업무 요약")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(card).getByTestId("month-money-total")).toHaveTextContent("2,090,000원");
+    expect(card).toHaveTextContent("수수료 빼고");
+    expect(within(card).getByTestId("month-money-in-progress")).toHaveTextContent("1,500,000원");
+    expect(within(card).getByTestId("month-money-in-progress")).toHaveTextContent("2건");
+    expect(within(card).getByTestId("month-money-completed")).toHaveTextContent("790,000원");
+    expect(within(card).getByTestId("month-money-fee")).toHaveTextContent("200,000원");
+  });
+
+  it("수수료가 없으면 수수료 칸과 '수수료 빼고' 말을 숨긴다", () => {
+    setup([activeNoFee, done] as typeof seed.jobs);
+    const card = screen.getByRole("region", { name: "이번 달 돈" });
+    expect(within(card).getByTestId("month-money-total")).toHaveTextContent("1,290,000원");
+    expect(within(card).queryByTestId("month-money-fee")).not.toBeInTheDocument();
+    expect(card).not.toHaveTextContent("수수료 빼고");
+  });
+
+  it("휴대폰 '금액 보기' 규칙을 따른다: 처음엔 접혀 있고 누르면 펼친다(데스크톱은 CSS로 늘 펼침)", () => {
+    setup([active] as typeof seed.jobs);
+    const card = screen.getByRole("region", { name: "이번 달 돈" });
+    const toggle = within(card).getByRole("button", { name: /금액 보기/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(card).toHaveAttribute("data-money-open", "false");
+    fireEvent.click(toggle);
+    expect(within(card).getByRole("button", { name: /금액 접기/ })).toHaveAttribute("aria-expanded", "true");
+    expect(card).toHaveAttribute("data-money-open", "true");
+  });
+
+  it("월별 정리로 가는 링크가 있다", () => {
+    setup([active] as typeof seed.jobs);
+    const card = screen.getByRole("region", { name: "이번 달 돈" });
+    expect(within(card).getByRole("link", { name: /월별 정리/ })).toHaveAttribute("href", "/jobs/summary");
+  });
+});
+
+describe("TodayDashboard 날짜 칸(디자인 A)", () => {
+  it("우선 처리·다가오는 마감 줄 왼쪽에 D-day 날짜 칸이 있다", () => {
+    const job = {
+      ...seed.jobs[0], id: "tile-job", status: "active" as const, revisions: [], dueDate: "2020-01-20",
+      tasks: [{ ...seed.jobs[0].tasks[0], id: "tile-task", title: "밀린 일", status: "todo" as const, dueDate: "2020-01-05" }],
+    };
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [job], alerts: [], settings: seed.settings, runtimeMode: "local",
+      toggleTask: vi.fn(), toggleJobWaiting: vi.fn(), resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<TodayDashboard />);
+    const taskTile = document.querySelector(".focusSection .taskRow .dueTile");
+    expect(taskTile).toHaveAttribute("data-tone", "late");
+    expect(taskTile).toHaveTextContent("1.05");
+    const upcomingTile = document.querySelector(".upcomingItem .dueTile");
+    expect(upcomingTile).toHaveAttribute("data-tone", "late");
+    expect(upcomingTile).toHaveTextContent("1.20");
+  });
+});

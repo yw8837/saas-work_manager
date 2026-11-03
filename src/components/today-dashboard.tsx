@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import {
-  AlarmClock,
   ArrowUpRight,
   BellRing,
   Check,
+  ChevronDown,
   CheckCircle2,
   Clock3,
   ExternalLink,
@@ -17,11 +17,16 @@ import {
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { FirstRunChecklist } from "./first-run-checklist";
 import { displayJobTitle, orderSourceLabel } from "@/lib/domain";
+import { localTodayISO } from "@/lib/due-tile";
+import { hasMaterialWaiting, isNearRevisionLimit } from "@/lib/job-chips";
+import { monthKeyOf } from "@/lib/summary/monthly";
+import { thisMonthMoney } from "@/lib/summary/this-month-money";
 import { emptyTodaySearch, subscribeTodayLocation, todaySearchSnapshot, updateTodayScope } from "@/lib/today-location";
+import { DueTile } from "./due-tile";
 import {
   formatShortDate,
+  formatWon,
   getRevisionSummary,
-  getDday,
   useWorkspace,
   type Job,
   type Task,
@@ -37,11 +42,57 @@ function jobLine(job: Job) {
 }
 
 function todayISO() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return localTodayISO();
+}
+
+function browserTimeZone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/**
+ * 오늘 화면 맨 위 '이번 달 돈' 카드(디자인 A). 숫자는 월별 정리·수수료 함수만 묶은 thisMonthMoney.
+ * 휴대폰에서는 일감 화면처럼 '금액 보기'를 눌러야 금액이 보이고, 데스크톱은 CSS로 늘 펼친다.
+ */
+function MonthMoneyCard({ jobs }: { jobs: Job[] }) {
+  const [open, setOpen] = useState(false);
+  const timeZone = browserTimeZone();
+  const money = thisMonthMoney(jobs, monthKeyOf(new Date().toISOString(), timeZone), timeZone);
+  return (
+    <section className="monthMoneyCard" aria-label="이번 달 돈" data-money-open={open}>
+      <div className="monthMoneyHead">
+        <h2>이번 달 받을 돈{money.fee > 0 && <small> · 수수료 빼고</small>}</h2>
+        <button
+          type="button"
+          className="textButton monthMoneyToggle"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls="month-money-body"
+        >
+          {open ? "금액 접기" : "금액 보기"} <ChevronDown size={14} aria-hidden="true" />
+        </button>
+      </div>
+      <div id="month-money-body" className="monthMoneyBody">
+        <strong className="monthMoneyTotal" data-testid="month-money-total">{formatWon(money.total)}</strong>
+        <dl className="monthMoneyCells">
+          <div data-testid="month-money-in-progress">
+            <dt>작업 중 · {money.inProgress.count}건</dt>
+            <dd>{formatWon(money.inProgress.amount)}</dd>
+          </div>
+          <div data-testid="month-money-completed">
+            <dt>이번 달 완료 · {money.completed.count}건</dt>
+            <dd>{formatWon(money.completed.amount)}</dd>
+          </div>
+          {money.fee > 0 && (
+            <div data-testid="month-money-fee">
+              <dt>수수료</dt>
+              <dd>−{formatWon(money.fee)}</dd>
+            </div>
+          )}
+        </dl>
+        <Link href="/jobs/summary" className="inlineLink monthMoneyLink">월별 정리 <ArrowUpRight size={14} /></Link>
+      </div>
+    </section>
+  );
 }
 
 function todayHeading() {
@@ -54,7 +105,6 @@ function todayHeading() {
 
 function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: QueueItem) => void }) {
   const { job, task } = item;
-  const dday = getDday(task.dueDate);
   const urgent = task.dueDate < todayISO();
   const contactLink = job.links.find((link) => link.kind === "contact");
   const workLink = job.links.find((link) => link.kind === "work");
@@ -70,13 +120,10 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
       >
         <Check size={18} strokeWidth={2.5} />
       </button>
+      <DueTile dueDate={task.dueDate} today={todayISO()} />
       <Link href={`/jobs/${job.id}`} className="taskRowMain">
         <div className="taskMetaLine">
           <span className="clientName">{job.clientLabel}</span>
-          <span className={urgent ? "dueTag danger" : "dueTag"}>
-            {urgent && <AlarmClock size={13} />}
-            {dday}
-          </span>
         </div>
         <strong>{task.title}</strong>
         {item.more > 0 && <span className="taskMore" data-testid={`task-more-${job.id}`}>{urgent ? "밀린" : "오늘"} 할 일 {item.more}개 더</span>}
@@ -105,6 +152,7 @@ function RequestRow({ job, pending }: { job: Job; pending: number }) {
   return (
     <article className="taskRow" data-testid={`today-pending-request-${job.id}`}>
       <span className="taskRowIcon" aria-hidden="true"><MessageSquareText size={18} /></span>
+      <span className="dueTile" data-tone="soon" aria-hidden="true"><b>요청</b><small>{pending}건</small></span>
       <Link href={`/jobs/${job.id}#revisions`} className="taskRowMain">
         <div className="taskMetaLine">
           <span className="clientName">{job.clientLabel}</span>
@@ -162,20 +210,9 @@ export function TodayDashboard() {
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 4);
   // 받을 자료나 착수 전 질문의 답이 남은 진행 중 일감.
-  const materialWaitingJobs = scopedJobs.filter(
-    (job) => job.status === "active" && (
-      (job.intakeItems ?? []).some((item) => !item.receivedAt)
-      || (job.briefQuestions ?? []).some((question) => !question.answeredAt)
-    ),
-  );
-  // 수정을 한 번도 안 쓴 일감까지 세면, 포함 수정 1회짜리 패키지는 만들자마자 "임박"이 뜬다.
-  // 실제로 수정을 쓰기 시작한 일감만 센다.
-  const nearRevisionLimit = scopedJobs.filter((job) => {
-    if (job.status !== "active") return false;
-    const summary = getRevisionSummary(job);
-    // 수정 0회 패키지는 used가 영원히 0이라, extraScope도 같이 봐야 임박을 놓치지 않는다.
-    return (summary.used > 0 || summary.extraScope > 0) && summary.remaining <= 1;
-  });
+  const materialWaitingJobs = scopedJobs.filter(hasMaterialWaiting);
+  // 수정을 실제로 쓰기 시작한 일감만 센다(기준은 lib/job-chips — 일감 목록의 '수정 n/m' 칩과 같다).
+  const nearRevisionLimit = scopedJobs.filter(isNearRevisionLimit);
   const primaryAlert = alerts.find((alert) => !scopeJobId || alert.jobId === scopeJobId);
   const visibleQueue = showAllTasks ? queue : queue.slice(0, 6);
 
@@ -233,6 +270,7 @@ export function TodayDashboard() {
         <FirstRunChecklist />
       ) : (
         <>
+      <MonthMoneyCard jobs={jobs} />
       {(jobsCreatedTotal ?? jobs.length) <= 1 && <FirstRunChecklist compact />}
       <div className="workspaceScope">
         <label htmlFor="today-job-scope">일감별로 보기</label>
@@ -352,10 +390,13 @@ export function TodayDashboard() {
                 const overdue = job.dueDate < now;
                 return (
                   <Link href={`/jobs/${job.id}`} className="upcomingItem" key={job.id} data-overdue={overdue}>
-                    <div className="upcomingTop"><span>{job.clientLabel}</span><strong>{overdue && <AlarmClock size={13} aria-hidden="true" />}{getDday(job.dueDate)}</strong></div>
-                    <p>{jobLine(job)}</p>
-                    <div className="progressLine" aria-label={`${progress}% 완료`}><span style={{ width: `${progress}%` }} /></div>
-                    <span className="progressCaption">{finished}/{job.tasks.length} 완료</span>
+                    <DueTile dueDate={job.dueDate} today={now} />
+                    <div className="upcomingBody">
+                      <div className="upcomingTop"><span>{job.clientLabel}</span><strong className="upcomingAmount">{formatWon(job.amount)}</strong></div>
+                      <p>{jobLine(job)}</p>
+                      <div className="progressLine" aria-label={`${progress}% 완료`}><span style={{ width: `${progress}%` }} /></div>
+                      <span className="progressCaption">{finished}/{job.tasks.length} 완료</span>
+                    </div>
                   </Link>
                 );
               })}

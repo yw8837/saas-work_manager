@@ -10,42 +10,43 @@
   --font-body: "Pretendard Variable", Pretendard, SUIT, "Noto Sans KR", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display: "Paperlogy Display", "Pretendard Variable", Pretendard, SUIT, "Noto Sans KR", sans-serif;
   /* Text roles — ink is the near-black primary (design.md) */
-  --ink: #181d26;          /* h1/h2 display + primary surface + primary CTA */
-  --ink-soft: #333840;     /* running body copy */
-  --muted: #5b616b;        /* captions, meta, footer links */
+  --ink: #191f28;          /* 디자인 A: 제목·본문 (canvas 위 15.0) */
+  --ink-soft: #333d4b;     /* 디자인 A: 본문 보조 */
+  --muted: #5f6b78;        /* 디자인 A: 설명·날짜 (canvas 위 4.93, 흰 위 5.44) */
   --border-strong: #9297a0;
 
   /* Hairlines */
-  --line: #dddddd;         /* 1px hairline: inputs, dividers, secondary outline */
-  --line-strong: #c7ccd4;
+  --line: #e5e8eb;         /* 디자인 A: 가는 선 */
+  --line-strong: #d1d6db;  /* 디자인 A: 입력칸 테두리 */
 
   /* Surfaces */
   --paper: #ffffff;        /* canvas: the floor of every editorial body */
-  --canvas: #f8fafc;       /* surface-soft: workspace wash, featured tiers */
+  --canvas: #f2f4f6;       /* 디자인 A: 화면 바탕(앱·웹 둘 다) */
   --surface-strong: #e0e2e6;
   --surface-dark: #181d26; /* dark navy CTA / signature band */
   --warm: #f5e9d4;         /* alias -> cream */
 
-  /* Primary CTA is near-black ink, NOT the link blue */
-  --primary: #181d26;
-  --primary-active: #0d1218;
+  /* 디자인 A: 행동색은 파랑 하나(주 버튼 바탕 흰 글자 5.17, 누름 6.7) */
+  --primary: #2563eb;
+  --primary-active: #1d4ed8;
   --on-primary: #ffffff;
 
-  /* Link / info — blue is the LINK color only */
-  --blue: #1b61c9;
-  --blue-dark: #1a3866;
-  --blue-soft: #eef3fc;
-  --blue-line: #c9d8fa;    /* blue-soft 면의 1px 테두리 */
-  --info: #254fad;
-  --info-border: #458fff;
+  /* 디자인 A: 진행·수정 칩과 링크(blue-soft 위 글자 #1d4ed8 5.85) */
+  --blue: #1d4ed8;
+  --blue-dark: #1d4ed8;
+  --blue-soft: #e8f0fe;
+  --blue-line: #c6d8fb;    /* blue-soft 면의 1px 테두리 */
+  --info: #1d4ed8;
+  --info-border: #2563eb;
 
   /* Semantic status (dense-UI functional roles) */
-  --green: #0a7d45;
-  --green-soft: #e8f4ec;
-  --amber: #8a4f06;        /* amber-soft 위에서 AA 4.5:1을 만족하도록 어둡게 */
-  --amber-soft: #fbeed6;
-  --red: #b3311f;
-  --red-soft: #fbeceb;
+  /* 디자인 A: 초록=끝남·받음(4.82), 주황=기다림(4.98), 빨강=지연·경고(4.92). 장식에 쓰지 않는다. */
+  --green: #0b7a49;
+  --green-soft: #e6f6ee;
+  --amber: #9a5b00;
+  --amber-soft: #fff4e0;
+  --red: #c62828;
+  --red-soft: #fdecec;
 
   /* Signature card palette — the brand voltage */
   --coral: #aa2d00;
@@ -1929,3 +1930,31 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .firstRunSamplePrice .inlineLink { min-height: 44px; font-size: 14px; }
 /* 오늘 화면: 한 일감의 밀린 할 일 개수 */
 .taskMore { display: block; margin-bottom: 2px; color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+
+/* ============================================================
+   디자인 A — 앱: 고객 링크 화면(/r/{token}, /demo/r) (2026-11-03)
+   고객이 처음 보는 화면이라 신뢰감 우선: canvas 바탕 위 흰 카드(모서리 18px, 그림자 없음), 파랑 버튼 하나.
+   앱 틀(.appFrame) 밖이라 workspace.css가 안 붙는다. 색은 :root 토큰(기준 1절)을 그대로 쓴다.
+   ============================================================ */
+.publicRevisionPage { background: var(--canvas); }
+.publicRevisionCard { border: 0; border-radius: 18px; box-shadow: none; }
+.publicRevisionFacts > div { border-radius: 12px; }
+.publicRevisionCounter, .publicRevisionDue { box-shadow: none; }
+/* 체험 화면 위 안내 상자도 같은 흰 카드(테두리 없음). */
+.demoNotice { border: 0; border-radius: 18px; }
+.publicRevisionCounter strong, .publicRevisionDue dd { color: var(--ink); }
+.publicRevisionFields :is(input, textarea) { border-radius: 12px; border-color: var(--line-strong); }
+.publicRevisionSubmit { width: 100%; min-height: 52px; border-radius: 12px; }
+.publicRevisionPage :is(.secondaryButton, .quietButton) { color: var(--ink); background: var(--canvas); border-color: transparent; border-radius: 12px; }
+.publicRevisionNextStep, .publicRevisionPrivacyNotice, .publicRevisionPendingOver { border: 0; border-radius: 12px; }
+.publicRevisionIntake { background: var(--amber-soft); }
+.customerStageChips li { border-color: transparent; }
+.customerStageChips li[data-state="current"] { color: var(--blue); background: var(--blue-soft); border-color: transparent; }
+.publicRevisionRequestMeta strong { border-color: transparent; }
+.localDemoBadge { padding: 4px 10px; color: var(--amber); background: var(--amber-soft); border-radius: 999px; font-size: 12px; }
+@media (max-width: 760px) {
+  /* 휴대폰은 화면 전체가 흰 카드(바탕과 카드가 같은 면). */
+  .publicRevisionPage { background: var(--paper); }
+  .publicRevisionCard { border-radius: 0; }
+  .demoNotice { border-bottom: 1px solid var(--line); border-radius: 0; }
+}

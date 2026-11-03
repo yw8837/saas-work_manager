@@ -9,85 +9,87 @@
  * Scoped to the workspace: marketing pages and public intake retain their existing styling.
  */
 .appFrame {
-  --ink: #242426;
-  --ink-soft: #444448;
-  --muted: #68686e;
+  /* 디자인 A(2026-11-03): 바탕 canvas 위 흰 카드, 행동색은 파랑 하나. 초록·주황·빨강은 상태(끝남·기다림·지연)에만. */
+  --ink: #191f28;
+  --ink-soft: #333d4b;
+  --muted: #5f6b78;
   --paper: #fff;
-  --canvas: #f5f5f6;
-  --line: #e5e5e7;
-  --line-strong: #c9c9cf;
-  --border-strong: #8c8c94;
-  --primary: #242426;
-  --primary-active: #101012;
-  --surface-dark: #242426;
-  --surface-strong: #e5e5e7;
-  --blue: #3d3d43;
-  --blue-dark: #242426;
-  --blue-soft: #f1f1f3;
-  --blue-line: #c9c9cf;  /* 리뉴얼에서 새로 쓴 토큰. 작업 화면에서는 다른 blue 별칭처럼 중립색 */
-  --info: #444448;
-  --info-border: #68686e;
-  --green: #444448;
-  --green-soft: #f1f1f3;
-  --amber: #535359;
-  --amber-soft: #f1f1f3;
-  --coral: #444448;
-  --red: #b82248;
-  --red-soft: #fff1f4;
-  --cream: #f1f1f3;
-  --warm: #f1f1f3;
-  --workspace-accent: #b82248;
+  --canvas: #f2f4f6;
+  --line: #e5e8eb;
+  --line-strong: #d1d6db;
+  --border-strong: #8b95a1;
+  --primary: #2563eb;
+  --primary-active: #1d4ed8;
+  --surface-dark: #191f28;
+  --surface-strong: #e5e8eb;
+  --blue: #1d4ed8;
+  --blue-dark: #1d4ed8;
+  --blue-soft: #e8f0fe;
+  --blue-line: #c6d8fb;
+  --info: #1d4ed8;
+  --info-border: #2563eb;
+  --green: #0b7a49;
+  --green-soft: #e6f6ee;
+  --amber: #9a5b00;
+  --amber-soft: #fff4e0;
+  --coral: #333d4b;
+  --red: #c62828;
+  --red-soft: #fdecec;
+  --cream: #f2f4f6;
+  --warm: #f2f4f6;
+  --workspace-accent: #c62828;
   --radius: 12px;
   --radius-lg: 12px;
-  --shadow-md: 0 10px 28px rgb(24 24 28 / 10%);
-  background: var(--paper);
+  --radius-card: 18px;
+  --shadow-md: 0 10px 28px rgb(25 31 40 / 10%);
+  background: var(--canvas);
   color: var(--ink);
 }
-.appFrame ::selection { background: #e6e6e9; color: #242426; }
+.appFrame ::selection { background: var(--blue-soft); color: var(--ink); }
 .appFrame :is(input, textarea) { caret-color: var(--ink); }
 .appFrame :is(input, textarea, select):focus {
   border-color: var(--info-border);
-  box-shadow: 0 0 0 2px rgb(36 36 38 / 10%);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 16%);
 }
 .appFrame :is(h1, h2, h3) { font-family: var(--font-body); font-weight: 650; }
 .appFrame .pageEyebrow { display: none; }
 .appFrame :is(.sectionKicker, .sectionMiniLabel) { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: normal; text-transform: none; }
 .appFrame :is(.primaryButton, .secondaryButton, .invertedButton) { box-shadow: none; }
 .appFrame :is(.primaryButton, .dangerButton):active { transform: translateY(1px); }
-.appFrame .primaryButton:hover { background: #3d3d43; }
+.appFrame .primaryButton:hover { background: var(--primary-active); }
 .appFrame :is(.secondaryButton, .quietButton, .compactButton):hover { background: var(--canvas); }
 .appFrame .compactButton.emphasized { background: var(--canvas); border-color: var(--line-strong); }
 .appFrame .desktopSidebar {
   padding: 24px 14px;
   color: var(--ink);
-  background: var(--canvas);
+  background: var(--paper);
   border-right: 1px solid var(--line);
 }
 .appFrame .sidebarTop { padding: 0 10px 36px; }
 .appFrame .sideNav { gap: 6px; }
 .appFrame .sideNavItem { min-height: 46px; color: var(--muted); border-radius: 8px; }
-.appFrame .sideNavItem:hover { color: var(--ink); background: #ebebee; }
+.appFrame .sideNavItem:hover { color: var(--ink); background: var(--canvas); }
 .appFrame .sideNavItem[data-active="true"] {
   color: var(--ink);
-  background: #e5e5e9;
+  background: var(--canvas);
   box-shadow: none;
   font-weight: 650;
 }
 .appFrame .sideNav :focus-visible { outline-color: var(--ink); }
-.appFrame .navCount { color: var(--ink-soft); background: #fff; }
+.appFrame .navCount { color: var(--ink-soft); background: var(--paper); }
 .appFrame .navDivider { margin-block: 18px; background: var(--line); }
 .appFrame .localModeNotice { padding: 14px 8px; border: 0; background: transparent; }
 .appFrame .localModeNotice span { color: var(--muted); font-size: 11px; }
-.appFrame .statusDot { background: #77777f; box-shadow: none; }
+.appFrame .statusDot { background: var(--muted); box-shadow: none; }
 .appFrame .helpLink { color: var(--muted); }
-.appFrame :is(.betaLabel, .soonLabel) { color: var(--muted); background: #e5e5e9; }
+.appFrame :is(.betaLabel, .soonLabel) { color: var(--muted); background: var(--canvas); }
 .appFrame .saveState[data-status="error"] .statusDot { background: var(--red); }
-.appFrame .saveState[data-status="saving"] .statusDot { background: #b2b2b8; }
-.appFrame .workspaceTopbar { background: #fff; backdrop-filter: none; }
+.appFrame .saveState[data-status="saving"] .statusDot { background: var(--line-strong); }
+.appFrame .workspaceTopbar { background: var(--canvas); border-bottom: 0; backdrop-filter: none; }
 .appFrame .topbarContext strong { font-size: 14px; }
 .appFrame .topbarContext span { font-size: 12px; }
 .appFrame .topbarActions .iconButton { border-color: transparent; }
-.appFrame .avatar { color: var(--ink-soft); background: var(--canvas); font-size: 13px; }
+.appFrame .avatar { color: var(--ink-soft); background: var(--paper); font-size: 13px; }
 .appFrame .pageSurface { padding-top: 36px; }
 .appFrame .pageHeader { align-items: center; margin-bottom: 28px; }
 .appFrame .pageHeader h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: -.035em; }
@@ -166,7 +168,7 @@
 .appFrame .upcomingItem { padding-block: 18px; border-color: var(--line); }
 .appFrame .upcomingTop { font-size: 14px; font-weight: 550; }
 .appFrame .upcomingItem p { margin-top: 6px; font-size: 13px; }
-.appFrame :is(.progressLine, .detailProgress, .tableProgress) { background: #ededf0; }
+.appFrame :is(.progressLine, .detailProgress, .tableProgress) { background: var(--line); }
 .appFrame .progressCaption { font-size: 12px; }
 .appFrame .quickGuide { padding: 16px 0; color: var(--muted); border-top: 1px solid var(--line); }
 .appFrame .quickGuide strong { color: var(--ink-soft); font-size: 13px; font-weight: 550; }
@@ -180,13 +182,13 @@
 .appFrame .jobFilters { gap: 4px; align-items: center; }
 .appFrame .jobFilters > svg { display: none; }
 .appFrame .jobFilters button { min-height: 44px; padding-inline: 14px; border: 0; color: var(--muted); font-size: 14px; }
-.appFrame .jobFilters button[data-active="true"] { color: var(--ink); background: #ededf0; font-weight: 650; }
+.appFrame .jobFilters button[data-active="true"] { color: var(--ink); background: var(--paper); font-weight: 650; }
 .appFrame .searchField input { background: var(--canvas); border-color: transparent; }
 .appFrame .jobTable { border: 0; border-top: 1px solid var(--line); border-radius: 0; }
 .appFrame :is(.jobTableHead, .jobTableRow) { grid-template-columns: minmax(170px, 1.5fr) 124px 84px 64px 112px 20px; gap: 16px; }
 .appFrame .jobTableHead { padding-block: 14px; color: var(--muted); background: transparent; font-size: 12px; }
 .appFrame .jobTableRow { min-height: 96px; padding-block: 18px; border-color: var(--line); }
-.appFrame .jobTableRow:hover { background: #f7f7f8; }
+.appFrame .jobTableRow:hover { background: var(--canvas); }
 .appFrame .jobInitial { width: 38px; height: 38px; flex-basis: 38px; border-radius: 10px; }
 .appFrame .jobIdentity strong { font-size: 15px; font-weight: 600; }
 .appFrame .jobIdentity span { font-size: 13px; }
@@ -226,21 +228,21 @@
 .appFrame .settingsGrid { gap: 24px; margin-block: 24px; }
 .appFrame .settingTime input { width: 150px; min-height: 44px; }
 .appFrame .catalogListItem[data-active="true"] { box-shadow: none; font-weight: 650; }
-.appFrame .selectedOptionSummary b { background: #e5e5e9; }
+.appFrame .selectedOptionSummary b { background: var(--canvas); }
 .appFrame .jobActionBar { background: var(--ink); box-shadow: none; }
 /* 하단 행동 바: 주 버튼(일감 완료)만 흰 바탕, 나머지는 흰 테두리 버튼으로 위계를 보인다(감사 1번).
    흰 반투명도 --paper 토큰을 55%·10%로 섞어 만든다(바꾸기 전과 같은 색). */
 .appFrame .jobActionBar .quietButton { color: var(--paper); background: transparent; border-color: color-mix(in srgb, var(--paper) 55%, transparent); }
 .appFrame .jobActionBar .quietButton:hover { background: color-mix(in srgb, var(--paper) 10%, transparent); border-color: var(--paper); }
-.appFrame :is(.actionToast, .mobileSubmitBar) { background: #242426; }
-.appFrame :is(.actionToast button, .mobileSubmitBar span) { color: #d1d1d6; }
+.appFrame :is(.actionToast, .mobileSubmitBar) { background: var(--ink); }
+.appFrame :is(.actionToast button, .mobileSubmitBar span) { color: var(--line-strong); }
 .appFrame .mobileSubmitBar .primaryButton { color: var(--ink); background: #fff; }
-.appFrame .mobileSubmitBar .primaryButton:hover { background: #ededf0; }
+.appFrame .mobileSubmitBar .primaryButton:hover { background: var(--canvas); }
 .appFrame :is(.catalogSaved, .authFeedback.success, .permissionBadge, .permissionBadge.allowed) { border-color: var(--line-strong); }
 .appFrame :is(.linkManagerSection, .browserTestSection, .blockedExternalSection) { background: var(--canvas); border-color: var(--line-strong); }
 .appFrame :is(.linkShortcutGrid a, .linkPresetButtons button, .effectToggle button[data-active="true"], .catalogTabs button[data-active="true"]) { border-color: var(--line-strong); }
 .appFrame :is(.catalogListItem:hover, .catalogListItem[data-active="true"], .alertPopoverItem:hover) { background: var(--canvas); }
-.appFrame .upgradeNoticeIcon { color: var(--ink-soft); background: #e5e5e9; }
+.appFrame .upgradeNoticeIcon { color: var(--ink-soft); background: var(--canvas); }
 .appFrame .packageChoice[data-selected="true"], .appFrame .optionChoice[data-selected="true"] { box-shadow: none; }
 .appFrame .mobileBottomNav { background: #fff; backdrop-filter: none; }
 .appFrame .bottomNavItem[data-active="true"] { color: var(--ink); }
@@ -331,3 +333,188 @@
 }
 /* 오늘 요약 숫자 4칸: 휴대폰에서 이름이 줄을 바꾸면 고르게 나눈다("수정 거의 / 다 씀") */
 .appFrame .briefStats dt { text-align: center; text-wrap: balance; }
+
+/* ============================================================
+   디자인 A — 앱 (2026-11-03, 기준: ux-walk/.design-preview/DESIGN-A.md)
+   바탕 canvas 위 흰 카드(모서리 18px, 테두리·그림자 없음, 카드 사이 12px).
+   행동색은 파랑 하나. 빨강=지연·경고, 주황=기다림, 초록=끝남. 숫자는 tabular-nums.
+   위 기존 규칙보다 뒤에 와서 같은 선택자 세기면 이 값이 이긴다.
+   ============================================================ */
+
+/* 1. 앱 틀: 위 막대 canvas(경계선 없음), 사이드바·하단 탭 흰색, 본문 canvas */
+.appFrame .workspaceColumn, .appFrame .workspaceMain { background: var(--canvas); }
+.appFrame .mobileBottomNav { background: var(--paper); border-top: 1px solid var(--line); }
+.appFrame .mobileCreateNav { color: var(--primary); }
+.appFrame .mobileCreateNav > span { color: var(--paper); background: var(--primary); }
+.appFrame .sidebarCreateButton[aria-current="page"] { background: var(--primary-active); }
+.appFrame .sideNavItem[data-active="true"] .navCount { color: var(--blue); background: var(--blue-soft); }
+
+/* 카드: 각 구획을 흰 카드로 */
+.appFrame :is(.contentSection, .sideSection, .formSection, .summarySection, .catalogList, .catalogEditor,
+  .accountStatusSection, .accountDangerSection, .browserTestSection, .blockedExternalSection,
+  .linkManagerSection, .portalLinkSection, .todayBrief, .monthMoneyCard, .jobTable, .jobFactRail,
+  .jobPreview, .fieldProgress, .quickGuide, .firstJobGuide, .jobEmpty) {
+  background: var(--paper);
+  border: 0;
+  border-radius: var(--radius-card);
+  box-shadow: none;
+}
+.appFrame :is(.contentSection, .sideSection, .summarySection, .catalogEditor, .accountStatusSection,
+  .accountDangerSection, .browserTestSection, .blockedExternalSection) { padding: 22px 24px; }
+.appFrame .formSection { padding: 22px 24px; }
+.appFrame .settingsPage > .contentSection { margin-bottom: 12px; }
+.appFrame :is(.dashboardGrid, .detailGrid, .jobComposer, .settingsGrid, .catalogGrid) { gap: 12px; }
+.appFrame :is(.dashboardPrimary, .dashboardAside, .detailMain, .detailAside, .composerFields) { gap: 12px; }
+
+/* 오늘 화면: 줄 구조였던 구획을 카드로 */
+.appFrame .todayPage :is(.contentSection, .sideSection) { padding: 22px 24px; background: var(--paper); border-radius: var(--radius-card); }
+.appFrame .todayPage .quickGuide { padding: 18px 20px; background: var(--paper); border-radius: var(--radius-card); border-top: 0; }
+.appFrame .dashboardAside { padding-left: 0; border-left: 0; }
+.appFrame .todayBrief { margin-bottom: 12px; padding: 16px 20px; border-top: 0; border-bottom: 0; border-radius: var(--radius-card); }
+/* 이름이 두 줄이 돼도 숫자 줄은 맞춘다(세로 뒤집힌 묶음이라 flex-end가 위쪽). */
+.appFrame .briefStats div { justify-content: flex-end; }
+.appFrame .briefStats dd { color: var(--primary); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.appFrame .sectionCount { color: var(--blue); background: var(--blue-soft); border-radius: 999px; font-variant-numeric: tabular-nums; }
+.appFrame .sectionCount.muted { color: var(--ink-soft); background: var(--canvas); }
+.appFrame .waitingAvatar { color: var(--amber); background: var(--amber-soft); border-radius: 12px; }
+.appFrame .workspaceScope select { background-color: var(--paper); border-radius: 12px; }
+.appFrame .workspaceScope { margin-bottom: 12px; }
+
+/* 2. 오늘 화면 맨 위 '이번 달 돈' 카드 */
+.monthMoneyCard { margin-bottom: 12px; padding: 20px 24px; }
+.monthMoneyHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.monthMoneyHead h2 { margin: 0; color: var(--ink-soft); font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.monthMoneyHead h2 small { color: var(--muted); font-size: 13px; font-weight: 500; }
+.monthMoneyToggle { display: none; gap: 2px; }
+.monthMoneyToggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.monthMoneyTotal { display: block; margin: 4px 0 14px; color: var(--ink); font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.monthMoneyCells { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin: 0; }
+.monthMoneyCells > div { min-width: 0; padding: 12px 14px; background: var(--canvas); border-radius: 12px; }
+.monthMoneyCells dt { color: var(--muted); font-size: 12px; font-weight: 500; text-wrap: balance; }
+.monthMoneyCells dd { margin: 4px 0 0; color: var(--ink); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.monthMoneyLink { min-height: 44px; margin-top: 4px; }
+
+/* 3. 날짜 칸(44px): 위 D-7/D-day/D+2, 아래 월.일 */
+.dueTile {
+  display: grid; place-content: center; justify-items: center; gap: 1px;
+  width: 44px; height: 44px; flex: 0 0 44px;
+  color: var(--blue); background: var(--blue-soft); border-radius: 12px;
+  line-height: 1.1; font-variant-numeric: tabular-nums; text-align: center;
+}
+.dueTile b { font-size: 13px; font-weight: 700; letter-spacing: -.03em; white-space: nowrap; }
+.dueTile small { font-size: 11px; font-weight: 600; opacity: .9; }
+.dueTile[data-tone="normal"] { color: var(--blue); background: var(--blue-soft); }
+.dueTile[data-tone="late"] { color: var(--red); background: var(--red-soft); }
+/* 일감 목록 이름 칸의 span 규칙(블록·말줄임·회색 글자)이 날짜 칸에 묻지 않게 되돌린다. */
+.appFrame .jobIdentity > .dueTile { display: grid; overflow: visible; white-space: normal; text-overflow: clip; font-size: inherit; }
+.dueTile[data-tone="soon"] { color: var(--amber); background: var(--amber-soft); }
+.dueTile[data-tone="done"] { color: var(--muted); background: var(--canvas); }
+
+/* 우선 처리 줄: 체크 | 날짜 칸 | 내용 | 빠른 행동 */
+.appFrame .taskRow { grid-template-columns: 44px 44px minmax(0, 1fr) auto; gap: 12px; min-height: 76px; border-top: 1px solid var(--line); }
+.appFrame .taskRow:first-child { border-top: 0; }
+.appFrame .taskRowIcon { color: var(--amber); }
+/* 다가오는 마감: 날짜 칸 | 고객·일감·진행 | 금액 */
+.appFrame .upcomingItem { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start; }
+.appFrame .upcomingTop { align-items: baseline; }
+.appFrame .upcomingTop span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appFrame .upcomingItem .upcomingTop strong,
+.appFrame .upcomingItem[data-overdue="true"] .upcomingTop strong { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 4. 상태 칩: 알약으로 통일 */
+.appFrame :is(.statusBadge, .taskStateLabel, .usageBadge, .waitingChip, .revisionImpact, .actionBarStatus, .stateChip) {
+  border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; line-height: 1.4; white-space: nowrap;
+}
+.stateChip { display: inline-flex; align-items: center; width: fit-content; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+.stateChip[data-tone="blue"] { color: var(--blue); background: var(--blue-soft); }
+.stateChip[data-tone="amber"] { color: var(--amber); background: var(--amber-soft); }
+.stateChip[data-tone="red"] { color: var(--red); background: var(--red-soft); }
+.stateChip[data-tone="green"] { color: var(--green); background: var(--green-soft); }
+.stateChip[data-tone="gray"] { color: var(--muted); background: var(--canvas); }
+.appFrame .usageBadge.reverted { color: var(--muted); background: var(--canvas); }
+
+/* 일감 목록: 흰 카드 안 표, 왼쪽 날짜 칸, 오른쪽 금액 */
+.appFrame .jobTable { padding: 4px 20px; border-top: 0; }
+.appFrame :is(.jobTableHead, .jobTableRow) { grid-template-columns: minmax(200px, 1.5fr) 140px 84px 84px 124px 20px; }
+.appFrame .jobTableHead { border-bottom: 1px solid var(--line); }
+.appFrame .jobTableRow { min-height: 84px; padding-block: 16px; border-bottom: 1px solid var(--line); }
+.appFrame .jobTableRow:last-child { border-bottom: 0; }
+.appFrame .jobIdentity { gap: 12px; align-items: center; }
+.appFrame .jobStatusCell { display: flex; flex-wrap: wrap; gap: 6px; align-content: center; }
+.appFrame .revisionCell { display: flex; align-items: center; }
+.appFrame .amountCell { color: var(--ink); font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.appFrame .jobFilters button { border-radius: 12px; }
+.appFrame .searchField input { background: var(--paper); border-color: transparent; border-radius: 12px; }
+
+/* 버튼: 주 버튼 파랑 채움, 보조 버튼 canvas 채움·테두리 없음, 모서리 12px */
+.appFrame :is(.primaryButton, .secondaryButton, .quietButton, .compactButton, .invertedButton, .dangerButton, .iconButton) { border-radius: 12px; }
+.appFrame .primaryButton { color: var(--paper); background: var(--primary); }
+.appFrame .primaryButton:active { background: var(--primary-active); }
+.appFrame :is(.secondaryButton, .quietButton, .compactButton) { color: var(--ink); background: var(--canvas); border-color: transparent; }
+.appFrame :is(.secondaryButton, .quietButton, .compactButton):hover { background: var(--line); border-color: transparent; }
+.appFrame .compactButton.emphasized { color: var(--blue); background: var(--blue-soft); border-color: transparent; }
+.appFrame .iconButton { background: var(--canvas); border-color: transparent; }
+/* canvas 바탕 바로 위(머리 줄·위 막대·월 옮기기)에서는 보조 버튼을 흰 면으로 둔다(canvas 위 canvas는 안 보여서). */
+.appFrame :is(.pageHeaderActions, .detailHeaderActions, .formPageHeader, .detailHeader, .summaryMonthNav, .workspaceTopbar, .jobToolbar, .sourceFilters)
+  :is(.secondaryButton, .quietButton, .compactButton, .iconButton) { background: var(--paper); }
+.appFrame :is(.textButton, .textOnlyButton, .inlineLink) { color: var(--primary); }
+/* 누르는 칩: canvas 위에서는 흰 면, 카드 안에서는 canvas 면, 테두리 없음. 고르면 파랑 연한 면. */
+.appFrame :is(.sourceChip, .clientMessageChip, .industryChip) { background: var(--paper); border-color: transparent; }
+.appFrame :is(.contentSection, .sideSection, .formSection, .firstJobGuide) :is(.sourceChip, .clientMessageChip, .industryChip) { background: var(--canvas); }
+.appFrame :is(.sourceChip, .clientMessageChip, .industryChip)[aria-pressed="true"] { color: var(--blue); background: var(--blue-soft); border-color: transparent; }
+
+/* 입력칸: 모서리 12px, line-strong 테두리 */
+.appFrame :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select) { border-radius: 12px; border-color: var(--line-strong); }
+.appFrame .searchField input { border-color: transparent; }
+
+/* 새 일감·상세·패키지: 선택지와 사실 칸 */
+.appFrame :is(.packageChoice, .optionChoice) { border-radius: 12px; }
+.appFrame .jobPreview { background: var(--paper); border-radius: var(--radius-card); }
+.appFrame .jobFactRail { margin-bottom: 12px; border: 0; border-radius: var(--radius-card); }
+.appFrame .jobFactRail dd { font-variant-numeric: tabular-nums; }
+.appFrame :is(.summaryTotals dd, .previewMetrics dd) { font-variant-numeric: tabular-nums; }
+
+/* 월별 정리: 구획을 카드로 */
+.appFrame .summarySection { margin-top: 12px; border-top: 0; }
+
+@media (max-width: 1180px) {
+  .appFrame :is(.jobTableHead, .jobTableRow) { grid-template-columns: minmax(170px, 1fr) 120px 70px 84px 108px 16px; }
+}
+@media (max-width: 760px) {
+  .appFrame :is(.contentSection, .sideSection, .summarySection, .catalogEditor, .accountStatusSection,
+    .accountDangerSection, .browserTestSection, .blockedExternalSection, .formSection) { padding: 16px; }
+  .appFrame .todayPage :is(.contentSection, .sideSection) { padding: 16px; }
+  .appFrame .todayBrief { padding: 16px; gap: 12px; margin-bottom: 12px; }
+  .appFrame .briefMessage { border-radius: 12px; }
+  .appFrame .primaryButton { min-height: 52px; }
+  .appFrame :is(.mobileSubmitBar, .jobActionBar, .pageHeaderActions, .detailHeaderActions) .primaryButton { min-height: 44px; }
+
+  /* 이번 달 돈: 일감 화면과 같은 '금액 보기' 규칙(처음엔 접힘) */
+  .monthMoneyCard { padding: 16px; }
+  .monthMoneyToggle { display: inline-flex; min-height: 44px; }
+  .monthMoneyCard[data-money-open="false"] .monthMoneyBody { display: none; }
+  .monthMoneyTotal { margin-top: 2px; font-size: 26px; }
+  .monthMoneyCells { gap: 6px; }
+  .monthMoneyCells > div { padding: 10px; }
+  .monthMoneyCells dd { font-size: 14px; }
+
+  .appFrame .taskRow { grid-template-columns: 44px 44px minmax(0, 1fr) auto; gap: 10px; min-height: 84px; }
+
+  /* 일감 목록 휴대폰: [날짜 칸+고객·일감 | 금액] / [상태 칩들 | 수정 n/m] */
+  .appFrame .jobTable { padding: 0 16px; }
+  .appFrame .jobTableRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "id amount" "status rev";
+    row-gap: 10px; column-gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line);
+  }
+  .appFrame .jobTableRow:last-child { border-bottom: 0; }
+  .appFrame .jobTableRow > .jobIdentity { grid-area: id; align-items: center; }
+  .appFrame .jobTableRow > .amountCell { display: block; grid-area: amount; align-self: start; padding-top: 2px; font-size: 14px; }
+  .appFrame .jobTableRow > .jobStatusCell { grid-area: status; padding-left: 56px; }
+  .appFrame .jobTableRow > .revisionCell { display: flex; grid-area: rev; grid-column: auto; justify-self: end; align-self: start; padding-left: 0; }
+  .appFrame .jobTableRow > .rowArrow { display: none; }
+  /* 위 휴대폰 일감 목록용 .rowArrow 자리 규칙이 월별 정리 줄 화살표까지 둘째 줄로 내리던 것을 바로잡는다. */
+  .appFrame .summaryRow > .rowArrow { grid-column: 3; grid-row: 1; }
+}
+
+/* 고객 링크 화면은 앱 틀 밖이라 theme.css 끝 '디자인 A — 앱' 구역에 둔다. */
