@@ -65,13 +65,6 @@ describe("FeedbackPanel rendering", () => {
     expect(screen.getByText("고객 이름이나 연락처 같은 개인정보는 적지 말아주세요.")).toBeInTheDocument();
   });
 
-  it("switches to the exit-survey framing without becoming a second page", () => {
-    render(<FeedbackPanel mode="exit" />);
-
-    expect(screen.getByRole("heading", { level: 1, name: "왜 그만두시나요?" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "다른 도구를 쓰게 돼서" })).toBeInTheDocument();
-  });
-
   it("degrades gracefully with a copy button when no form URL is configured", () => {
     render(<FeedbackPanel />);
 
@@ -250,7 +243,7 @@ describe("feedback link and text builders", () => {
   });
 
   it("omits optional answers from the plain text when they are empty", () => {
-    const text = buildFeedbackPlainText({ ...base, screen: "", usage: "", email: "" }, "general");
+    const text = buildFeedbackPlainText({ ...base, screen: "", usage: "", email: "" });
     expect(text).not.toContain("화면:");
     expect(text).not.toContain("사용 기간:");
     expect(text).not.toContain("회신 이메일:");
@@ -275,6 +268,6 @@ describe("feedback link and text builders", () => {
     expect(params.get("entry.666")).toBe("계속 사용");
     expect(href).not.toContain(encodeURIComponent(answers.detail));
     expect(href).not.toContain(encodeURIComponent(answers.email));
-    expect(buildFeedbackPlainText(answers, "general")).toContain("가격 적정성: 14,900원");
+    expect(buildFeedbackPlainText(answers)).toContain("가격 적정성: 14,900원");
   });
 });

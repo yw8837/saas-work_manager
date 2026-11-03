@@ -122,3 +122,29 @@ it("머리 설명은 '잔여' 대신 '남은 수정'이라고 쓴다", () => {
   expect(screen.getByText("진행 중인 고객과 마감, 남은 수정 횟수를 같이 봐요.")).toBeInTheDocument();
   expect(view.container).not.toHaveTextContent("잔여");
 });
+
+it("디자인 A: 줄마다 왼쪽 날짜 칸, 상태 칩(알약)·수정 n/m 칩, 오른쪽 끝 금액", () => {
+  const base = createSeedState().jobs[0];
+  const late = {
+    ...base, id: "job-late", clientLabel: "온새미 공방", status: "active", dueDate: "2020-01-20", amount: 550_000,
+    revisions: [], tasks: [], intakeItems: [{ id: "i1", label: "로고" }],
+  };
+  const finished = { ...base, id: "job-finished", clientLabel: "카페 모라", status: "completed", dueDate: "2020-02-03", revisions: [] };
+  vi.mocked(useWorkspace).mockReturnValue({ jobs: [late, finished] } as unknown as ReturnType<typeof useWorkspace>);
+  render(<JobsOverview />);
+  const lateRow = screen.getByText("온새미 공방").closest("a")!;
+  const tile = lateRow.querySelector(".dueTile")!;
+  expect(tile).toHaveAttribute("data-tone", "late");
+  expect(tile).toHaveTextContent("1.20");
+  const chips = [...lateRow.querySelectorAll(".stateChip")].map((chip) => [chip.textContent, chip.getAttribute("data-tone")]);
+  expect(chips).toEqual([
+    ["지연", "red"],
+    ["자료 대기", "amber"],
+    [`수정 0/${base.revisionLimit}`, "blue"],
+  ]);
+  expect(lateRow.querySelector(".amountCell")).toHaveTextContent("550,000원");
+  const doneRow = screen.getByText("카페 모라").closest("a")!;
+  expect(doneRow.querySelector(".dueTile")).toHaveAttribute("data-tone", "done");
+  expect(doneRow.querySelector(".stateChip")).toHaveTextContent("완료");
+  expect(doneRow.querySelector(".stateChip")).toHaveAttribute("data-tone", "green");
+});

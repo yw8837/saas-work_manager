@@ -1,10 +1,13 @@
 /**
  * 일감 화면 '고객에게 보낼 말'의 상황별 카톡 문구.
  * client-share.ts와 같은 원칙: 고객 이름 인사로 시작하고, 금액·원가·남는 돈·받은 곳·작업자 연락처는 넣지 않는다.
+ * 예외는 '추가 작업 안내' 하나다. 범위 밖 요청을 돈으로 바꾸려고 고객 동의를 받는 문구라, 작업자가 추가요청에 적은
+ * 추가 금액·추가 기간만 넣는다(계약 금액·원가·남는 돈은 여기에도 넣지 않는다).
  * 링크는 켜져 있고 저장이 끝났을 때(link가 있을 때)만 넣는다. 완료한 일감은 고객 링크가 서버에서 막히니 넣지 않는다.
  */
 import { clientShareMessage, greetingFor, startReminderMessage } from "./client-share";
 import {
+  type Addon,
   displayJobTitle,
   getRevisionSummary,
   pendingBriefQuestions,
@@ -12,7 +15,7 @@ import {
   type Job,
 } from "./domain";
 
-export type MessageSituation = "revision-done" | "remaining" | "waiting" | "review" | "start" | "out-of-scope" | "delivery";
+export type MessageSituation = "revision-done" | "remaining" | "waiting" | "review" | "start" | "addon" | "out-of-scope" | "delivery";
 
 export const SITUATION_LABELS: Record<MessageSituation, string> = {
   "revision-done": "수정 반영 알림",
@@ -20,12 +23,32 @@ export const SITUATION_LABELS: Record<MessageSituation, string> = {
   waiting: "답 기다림",
   review: "시안 확인 부탁",
   start: "시작 안내",
+  addon: "추가 작업 안내",
   "out-of-scope": "범위 밖 안내",
   delivery: "납품 안내",
 };
 
-/** 위가 우선이다. 첫 상황이 처음부터 골라져 있다. */
-const SITUATION_ORDER: MessageSituation[] = ["revision-done", "remaining", "waiting", "review", "start", "out-of-scope", "delivery"];
+/** 위가 우선이다. 첫 상황이 처음부터 골라져 있다(아래 `availableSituations`가 상황에 따라 맨 앞으로 올리는 것이 있다). */
+const SITUATION_ORDER: MessageSituation[] = ["revision-done", "remaining", "waiting", "review", "start", "addon", "out-of-scope", "delivery"];
+
+function moveToFront(order: MessageSituation[], situation: MessageSituation): MessageSituation[] {
+  return [situation, ...order.filter((item) => item !== situation)];
+}
+
+/** 추가 작업 안내에 넣을 추가요청: 초안이 있으면 초안 전부(만든 순서), 없으면 가장 최근에 확정한 것 하나. */
+function addonsToAnnounce(job: Job): Addon[] {
+  const drafts = job.addons.filter((addon) => addon.status === "draft");
+  if (drafts.length > 0) return drafts;
+  const confirmed = job.addons.filter((addon) => addon.status === "confirmed");
+  return confirmed.length > 0 ? [confirmed[confirmed.length - 1]] : [];
+}
+
+function addonLine(addon: Addon): string {
+  const amount = addon.amountDelta > 0 ? `추가 비용 ${new Intl.NumberFormat("ko-KR").format(addon.amountDelta)}원` : "추가 비용 없음";
+  const days = addon.durationDaysDelta > 0 ? `기간 ${addon.durationDaysDelta}일 추가` : "마감은 그대로";
+  // 요청 원문(문장)을 그대로 쓴 제목도 자연스럽게 이어지게 끝 마침표는 뗀다.
+  return `- ${addon.title.trim().replace(/[.。]+$/, "")} (${amount}, ${days})`;
+}
 
 /** ISO 시각의 이 기기 날짜(YYYY-MM-DD). `localToday()`와 같은 기준이다. */
 function localDateOf(iso: string): string {
@@ -52,11 +75,17 @@ function startAlreadyShared(job: Job): boolean {
  * 지금 일감 상태에 맞는 상황만 우선순위대로 준다. `today`는 이 기기 날짜(`localToday()`).
  * 반려·되돌린 수정 요청은 세지 않는다. 시작 안내를 아직 안 보낸 진행 중 일감은 첫 연락이라 시작 안내가 맨 앞이다.
  * 보낸 기록이 없어도 진행된 흔적이 있으면 이미 보낸 것으로 본다(`startAlreadyShared`).
+ * 고객 동의를 기다리는 추가요청 초안이 있으면 '추가 작업 안내'가 맨 앞이다.
+ * 납품 안내는 완료 전에도 끝에 있고, 일감을 완료했거나 할 일을 다 끝냈으면 맨 앞이다(이게 가장 우선).
  */
 export function availableSituations(job: Job, today: string): MessageSituation[] {
   const active = job.status === "active";
   const liveRevisions = job.revisions.filter((revision) => !revision.revertedAt);
   const liveTasks = job.tasks.filter((task) => task.status !== "cancelled");
+  // '추가 작업으로'에서 만든 추가요청(취소 안 함)이 연결된 요청은 금액을 정했으니 '추가 작업 안내'로 보낸다.
+  const pricedRevisionIds = new Set(
+    job.addons.filter((addon) => addon.status !== "cancelled" && addon.sourceRevisionId).map((addon) => addon.sourceRevisionId),
+  );
   const matches: Record<MessageSituation, boolean> = {
     // 오늘 '수정 완료'를 누른 진행 중 일감. 끝난 일감에는 더 고칠 부분을 묻지 않는다.
     "revision-done": active && liveRevisions.some(
@@ -66,12 +95,16 @@ export function availableSituations(job: Job, today: string): MessageSituation[]
     waiting: active && job.tasks.some((task) => task.status === "waiting"),
     review: active,
     start: active,
-    "out-of-scope": liveRevisions.some((revision) => revision.usage === "extra_scope") || job.addons.some((addon) => addon.status === "draft"),
-    delivery: job.status === "completed" || (liveTasks.length > 0 && liveTasks.every((task) => task.status === "done")),
+    addon: job.addons.some((addon) => addon.status !== "cancelled"),
+    // 금액·기간을 정한 추가요청이 생기면 그 문구('추가 작업 안내')로 보낸다. 여기는 아직 금액을 안 정한 범위 밖 요청만.
+    "out-of-scope": liveRevisions.some((revision) => revision.usage === "extra_scope" && !pricedRevisionIds.has(revision.id)),
+    delivery: active || job.status === "completed",
   };
-  const order: MessageSituation[] = active && !startAlreadyShared(job)
-    ? ["start", ...SITUATION_ORDER.filter((situation) => situation !== "start")]
-    : SITUATION_ORDER;
+  const deliveryFirst = job.status === "completed" || (liveTasks.length > 0 && liveTasks.every((task) => task.status === "done"));
+  let order = SITUATION_ORDER;
+  if (job.addons.some((addon) => addon.status === "draft")) order = moveToFront(order, "addon");
+  if (active && !startAlreadyShared(job)) order = moveToFront(order, "start");
+  if (deliveryFirst) order = moveToFront(order, "delivery");
   return order.filter((situation) => matches[situation]);
 }
 
@@ -120,10 +153,22 @@ export function situationMessage(situation: MessageSituation, input: { job: Job;
         title,
         included: revision.included,
         remaining: revision.remaining,
+        dueDate: job.dueDate,
         link,
         pendingIntake: pendingIntakeLabels(job),
         pendingQuestions: pendingBriefQuestions(job),
       });
+    case "addon": {
+      const addons = addonsToAnnounce(job);
+      // 알릴 추가요청이 없으면(목록에 안 나오는 경우) 범위 밖 안내와 같은 말을 쓴다.
+      if (addons.length === 0) return situationMessage("out-of-scope", input);
+      return [
+        greeting,
+        "말씀하신 내용은 처음 정한 범위 밖이라 추가 작업으로 안내드려요.",
+        ...addons.map(addonLine),
+        "진행할까요? 괜찮으시면 이 대화로 답 주세요.",
+      ].join("\n");
+    }
     case "out-of-scope":
       return [
         greeting,

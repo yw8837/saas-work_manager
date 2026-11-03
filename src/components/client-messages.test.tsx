@@ -53,10 +53,11 @@ describe("고객에게 보낼 말", () => {
     render(<ClientMessages job={job()} link={LINK} today={TODAY} />);
     expect(screen.getByRole("heading", { name: "고객에게 보낼 말" })).toBeInTheDocument();
     const chips = within(screen.getByRole("group", { name: "보낼 상황" })).getAllByRole("button");
-    expect(chips.map((chip) => chip.textContent)).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(chips.map((chip) => chip.textContent)).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내", "납품 안내"]);
     expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "false");
-    expect(screen.queryByTestId("client-message-chip-delivery")).not.toBeInTheDocument();
+    // 납품 안내는 완료 전에도 보이지만 기본으로 골라져 있지 않다.
+    expect(screen.getByTestId("client-message-chip-delivery")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("client-message-preview")).toHaveTextContent("[보내 주실 자료] - 로고 파일");
   });
 
@@ -76,7 +77,8 @@ describe("고객에게 보낼 말", () => {
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "false");
     const preview = screen.getByTestId("client-message-preview");
-    expect(preview).toHaveTextContent("Basic 홈페이지 작업의 수정 요청은 아래 링크에 한 번에 남겨주세요.");
+    expect(preview).toHaveTextContent("Basic 홈페이지 작업은 11월 6일 완성 예정이에요.");
+    expect(preview).toHaveTextContent("수정 요청은 아래 링크에 한 번에 남겨 주세요.");
     expect(preview).toHaveTextContent(LINK);
   });
 
@@ -115,9 +117,9 @@ describe("고객에게 보낼 말", () => {
   it("시작 안내를 아직 안 보낸 일감은 '시작 안내'가 처음부터 골라져 있다", () => {
     render(<ClientMessages job={notSentYet()} link={LINK} today={TODAY} />);
     const chips = within(screen.getByRole("group", { name: "보낼 상황" })).getAllByRole("button");
-    expect(chips.map((chip) => chip.textContent)).toEqual(["시작 안내", "남은 것 요청", "시안 확인 부탁"]);
+    expect(chips.map((chip) => chip.textContent)).toEqual(["시작 안내", "남은 것 요청", "시안 확인 부탁", "납품 안내"]);
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("client-message-preview")).toHaveTextContent("Basic 홈페이지 작업의 수정 요청은 아래 링크에 한 번에 남겨주세요.");
+    expect(screen.getByTestId("client-message-preview")).toHaveTextContent("수정 요청은 아래 링크에 한 번에 남겨 주세요.");
   });
 
   it("'시작 안내'를 복사했을 때만 보낸 것으로 알린다(다른 칩·복사 실패는 알리지 않는다)", async () => {
@@ -175,7 +177,7 @@ describe("고객에게 보낼 말", () => {
     expect(writeText).toHaveBeenCalledWith(shown);
     // 보낸 기록이 생겨 칩은 설계 순서로 돌아가지만, 화면은 방금 복사한 '시작 안내'에 머문다.
     const chips = within(screen.getByRole("group", { name: "보낼 상황" })).getAllByRole("button");
-    expect(chips.map((chip) => chip.textContent)).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(chips.map((chip) => chip.textContent)).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내", "납품 안내"]);
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("client-message-preview").textContent).toBe(shown);
@@ -191,7 +193,7 @@ describe("고객에게 보낼 말", () => {
     // ① 처음 보낸 기록이 생겨 '시작 안내'가 뒤로 갔다(순서만 바뀜): 복사한 '시작 안내'에 머문다.
     const shared = markStartShared(fresh, "2026-11-02T03:00:00.000Z");
     view.rerender(<ClientMessages job={shared} link={LINK} today={TODAY} />);
-    expect(chipLabels()).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(chipLabels()).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내", "납품 안내"]);
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
 
     // ② 오늘 '수정 완료'를 눌러 '수정 반영 알림'이 새로 생겼다: 고정을 풀고 맨 앞 상황을 고른다.
@@ -201,14 +203,14 @@ describe("고객에게 보낼 말", () => {
       TODAY_NOON,
     );
     view.rerender(<ClientMessages job={revised} link={LINK} today={TODAY} />);
-    expect(chipLabels()).toEqual(["수정 반영 알림", "남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(chipLabels()).toEqual(["수정 반영 알림", "남은 것 요청", "시안 확인 부탁", "시작 안내", "납품 안내"]);
     expect(screen.getByTestId("client-message-chip-revision-done")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("client-message-preview")).toHaveTextContent("요청하신 수정을 반영했어요.");
 
     // 한 번 푼 고정은 그 상황이 다시 사라져도(다음 날) 되살리지 않는다.
     view.rerender(<ClientMessages job={revised} link={LINK} today="2026-11-03" />);
-    expect(chipLabels()).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내"]);
+    expect(chipLabels()).toEqual(["남은 것 요청", "시안 확인 부탁", "시작 안내", "납품 안내"]);
     expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "false");
   });
@@ -221,15 +223,44 @@ describe("고객에게 보낼 말", () => {
     // 받을 자료를 다 받아 '남은 것 요청'이 사라졌다(새 상황 없음): 누른 '시작 안내'에 머문다.
     const received = toggleIntakeItem(sent, sent.intakeItems![0].id, TODAY_NOON);
     view.rerender(<ClientMessages job={received} link={LINK} today={TODAY} />);
-    expect(chipLabels()).toEqual(["시안 확인 부탁", "시작 안내"]);
+    expect(chipLabels()).toEqual(["시안 확인 부탁", "시작 안내", "납품 안내"]);
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "true");
 
     // 할 일을 '고객 대기'로 바꿔 '답 기다림'이 새로 생겼다: 맨 앞 상황으로 돌아간다.
     const waiting = updateTaskStatus(received, received.tasks[0].id, "waiting", TODAY_NOON);
     view.rerender(<ClientMessages job={waiting} link={LINK} today={TODAY} />);
-    expect(chipLabels()).toEqual(["답 기다림", "시안 확인 부탁", "시작 안내"]);
+    expect(chipLabels()).toEqual(["답 기다림", "시안 확인 부탁", "시작 안내", "납품 안내"]);
     expect(screen.getByTestId("client-message-chip-waiting")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("client-message-chip-start")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("완료한 일감은 '납품 안내'가 맨 앞이고 처음부터 골라져 있다", () => {
+    render(<ClientMessages job={job({ status: "completed" })} link={LINK} today={TODAY} />);
+    expect(chipLabels()).toEqual(["납품 안내"]);
+    expect(screen.getByTestId("client-message-chip-delivery")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("client-message-preview")).toHaveTextContent("작업을 모두 마쳤어요.");
+  });
+
+  // 납품 안내는 완료 전에도 있어서 '새 상황'이 아니다. 완료로 맨 앞에 오면 고정을 풀고 납품 안내를 고른다.
+  it("다른 칩을 복사해 고정한 뒤 일감을 완료하면 고정을 풀고 '납품 안내'를 고른다", async () => {
+    writeText.mockResolvedValue();
+    const sent = job();
+    const view = render(<ClientMessages job={sent} link={LINK} today={TODAY} />);
+    fireEvent.click(screen.getByTestId("client-message-chip-review"));
+    fireEvent.click(screen.getByTestId("client-message-copy"));
+    await waitFor(() => expect(screen.getByTestId("client-message-copy")).toHaveTextContent("복사했어요"));
+    expect(screen.getByTestId("client-message-chip-review")).toHaveAttribute("aria-pressed", "true");
+
+    view.rerender(<ClientMessages job={{ ...sent, status: "completed" }} link={LINK} today={TODAY} />);
+    expect(chipLabels()).toEqual(["납품 안내"]);
+    expect(screen.getByTestId("client-message-chip-delivery")).toHaveAttribute("aria-pressed", "true");
+
+    // 할 일을 다 끝내 납품 안내가 맨 앞으로 온 경우도 같다.
+    const view2 = render(<ClientMessages job={sent} link={LINK} today={TODAY} />);
+    fireEvent.click(within(view2.container).getByTestId("client-message-chip-start"));
+    const done = updateTaskStatus(sent, sent.tasks[0].id, "done", TODAY_NOON);
+    view2.rerender(<ClientMessages job={done} link={LINK} today={TODAY} />);
+    expect(within(view2.container).getByTestId("client-message-chip-delivery")).toHaveAttribute("aria-pressed", "true");
   });
 
   it("보낼 상황이 없으면 그리지 않는다", () => {

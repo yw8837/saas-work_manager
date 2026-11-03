@@ -5,7 +5,6 @@ import { useState, type MouseEvent } from "react";
 import { useWorkspace } from "./workspace-provider";
 import { getPublicEnvironmentValue } from "@/lib/public-environment";
 
-export type FeedbackMode = "general" | "exit";
 
 export type FeedbackAnswers = {
   type: string;
@@ -28,25 +27,15 @@ export type FeedbackEntryIds = {
   founder: string;
 };
 
-const MODE_COPY = {
-  general: {
-    eyebrow: "베타 사용자 의견",
-    title: "쓰면서 느낀 점을 알려주세요",
-    lead: "고르는 데 1분이면 충분해요. 개인정보는 하나도 받지 않아요.",
-    typeLabel: "제보 유형",
-    typeOptions: ["불편한 점", "안 되는 기능", "있었으면 하는 기능", "그냥 사용 후기", "기타"],
-    detailHint: "어떤 상황이었는지 편하게 적어주세요",
-    submitLabel: "의견 보내기",
-  },
-  exit: {
-    eyebrow: "그만두기 전에 한 가지만",
-    title: "왜 그만두시나요?",
-    lead: "붙잡으려는 게 아니에요. 뭐가 안 맞았는지만 알려주시면 다음 사람에게 도움이 돼요.",
-    typeLabel: "그만두는 이유",
-    typeOptions: ["기대한 기능이 없어서", "쓰기 불편해서", "다른 도구를 쓰게 돼서", "지금은 맡은 일감이 없어서", "기타"],
-    detailHint: "어떤 점이 아쉬웠는지 적어주세요",
-    submitLabel: "이유 보내기",
-  },
+// 그만두는 이유 설문은 2026-11-03 사용자 지시로 뺐다(떠나는 사람에게 묻는 것도 불편함).
+const COPY = {
+  eyebrow: "베타 사용자 의견",
+  title: "쓰면서 느낀 점을 알려주세요",
+  lead: "고르는 데 1분이면 충분해요. 개인정보는 하나도 받지 않아요.",
+  typeLabel: "제보 유형",
+  typeOptions: ["불편한 점", "안 되는 기능", "있었으면 하는 기능", "그냥 사용 후기", "기타"],
+  detailHint: "어떤 상황이었는지 편하게 적어주세요",
+  submitLabel: "의견 보내기",
 } as const;
 
 const SCREEN_OPTIONS = ["오늘", "일감", "새 일감", "패키지·옵션", "설정", "고객 수정 링크", "기타"];
@@ -105,10 +94,10 @@ export function buildFeedbackFormUrl(
 }
 
 /** 사용자가 직접 고르고 적은 값만 담는다. 작업공간·일감 데이터는 담지 않는다. */
-export function buildFeedbackPlainText(answers: FeedbackAnswers, mode: FeedbackMode): string {
+export function buildFeedbackPlainText(answers: FeedbackAnswers): string {
   const lines = [
-    `[일감체크 베타 · ${mode === "exit" ? "그만두는 이유" : "의견 보내기"}]`,
-    `${MODE_COPY[mode].typeLabel}: ${answers.type}`,
+    "[일감체크 베타 · 의견 보내기]",
+    `${COPY.typeLabel}: ${answers.type}`,
   ];
   if (answers.screen) lines.push(`화면: ${answers.screen}`);
   lines.push(`자세한 내용: ${answers.detail.trim()}`);
@@ -148,9 +137,9 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-export function FeedbackPanel({ mode = "general" }: { mode?: FeedbackMode }) {
+export function FeedbackPanel() {
   const { jobs } = useWorkspace();
-  const copy = MODE_COPY[mode];
+  const copy = COPY;
 
   const [type, setType] = useState<string>(copy.typeOptions[0]);
   const [screen, setScreen] = useState("");
@@ -166,7 +155,7 @@ export function FeedbackPanel({ mode = "general" }: { mode?: FeedbackMode }) {
   const answers: FeedbackAnswers = {
     type, screen, detail, usage, email, shareScale, scaleBucket, priceFit, founderIntent,
   };
-  const plainText = buildFeedbackPlainText(answers, mode);
+  const plainText = buildFeedbackPlainText(answers);
   const formHref = buildFeedbackFormUrl(feedbackFormUrl(), feedbackEntryIds(), answers);
 
   const invalid = detail.trim().length === 0;

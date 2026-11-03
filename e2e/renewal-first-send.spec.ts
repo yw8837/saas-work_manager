@@ -70,7 +70,7 @@ test("3·5·1번: 첫 실행 체크리스트 → 업종 예시 → 첫 일감 �
   const message = await page.evaluate(() => navigator.clipboard.readText());
   expect(message).toContain("리뉴얼 첫 고객님");
   expect(message).toContain(link);
-  expect(message).toContain("제가 수정을 마칠 때마다 1회씩 세요.");
+  expect(message).toContain("수정을 마칠 때마다 포함 수정 1회로 셉니다.");
   expect(message).not.toMatch(/\d원|₩/);
 
   const [preview] = await Promise.all([context.waitForEvent("page"), page.getByTestId("send-preview").click()]);
@@ -171,7 +171,8 @@ test("4번: 랜딩 보조 버튼은 가입 없이 고객 화면 체험으로, CT
   await page.getByTestId("landing-customer-demo").click();
   await expect(page).toHaveURL(/\/demo\/r$/);
   await expect(page.getByTestId("revision-worker")).toHaveText("샘플 디자인 스튜디오");
-  await expect(page.getByRole("list", { name: "진행 단계" }).locator("[aria-current=step]")).toContainText("수정");
+  // 예시 주문은 받을 자료가 남아 있어서 '자료 받는 중'이다.
+  await expect(page.getByRole("list", { name: "진행 단계" }).locator("[aria-current=step]")).toContainText("자료 받는 중");
   await expect(page.getByTestId("demo-preview-only")).toBeVisible();
   await noHorizontalOverflow(page);
 });

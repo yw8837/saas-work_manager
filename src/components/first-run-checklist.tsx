@@ -24,24 +24,24 @@ import { useWorkspace } from "./workspace-provider";
 
 // 그림은 사용설명서와 같은 캡처(e2e/capture/guide-screens.capture.ts)를 다시 쓴다. 크기는 그 파일 그대로.
 // 그림 칸은 폭 200px·최대 높이 240px로 위쪽만 보인다(.firstRunShot). alt는 그 칸에 보이는 부분만 말한다:
-// 패키지 그림은 위쪽 약 69%(저장 버튼은 칸 밖), 새 일감 그림은 위쪽 약 35%(패키지·옵션·금액·마감은 칸 밖), 저장 직후 안내는 전부.
+// 패키지 그림은 위쪽 약 40%(받을 자료·착수 전 질문 칸, 저장 버튼은 칸 밖), 새 일감 그림은 위쪽 약 35%(패키지·옵션·금액·마감은 칸 밖), 저장 직후 안내는 전부.
 const STEP_COPY: Record<FirstRunStepId, { title: string; body: string; image: { src: string; width: number; height: number }; alt: string }> = {
   packages: {
     title: "내 일에 맞는 예시 패키지 고르기",
     body: "업종을 고르면 그 업종 예시 패키지로 바꿔 드려요. 금액은 예시라서 패키지 화면에서 내 조건으로 고쳐 쓰면 돼요.",
-    image: { src: "/guide/02-packages.webp", width: 750, height: 1304 },
+    image: { src: "/guide/02-packages.webp", width: 750, height: 2258 },
     alt: "받을 자료·착수 전 질문 칸이 보이는 패키지 화면 예시",
   },
   "first-job": {
     title: "첫 일감 만들기",
     body: "고객, 시작일, 패키지, 옵션 네 가지만 고르면 금액·마감·할 일·수정 횟수가 채워져요.",
-    image: { src: "/guide/03-new-job.webp", width: 750, height: 2544 },
+    image: { src: "/guide/03-new-job.webp", width: 750, height: 2530 },
     alt: "고객 이름·받은 곳·시작일이 보이는 새 일감 화면 예시",
   },
   "send-link": {
     title: "고객에게 수정 요청 링크 보내기",
     body: "일감 화면에서 링크나 카톡 문구를 복사해 보내요. 고객은 로그인 없이 열어 수정 요청을 남겨요.",
-    image: { src: "/guide/04-send-message.webp", width: 750, height: 824 },
+    image: { src: "/guide/04-send-message.webp", width: 750, height: 840 },
     alt: "카톡 문구 복사 버튼과 보낼 문구가 보이는 저장 직후 안내 예시",
   },
 };
@@ -159,6 +159,11 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
                 {industryMessage && step.id === "packages" && (
                   <p className="firstRunMessage" data-tone={industryMessage.tone} role={industryMessage.tone === "error" ? "alert" : "status"}>
                     {industryMessage.text}
+                  </p>
+                )}
+                {actionable && step.id === "first-job" && usesOnlyStarterPackages(packages) && (
+                  <p className="firstRunSamplePrice" data-testid="first-run-sample-price">
+                    예시 금액이에요 · <Link href="/packages" className="inlineLink" onClick={() => markFirstRun("packagesReviewed")}>바꾸기</Link>
                   </p>
                 )}
                 {actionable && step.id === "first-job" && (

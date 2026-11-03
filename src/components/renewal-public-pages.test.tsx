@@ -160,6 +160,10 @@ describe("그림 사용설명서", () => {
     expect(Array.from(document.querySelectorAll(".srOnly")).every((node) => node.parentElement?.tagName === "SUMMARY")).toBe(true);
     const shown = document.body.cloneNode(true) as HTMLElement;
     shown.querySelectorAll(".srOnly").forEach((node) => node.remove());
+    // 2026-11-03 사용자 지시로 맨 위에 흐름도를 더했다. 흐름도는 따로 450자 아래로 묶고, 나머지 설명서 글은 예전 기준을 그대로 지킨다.
+    const chart = shown.querySelector('[data-testid="work-flow-chart"]')!;
+    expect((chart.textContent ?? "").replace(/\s+/g, " ").trim().length).toBeLessThan(450);
+    chart.remove();
     const text = (shown.textContent ?? "").replace(/\s+/g, " ").trim();
     expect(text.length).toBeLessThan(1094);
     // 돌아보기(화면 innerText)는 줄마다 띄어 세서 textContent보다 길게 나온다(예전 설명서 1,097 대 1,061).

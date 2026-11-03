@@ -28,10 +28,13 @@ const primaryNavigation = [
 ];
 
 const supportNavigation = [{ href: "/feedback", label: "의견 보내기", icon: MessageSquareText }];
-const BETA_SURVEY_START_DAY = 14;
+// 14일 이용권의 절반(7일째)부터 설문 안내를 띄운다.
+const BETA_SURVEY_START_DAY = 7;
 
 function isCurrent(pathname: string, href: string) {
   if (href === "/today") return pathname === href;
+  // 새 일감 화면은 '새 일감' 버튼이 지금 위치다(일감 메뉴와 겹쳐 표시하지 않는다).
+  if (href === "/jobs" && pathname.startsWith("/jobs/new")) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -97,6 +100,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebarTop">
           <Brand />
         </div>
+
+        {/* 어느 화면에서든 두 번째 주문을 바로 넣을 수 있게 사이드바 맨 위에 고정한다. */}
+        <Link
+          href="/jobs/new"
+          className="primaryButton sidebarCreateButton"
+          aria-current={pathname.startsWith("/jobs/new") ? "page" : undefined}
+          data-testid="sidebar-create-job"
+        >
+          <Plus size={18} strokeWidth={2.5} />
+          <span>새 일감</span>
+        </Link>
 
         <nav className="sideNav" aria-label="주요 메뉴">
           {primaryNavigation.map(({ href, label, icon: Icon }) => {

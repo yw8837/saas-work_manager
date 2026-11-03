@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { PublicRevisionUnavailable, PublicRevisionView } from "./public-revision-view";
+import { PublicRevisionCompleted, PublicRevisionUnavailable, PublicRevisionView } from "./public-revision-view";
 
 const revision = { included: 3, used: 1, remaining: 2 };
 
@@ -36,13 +38,99 @@ describe("고객 링크 화면", () => {
   });
 
   it("값을 받으면 작업자 이름·마감·진행 단계 칩(지금 단계 글자 표시)을 그린다", () => {
-    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} workerName="샘플 스튜디오" dueLabel="5일 남음" stage={1} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} workerName="샘플 스튜디오" dueLabel="5일 남음" stage={2} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
     expect(screen.getByTestId("revision-worker")).toHaveTextContent("샘플 스튜디오");
     expect(screen.getByTestId("revision-due")).toHaveTextContent("5일 남음");
-    const steps = screen.getAllByRole("listitem");
-    expect(steps.map((item) => item.getAttribute("data-state"))).toEqual(["done", "current", "todo", "todo"]);
-    expect(steps[1]).toHaveAttribute("aria-current", "step");
-    expect(steps[1]).toHaveTextContent("시안 확인지금");
+    const steps = within(screen.getByRole("list", { name: "진행 단계" })).getAllByRole("listitem");
+    expect(steps.map((item) => item.getAttribute("data-state"))).toEqual(["done", "done", "current", "todo", "todo"]);
+    expect(steps[2]).toHaveAttribute("aria-current", "step");
+    expect(steps[2]).toHaveTextContent("시안 확인지금");
+  });
+
+  // 5번: 'Standard 홈페이지'가 대문자 변환 CSS(.pageEyebrow) 때문에 'STANDARD 홈페이지'로 보였다.
+  it("맨 위 '고객 · 패키지' 줄은 대문자로 바꾸는 꾸밈 글자 클래스를 쓰지 않고, 그 줄 CSS도 대문자 변환이 없다", () => {
+    render(<PublicRevisionView title="카페 모라" packageName="Standard 홈페이지" revision={revision} badgeLabel="보안 링크" footnote="안내" onSubmit={vi.fn()} />);
+    const line = screen.getByText("카페 모라 · Standard 홈페이지");
+    expect(line).not.toHaveClass("pageEyebrow");
+    expect(line).toHaveClass("publicRevisionTitleLine");
+    const css = readFileSync(resolve(process.cwd(), "src/styles/theme.css"), "utf8");
+    const rule = /\.publicRevisionTitleLine\s*\{([^}]*)\}/.exec(css);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).not.toMatch(/uppercase/);
+  });
+
+  // 3번: 시안을 보기 전(자료 받는 중·작업 중)에는 수정 요청을 서두르지 않게 안내한다.
+  it.each([
+    [0, true],
+    [1, true],
+    [2, false],
+    [3, false],
+  ])("단계 %i에서 시안 전 안내 표시 = %s", (stage, shown) => {
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} stage={stage as 0 | 1 | 2 | 3} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    const notice = screen.queryByTestId("revision-before-draft");
+    if (shown) expect(notice).toHaveTextContent("수정은 시안을 보신 뒤 남겨 주세요");
+    else expect(notice).not.toBeInTheDocument();
+  });
+
+  it("단계를 모르면(옛 서버) 시안 전 안내를 그리지 않는다", () => {
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.queryByTestId("revision-before-draft")).not.toBeInTheDocument();
+  });
+
+  it("받을 자료가 남은 단계(자료 받는 중)를 첫 칩으로 보여 준다", () => {
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} stage={0} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    const current = within(screen.getByRole("list", { name: "진행 단계" })).getAllByRole("listitem")[0];
+    expect(current).toHaveAttribute("aria-current", "step");
+    expect(current).toHaveTextContent("자료 받는 중지금");
+  });
+
+  // 4번: 확인 대기가 남은 포함 수정보다 많으면, 넘는 건수는 추가 작업이 될 수 있다고 미리 알린다.
+  it("확인 대기가 남은 수정보다 많으면 한 줄로 알리고, 같거나 적으면 그리지 않는다", () => {
+    const { unmount } = render(<PublicRevisionView title="로고" packageName="Standard" revision={{ included: 1, used: 0, remaining: 1, pending: 2 }} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.getByTestId("revision-pending-over")).toHaveTextContent("확인 대기 2건 · 남은 포함 수정 1회라 1건은 추가 작업이 될 수 있어요");
+    unmount();
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={{ included: 3, used: 0, remaining: 3, pending: 2 }} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.queryByTestId("revision-pending-over")).not.toBeInTheDocument();
+  });
+
+  it("접수 뒤 화면에도 확인 대기가 남은 수정보다 많다는 한 줄을 보여 준다", async () => {
+    const view = render(<PublicRevisionView title="로고" packageName="Standard" revision={{ included: 1, used: 0, remaining: 1, pending: 1 }} badgeLabel="체험" footnote="안내" onSubmit={vi.fn().mockResolvedValue("pending")} />);
+    fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "두 번째 요청" } });
+    fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));
+    await waitFor(() => expect(screen.getByRole("status")).toBeInTheDocument());
+    // 넘겨주는 쪽이 접수 뒤 숫자를 새로 넘긴다(대기 2건).
+    view.rerender(<PublicRevisionView title="로고" packageName="Standard" revision={{ included: 1, used: 0, remaining: 1, pending: 2 }} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    expect(within(screen.getByTestId("revision-next-step")).getByTestId("revision-pending-over")).toHaveTextContent("1건은 추가 작업이 될 수 있어요");
+  });
+
+  // 2번: 고객이 남긴 요청이 어떻게 처리됐는지 보여 준다. 원문만, 작업자 메모·내부 분류명은 없다.
+  it("남긴 요청 목록을 상태와 함께 보여 준다", () => {
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} requests={[
+      { status: "pending", submittedAt: "2026-11-03T05:00:00.000Z", body: "메인 문구를 바꿔 주세요" },
+      { status: "done", sequence: 2, submittedAt: "2026-11-02T05:00:00.000Z", body: "사진을 밝게" },
+      { status: "extra", submittedAt: "2026-11-01T05:00:00.000Z", body: "페이지를 하나 더" },
+      { status: "rejected", submittedAt: "2026-10-31T05:00:00.000Z", body: "가격이 얼마예요?" },
+    ]} />);
+    const list = screen.getByRole("list", { name: "남기신 요청" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(4);
+    expect(items[0]).toHaveTextContent("접수됨");
+    expect(items[0]).toHaveTextContent("확인 대기");
+    expect(items[0]).toHaveTextContent("11월 3일");
+    expect(items[0]).toHaveTextContent("메인 문구를 바꿔 주세요");
+    expect(items[1]).toHaveTextContent("반영됨");
+    expect(items[1]).toHaveTextContent("수정 완료 2회차");
+    expect(items[2]).toHaveTextContent("추가 작업 검토");
+    expect(items[3]).toHaveTextContent("반려");
+    expect(document.body).not.toHaveTextContent(/extra_scope|pending|rejected/);
+  });
+
+  it("남긴 요청이 없거나 모르면 목록을 그리지 않는다", () => {
+    const { unmount } = render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} requests={[]} />);
+    expect(screen.queryByRole("list", { name: "남기신 요청" })).not.toBeInTheDocument();
+    unmount();
+    render(<PublicRevisionView title="로고" packageName="Standard" revision={revision} badgeLabel="체험" footnote="안내" onSubmit={vi.fn()} />);
+    expect(screen.queryByRole("list", { name: "남기신 요청" })).not.toBeInTheDocument();
   });
 
   it("접수 뒤 다음에 일어나는 일을 한 줄로 알려 준다", async () => {
@@ -120,6 +208,26 @@ describe("고객 링크 화면", () => {
     expect(details).toHaveTextContent("민감한 내용은 적지 마세요.");
     expect(screen.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
     expect(details?.contains(screen.getByRole("link", { name: "개인정보처리방침" }))).toBe(false);
+  });
+
+  // 1번: 납품 뒤 링크를 열면 '사용할 수 없는 링크' 대신 완료 화면.
+  it("완료된 일감: 완료 날짜와 '추가 요청은 평소 대화창으로'를 보여 주고, 요청 입력란은 없다", () => {
+    render(<PublicRevisionCompleted title="카페 모라 · Standard 홈페이지" packageName="Standard 홈페이지" completedLabel="11월 3일" workerName="열매 디자인" requests={[{ status: "done", sequence: 1, submittedAt: "2026-11-02T05:00:00.000Z", body: "사진을 밝게" }]} />);
+    expect(screen.getByRole("heading", { name: "작업이 완료됐어요" })).toBeInTheDocument();
+    expect(screen.getByTestId("completed-date")).toHaveTextContent("11월 3일 완료");
+    expect(screen.getByTestId("completed-next-step")).toHaveTextContent("추가 요청은 평소 대화창으로");
+    expect(screen.getByText("카페 모라 · Standard 홈페이지")).toBeInTheDocument();
+    expect(screen.getByTestId("revision-worker")).toHaveTextContent("열매 디자인");
+    expect(within(screen.getByRole("list", { name: "남기신 요청" })).getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.queryByLabelText("수정 요청 내용")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("사용할 수 없는 링크");
+    expect(document.body).not.toHaveTextContent("새 수정 요청 링크");
+  });
+
+  it("완료 날짜를 모르면 날짜 없이 완료 화면을 그린다", () => {
+    render(<PublicRevisionCompleted title="로고" packageName="Standard" />);
+    expect(screen.getByRole("heading", { name: "작업이 완료됐어요" })).toBeInTheDocument();
+    expect(screen.queryByTestId("completed-date")).not.toBeInTheDocument();
   });
 
   it("꺼진 링크: 다음 행동과 소개 링크를 주고, 자물쇠는 로고 줄과 떨어져 있다", () => {

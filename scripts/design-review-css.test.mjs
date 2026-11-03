@@ -105,7 +105,7 @@ describe("어두운 면 위 키보드 포커스(감사 6번)", () => {
     for (const selector of [".jobActionBar :focus-visible", ".mobileSubmitBar :focus-visible", ".actionToast :focus-visible"]) {
       expect(bodies(theme, selector), selector).toMatch(/outline-color:\s*var\(--paper\)/);
     }
-    // 작업 화면의 --paper는 흰색이다(어두운 바 #242426 위 대비 15.49:1).
+    // 작업 화면의 --paper는 흰색이다(어두운 바 --ink #191f28 위 대비 16.56:1, 디자인 A 2026-11-03).
     expect(workspace).toMatch(/--paper:\s*#fff;/);
   });
 });
@@ -170,9 +170,37 @@ describe("토큰 밖 색 정리(리뷰 표준)", () => {
     expect(bodies(workspace, ".appFrame .jobActionBar")).toMatch(/background:\s*var\(--ink\)/);
     expect(bodies(workspace, ".appFrame .jobActionBar .quietButton")).toMatch(/border-color:\s*color-mix\(in srgb, var\(--paper\) 55%, transparent\)/);
     expect(bodies(workspace, ".appFrame .jobActionBar .quietButton:hover")).toMatch(/background:\s*color-mix\(in srgb, var\(--paper\) 10%, transparent\)/);
-    // 작업 화면의 --ink·--paper는 바꾸기 전 값(#242426·#fff)과 같다.
-    expect(workspace).toMatch(/--ink:\s*#242426;/);
+    // 디자인 A(2026-11-03)로 작업 화면 --ink를 #242426 → #191f28로 바꿨다. 바는 계속 토큰(--ink) 색만 쓴다.
+    expect(workspace).toMatch(/--ink:\s*#191f28;/);
     expect(workspace).toMatch(/--paper:\s*#fff;/);
+  });
+});
+
+describe("웹 공개 페이지 디자인 A(2026-11-03, DESIGN-A 3절 5번)", () => {
+  const webScope = bodies(baseTheme, ".marketingPage, .guidePage, .policyPage");
+
+  it("웹 구역 안에서만 강조색(산호)·주 버튼을 파랑 하나로 덮는다", () => {
+    expect(webScope).toMatch(/--web-accent:\s*#2563eb/);
+    expect(webScope).toMatch(/--coral:\s*var\(--web-accent\)/);
+    expect(webScope).toMatch(/--primary:\s*var\(--web-accent\)/);
+    expect(webScope).toMatch(/--canvas:\s*#f2f4f6/);
+    // 공통 :root 값은 웹 갈래가 건드리지 않는다.
+    expect(bodies(theme, ":root")).toMatch(/--coral:\s*#aa2d00/);
+  });
+
+  it("복숭아·포레스트·크림·짙은 띠를 첫 화면에서 걷어낸다", () => {
+    expect(bodies(baseTheme, ".promiseBand p")).not.toMatch(/var\(--(peach|forest|cream)\)/);
+    expect(bodies(baseTheme, ".workflowSection")).not.toMatch(/var\(--cream\)/);
+    expect(bodies(baseTheme, ".revisionSection")).not.toMatch(/surface-dark/);
+    expect(bodies(baseTheme, ".finalCta")).toMatch(/background:\s*var\(--blue-soft\)/);
+  });
+
+  it("제품 미리보기는 테두리·그림자 없는 흰 카드, 모서리 20px", () => {
+    // 규칙 앞의 주석이 선택자 글에 붙어 오므로 마지막 줄만 본다.
+    const scene = rulesMentioning(baseTheme, ".productScene").find((rule) => /(^|\n)\.productScene$/.test(rule.selector));
+    expect(scene.body).toMatch(/border:\s*0/);
+    expect(scene.body).toMatch(/box-shadow:\s*none/);
+    expect(scene.body).toMatch(/--web-preview-radius,\s*20px/);
   });
 });
 

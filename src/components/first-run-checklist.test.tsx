@@ -156,3 +156,18 @@ describe("오늘 화면 첫 실행 체크리스트", () => {
     expect(screen.queryByTestId("first-run-checklist")).not.toBeInTheDocument();
   });
 });
+
+describe("예시 금액 안내", () => {
+  it("예시 패키지 그대로 첫 일감을 만들 때 '예시 금액이에요 · 바꾸기' 한 줄이 패키지 화면으로 이어진다", () => {
+    show();
+    const step = screen.getByTestId("first-run-step-first-job");
+    const line = within(step).getByTestId("first-run-sample-price");
+    expect(line).toHaveTextContent("예시 금액이에요 · 바꾸기");
+    expect(within(line).getByRole("link", { name: "바꾸기" })).toHaveAttribute("href", "/packages");
+  });
+
+  it("내 패키지로 고쳤으면 안내하지 않는다", () => {
+    show({ packages: starter.packages.map((item, index) => index === 0 ? { ...item, id: "pkg_mine", name: "내 패키지" } : item) });
+    expect(screen.queryByTestId("first-run-sample-price")).not.toBeInTheDocument();
+  });
+});

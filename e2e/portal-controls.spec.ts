@@ -55,3 +55,27 @@ test("완료 일감은 재진행 전까지 수정 링크를 켤 수 없다", asy
   await expect(page.getByTestId("toggle-revision-portal")).toBeEnabled();
   await expect(page.getByTestId("toggle-revision-portal")).toHaveText("링크 켜기");
 });
+
+test("링크를 켠 채 완료한 일감의 고객 링크는 완료 화면을 보여 준다", async ({ page }) => {
+  await page.goto("/jobs/job_seed_mora");
+  await page.getByTestId("complete-job").click();
+  await expect(page.getByText("일감 완료 · 링크 잠김", { exact: true })).toBeVisible();
+
+  await page.goto("/r/demo-mora-revision");
+  await expect(page.getByRole("heading", { name: "작업이 완료됐어요" })).toBeVisible();
+  await expect(page.getByTestId("completed-next-step")).toContainText("추가 요청은 평소 대화창으로");
+  await expect(page.getByLabel("수정 요청 내용")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toHaveCount(0);
+});
+
+test("링크를 끈 뒤 완료한 일감의 고객 링크는 지금처럼 사용할 수 없다", async ({ page }) => {
+  await page.goto("/jobs/job_seed_mora");
+  await page.getByTestId("toggle-revision-portal").click();
+  await expect(page.getByText("링크 꺼짐", { exact: true })).toBeVisible();
+  await page.getByTestId("complete-job").click();
+  await expect(page.getByText("일감 완료 · 링크 잠김", { exact: true })).toBeVisible();
+
+  await page.goto("/r/demo-mora-revision");
+  await expect(page.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "작업이 완료됐어요" })).toHaveCount(0);
+});

@@ -1,8 +1,8 @@
 "use client";
 
-import { Archive, Check, ChevronRight, CircleAlert, ClipboardList, PackagePlus, Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { Check, ChevronRight, CircleAlert, ClipboardList, PackagePlus, Plus, Save, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { BRIEF_QUESTION_LIMIT, createDomainId, DEFAULT_BRIEF_QUESTIONS, INTAKE_ITEM_LIMIT, marginShortfall, marginWarningText, normalizeBriefQuestions, normalizeIntakeLabels, parseFloorInput, PLAN_PRICES, type OptionTemplate, type PackageTemplate, type TaskTemplate } from "@/lib/domain";
+import { BRIEF_QUESTION_LIMIT, BRIEF_QUESTION_MAX, createDomainId, DEFAULT_BRIEF_QUESTIONS, INTAKE_ITEM_LIMIT, marginShortfall, marginWarningText, normalizeBriefQuestions, normalizeIntakeLabels, parseFloorInput, PLAN_PRICES, type OptionTemplate, type PackageTemplate, type TaskTemplate } from "@/lib/domain";
 import { markFirstRun } from "@/lib/first-run";
 import { INDUSTRY_STARTERS } from "@/lib/store";
 import { formatWon, useWorkspace } from "./workspace-provider";
@@ -30,6 +30,54 @@ function amountDraft(value: string) {
   const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 10);
   return digits ? new Intl.NumberFormat("ko-KR").format(Number(digits)) : "";
 }
+
+/** 금액 칸: 쉼표를 넣어 보이고, 숫자로 넘긴다('최소 남길 돈' 칸과 같은 방식). 비우면 0원. */
+function MoneyInput({ label, value, onChange, placeholder, emptyWhenZero = false }: { label: string; value: number; onChange: (value: number) => void; placeholder?: string; emptyWhenZero?: boolean }) {
+  return (
+    <label>
+      <span>{label}</span>
+      <input
+        inputMode="numeric"
+        autoComplete="off"
+        value={emptyWhenZero && !value ? "" : amountDraft(String(value))}
+        placeholder={placeholder}
+        onChange={(event) => onChange(parseFloorInput(amountDraft(event.target.value)) ?? 0)}
+      />
+    </label>
+  );
+}
+
+/** 착수 전 질문: 질문마다 입력 칸 하나. 저장 형식(글 목록)은 그대로다. */
+function BriefQuestionRows({ questions, onChange }: { questions: string[]; onChange: (questions: string[]) => void }) {
+  return (
+    <div className="briefQuestionEditor">
+      {questions.map((question, index) => (
+        <div className="briefQuestionRow" key={index}>
+          {/* 긴 질문도 칸 안에서 줄을 바꿔 다 보이게 두 줄 칸을 쓴다. 칸 하나 = 질문 하나라 줄바꿈 글자는 넣지 않는다. */}
+          <textarea
+            rows={2}
+            aria-label={`착수 전 질문 ${index + 1}`}
+            value={question}
+            maxLength={BRIEF_QUESTION_MAX}
+            onChange={(event) => onChange(questions.map((item, current) => current === index ? event.target.value.replace(/\r?\n/g, " ") : item))}
+            placeholder="예: 이 작업으로 가장 하고 싶은 일은 무엇인가요?"
+          />
+          <button type="button" className="smallIconButton" aria-label={`착수 전 질문 ${index + 1} 삭제`} onClick={() => onChange(questions.filter((_, current) => current !== index))}><Trash2 size={15} /></button>
+        </div>
+      ))}
+      <button type="button" className="compactButton" disabled={questions.length >= BRIEF_QUESTION_LIMIT} onClick={() => onChange([...questions, ""])}>
+        <Plus size={15} /> 질문 추가
+      </button>
+    </div>
+  );
+}
+
+/** 고치던 것이 저장본과 다른지. 새로 만드는 중(아직 목록에 없음)이면 다른 것으로 본다. */
+function differs<T>(draft: T | null, saved: T | undefined) {
+  return draft !== null && JSON.stringify(draft) !== JSON.stringify(saved);
+}
+
+const LEAVE_MESSAGE = "저장하지 않은 변경이 있어요. 저장하지 않고 나갈까요?";
 
 function taskKey(title: string, index: number) {
   const compact = title.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/g, "-").replace(/^-|-$/g, "");
@@ -124,11 +172,44 @@ export function PackageManager() {
     window.setTimeout(() => setSavedMessage(""), 2200);
   };
 
+  // 저장 안 한 변경: 다른 패키지·옵션을 고르거나 다른 화면으로 가거나 탭을 닫기 전에 묻는다.
+  const packageDirty = differs(packageDraft, packages.find((item) => item.id === packageDraft?.id));
+  const optionDirty = differs(optionDraft, options.find((item) => item.id === optionDraft?.id));
+  const dirty = packageDirty || optionDirty;
+  useEffect(() => {
+    if (!dirty) return;
+    const warnUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    // 앱 안 링크(사이드바·하단 바 등)는 라우터보다 먼저 잡아서, 취소하면 이동을 막는다.
+    const guardLinks = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+      if (window.confirm(LEAVE_MESSAGE)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    window.addEventListener("beforeunload", warnUnload);
+    window.addEventListener("click", guardLinks, true);
+    return () => {
+      window.removeEventListener("beforeunload", warnUnload);
+      window.removeEventListener("click", guardLinks, true);
+    };
+  }, [dirty]);
+
   const selectPackage = (id: string) => {
+    if (id === selectedPackage.id) return;
+    if (packageDirty && !window.confirm(LEAVE_MESSAGE)) return;
     setSelectedPackageId(id);
     setPackageDraft(null);
   };
   const selectOption = (id: string) => {
+    if (id === selectedOption.id) return;
+    if (optionDirty && !window.confirm(LEAVE_MESSAGE)) return;
     setSelectedOptionId(id);
     setOptionDraft(null);
   };
@@ -202,6 +283,13 @@ export function PackageManager() {
   }
   const firstRemovableKey = removableTasks.keys().next().value;
 
+  // 저장 알림·저장 안 한 변경은 저장 버튼 옆에 보인다(맨 위에 두면 휴대폰에서 화면 밖이다).
+  const saveNote = (unsaved: boolean) => savedMessage
+    ? <span className="catalogSaved" role="status"><Check size={16} /> {savedMessage}</span>
+    : unsaved
+      ? <span className="catalogUnsaved" data-testid="package-unsaved"><CircleAlert size={16} aria-hidden="true" /> 저장 안 한 변경이 있어요</span>
+      : null;
+
   return (
     <div className="pageSurface catalogPage">
       <header className="pageHeader catalogHeader">
@@ -209,7 +297,6 @@ export function PackageManager() {
           <h1>패키지와 옵션</h1>
           <p>여기서 정한 금액·마감·수정·할 일이 새 일감에 자동으로 채워져요.</p>
         </div>
-        {savedMessage && <span className="catalogSaved" role="status"><Check size={16} /> {savedMessage}</span>}
       </header>
 
       <div className="marginFloorRow" data-testid="min-margin-row">
@@ -268,7 +355,7 @@ export function PackageManager() {
       {tab === "package" ? (
         <div className="catalogGrid">
           <aside className="catalogList" aria-label="패키지 목록">
-            <div className="catalogListHead"><strong>내 판매 패키지</strong>{canCreatePackage && <button type="button" className="smallIconButton" aria-label="새 패키지" onClick={() => { const next = newPackage(); setSelectedPackageId(next.id); setPackageDraft(next); }}><Plus size={16} /></button>}</div>
+            <div className="catalogListHead"><strong>내 판매 패키지</strong>{canCreatePackage && <button type="button" className="smallIconButton" aria-label="새 패키지" onClick={() => { if (packageDirty && !window.confirm(LEAVE_MESSAGE)) return; const next = newPackage(); setSelectedPackageId(next.id); setPackageDraft(next); }}><Plus size={16} /></button>}</div>
             <div className="catalogItems">
             {packageList.map((item) => {
               const itemMargin = item.price - item.estimatedCost;
@@ -299,15 +386,15 @@ export function PackageManager() {
             )}
           </aside>
           <section className="catalogEditor">
-            <div className="catalogEditorHead"><div><span>새 일감에만 적용</span><h2>{packageDraft ? "새 패키지 만들기" : selectedPackage.name}</h2></div><ClipboardList size={21} /></div>
+            <div className="catalogEditorHead"><div><span>새 일감에만 적용</span><h2>{packageDraft && !packages.some((item) => item.id === packageDraft.id) ? "새 패키지 만들기" : selectedPackage.name}</h2></div><ClipboardList size={21} /></div>
             <div className="catalogFieldGrid">
               <label><span>패키지 이름</span><input value={selectedPackage.name} onChange={(event) => setPackageDraft({ ...selectedPackage, name: event.target.value })} /></label>
-              <label><span>기본 금액 (원)</span><input type="number" min="0" value={selectedPackage.price} onChange={(event) => setPackageDraft({ ...selectedPackage, price: numeric(event.target.value) })} /></label>
+              <MoneyInput label="기본 금액 (원)" value={selectedPackage.price} onChange={(price) => setPackageDraft({ ...selectedPackage, price })} />
               <label className="catalogFullField"><span>설명</span><input value={selectedPackage.description ?? ""} onChange={(event) => setPackageDraft({ ...selectedPackage, description: event.target.value })} /></label>
               <label><span>기본 기간 (일)</span><input type="number" min="0" value={selectedPackage.durationDays} onChange={(event) => setPackageDraft({ ...selectedPackage, durationDays: numeric(event.target.value) })} /></label>
               <label><span>포함 수정 (회)</span><input type="number" min="0" value={selectedPackage.revisionLimit} onChange={(event) => setPackageDraft({ ...selectedPackage, revisionLimit: numeric(event.target.value) })} /></label>
               {/* 0원이면 칸을 비워 흐린 예시 글이 보이게 한다(비운 칸은 0원으로 저장). */}
-              <label><span>예상 원가 (원)</span><input type="number" min="0" value={selectedPackage.estimatedCost || ""} placeholder="예: 플랫폼 수수료, 외주비" onChange={(event) => setPackageDraft({ ...selectedPackage, estimatedCost: numeric(event.target.value) })} /></label>
+              <MoneyInput label="예상 원가 (원)" value={selectedPackage.estimatedCost} emptyWhenZero placeholder="예: 플랫폼 수수료, 외주비" onChange={(estimatedCost) => setPackageDraft({ ...selectedPackage, estimatedCost })} />
               {editShortfall !== null && (
                 <p className="marginWarning catalogFullField" data-testid="package-edit-margin-warning">
                   <CircleAlert size={14} aria-hidden="true" />
@@ -327,16 +414,13 @@ export function PackageManager() {
                 />
               </label>
               {/* 고객이 원하는 결과를 처음부터 말로 정리하기 어려워서, 업무 용어 없이 묻는 짧은 질문. 카톡 문구에 들어간다. */}
-              <label className="catalogFullField">
-                <span>착수 전 질문 <small>한 줄에 하나 · 최대 {BRIEF_QUESTION_LIMIT}개 · 고객에게 보내는 카톡 문구에 들어가요</small></span>
-                <textarea
-                  rows={3}
-                  value={(selectedPackage.briefQuestions ?? []).join("\n")}
-                  onChange={(event) => setPackageDraft({ ...selectedPackage, briefQuestions: event.target.value.split("\n") })}
-                  placeholder="예: 이 작업으로 가장 하고 싶은 일은 무엇인가요?"
-                  data-testid="package-brief-questions"
+              <fieldset className="catalogFullField briefQuestionField" data-testid="package-brief-questions">
+                <legend>착수 전 질문 <small>칸 하나에 질문 하나 · 최대 {BRIEF_QUESTION_LIMIT}개 · 고객에게 보내는 카톡 문구에 들어가요</small></legend>
+                <BriefQuestionRows
+                  questions={selectedPackage.briefQuestions ?? []}
+                  onChange={(briefQuestions) => setPackageDraft({ ...selectedPackage, briefQuestions })}
                 />
-              </label>
+              </fieldset>
               {(selectedPackage.briefQuestions ?? []).every((question) => !question.trim()) && (
                 <button
                   type="button"
@@ -349,13 +433,13 @@ export function PackageManager() {
               )}
             </div>
             <TaskRows tasks={selectedPackage.tasks} onChange={(tasks) => setPackageDraft({ ...selectedPackage, tasks })} />
-            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentPackage} data-testid="save-package"><Save size={16} /> 패키지 저장</button>{!packageDraft && <button type="button" className="quietButton" onClick={() => { if (window.confirm("이 패키지를 새 일감 선택 목록에서 보관할까요? 기존 일감은 바뀌지 않아요.")) { archivePackage(selectedPackage.id); flashSaved("패키지를 보관했어요."); } }}><Archive size={16} /> 보관</button>}</div>
+            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentPackage} data-testid="save-package"><Save size={16} /> 패키지 저장</button>{!packageDraft && <button type="button" className="quietButton" data-testid="delete-package" onClick={() => { if (window.confirm("이 패키지를 지울까요? 이미 만든 일감의 금액·마감·할 일은 그대로예요.")) { archivePackage(selectedPackage.id); flashSaved("패키지를 지웠어요."); } }}><Trash2 size={16} /> 패키지 삭제</button>}{saveNote(packageDirty)}</div>
           </section>
         </div>
       ) : (
         <div className="catalogGrid">
           <aside className="catalogList" aria-label="옵션 목록">
-            <div className="catalogListHead"><strong>자동 반영 옵션</strong>{canCreateOption && <button type="button" className="smallIconButton" aria-label="새 옵션" onClick={() => { const next = newOption(); setSelectedOptionId(next.id); setOptionDraft(next); }}><Plus size={16} /></button>}</div>
+            <div className="catalogListHead"><strong>자동 반영 옵션</strong>{canCreateOption && <button type="button" className="smallIconButton" aria-label="새 옵션" onClick={() => { if (optionDirty && !window.confirm(LEAVE_MESSAGE)) return; const next = newOption(); setSelectedOptionId(next.id); setOptionDraft(next); }}><Plus size={16} /></button>}</div>
             <div className="catalogItems">
             {optionList.map((item) => (
               <button type="button" className="catalogListItem" data-active={selectedOption.id === item.id} key={item.id} onClick={() => selectOption(item.id)}>
@@ -371,14 +455,14 @@ export function PackageManager() {
             )}
           </aside>
           <section className="catalogEditor">
-            <div className="catalogEditorHead"><div><span>패키지와 조합</span><h2>{optionDraft ? "새 옵션 만들기" : selectedOption.name}</h2></div><Settings2 size={21} /></div>
+            <div className="catalogEditorHead"><div><span>패키지와 조합</span><h2>{optionDraft && !options.some((item) => item.id === optionDraft.id) ? "새 옵션 만들기" : selectedOption.name}</h2></div><Settings2 size={21} /></div>
             <div className="catalogFieldGrid">
               <label><span>옵션 이름</span><input value={selectedOption.name} onChange={(event) => setOptionDraft({ ...selectedOption, name: event.target.value })} /></label>
-              <label><span>추가금 (원)</span><input type="number" min="0" value={selectedOption.priceDelta} onChange={(event) => setOptionDraft({ ...selectedOption, priceDelta: numeric(event.target.value) })} /></label>
+              <MoneyInput label="추가금 (원)" value={selectedOption.priceDelta} onChange={(priceDelta) => setOptionDraft({ ...selectedOption, priceDelta })} />
               <label className="catalogFullField"><span>설명</span><input value={selectedOption.description ?? ""} onChange={(event) => setOptionDraft({ ...selectedOption, description: event.target.value })} /></label>
               <label><span>추가 기간 (일)</span><input type="number" min="0" value={selectedOption.durationDaysDelta} onChange={(event) => setOptionDraft({ ...selectedOption, durationDaysDelta: numeric(event.target.value) })} /></label>
               <label><span>수정 변화 (회)</span><input type="number" min="0" value={selectedOption.revisionLimitDelta} onChange={(event) => setOptionDraft({ ...selectedOption, revisionLimitDelta: numeric(event.target.value) })} /></label>
-              <label><span>추가 예상 원가 (원)</span><input type="number" min="0" value={selectedOption.estimatedCostDelta} onChange={(event) => setOptionDraft({ ...selectedOption, estimatedCostDelta: numeric(event.target.value) })} /></label>
+              <MoneyInput label="추가 예상 원가 (원)" value={selectedOption.estimatedCostDelta} onChange={(estimatedCostDelta) => setOptionDraft({ ...selectedOption, estimatedCostDelta })} />
             </div>
             <fieldset className="optionTodoEffect"><legend>할 일 변화</legend>
               <div className="effectToggle"><button type="button" data-active={Boolean(optionTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "add", task: optionTask?.task ?? { taskKey: "option-task", title: "옵션 작업", relativeDay: 0, order: 0 } }] })}>할 일 추가</button><button type="button" data-active={Boolean(removeTask)} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [{ kind: "remove", taskKey: removeTask?.taskKey ?? firstRemovableKey ?? "design" }] })}>할 일 제거</button><button type="button" data-active={!optionTask && !removeTask} onClick={() => setOptionDraft({ ...selectedOption, taskDeltas: [] })}>변화 없음</button></div>
@@ -393,7 +477,7 @@ export function PackageManager() {
                 </label>
               )}
             </fieldset>
-            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentOption} data-testid="save-option"><Save size={16} /> 옵션 저장</button>{!optionDraft && <button type="button" className="quietButton" onClick={() => { if (window.confirm("이 옵션을 새 일감 선택 목록에서 보관할까요?")) { archiveOption(selectedOption.id); flashSaved("옵션을 보관했어요."); } }}><Archive size={16} /> 보관</button>}</div>
+            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentOption} data-testid="save-option"><Save size={16} /> 옵션 저장</button>{!optionDraft && <button type="button" className="quietButton" data-testid="delete-option" onClick={() => { if (window.confirm("이 옵션을 지울까요? 이미 만든 일감은 그대로예요.")) { archiveOption(selectedOption.id); flashSaved("옵션을 지웠어요."); } }}><Trash2 size={16} /> 옵션 삭제</button>}{saveNote(optionDirty)}</div>
           </section>
         </div>
       )}
