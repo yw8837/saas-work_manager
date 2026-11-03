@@ -53,11 +53,13 @@ function BriefQuestionRows({ questions, onChange }: { questions: string[]; onCha
     <div className="briefQuestionEditor">
       {questions.map((question, index) => (
         <div className="briefQuestionRow" key={index}>
-          <input
+          {/* 긴 질문도 칸 안에서 줄을 바꿔 다 보이게 두 줄 칸을 쓴다. 칸 하나 = 질문 하나라 줄바꿈 글자는 넣지 않는다. */}
+          <textarea
+            rows={2}
             aria-label={`착수 전 질문 ${index + 1}`}
             value={question}
             maxLength={BRIEF_QUESTION_MAX}
-            onChange={(event) => onChange(questions.map((item, current) => current === index ? event.target.value : item))}
+            onChange={(event) => onChange(questions.map((item, current) => current === index ? event.target.value.replace(/\r?\n/g, " ") : item))}
             placeholder="예: 이 작업으로 가장 하고 싶은 일은 무엇인가요?"
           />
           <button type="button" className="smallIconButton" aria-label={`착수 전 질문 ${index + 1} 삭제`} onClick={() => onChange(questions.filter((_, current) => current !== index))}><Trash2 size={15} /></button>

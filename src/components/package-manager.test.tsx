@@ -247,7 +247,9 @@ describe("착수 전 질문", () => {
     expect(within(box).getByLabelText("착수 전 질문 1")).toHaveValue("이 작업으로 가장 하고 싶은 일은 무엇인가요? (예: 예약 받기, 가게 소개)");
     const add = within(box).getByRole("button", { name: "질문 추가" });
     fireEvent.click(add);
-    fireEvent.change(within(box).getByLabelText("착수 전 질문 4"), { target: { value: "오픈 날짜가 정해져 있나요?" } });
+    // 칸 하나 = 질문 하나라 줄바꿈 글자는 띄어쓰기로 바꾼다(두 질문처럼 보이지 않게).
+    fireEvent.change(within(box).getByLabelText("착수 전 질문 4"), { target: { value: "오픈 날짜가\n정해져 있나요?" } });
+    expect(within(box).getByLabelText("착수 전 질문 4")).toHaveValue("오픈 날짜가 정해져 있나요?");
     fireEvent.click(add);
     expect(within(box).getAllByRole("textbox")).toHaveLength(5);
     expect(add).toBeDisabled();

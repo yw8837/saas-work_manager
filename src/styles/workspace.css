@@ -329,3 +329,5 @@
   .appFrame .sidebarCreateButton { justify-content: center; padding: 0; }
   .appFrame .sidebarCreateButton > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
+/* 오늘 요약 숫자 4칸: 휴대폰에서 이름이 줄을 바꾸면 고르게 나눈다("수정 거의 / 다 씀") */
+.appFrame .briefStats dt { text-align: center; text-wrap: balance; }

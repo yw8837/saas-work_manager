@@ -1869,8 +1869,8 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .briefQuestionField { min-width: 0; margin: 0; padding: 0; border: 0; }
 .briefQuestionField legend { margin-bottom: 5px; padding: 0; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
 .briefQuestionEditor { display: grid; gap: 7px; }
-.briefQuestionRow { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: center; }
-.briefQuestionRow input { min-height: 44px; padding: 0 10px; }
+.briefQuestionRow { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: start; }
+.briefQuestionRow textarea { min-height: 44px; padding: 8px 10px; resize: vertical; line-height: 1.45; field-sizing: content; }
 .briefQuestionRow .smallIconButton { width: 44px; height: 44px; }
 .briefQuestionEditor > .compactButton { justify-self: start; min-height: 44px; }
 @media (max-width: 760px) {

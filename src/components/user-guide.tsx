@@ -43,7 +43,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
         id: "packages",
         title: "패키지는 한 번만 저장해요",
         caption: "금액·기간·수정 횟수에 받을 자료·질문까지 묶어 둬요.",
-        image: { src: "/guide/02-packages.webp", alt: "패키지 편집 화면. 받을 자료 칸에 1번, 착수 전 질문 칸에 2번, 패키지 저장 버튼에 3번 표시", width: 750, height: 1304 },
+        image: { src: "/guide/02-packages.webp", alt: "패키지 편집 화면. 받을 자료 칸에 1번, 착수 전 질문 칸에 2번, 패키지 저장 버튼에 3번 표시", width: 750, height: 2242 },
       },
       {
         id: "new-job",
