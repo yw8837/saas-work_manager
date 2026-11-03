@@ -947,7 +947,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
                 disabled={job.status !== "active" || (runtimeMode === "hosted" && saveStatus !== "saved")}
                 data-testid="toggle-revision-portal"
               >
-                {job.revisionPortalEnabled ? "링크 끄기" : "링크 켜기"}
+                {portalEnabled ? "링크 끄기" : "링크 켜기"}
               </button>
               <button
                 type="button"

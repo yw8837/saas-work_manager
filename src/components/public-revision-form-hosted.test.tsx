@@ -28,7 +28,7 @@ vi.mock("@/lib/supabase", async () => {
 const base = { jobKey: "job_1", title: "랜딩", packageName: "기본", included: 3, dueDate: undefined, tasksTotal: 4, tasksDone: 1, hasOpenRevision: true, workerName: undefined, intakePending: [] };
 
 describe("PublicRevisionForm 운영 모드", () => {
-  beforeEach(() => { supabase.client = {}; });
+  beforeEach(() => { supabase.client = {}; summaryMock.mockReset(); submitMock.mockReset(); });
 
   it("공개 링크 설정이 빠졌으면 고객에게 개발 말 없이 링크를 다시 받으라고 알린다", async () => {
     supabase.client = null;
@@ -38,6 +38,48 @@ describe("PublicRevisionForm 운영 모드", () => {
 
     expect(await screen.findByText("링크를 열 수 없어요. 작업자에게 링크를 다시 받아 주세요.")).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("Hosted");
+  });
+
+  // 1번: 서버가 '완료됨'을 돌려주면 완료 화면, 아무것도 안 주면(끔·재발급) 사용할 수 없는 링크.
+  it("서버가 완료된 일감이라고 하면 완료 날짜와 남긴 요청을 보여 주는 완료 화면을 그린다", async () => {
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+    summaryMock.mockResolvedValueOnce({
+      ...base, used: 1, remaining: 2, pending: 0, jobStatus: "completed", completedAt: "2026-11-03T05:00:00.000Z",
+      requests: [{ status: "done", sequence: 1, submittedAt: "2026-11-02T05:00:00.000Z", body: "사진을 밝게" }],
+    });
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+
+    expect(await screen.findByRole("heading", { name: "작업이 완료됐어요" })).toBeInTheDocument();
+    expect(screen.getByTestId("completed-date")).toHaveTextContent("11월 3일 완료");
+    expect(screen.getByRole("list", { name: "남기신 요청" })).toHaveTextContent("사진을 밝게");
+    expect(screen.queryByLabelText("수정 요청 내용")).not.toBeInTheDocument();
+  });
+
+  it("서버가 아무 일감도 돌려주지 않으면(링크 끔·재발급) 사용할 수 없는 링크라고 한다", async () => {
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+    summaryMock.mockResolvedValueOnce(null);
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+
+    expect(await screen.findByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "작업이 완료됐어요" })).not.toBeInTheDocument();
+  });
+
+  it("진행 중인 일감은 서버가 준 요청 목록과 '자료 받는 중' 단계를 보여 준다", async () => {
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+    summaryMock.mockResolvedValueOnce({
+      ...base, tasksTotal: 7, tasksDone: 0, hasOpenRevision: true, used: 0, remaining: 1, pending: 1, jobStatus: "active",
+      intakePending: ["소개 글"],
+      requests: [{ status: "pending", submittedAt: "2026-11-03T05:00:00.000Z", body: "메인 문구" }],
+    });
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+
+    const current = await screen.findByText("자료 받는 중", { selector: "li[aria-current=step] span" });
+    expect(current).toBeInTheDocument();
+    expect(screen.getByTestId("revision-before-draft")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "남기신 요청" })).toHaveTextContent("메인 문구");
   });
 
   // Codex 4차 P2: 링크를 연 사이 작업자가 다른 요청을 '수정 완료'하면, 처음 읽은 값으로 계산한 숫자가 서버와 어긋난다.
