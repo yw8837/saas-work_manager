@@ -171,7 +171,8 @@ test("4번: 랜딩 보조 버튼은 가입 없이 고객 화면 체험으로, CT
   await page.getByTestId("landing-customer-demo").click();
   await expect(page).toHaveURL(/\/demo\/r$/);
   await expect(page.getByTestId("revision-worker")).toHaveText("샘플 디자인 스튜디오");
-  await expect(page.getByRole("list", { name: "진행 단계" }).locator("[aria-current=step]")).toContainText("수정");
+  // 예시 주문은 받을 자료가 남아 있어서 '자료 받는 중'이다.
+  await expect(page.getByRole("list", { name: "진행 단계" }).locator("[aria-current=step]")).toContainText("자료 받는 중");
   await expect(page.getByTestId("demo-preview-only")).toBeVisible();
   await noHorizontalOverflow(page);
 });

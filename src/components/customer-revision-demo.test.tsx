@@ -46,7 +46,11 @@ describe("CustomerRevisionDemo", () => {
     expect(screen.getByTestId("revision-worker")).toHaveTextContent("샘플 디자인 스튜디오");
     expect(screen.getByTestId("revision-due")).toHaveTextContent("5일 남음");
     expect(screen.getByRole("list", { name: "진행 단계" })).toBeInTheDocument();
-    expect(screen.getByText("수정", { selector: "li[aria-current=step] span" })).toBeInTheDocument();
+    // 예시 주문은 받을 자료가 2개 남아 있어서 '자료 받는 중'이고, 시안 전 안내가 함께 보인다.
+    expect(screen.getByText("자료 받는 중", { selector: "li[aria-current=step] span" })).toBeInTheDocument();
+    expect(screen.getByTestId("revision-before-draft")).toHaveTextContent("수정은 시안을 보신 뒤 남겨 주세요");
+    // 어제 고친 첫 요청이 '반영됨 · 수정 완료 1회차'로 보인다.
+    expect(screen.getByRole("list", { name: "남기신 요청" })).toHaveTextContent("수정 완료 1회차");
     expect(screen.getByTestId("demo-preview-only")).toHaveTextContent("설정에서 적은 경우에만");
 
     fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "메뉴판 글씨를 키워주세요." } });
@@ -62,6 +66,10 @@ describe("CustomerRevisionDemo", () => {
     fireEvent.click(screen.getByRole("button", { name: "다른 요청 남기기" }));
     expect(screen.getByTestId("revision-remaining")).toHaveTextContent("2");
     expect(screen.getByTestId("revision-pending")).toHaveTextContent("확인 대기 1건");
+    // 방금 남긴 요청이 목록 맨 위에 '접수됨'으로 들어온다.
+    const latest = screen.getByRole("list", { name: "남기신 요청" }).querySelector("li");
+    expect(latest).toHaveTextContent("접수됨");
+    expect(latest).toHaveTextContent("메뉴판 글씨를 키워주세요.");
 
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(setItemSpy).not.toHaveBeenCalled();

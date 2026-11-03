@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { Info, RotateCcw } from "lucide-react";
 
 import { PublicRevisionView } from "@/components/public-revision-view";
-import { customerProgressOf, customerStageOf } from "@/lib/domain/customer-stage";
+import { customerProgressOf, customerRequestsOf, customerStageOf } from "@/lib/domain/customer-stage";
 import { pendingIntakeLabels } from "@/lib/domain";
 import {
   createCustomerDemoState,
@@ -88,6 +88,7 @@ export function CustomerRevisionDemo({ initialState }: { initialState?: Customer
       dueLabel={`${view.daysLeft}일 남음`}
       stage={customerStageOf(state.order)}
       progress={customerProgressOf(state.order)}
+      requests={customerRequestsOf(state.order)}
       badgeLabel="체험용 · 전송 안 됨"
       footnote="체험 화면이라 남긴 내용은 어디에도 전송·저장되지 않아요. 새로고침하면 처음 상태로 돌아가요."
       onSubmit={submit}

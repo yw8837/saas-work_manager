@@ -1614,6 +1614,26 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .publicRevisionPrivacyNotice summary span { color: var(--blue); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .publicRevisionPrivacyNotice details[open] summary span { display: none; }
 .publicRevisionPrivacyNotice details p { margin: 2px 0 8px; }
+/* 고객 · 패키지 줄: 고객·작업자가 적은 이름을 그대로 보여 준다(대문자 변환 없음). */
+.publicRevisionCard .publicRevisionTitleLine { display: block; margin: 0; color: var(--blue); font-size: 12px; font-weight: 600; letter-spacing: normal; word-break: keep-all; }
+.publicRevisionPendingOver { margin: -4px 0 14px; padding: 9px 12px; color: var(--ink); background: var(--canvas); border: 1px solid var(--line-strong); border-radius: var(--radius); font-size: 13px; font-weight: 600; line-height: 1.5; word-break: keep-all; }
+.publicRevisionNextStep .publicRevisionPendingOver { margin: 8px 0 0; padding: 0; background: none; border: 0; }
+.publicRevisionNextStep .publicRevisionBeforeDraft { margin-bottom: 4px; color: var(--ink); font-weight: 600; }
+.publicRevisionRequests { margin: 18px 0 14px; }
+.publicRevisionRequests h2 { margin: 0 0 8px; font-size: 15px; font-weight: 650; }
+.publicRevisionRequests h2 span { color: var(--muted); font-size: 13px; font-weight: 600; }
+.publicRevisionRequests ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.publicRevisionRequests li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.publicRevisionRequestMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 4px; color: var(--muted); font-size: 12px; }
+.publicRevisionRequestMeta strong { padding: 2px 8px; color: var(--ink); background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: 12px; font-weight: 650; }
+.publicRevisionRequests li[data-status="done"] .publicRevisionRequestMeta strong { color: var(--green); background: var(--green-soft); border-color: transparent; }
+.publicRevisionRequests li[data-status="rejected"] .publicRevisionRequestMeta strong { color: var(--muted); }
+.publicRevisionRequestBody { display: -webkit-box; margin: 0; overflow: hidden; color: var(--ink); font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+.publicRevisionDoneIntro { padding: 30px 0 4px; text-align: center; }
+.publicRevisionDoneIcon { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 12px; color: var(--green); background: var(--green-soft); border-radius: 50%; }
+.publicRevisionDoneIntro h1 { margin: 6px 0; font-size: 28px; }
+.publicRevisionDoneDate { margin: 0; color: var(--ink-soft); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.publicRevisionDone .publicRevisionAbout { text-align: center; }
 
 /* 3. 오늘 화면 첫 실행 체크리스트 */
 .firstRunChecklist { max-width: 880px; padding: clamp(20px, 3vw, 32px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); }

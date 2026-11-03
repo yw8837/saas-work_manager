@@ -99,7 +99,10 @@ describe("일감 상세 실제 저장·상태 회귀검사", () => {
     render(detail());
     fireEvent.click(await screen.findByTestId("complete-job"));
     await waitFor(() => expect(loadState(window.localStorage).jobs[0].status).toBe("completed"));
-    expect(loadState(window.localStorage).jobs[0].revisionPortalEnabled).toBe(false);
+    // 링크는 완료 상태로 닫힌다. 켜 둔 값은 남겨서 고객이 '사용할 수 없음' 대신 완료 화면을 보게 한다.
+    expect(loadState(window.localStorage).jobs[0].revisionPortalEnabled).toBe(true);
+    expect(screen.getByTestId("toggle-revision-portal")).toHaveTextContent("링크 켜기");
+    expect(screen.getByTestId("toggle-revision-portal")).toBeDisabled();
     expect(screen.getByTestId("job-toast")).toHaveTextContent("일감을 완료했어요. 고객 링크도 닫혔어요.");
 
     fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
@@ -107,6 +110,16 @@ describe("일감 상세 실제 저장·상태 회귀검사", () => {
     expect(loadState(window.localStorage).jobs[0].revisionPortalEnabled).toBe(true);
     expect(screen.getByText("링크 켜짐")).toBeInTheDocument();
     expect(screen.queryByTestId("job-toast")).not.toBeInTheDocument();
+  });
+
+  it("완료한 일감을 다시 진행하면(되돌리기 알림이 아닌 버튼) 고객 링크는 꺼진 채로 시작한다", async () => {
+    render(detail());
+    fireEvent.click(await screen.findByTestId("complete-job"));
+    await waitFor(() => expect(loadState(window.localStorage).jobs[0].status).toBe("completed"));
+    fireEvent.click(screen.getByTestId("complete-job"));
+    await waitFor(() => expect(loadState(window.localStorage).jobs[0].status).toBe("active"));
+    expect(loadState(window.localStorage).jobs[0].revisionPortalEnabled).toBe(false);
+    expect(screen.getByTestId("toggle-revision-portal")).toHaveTextContent("링크 켜기");
   });
 
   it("저장소를 읽기 전에는 잘못된 누락 안내 대신 로딩을 표시한다", async () => {

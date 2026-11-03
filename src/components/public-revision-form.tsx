@@ -3,12 +3,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  PublicRevisionCompleted,
   PublicRevisionLoading,
   PublicRevisionUnavailable,
   PublicRevisionView,
 } from "@/components/public-revision-view";
 import { getRevisionSummary, useWorkspace } from "@/components/workspace-provider";
-import { customerDueLabel, customerProgressOf, customerStageFromProgress, pendingIntakeLabels, type CustomerProgress } from "@/lib/domain";
+import {
+  customerCompletedLabel,
+  customerDueLabel,
+  customerProgressOf,
+  customerRequestsOf,
+  customerStageFromProgress,
+  pendingIntakeLabels,
+  type CustomerProgress,
+} from "@/lib/domain";
 import { localToday } from "@/lib/store";
 import {
   getHostedPublicRevisionSummary,
@@ -25,7 +34,8 @@ export function PublicRevisionForm({ token }: { token: string }) {
     () => jobs.find((item) => item.revisionPortalToken === token),
     [jobs, token],
   );
-  const localJob = localMatch?.revisionPortalEnabled ? localMatch : undefined;
+  // 링크를 켠 채 완료한 일감은 완료 화면을, 끈 링크·보관한 일감은 '사용할 수 없음'을 보인다.
+  const localJob = localMatch?.revisionPortalEnabled && localMatch.status !== "archived" ? localMatch : undefined;
   const [hostedSummary, setHostedSummary] = useState<PublicRevisionSummary | null>(null);
   const [loading, setLoading] = useState(hosted);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +82,10 @@ export function PublicRevisionForm({ token }: { token: string }) {
         remaining: result.remaining,
         // 방금 남긴 요청도 되돌리지 않은 요청이라 진행 단계가 '수정'으로 바뀐다.
         hasOpenRevision: current.tasksTotal === undefined ? current.hasOpenRevision : true,
+        // 목록을 아는 서버면 방금 남긴 요청을 맨 위에 '접수됨'으로 먼저 보여 준다(곧 서버 요약으로 맞춘다).
+        requests: current.requests === undefined || result.usage !== "pending"
+          ? current.requests
+          : [{ status: "pending" as const, submittedAt: result.submittedAt, body: content.trim() }, ...current.requests].slice(0, 20),
       } : current);
       // 링크를 연 사이 작업자가 다른 요청을 '수정 완료'했을 수 있다. 처음 읽은 값으로 계산한 숫자 대신 서버 요약으로 맞춘다.
       void getHostedPublicRevisionSummary(client, token)
@@ -93,7 +107,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
     // 애초에 다른 기기에서 열린 것이다. 고객에게 잘못된 이유를 말하면 작업자에게 헛물을 켠다.
     const emptyReason = !hosted && !localMatch
       ? "이 링크는 작업자 기기에 저장된 일감을 여는 주소예요. 작업자에게 다시 요청해주세요."
-      : "링크가 꺼졌거나 작업이 완료됐어요.";
+      : "링크가 꺼졌거나 새 주소로 바뀌었어요.";
     return <PublicRevisionUnavailable message={error ?? emptyReason} />;
   }
 
@@ -108,21 +122,38 @@ export function PublicRevisionForm({ token }: { token: string }) {
           total: hostedSummary.tasksTotal,
           done: hostedSummary.tasksDone ?? 0,
           hasOpenRevision: hostedSummary.hasOpenRevision ?? false,
+          intakePending: hostedSummary.intakePending?.length,
         }
     : customerProgressOf(localJob!);
   const dueDate = hostedSummary ? hostedSummary.dueDate : localJob!.dueDate;
   const workerName = (hostedSummary ? hostedSummary.workerName : settings.publicWorkerName)?.trim().slice(0, 40) || undefined;
+  const requests = hostedSummary ? hostedSummary.requests : customerRequestsOf(localJob!);
+  const intakePending = hostedSummary ? hostedSummary.intakePending : pendingIntakeLabels(localJob!);
+
+  const completed = hostedSummary ? hostedSummary.jobStatus === "completed" : localJob!.status === "completed";
+  if (completed) {
+    return (
+      <PublicRevisionCompleted
+        title={title}
+        packageName={packageName}
+        completedLabel={customerCompletedLabel(hostedSummary ? hostedSummary.completedAt : localJob!.completedAt)}
+        workerName={workerName}
+        requests={requests}
+      />
+    );
+  }
 
   return (
     <PublicRevisionView
       title={title}
       packageName={packageName}
       revision={revision}
-      intakePending={hostedSummary ? hostedSummary.intakePending : pendingIntakeLabels(localJob!)}
+      intakePending={intakePending}
       workerName={workerName}
       dueLabel={dueDate ? customerDueLabel(dueDate, localToday()) : undefined}
       stage={progress ? customerStageFromProgress(progress) : undefined}
       progress={progress}
+      requests={requests}
       badgeLabel={hosted ? "보안 링크로 직접 전달" : "이 브라우저에 저장"}
       footnote={hosted ? "링크를 받은 사람만 요청할 수 있어요. 연락처·금액·다른 고객 정보는 공개하지 않아요." : "보내주신 내용은 지금 이 브라우저에만 저장돼요."}
       onSubmit={submit}

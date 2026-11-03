@@ -1450,7 +1450,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (next.status === "active" && target.status !== "active" && !canActivateJobFor(plan, current.jobs)) {
           return current;
         }
-        const resolved = next.status === "completed"
+        // 완료하면 링크는 상태(completed)로 닫힌다. 켜 둔 값은 남겨서 고객 링크가 '사용할 수 없음' 대신
+        // 완료 화면을 보이게 한다(작업자가 끈 링크와 구분). 다시 진행할 때는 지금처럼 꺼진 채로 시작한다.
+        const resolved = next.status === "active" && target.status !== "active"
           ? { ...next, revisionPortalEnabled: false }
           : next;
         return {
