@@ -602,6 +602,32 @@ describe("JobDetail 원가·마진 노출", () => {
   });
 });
 
+describe("JobDetail 수수료 빼고 받는 돈", () => {
+  it("일감에 남긴 비율이 있으면 돈 카드에 수수료 빼고 받는 돈을 보이고, 남는 돈(예상)도 수수료를 뺀다", () => {
+    const job = composeJob({
+      jobId: "job_fee", revisionPortalToken: "token_fee", clientLabel: "크몽 고객", startDate: "2026-08-01",
+      package: template, source: "kmong", feeRate: 20, now: "2026-08-01T00:00:00.000Z",
+    });
+    renderDetail(job);
+    const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
+    // 1,000,000원의 20% = 200,000원 → 800,000원, 남는 돈 800,000 − 250,000 = 550,000원
+    const net = within(rail).getByTestId("job-net-amount");
+    expect(net).toHaveTextContent("800,000원");
+    expect(net).toHaveTextContent("수수료 20% · 200,000원");
+    // 금액 칸이라 휴대폰의 '금액 보기'에 같이 딸린다.
+    expect(net.closest(".jobFactMoney")).not.toBeNull();
+    expect(within(rail).getByTestId("job-margin")).toHaveTextContent("550,000원");
+    expect(within(rail).getByTestId("job-margin")).toHaveTextContent("남는 비율 55%");
+  });
+
+  it("비율이 0이거나 없는 일감은 그 줄을 숨겨 지금 화면과 같다", () => {
+    renderDetail();
+    expect(screen.queryByTestId("job-net-amount")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "일감 핵심 정보" }).querySelectorAll(".jobFactMoney")).toHaveLength(3);
+    expect(screen.getByTestId("job-margin")).toHaveTextContent("750,000원");
+  });
+});
+
 describe("JobDetail 수정 되돌리기", () => {
   function jobWithRevision() {
     return recordRevision(baseJob(), {

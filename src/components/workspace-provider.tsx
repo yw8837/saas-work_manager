@@ -12,6 +12,7 @@ import {
   confirmAddon as applyConfirmedAddon,
   createAddon as createAddonDraft,
   createDomainId,
+  feeRateForSource,
   activeJobCount as countActiveJobs,
   getRevisionSummary,
   addRedeemedCode,
@@ -1375,6 +1376,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           options: selectedOptions,
           revisionPortalToken: createSecurePortalToken(),
           source: input.source,
+          // 그 받은 곳의 떼이는 비율을 지금 설정 값으로 남긴다(나중에 설정을 바꿔도 이 일감은 그대로).
+          feeRate: feeRateForSource(current.settings.feeRates, input.source),
         });
         createdJobId = job.id;
         return {
@@ -1460,9 +1463,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   // 다른 동작은 완료한 일감을 막지만, 받은 곳은 지난달 정리를 고칠 수 있게 완료한 일감에서도 바꾼다.
+  // 받은 곳을 고치면 떼이는 비율도 그 받은 곳의 지금 설정 값으로 다시 남긴다(잘못 고른 곳의 수수료가 남지 않게).
   const setJobSource = useCallback((jobId: string, source: OrderSource | undefined) => {
-    updateJob(jobId, (job) => applyJobSource(job, source));
-  }, [updateJob]);
+    commitState((current) => ({
+      ...current,
+      jobs: current.jobs.map((job) => (job.id === jobId
+        ? applyJobSource(job, source, undefined, feeRateForSource(current.settings.feeRates, source))
+        : job)),
+    }));
+  }, [commitState]);
 
   // 복사할 때마다 불린다. 이미 남겼거나 진행 중이 아니면 상태를 다시 만들지 않는다(저장도 안 함).
   const markStartShared = useCallback((jobId: string) => {

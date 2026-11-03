@@ -12,6 +12,12 @@
 
 ## 지금 상태
 
+### 2026-11-03 받은 곳별 떼이는 비율(수수료) — 브랜치 `claude/ux-fees`(병합·배포 전)
+
+- 설정 '받은 곳별 떼이는 비율'(크몽·숨고·소개·직접 문의·기타, 0~100·소수점 한 자리, 기본값 전부 비움). 새 일감을 만들 때 그 받은 곳 비율을 `Job.feeRate`로 남기고(받은 곳을 고치면 그때 비율로 다시 남김), `margin`(남는 돈)은 수수료까지 뺀 값이다. 예전 일감은 0으로 본다.
+- 새 일감 미리보기·아래 띠, 일감 화면 돈 카드, 월별 정리(합계·받은 곳별)에 '수수료 빼고 받는 돈'(비율 0이면 숨김). CSV는 '일감'·'패키지' 중복 열을 합치고 '추가요청 금액'·'수수료(원)'·'수수료 뺀 금액' 열을 더했다. 세금(원천징수)은 계산하지 않는다.
+- 저장: 작업공간 JSON 문서의 선택 칸 `Job.feeRate`·`AppSettings.feeRates`만 더했다. DB migration 없음(PGlite 시험 `supabase/tests/workspace_fee_fields.sql`).
+
 ### 2026-11-03 HTML 에지 변형 막기 · 검색 등록 (PR #30, 2026-11-03 main `682442a` 병합·02:47 운영 배포 Worker `9d1bb21f`)
 
 - 문제: 운영 주소의 HTML마다 Cloudflare Web Analytics 스크립트(`static.cloudflareinsights.com/beacon.min.js`, 토큰 `32918b1a…`)가 끼워져 CSP에 막히며 콘솔 오류를 남겼다. 우리 Cloudflare에는 끌 설정이 없었다: 도메인 RUM `off`, 계정 Web Analytics 사이트는 `yeolmaeapps.kr`뿐(토큰 다름), 감사 로그(2026-08-16부터)에 RUM 기록 없음. workers.dev, 옛 chatgpt.site, ChatGPT Sites에 남은 다른 주소(www·expat·home)에는 없다. 누가 넣는지는 확정하지 못했다.

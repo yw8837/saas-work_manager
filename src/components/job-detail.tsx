@@ -39,6 +39,7 @@ import { ClientMessages } from "./client-messages";
 import { SendToClientBanner } from "./send-to-client-banner";
 import { StartChecklist } from "./start-checklist";
 import { displayJobTitle, normalizeOrderSource, ORDER_SOURCE_LABELS, ORDER_SOURCES, pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
+import { jobFee, jobFeeRate } from "@/lib/domain/platform-fee";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { nativePlatform } from "@/lib/native/platform";
 import {
@@ -602,6 +603,18 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <span className="factIcon"><CircleDollarSign size={18} /></span>
           <dl><dt>계약 금액</dt><dd>{formatWon(job.amount)}</dd></dl>
         </div>
+        {/* 일감을 만들 때 남긴 떼이는 비율이 있을 때만(0이면 지금 화면과 같게 숨김). 남는 돈(예상)은 이미 수수료를 뺀 값이다. */}
+        {jobFee(job) > 0 && (
+          <div className="jobFactMoney">
+            <span className="factIcon"><CircleDollarSign size={18} /></span>
+            <dl>
+              <dt>수수료 빼고 받는 돈</dt>
+              <dd data-testid="job-net-amount">
+                {formatWon(job.amount - jobFee(job))} <small>수수료 {jobFeeRate(job)}% · {formatWon(jobFee(job))}</small>
+              </dd>
+            </dl>
+          </div>
+        )}
         <div className="jobFactMoney">
           <span className="factIcon"><Wallet size={18} /></span>
           <dl><dt>예상 원가</dt><dd data-testid="job-estimated-cost">{formatWon(job.estimatedCost)}</dd></dl>

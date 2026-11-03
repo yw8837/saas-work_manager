@@ -5,5 +5,6 @@ export * from "./invite-codes";
 export * from "./job-title";
 export * from "./order-source";
 export * from "./margin-floor";
+export * from "./platform-fee";
 
 export * from "./customer-stage";

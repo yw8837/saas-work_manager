@@ -180,6 +180,11 @@ export interface Job {
   briefQuestions?: BriefQuestion[];
   /** 주문을 받은 곳(선택). 없던 저장본·고르지 않은 일감에는 칸이 없다. */
   source?: OrderSource;
+  /**
+   * 받은 곳에서 떼이는 비율(%, 소수점 한 자리). 일감을 만들 때(또는 받은 곳을 바꿀 때) 설정 값을 남긴 스냅숏이라
+   * 나중에 설정을 바꿔도 이 일감 금액은 그대로다. 0이면 칸이 없고, 칸이 없던 예전 일감도 0으로 본다. `margin`은 이 수수료를 뺀 값이다.
+   */
+  feeRate?: number;
   /** 일감을 완료한 시각(월별 정리의 기준). 완료를 되돌리면 칸을 지운다. 이 칸이 생기기 전에 완료한 저장본에는 없다. */
   completedAt?: string;
   /**
@@ -207,6 +212,8 @@ export interface ComposeJobInput {
   revisionPortalToken?: string;
   /** 주문을 받은 곳(선택). */
   source?: OrderSource;
+  /** 그 받은 곳에서 떼이는 비율(%, 선택). 0이거나 없으면 떼지 않는다. */
+  feeRate?: number;
 }
 
 export interface RecordRevisionInput {

@@ -182,3 +182,28 @@ it("내려받기 링크는 문서에 붙여 누른 뒤 떼고, 파일 주소는 
   expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
   expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:monthly-summary");
 });
+
+it("수수료를 뗀 일감이 있으면 합계와 받은 곳별에 '수수료 빼고 받는 돈'을 보이고, 없으면 지금 화면과 같다", () => {
+  const first = render(<MonthlySummary timeZone="Asia/Seoul" />);
+  expect(screen.queryByTestId("summary-total-fee")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("summary-total-net")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("summary-source-kmong-net")).not.toBeInTheDocument();
+  first.unmount();
+
+  const withFee = [
+    { ...job("fee1", "카페 모라", { status: "completed", completedAt: "2026-11-03T02:00:00.000Z", source: "kmong", amount: 1_410_000, estimatedCost: 95_000 }), feeRate: 20 },
+    job("ref1", "소개 손님", { status: "completed", completedAt: "2026-11-05T02:00:00.000Z", source: "referral", amount: 500_000, estimatedCost: 50_000 }),
+  ];
+  vi.mocked(useWorkspace).mockReturnValue({ jobs: withFee } as unknown as ReturnType<typeof useWorkspace>);
+  render(<MonthlySummary timeZone="Asia/Seoul" />);
+
+  // 1,410,000원의 20% = 282,000원
+  expect(screen.getByTestId("summary-total-amount")).toHaveTextContent("1,910,000원");
+  expect(screen.getByTestId("summary-total-fee")).toHaveTextContent("282,000원");
+  expect(screen.getByTestId("summary-total-net")).toHaveTextContent("1,628,000원");
+  expect(screen.getByTestId("summary-total-net").previousElementSibling).toHaveTextContent("수수료 빼고 받는 돈");
+  expect(screen.getByTestId("summary-total-margin")).toHaveTextContent("1,483,000원");
+  expect(screen.getByTestId("summary-source-kmong-net")).toHaveTextContent("수수료 빼고 1,128,000원");
+  expect(screen.queryByTestId("summary-source-referral-net")).not.toBeInTheDocument();
+  expect(document.body.textContent).not.toMatch(/순이익|소득|신고 금액|세액|부가세|납부|원천/);
+});

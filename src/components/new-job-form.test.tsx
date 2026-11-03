@@ -109,6 +109,32 @@ it("기준을 정했을 때만, 덜 남는 주문이면 새 일감 아래 띠와
   expect(create).toHaveBeenCalledTimes(1);
 });
 
+it("고른 받은 곳에 떼이는 비율이 있으면 미리보기에 '수수료 빼고 받는 돈'을 보이고, 남는 돈·최소 기준 경고도 수수료를 뺀 값으로 본다", () => {
+  mockWorkspace([], { feeRates: { kmong: 20 }, minMarginPerJob: 600_000 });
+  create.mockReturnValue("created-job");
+  render(<NewJobForm />);
+  // 받은 곳을 고르기 전: 지금 화면과 같다(790,000원 − 95,000원 = 695,000원, 기준 이상).
+  expect(screen.queryByTestId("preview-net-amount")).not.toBeInTheDocument();
+  expect(screen.getByTestId("preview-margin")).toHaveTextContent("695,000원");
+  expect(screen.queryByTestId("preview-margin-warning")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByTestId("order-source-kmong"));
+  // 790,000원의 20% = 158,000원 → 632,000원, 남는 돈 632,000 − 95,000 = 537,000원(기준보다 63,000원 적음)
+  expect(screen.getByTestId("preview-net-amount")).toHaveTextContent("632,000원");
+  expect(screen.getByTestId("preview-net-amount")).toHaveTextContent("수수료 20% · 158,000원");
+  expect(screen.getByTestId("preview-margin")).toHaveTextContent("537,000원");
+  expect(screen.getByTestId("preview-margin")).toHaveTextContent("남는 비율 68%");
+  expect(screen.getByTestId("preview-margin-warning")).toHaveTextContent("기준보다 63,000원 적어요");
+  expect(screen.getByTestId("preview-panel-margin-warning")).toHaveTextContent("남는 돈 537,000원 · 내 기준보다 63,000원 적어요");
+  // 휴대폰은 미리보기 패널이 숨고 아래 띠만 보이므로, 띠의 금액도 수수료 뺀 값이다.
+  expect(screen.getByText(/^수수료 빼고 632,000원 · 할 일 \d+개$/)).toBeInTheDocument();
+
+  // 비율을 적지 않은 받은 곳이면 줄을 숨긴다.
+  fireEvent.click(screen.getByTestId("order-source-soomgo"));
+  expect(screen.queryByTestId("preview-net-amount")).not.toBeInTheDocument();
+  expect(screen.getByTestId("preview-margin")).toHaveTextContent("695,000원");
+});
+
 it("기준이 없거나 남는 돈이 기준 이상이면 새 일감에서 알리지 않는다", () => {
   const first = render(<NewJobForm />);
   expect(screen.queryByTestId("preview-margin-warning")).not.toBeInTheDocument();

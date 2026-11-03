@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   composeJob,
+  feeRateForSource,
+  jobFee,
   latestOrderSource,
   marginShortfall,
   marginWarningText,
@@ -87,6 +89,8 @@ export function NewJobForm() {
   // 받은 곳 기본값은 가장 최근에 만든 일감의 받은 곳이다(설정 칸에 저장하지 않음). 칩을 누르면 그 선택을 따른다.
   const [sourceChoice, setSourceChoice] = useState<{ value: OrderSource | undefined } | null>(null);
   const source = sourceChoice ? sourceChoice.value : latestOrderSource(jobs);
+  // 고른 받은 곳의 떼이는 비율(설정). 0이면 미리보기에 수수료 줄을 두지 않는다.
+  const feeRate = feeRateForSource(settings.feeRates, source);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [createError, setCreateError] = useState("");
@@ -104,12 +108,14 @@ export function NewJobForm() {
         jobId: "preview-job",
         revisionPortalToken: "preview-token",
         now: "2026-01-01T00:00:00.000Z",
+        feeRate,
       });
       return { selectedPackage, selectedOptions, job };
     } catch {
       return null;
     }
-  }, [clientLabel, packageId, optionIds, activePackages, activeOptions, startDate]);
+  }, [clientLabel, packageId, optionIds, activePackages, activeOptions, startDate, feeRate]);
+  const previewFee = preview ? jobFee(preview.job) : 0;
 
   // 한 건에 최소 남길 돈을 정했을 때만, 이 주문이 덜 남으면 한 줄로 알린다(만들기는 막지 않음).
   const previewShortfall = preview ? marginShortfall(preview.job.margin, settings.minMarginPerJob) : null;
@@ -309,6 +315,15 @@ export function NewJobForm() {
                     <dt><CircleDollarSign size={16} /> 계약 금액</dt>
                     <dd>{formatWon(preview.job.amount)}</dd>
                   </div>
+                  {previewFee > 0 && (
+                    <div>
+                      <dt><CircleDollarSign size={16} /> 수수료 빼고 받는 돈</dt>
+                      <dd data-testid="preview-net-amount">
+                        {formatWon(preview.job.amount - previewFee)}
+                        <span>수수료 {feeRate}% · {formatWon(previewFee)}</span>
+                      </dd>
+                    </div>
+                  )}
                   <div>
                     <dt><Wallet size={16} /> 예상 원가</dt>
                     <dd data-testid="preview-estimated-cost">{formatWon(preview.job.estimatedCost)}</dd>
@@ -400,7 +415,7 @@ export function NewJobForm() {
             <div className="mobileSubmitSummary">
               <span>
                 {preview
-                  ? `${formatWon(preview.job.amount)} · 할 일 ${preview.job.tasks.length}개`
+                  ? `${previewFee > 0 ? `수수료 빼고 ${formatWon(preview.job.amount - previewFee)}` : formatWon(preview.job.amount)} · 할 일 ${preview.job.tasks.length}개`
                   : "금액과 할 일을 자동 계산해요"}
               </span>
               <strong>
