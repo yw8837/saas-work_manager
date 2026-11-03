@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, MousePointerClick } from "lucide-react";
 
 import { Brand } from "./brand";
+import { WorkFlowChart } from "./work-flow-chart";
 
 /** 그림 한 장. 그림이 먼저, 아래에 제목 한 줄·설명 한 줄. 더 긴 글은 '자세히' 접기에만 둔다. */
 export type GuideShot = {
@@ -42,14 +43,14 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
         id: "packages",
         title: "패키지는 한 번만 저장해요",
         caption: "금액·기간·수정 횟수에 받을 자료·질문까지 묶어 둬요.",
-        image: { src: "/guide/02-packages.webp", alt: "패키지 편집 화면. 받을 자료 칸에 1번, 착수 전 질문 칸에 2번, 패키지 저장 버튼에 3번 표시", width: 750, height: 1304 },
+        image: { src: "/guide/02-packages.webp", alt: "패키지 편집 화면. 받을 자료 칸에 1번, 착수 전 질문 칸에 2번, 패키지 저장 버튼에 3번 표시", width: 750, height: 2258 },
       },
       {
         id: "new-job",
         title: "주문이 오면 네 가지만 골라요",
         caption: "고객·시작일·패키지·옵션을 고르면 금액·마감·할 일이 채워져요.",
-        detail: "받은 곳은 지난 주문 것이 먼저 골라져 있어요.",
-        image: { src: "/guide/03-new-job.webp", alt: "새 일감 화면. 고객 이름·시작일·패키지·옵션에 1~4번, 아래 일감 만들기 버튼에 5번 표시. 받은 곳은 크몽이 골라져 있음", width: 750, height: 2544 },
+        detail: "받은 곳은 비워 두고, 지난 주문의 받은 곳을 옆에 작게 알려 줘요.",
+        image: { src: "/guide/03-new-job.webp", alt: "새 일감 화면. 고객 이름·시작일·패키지·옵션에 1~4번, 아래 일감 만들기 버튼에 5번 표시. 받은 곳은 크몽이 골라져 있음", width: 750, height: 2530 },
       },
     ],
   },
@@ -63,14 +64,14 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
         title: "카톡 문구 하나만 복사해요",
         caption: "링크·받을 자료·질문이 한 문구에 들어 있어요.",
         detail: "평소 대화창에 붙여 보내요. 자동으로 보내지지는 않아요.",
-        image: { src: "/guide/04-send-message.webp", alt: "일감을 저장한 직후 안내. 카톡 문구 복사 버튼에 1번 표시, 아래 말풍선에 받을 자료와 질문이 든 보낼 문구", width: 750, height: 824 },
+        image: { src: "/guide/04-send-message.webp", alt: "일감을 저장한 직후 안내. 카톡 문구 복사 버튼에 1번 표시, 아래 말풍선에 받을 자료와 질문이 든 보낼 문구", width: 750, height: 840 },
       },
       {
         id: "check-answers",
         title: "답·자료가 오면 체크해요",
         caption: "고객은 링크 없이 대화창으로 답해도 돼요.",
         detail: "체크한 것은 다음에 보낼 문구에서 빠져요.",
-        image: { src: "/guide/05-checklist.webp", alt: "시작 전 받을 자료와 착수 전 질문 목록. 아직 안 받은 자료에 1번, 답을 못 받은 질문에 2번 표시", width: 750, height: 1400 },
+        image: { src: "/guide/05-checklist.webp", alt: "시작 전 받을 자료와 착수 전 질문 목록. 아직 안 받은 자료에 1번, 답을 못 받은 질문에 2번 표시", width: 750, height: 1464 },
       },
     ],
   },
@@ -91,7 +92,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
         title: "범위 밖은 추가요청으로 받아요",
         caption: "초안으로 적어 두고, 고객이 동의하면 확정해요.",
         detail: "확정하면 금액·마감·할 일에 반영돼요.",
-        image: { src: "/guide/07-addon.webp", alt: "추가요청 구획. 추가요청 기록 버튼에 1번, 초안의 확정 버튼에 2번 표시", width: 750, height: 580 },
+        image: { src: "/guide/07-addon.webp", alt: "추가요청 구획. 추가요청 기록 버튼에 1번, 초안의 확정 버튼에 2번 표시", width: 750, height: 578 },
       },
     ],
   },
@@ -112,7 +113,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
         title: "달마다 매출을 모아 봐요",
         caption: "완료한 주문을 받은 곳별로 보고 표 파일로 받아요.",
         detail: "'일감 완료'를 누른 주문이 모여요. 세금 계산이나 신고는 하지 않아요.",
-        image: { src: "/guide/09-monthly.webp", alt: "월별 정리 화면. 10월 내려받기 버튼에 1번 표시, 아래에 받은 곳별 합계", width: 750, height: 1350 },
+        image: { src: "/guide/09-monthly.webp", alt: "월별 정리 화면. 10월 내려받기 버튼에 1번 표시, 아래에 받은 곳별 합계", width: 750, height: 1362 },
       },
     ],
   },
@@ -132,14 +133,17 @@ export function UserGuide() {
       <main className="guideMain">
         <section className="guideIntro">
           <h1>그림으로 보는 일감체크</h1>
-          <p>주문부터 월별 정리까지 그림 여덟 장이면 돼요.</p>
+          <p>주문 하나가 끝나기까지 흐름을 먼저 보고, 아래 그림으로 화면을 따라 해 보세요.</p>
           <div className="guideIntroActions">
-            <Link href="/demo/r" className="primaryButton" data-testid="guide-demo-link">
+            <Link href="/today" className="primaryButton">무료로 시작하기</Link>
+            <Link href="/demo/r" className="secondaryButton" data-testid="guide-demo-link">
               <MousePointerClick size={18} aria-hidden="true" /> 고객이 받는 화면 눌러 보기
             </Link>
-            <Link href="/today" className="secondaryButton">무료로 시작하기</Link>
           </div>
         </section>
+
+        {/* 처음 보는 사람이 한눈에 알도록 흐름도를 그림보다 먼저 둔다. */}
+        <WorkFlowChart headingId="guide-flow-title" />
 
         {/* 가입은 한 번뿐이라 맨 위에 작게 둔다. */}
         <figure className="guideSignup" data-testid="guide-signup">

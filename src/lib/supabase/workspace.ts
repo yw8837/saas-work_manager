@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { normalizeAppState, type AppState } from "@/lib/store";
-import type { Job, RevisionUsage } from "@/lib/domain";
+import type { CustomerRequest, Job, RevisionUsage } from "@/lib/domain";
 
 export type HostedWorkspaceDocument = {
   state: AppState;
@@ -26,7 +26,36 @@ export type PublicRevisionSummary = {
   pending?: number;
   /** 작업자가 정한 '시작 전 받을 자료' 중 아직 받지 못한 것의 이름. */
   intakePending?: string[];
+  /** 아래는 20261103120000 migration 뒤에만 채워진다. 완료된 일감이면 completed(새 요청은 못 받음). */
+  jobStatus?: "active" | "completed";
+  /** 일감을 완료한 시각(ISO). 완료 화면 날짜에 쓴다. */
+  completedAt?: string;
+  /** 고객이 링크로 남긴 요청과 처리 상태(최근 것부터, 원문만). */
+  requests?: CustomerRequest[];
 };
+
+const CUSTOMER_REQUEST_STATUSES = new Set<CustomerRequest["status"]>(["pending", "done", "extra", "rejected"]);
+
+/** 서버가 준 요청 목록에서 모양이 맞는 것만 남긴다. 모르는 상태·빈 원문은 버린다. */
+function parseCustomerRequests(value: unknown): CustomerRequest[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const result: CustomerRequest[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const status = item.status as CustomerRequest["status"];
+    if (!CUSTOMER_REQUEST_STATUSES.has(status)) continue;
+    if (typeof item.body !== "string" || !item.body.trim()) continue;
+    const sequence = typeof item.sequence === "number" && Number.isInteger(item.sequence) && item.sequence > 0 ? item.sequence : undefined;
+    result.push({
+      status,
+      ...(status === "done" && sequence ? { sequence } : {}),
+      ...(typeof item.submittedAt === "string" && item.submittedAt ? { submittedAt: item.submittedAt } : {}),
+      body: item.body.trim().slice(0, 4000),
+    });
+    if (result.length === 20) break;
+  }
+  return result;
+}
 
 export type PublicRevisionReceipt = {
   requestId: string;
@@ -280,6 +309,9 @@ export async function getHostedPublicRevisionSummary(
       worker_name: string | null;
       pending_requests?: number | null;
       intake_pending?: unknown;
+      job_status?: string | null;
+      completed_at?: string | null;
+      requests?: unknown;
     }>(view.data);
     return row ? {
       jobKey: row.job_key,
@@ -298,6 +330,10 @@ export async function getHostedPublicRevisionSummary(
       intakePending: Array.isArray(row.intake_pending)
         ? row.intake_pending.filter((label): label is string => typeof label === "string" && label.trim() !== "").slice(0, 20)
         : undefined,
+      // 이전 판 함수에는 아래 열이 없다. 없으면 진행 중으로 보고 목록은 그리지 않는다.
+      jobStatus: row.job_status === "completed" || row.job_status === "active" ? row.job_status : undefined,
+      completedAt: typeof row.completed_at === "string" && row.completed_at ? row.completed_at : undefined,
+      requests: parseCustomerRequests(row.requests),
     } : null;
   }
   // 새 함수가 아직 없는 DB(migration 적용 전)에서는 기존 요약 함수로 되돌아간다.

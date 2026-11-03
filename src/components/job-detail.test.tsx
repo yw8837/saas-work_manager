@@ -572,6 +572,43 @@ describe("JobDetail 최소 남길 돈", () => {
   });
 });
 
+describe("JobDetail 고객에게 보낼 말 — 저장 중 링크", () => {
+  /** 같은 화면에서 저장 상태·일감만 바꿔 다시 그린다(제공자가 저장을 시작·끝낸 뒤). */
+  function rerenderWith(view: ReturnType<typeof render>, change: { saveStatus?: "saved" | "saving"; job?: ReturnType<typeof baseJob> }) {
+    const current = vi.mocked(useWorkspace).mock.results.at(-1)!.value as ReturnType<typeof useWorkspace>;
+    vi.mocked(useWorkspace).mockReturnValue({ ...current, ...(change.saveStatus ? { saveStatus: change.saveStatus } : {}), ...(change.job ? { jobs: [change.job] } : {}) });
+    view.rerender(<JobDetail jobId="job_detail" />);
+  }
+
+  // 저장할 때마다 문구가 5줄↔4줄로 바뀌어 아래 화면이 밀리던 문제(운영 모드).
+  it("한 번 저장된 링크는 다른 내용을 저장하는 중에도 문구에 그대로 넣는다", () => {
+    const view = renderDetail(baseJob(), { runtimeMode: "hosted", saveStatus: "saved" });
+    const saved = screen.getByTestId("client-message-preview").textContent;
+    expect(saved).toContain("/r/token_detail");
+
+    rerenderWith(view, { saveStatus: "saving" });
+    expect(screen.getByTestId("client-message-preview").textContent).toBe(saved);
+  });
+
+  it("재발급해 아직 저장 안 된 새 링크와, 처음부터 저장 중인 링크는 넣지 않는다", () => {
+    const view = renderDetail(baseJob(), { runtimeMode: "hosted", saveStatus: "saved" });
+    rerenderWith(view, { saveStatus: "saving", job: { ...baseJob(), revisionPortalToken: "token_new" } });
+    const preview = screen.getByTestId("client-message-preview");
+    expect(preview).not.toHaveTextContent("/r/token_new");
+    expect(preview).not.toHaveTextContent("/r/token_detail");
+    view.unmount();
+
+    renderDetail(baseJob(), { runtimeMode: "hosted", saveStatus: "saving" });
+    expect(screen.getByTestId("client-message-preview")).not.toHaveTextContent("/r/");
+  });
+
+  it("링크를 끄면 저장 중이어도 바로 문구에서 뺀다", () => {
+    const view = renderDetail(baseJob(), { runtimeMode: "hosted", saveStatus: "saved" });
+    rerenderWith(view, { saveStatus: "saving", job: { ...baseJob(), revisionPortalEnabled: false } });
+    expect(screen.getByTestId("client-message-preview")).not.toHaveTextContent("/r/");
+  });
+});
+
 describe("JobDetail 원가·마진 노출", () => {
   it("계약 금액 옆에 예상 원가와 남는 돈(예상)·남는 비율을 그대로 보여준다", () => {
     renderDetail();
@@ -599,6 +636,32 @@ describe("JobDetail 원가·마진 노출", () => {
 
     expect(screen.getByTestId("job-estimated-cost")).toHaveTextContent("350,000원");
     expect(screen.getByTestId("job-margin")).toHaveTextContent("850,000원");
+  });
+});
+
+describe("JobDetail 수수료 빼고 받는 돈", () => {
+  it("일감에 남긴 비율이 있으면 돈 카드에 수수료 빼고 받는 돈을 보이고, 남는 돈(예상)도 수수료를 뺀다", () => {
+    const job = composeJob({
+      jobId: "job_fee", revisionPortalToken: "token_fee", clientLabel: "크몽 고객", startDate: "2026-08-01",
+      package: template, source: "kmong", feeRate: 20, now: "2026-08-01T00:00:00.000Z",
+    });
+    renderDetail(job);
+    const rail = screen.getByRole("region", { name: "일감 핵심 정보" });
+    // 1,000,000원의 20% = 200,000원 → 800,000원, 남는 돈 800,000 − 250,000 = 550,000원
+    const net = within(rail).getByTestId("job-net-amount");
+    expect(net).toHaveTextContent("800,000원");
+    expect(net).toHaveTextContent("수수료 20% · 200,000원");
+    // 금액 칸이라 휴대폰의 '금액 보기'에 같이 딸린다.
+    expect(net.closest(".jobFactMoney")).not.toBeNull();
+    expect(within(rail).getByTestId("job-margin")).toHaveTextContent("550,000원");
+    expect(within(rail).getByTestId("job-margin")).toHaveTextContent("남는 비율 55%");
+  });
+
+  it("비율이 0이거나 없는 일감은 그 줄을 숨겨 지금 화면과 같다", () => {
+    renderDetail();
+    expect(screen.queryByTestId("job-net-amount")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "일감 핵심 정보" }).querySelectorAll(".jobFactMoney")).toHaveLength(3);
+    expect(screen.getByTestId("job-margin")).toHaveTextContent("750,000원");
   });
 });
 
@@ -681,6 +744,68 @@ describe("JobDetail 수정 되돌리기", () => {
     expect(screen.getByText("추가 작업 요청을 되돌렸어요. 원문은 그대로 두었고 남은 횟수는 바뀌지 않아요.")).toBeInTheDocument();
   });
 
+  it("추가 작업으로 분류한 요청에는 남은 수정이 있어도 '수정 완료' 버튼을 두지 않는다", () => {
+    renderDetail(markRevisionExtraScope(jobWithRevision(), "revision_ui", "2026-08-02T05:00:00.000Z"));
+    expect(screen.getByRole("heading", { name: "수정 2회 남음" })).toBeInTheDocument();
+    expect(screen.getByTestId("revision-badge-revision_ui")).toHaveTextContent("추가 작업");
+    expect(screen.queryByTestId("complete-revision-revision_ui")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("extra-revision-revision_ui")).not.toBeInTheDocument();
+    expect(screen.getByTestId("revert-revision-revision_ui")).toBeInTheDocument();
+  });
+
+  it("'추가 작업으로'를 누르면 요청 원문이 채워진 추가요청 초안 입력이 바로 열리고 금액·기간만 넣어 저장한다", () => {
+    const multiLine = recordRevision(baseJob(), {
+      revisionId: "revision_extra",
+      source: "public",
+      body: "온라인 예약 기능도\n넣어 주세요.",
+      submittedAt: "2026-08-02T00:00:00.000Z",
+    }).job;
+    renderDetail(multiLine);
+    expect(screen.queryByLabelText("추가요청 내용")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("extra-revision-revision_extra"));
+    expect(markExtraScopeSpy).toHaveBeenCalledWith("job_detail", "revision_extra");
+
+    // 한 줄 입력칸이라 줄바꿈은 띄어쓰기로 바꿔 채운다.
+    expect(screen.getByLabelText("추가요청 내용")).toHaveValue("온라인 예약 기능도 넣어 주세요.");
+    // 바로 금액을 넣을 수 있게 추가금 칸에 포커스를 둔다.
+    expect(document.activeElement).toBe(screen.getByLabelText("추가금 (원)"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("추가 작업으로 분류했어요. 금액·기간만 넣고 저장하세요.");
+
+    fireEvent.change(screen.getByLabelText("추가금 (원)"), { target: { value: "200000" } });
+    fireEvent.change(screen.getByLabelText("추가 기간 (일)"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /초안 기록/ }));
+    expect(createAddonSpy).toHaveBeenCalledWith("job_detail", expect.objectContaining({
+      title: "온라인 예약 기능도 넣어 주세요.",
+      amountDelta: 200_000,
+      durationDaysDelta: 3,
+      sourceRevisionId: "revision_extra",
+    }));
+  });
+
+  it("직접 연 추가요청 초안에는 요청 연결을 붙이지 않는다", () => {
+    renderDetail(jobWithRevision());
+    fireEvent.click(screen.getByTestId("extra-revision-revision_ui"));
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    fireEvent.click(screen.getByTestId("open-addon"));
+    expect(screen.getByLabelText("추가요청 내용")).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("추가요청 내용"), { target: { value: "배너 추가" } });
+    fireEvent.click(screen.getByRole("button", { name: /초안 기록/ }));
+    expect(createAddonSpy.mock.calls[0][1]).not.toHaveProperty("sourceRevisionId");
+  });
+
+  it("확인 대기 요청이 남은 포함 수정보다 많으면 일부는 추가 작업이 될 수 있다고 한 줄 알린다", () => {
+    let job = jobWithRevision();
+    job = completeRevision(recordRevision(job, { revisionId: "done_a", source: "public", body: "사진 교체" }).job, "done_a");
+    job = recordRevision(job, { revisionId: "pending_b", source: "public", body: "문구 교체" }).job;
+    renderDetail(job);
+    expect(screen.getByTestId("revision-overflow-warning")).toHaveTextContent("확인 대기 2건 · 남은 포함 수정 1회라 1건은 추가 작업이 될 수 있어요");
+  });
+
+  it("확인 대기 요청이 남은 포함 수정 이하이면 그 경고를 띄우지 않는다", () => {
+    renderDetail(jobWithRevision());
+    expect(screen.queryByTestId("revision-overflow-warning")).not.toBeInTheDocument();
+  });
+
   it("남은 포함 수정이 없으면 '수정 완료'를 막고 추가 작업으로 안내한다", () => {
     let job = jobWithRevision();
     for (const id of ["done_a", "done_b"]) {
@@ -705,6 +830,21 @@ describe("JobDetail 수정 되돌리기", () => {
     fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "카톡으로 받은 요청" } });
     fireEvent.click(screen.getByRole("button", { name: /요청으로 기록/ }));
     expect(recordRevisionSpy).toHaveBeenLastCalledWith("job_detail", "카톡으로 받은 요청", "kakao", false);
+  });
+});
+
+describe("JobDetail 작업 체크리스트 순서", () => {
+  it("옵션에서 붙은 할 일도 날짜순으로 끼워 보이고 번호도 그 순서로 매긴다(데이터 순서는 그대로)", () => {
+    const job = baseJob();
+    const later = { ...job.tasks[0], id: "task_late", taskKey: "late", title: "납품", relativeDay: 9, dueDate: "2026-08-10", order: 1 };
+    const option = { ...job.tasks[0], id: "task_option", taskKey: "option", title: "옵션 배너 제작", relativeDay: 5, dueDate: "2026-08-06", order: 2, source: "option" as const };
+    const withOption = { ...job, tasks: [job.tasks[0], later, option] };
+    renderDetail(withOption);
+    const titles = Array.from(document.querySelectorAll(".detailTaskRow strong")).map((node) => node.textContent);
+    expect(titles).toEqual(["브리프 확인", "옵션 배너 제작", "납품"]);
+    expect(screen.getByTestId("task-toggle-task_option")).toHaveTextContent("2");
+    expect(screen.getByTestId("task-toggle-task_late")).toHaveTextContent("3");
+    expect(withOption.tasks.map((task) => task.id)).toEqual([job.tasks[0].id, "task_late", "task_option"]);
   });
 });
 

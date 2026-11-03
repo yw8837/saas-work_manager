@@ -169,6 +169,39 @@ describe("workspace 받은 곳", () => {
   });
 });
 
+describe("workspace 받은 곳별 떼이는 비율", () => {
+  it("새 일감에 그 받은 곳의 비율을 남기고, 설정을 바꿔도 이미 만든 일감 금액은 그대로다", async () => {
+    await mountWith({});
+    expect(workspace!.settings.feeRates).toBeUndefined();
+    const packageId = workspace!.packages.find((item) => !item.archivedAt)!.id;
+    act(() => workspace!.updateSettings({ feeRates: { kmong: 20 } }));
+
+    let kmongId = "";
+    let referralId = "";
+    act(() => {
+      kmongId = workspace!.createJob({ clientLabel: "크몽 고객", startDate: "2026-08-20", packageId, optionIds: [], source: "kmong" });
+    });
+    act(() => {
+      referralId = workspace!.createJob({ clientLabel: "소개 고객", startDate: "2026-08-20", packageId, optionIds: [], source: "referral" });
+    });
+    const find = (id: string) => workspace!.jobs.find((job) => job.id === id)!;
+    const kmong = find(kmongId);
+    expect(kmong.feeRate).toBe(20);
+    expect(kmong.margin).toBe(kmong.amount - Math.round(kmong.amount * 0.2) - kmong.estimatedCost);
+    expect("feeRate" in find(referralId)).toBe(false);
+
+    act(() => workspace!.updateSettings({ feeRates: { kmong: 10 } }));
+    expect(find(kmongId)).toEqual(kmong);
+
+    // 이 일감의 받은 곳을 고치면 그 받은 곳의 지금 비율로 다시 남긴다(앞 받은 곳의 수수료가 남지 않게).
+    act(() => workspace!.setJobSource(kmongId, "referral"));
+    expect("feeRate" in find(kmongId)).toBe(false);
+    expect(find(kmongId).margin).toBe(kmong.amount - kmong.estimatedCost);
+    act(() => workspace!.setJobSource(kmongId, "kmong"));
+    expect(find(kmongId).feeRate).toBe(10);
+  });
+});
+
 describe("workspace 시작 안내 보낸 시각", () => {
   it("처음 복사한 시각만 남기고(다시 불러도 저장하지 않음), 끝난 일감에는 남기지 않는다", async () => {
     const base = twoActiveJobs();
@@ -342,7 +375,7 @@ describe("workspace plan — 체험과 베타 코드", () => {
     expect(screen.getByTestId("plan")).toHaveTextContent("free");
   });
 
-  it("이미 다른 베타 코드를 쓴 계정도 두 번째 30일을 받을 수 없다", async () => {
+  it("이미 다른 베타 코드를 쓴 계정도 두 번째 Pro 기간을 받을 수 없다", async () => {
     await mountWith({
       jobsCreatedTotal: 4,
       trialStartedAt: EXPIRED_TRIAL,

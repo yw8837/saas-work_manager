@@ -6,6 +6,7 @@ import {
   recordRevision,
   updateTaskStatus,
   type BetaAccess,
+  type FeeRates,
   type Job,
   type OptionTemplate,
   type PackageTemplate,
@@ -154,6 +155,11 @@ export interface AppSettings {
   publicWorkerName?: string;
   /** 한 건에 최소 남길 돈(원, 작업자 기준). 정했을 때만 덜 남는 패키지·주문을 한 줄로 알린다. 고객에게는 안 나간다. */
   minMarginPerJob?: number;
+  /**
+   * 받은 곳별 떼이는 비율(%, 작업자가 자기 계약대로 적음). 기본값은 비어 있다(지어낸 비율을 미리 넣지 않음).
+   * 새 일감을 만들 때 그 받은 곳의 값이 일감에 스냅숏으로 남는다. 고객에게는 안 나간다.
+   */
+  feeRates?: FeeRates;
 }
 
 export interface AppState {

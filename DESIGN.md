@@ -1,20 +1,24 @@
 ---
-name: 일감체크 — Studio Production List
-description: 흰색과 흑연색의 작업 목록, 주의가 필요한 순간에만 체리색
+name: 일감체크 — 디자인 A "단정한 금융앱형" (2026-11-03)
+description: canvas 바탕 위 흰 카드, 행동색은 파랑 하나, 상태색은 지연·기다림·끝남에만
 colors:
-  ink: "#242426"
-  ink-soft: "#444448"
-  muted: "#68686e"
+  ink: "#191f28"
+  ink-soft: "#333d4b"
+  muted: "#5f6b78"
   paper: "#fff"
-  canvas: "#f5f5f6"
-  line: "#e5e5e7"
-  line-strong: "#c9c9cf"
-  border-strong: "#8c8c94"
-  primary-active: "#101012"
-  interactive: "#3d3d43"
-  state-soft: "#f1f1f3"
-  cherry: "#b82248"
-  cherry-soft: "#fff1f4"
+  canvas: "#f2f4f6"
+  line: "#e5e8eb"
+  line-strong: "#d1d6db"
+  primary: "#2563eb"
+  primary-active: "#1d4ed8"
+  blue-soft: "#e8f0fe"
+  blue-text: "#1d4ed8"
+  red: "#c62828"
+  red-soft: "#fdecec"
+  amber: "#9a5b00"
+  amber-soft: "#fff4e0"
+  green: "#0b7a49"
+  green-soft: "#e6f6ee"
 typography:
   headline:
     fontFamily: '"Pretendard Variable", Pretendard, SUIT, "Noto Sans KR", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
@@ -39,10 +43,11 @@ typography:
     fontWeight: 500
     letterSpacing: "normal"
 rounded:
-  field: "6px"
+  field: "12px"
   navigation: "8px"
   control: "12px"
-  badge: "5px"
+  card: "18px"
+  badge: "999px"
 spacing:
   xs: "8px"
   sm: "12px"
@@ -52,16 +57,16 @@ spacing:
   group: "32px"
 components:
   button-primary:
-    backgroundColor: "{colors.ink}"
+    backgroundColor: "{colors.primary}"
     textColor: "{colors.paper}"
     rounded: "{rounded.control}"
     padding: "0 20px"
   button-primary-hover:
-    backgroundColor: "{colors.interactive}"
+    backgroundColor: "{colors.primary-active}"
   button-primary-active:
     backgroundColor: "{colors.primary-active}"
   button-secondary:
-    backgroundColor: "{colors.paper}"
+    backgroundColor: "{colors.canvas}"
     textColor: "{colors.ink}"
     rounded: "{rounded.control}"
     padding: "0 18px"
@@ -74,23 +79,39 @@ components:
     textColor: "{colors.muted}"
     rounded: "{rounded.navigation}"
     padding: "0 11px"
-  status-neutral:
-    backgroundColor: "{colors.state-soft}"
-    textColor: "{colors.interactive}"
+  status-progress:
+    backgroundColor: "{colors.blue-soft}"
+    textColor: "{colors.blue-text}"
     rounded: "{rounded.badge}"
-    padding: "5px 8px"
-  status-urgent:
-    backgroundColor: "{colors.cherry-soft}"
-    textColor: "{colors.cherry}"
+    padding: "4px 10px"
+  status-late:
+    backgroundColor: "{colors.red-soft}"
+    textColor: "{colors.red}"
     rounded: "{rounded.badge}"
-    padding: "5px 8px"
-  form-section:
+    padding: "4px 10px"
+  card:
     backgroundColor: "{colors.paper}"
-    rounded: "{rounded.control}"
-    padding: "20px"
+    rounded: "{rounded.card}"
+    padding: "16px (휴대폰) / 22~24px (데스크톱)"
 ---
 
 # Design System: 일감체크
+
+## 지금 기준: 디자인 A "단정한 금융앱형" (2026-11-03 사용자 확정)
+
+적용 기준 문서는 저장소 밖 `E:/ilgamcheck-work/ux-walk/.design-preview/DESIGN-A.md`다. 이 절이 아래 옛 "Studio Production List"(흑연+체리) 서술보다 우선한다. 아래 절은 그때 기록으로 남기되, 색·모서리·카드 규칙이 이 절과 다르면 이 절을 따른다.
+
+- **색 토큰**(대비비는 계산값, 모두 4.5:1 이상): canvas `#f2f4f6`(앱·웹 바탕), paper `#fff`(카드), ink `#191f28`, ink-soft `#333d4b`, muted `#5f6b78`, line `#e5e8eb`, line-strong `#d1d6db`, primary `#2563eb`(흰 글자 5.17), primary-active `#1d4ed8`, blue-soft/글자 `#e8f0fe`/`#1d4ed8`(5.85), red/red-soft `#c62828`/`#fdecec`(4.92), amber/amber-soft `#9a5b00`/`#fff4e0`(4.98), green/green-soft `#0b7a49`/`#e6f6ee`(4.82). 코드: `src/styles/theme.css` `:root`(기본 층)와 `src/styles/workspace.css` `.appFrame`(작업 화면 층)이 같은 값을 쓴다. 작업 화면의 blue/green/amber는 이제 중립 별칭이 아니라 실제 색이다.
+- **행동색은 파랑 하나.** 빨강은 '지연'·경고에만, 주황은 '기다림'(자료 대기·고객 대기·확인 대기·수정 거의 다 씀)에만, 초록은 '끝남'(완료·받음)에만. 장식에 쓰지 않고 늘 글자와 같이 쓴다.
+- **카드:** 흰 면, 테두리·그림자 없음, 모서리 18px(`--radius-card`), 안쪽 여백 휴대폰 16px·데스크톱 22~24px, 카드 사이 12px. 앱 틀은 바탕 canvas, 위 막대도 canvas(경계선 없음), 데스크톱 사이드바·휴대폰 하단 탭은 흰색.
+- **버튼·입력:** 모서리 12px. 주 버튼 파랑 채움+흰 글자(휴대폰 52px), 보조 버튼 canvas 채움+ink 글자·테두리 없음. canvas 바탕 바로 위(머리 줄·위 막대)의 보조 버튼은 흰 면으로 둔다(canvas 위 canvas는 안 보여서). 어두운 하단 행동 바(일감 화면·새 일감)는 그대로 ink 면 위 흰 주 버튼.
+- **칩:** 알약(999px). 상태 칩은 `lib/job-chips.ts`(작업 중 파랑 / 고객 대기·자료 대기·확인 대기 n건 주황 / 지연 빨강 / 완료 초록 / 수정 n/m 파랑, 거의 다 쓰면 주황, 끝난 일감은 회색).
+- **숫자:** 금액·D-day·개수는 tabular-nums. 요약 숫자는 24~28px 굵게, 돈은 ink, 강조 개수는 primary.
+- **날짜 칸:** 일감 목록·오늘 '우선 처리'·'다가오는 마감' 줄 왼쪽 44px 칸(`lib/due-tile.ts`). 위 D-7/D-day/D+2, 아래 월.일. 지연 빨강, 2일 이내 주황, 그 밖 파랑, 끝난 일 회색. 읽어 주는 글은 기존 표기(11월 10일 마감, n일 지연).
+- **오늘 '받을 돈' 카드:** 큰 숫자 = 진행 중 일감 금액(월별 정리의 진행 중 합계) − 진행 중 일감 수수료. 이미 끝난 일감은 더하지 않고 '이번 달 완료' 칸으로 따로 보인다(마감이 다음 달인 진행 중 일감도 있어서 '이번 달'이라 부르지 않음). 돈이 먼저 보여야 해서 휴대폰에서도 처음엔 펼쳐 두고 '금액 접기'로 접는다(`lib/summary/this-month-money.ts`, 기존 월별 정리·수수료 함수만 씀).
+- **웹(첫 화면·설명서·약관·개인정보):** 같은 토큰. 강조 글자·주 버튼은 파랑(`--coral`을 웹 구역 안에서만 `#2563eb`로 덮음), 구획 바탕은 canvas/흰색 번갈아, 제품 미리보기는 canvas 위 흰 카드(20px), 마지막 가입 띠는 blue-soft. 화면마다 주 버튼(파랑)은 '무료로 시작하기' 하나.
+- **고객 링크 화면**(`/r/`, `/demo/r`): 같은 토큰, canvas 위 흰 카드(18px), 파랑 버튼 하나. 휴대폰은 화면 전체가 흰 면.
+- 특정 회사 브랜드(토스 고유 파랑 `#3182f6`·글꼴·로고·문구)는 쓰지 않는다. 글꼴은 Pretendard 그대로.
 
 ## Overview
 

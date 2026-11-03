@@ -12,6 +12,7 @@ import {
   confirmAddon as applyConfirmedAddon,
   createAddon as createAddonDraft,
   createDomainId,
+  feeRateForSource,
   activeJobCount as countActiveJobs,
   getRevisionSummary,
   addRedeemedCode,
@@ -1153,7 +1154,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       provider: "google",
       options: {
         redirectTo: new URL(safePath, window.location.origin).toString(),
-        ...(reauthenticating ? { queryParams: { prompt: "select_account" } } : {}),
+        // 늘 계정 고르는 화면을 띄운다. 구글 계정이 하나만 로그인돼 있으면 고르는 화면 없이 그 계정으로 들어가 버린다.
+        queryParams: { prompt: "select_account" },
       },
     });
     if (error) {
@@ -1374,6 +1376,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           options: selectedOptions,
           revisionPortalToken: createSecurePortalToken(),
           source: input.source,
+          // 그 받은 곳의 떼이는 비율을 지금 설정 값으로 남긴다(나중에 설정을 바꿔도 이 일감은 그대로).
+          feeRate: feeRateForSource(current.settings.feeRates, input.source),
         });
         createdJobId = job.id;
         return {
@@ -1446,7 +1450,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (next.status === "active" && target.status !== "active" && !canActivateJobFor(plan, current.jobs)) {
           return current;
         }
-        const resolved = next.status === "completed"
+        // 완료하면 링크는 상태(completed)로 닫힌다. 켜 둔 값은 남겨서 고객 링크가 '사용할 수 없음' 대신
+        // 완료 화면을 보이게 한다(작업자가 끈 링크와 구분). 다시 진행할 때는 지금처럼 꺼진 채로 시작한다.
+        const resolved = next.status === "active" && target.status !== "active"
           ? { ...next, revisionPortalEnabled: false }
           : next;
         return {
@@ -1459,9 +1465,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   // 다른 동작은 완료한 일감을 막지만, 받은 곳은 지난달 정리를 고칠 수 있게 완료한 일감에서도 바꾼다.
+  // 받은 곳을 고치면 떼이는 비율도 그 받은 곳의 지금 설정 값으로 다시 남긴다(잘못 고른 곳의 수수료가 남지 않게).
   const setJobSource = useCallback((jobId: string, source: OrderSource | undefined) => {
-    updateJob(jobId, (job) => applyJobSource(job, source));
-  }, [updateJob]);
+    commitState((current) => ({
+      ...current,
+      jobs: current.jobs.map((job) => (job.id === jobId
+        ? applyJobSource(job, source, undefined, feeRateForSource(current.settings.feeRates, source))
+        : job)),
+    }));
+  }, [commitState]);
 
   // 복사할 때마다 불린다. 이미 남겼거나 진행 중이 아니면 상태를 다시 만들지 않는다(저장도 안 함).
   const markStartShared = useCallback((jobId: string) => {

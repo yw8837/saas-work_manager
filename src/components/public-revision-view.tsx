@@ -5,7 +5,13 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Check, CheckCircle2, LockKeyhole, Send, ShieldCheck } from "lucide-react";
 
 import { Brand } from "@/components/brand";
-import { CUSTOMER_STAGE_LABELS, type CustomerStage } from "@/lib/domain/customer-stage";
+import {
+  CUSTOMER_DRAFT_STAGE,
+  CUSTOMER_STAGE_LABELS,
+  customerCompletedLabel,
+  type CustomerRequest,
+  type CustomerStage,
+} from "@/lib/domain/customer-stage";
 import type { RevisionUsage } from "@/lib/domain/types";
 import { getPublicServiceConfig } from "@/lib/policies";
 
@@ -65,6 +71,89 @@ export function PublicRevisionUnavailable({ message }: { message: string }) {
   );
 }
 
+/** 서버가 준 제목이 이미 "고객 · 패키지" 모양이면 패키지 이름을 다시 붙이지 않는다. */
+function titleLineOf(title: string, packageName: string): string {
+  return title === packageName || title.endsWith(` · ${packageName}`) ? title : `${title} · ${packageName}`;
+}
+
+const REQUEST_STATUS_TEXT: Record<CustomerRequest["status"], { label: string; detail: string }> = {
+  pending: { label: "접수됨", detail: "확인 대기" },
+  done: { label: "반영됨", detail: "수정 완료" },
+  extra: { label: "추가 작업 검토", detail: "포함 수정 범위 밖이라 작업자가 따로 안내해요" },
+  rejected: { label: "반려", detail: "포함 수정으로 세지 않았어요" },
+};
+
+/** 고객이 링크로 남긴 요청과 처리 상태. 원문만 보이고 작업자 메모·내부 분류명은 없다. */
+function PublicRevisionRequestList({ requests }: { requests?: CustomerRequest[] }) {
+  if (!requests || requests.length === 0) return null;
+  return (
+    <section className="publicRevisionRequests" aria-labelledby="public-revision-requests-title">
+      <h2 id="public-revision-requests-title">남기신 요청 <span>{requests.length}건</span></h2>
+      <ul aria-label="남기신 요청">
+        {requests.map((request, index) => {
+          const text = REQUEST_STATUS_TEXT[request.status];
+          const date = customerCompletedLabel(request.submittedAt);
+          return (
+            <li key={`${index}-${request.submittedAt ?? ""}`} data-status={request.status}>
+              <p className="publicRevisionRequestMeta">
+                <strong>{text.label}</strong>
+                <span>{request.status === "done" && request.sequence ? `${text.detail} ${request.sequence}회차` : text.detail}</span>
+                {date && <span>{date} 접수</span>}
+              </p>
+              <p className="publicRevisionRequestBody">{request.body}</p>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** 확인 대기가 남은 포함 수정보다 많으면, 넘는 건수는 추가 작업이 될 수 있다고 미리 알린다. */
+function PendingOverNotice({ revision }: { revision: { remaining: number; pending?: number } }) {
+  const pending = revision.pending ?? 0;
+  if (pending <= revision.remaining) return null;
+  return (
+    <p className="publicRevisionPendingOver" data-testid="revision-pending-over">
+      확인 대기 {pending}건 · 남은 포함 수정 {revision.remaining}회라 {pending - revision.remaining}건은 추가 작업이 될 수 있어요
+    </p>
+  );
+}
+
+export type PublicRevisionCompletedProps = {
+  title: string;
+  packageName: string;
+  /** 완료 날짜(예: "11월 3일"). 모르면 비워 둔다. */
+  completedLabel?: string;
+  workerName?: string;
+  requests?: CustomerRequest[];
+};
+
+/** 작업자가 링크를 켠 채 일감을 완료했을 때 고객이 보는 화면. 새 요청은 받지 않는다. */
+export function PublicRevisionCompleted({ title, packageName, completedLabel, workerName, requests }: PublicRevisionCompletedProps) {
+  return (
+    <main className="publicRevisionPage">
+      <section className="publicRevisionCard publicRevisionDone">
+        <header className="publicRevisionHeader"><Brand /></header>
+        <div className="publicRevisionDoneIntro">
+          <span className="publicRevisionDoneIcon" aria-hidden="true"><CheckCircle2 size={28} /></span>
+          {workerName && <p className="publicRevisionWorker" data-testid="revision-worker">{workerName}</p>}
+          <p className="publicRevisionTitleLine">{titleLineOf(title, packageName)}</p>
+          <h1>작업이 완료됐어요</h1>
+          {completedLabel && <p className="publicRevisionDoneDate" data-testid="completed-date">{completedLabel} 완료</p>}
+        </div>
+        <div className="publicRevisionNextStep" data-testid="completed-next-step">
+          <strong>더 필요한 게 있으면</strong>
+          <p>추가 요청은 평소 대화창으로 말씀해 주세요. 이 링크로는 새 요청을 받지 않아요.</p>
+        </div>
+        <PublicRevisionRequestList requests={requests} />
+        <p className="publicRevisionAbout"><Link href="/">일감체크가 무엇인지 보기</Link></p>
+        <PublicRevisionPrivacyNotice />
+      </section>
+    </main>
+  );
+}
+
 /** pending: 확인 대기(지금 규칙). used/extra_scope는 migration 전 서버가 돌려주는 옛 영수증이다. */
 export type PublicRevisionUsage = RevisionUsage;
 
@@ -83,6 +172,8 @@ export type PublicRevisionViewProps = {
   stage?: CustomerStage;
   /** 할 일 완료 개수. 이름은 내보내지 않고 개수만 보여 준다. 할 일이 없으면 그리지 않는다. */
   progress?: { done: number; total: number };
+  /** 고객이 링크로 남긴 요청과 처리 상태. 모르면(옛 서버) 비워 두고, 그러면 목록을 그리지 않는다. */
+  requests?: CustomerRequest[];
   badgeLabel: string;
   footnote: string;
   /** 성공하면 차감 결과를 돌려주고, 실패하면 고객에게 보여줄 문구로 throw한다. */
@@ -101,6 +192,7 @@ export function PublicRevisionView({
   dueLabel,
   stage,
   progress,
+  requests,
   badgeLabel,
   footnote,
   onSubmit,
@@ -112,8 +204,8 @@ export function PublicRevisionView({
   const [receipt, setReceipt] = useState<PublicRevisionUsage | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 서버가 주는 기본 제목은 이미 "고객 · 패키지" 모양이라, 패키지 이름으로 끝나면 다시 붙이지 않는다.
-  const titleLine = title === packageName || title.endsWith(` · ${packageName}`) ? title : `${title} · ${packageName}`;
+  const titleLine = titleLineOf(title, packageName);
+  const beforeDraft = stage !== undefined && stage < CUSTOMER_DRAFT_STAGE;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -159,6 +251,7 @@ export function PublicRevisionView({
                   : "작업자가 요청을 확인하고 평소 연락하던 방법으로 답해 드려요."}
                 {" "}남은 포함 수정은 {revision.remaining}회예요.
               </p>
+              <PendingOverNotice revision={revision} />
             </div>
             <button type="button" className="primaryButton" onClick={() => setReceipt(null)}>다른 요청 남기기</button>
           </div>
@@ -166,7 +259,7 @@ export function PublicRevisionView({
           <>
             <div className="publicRevisionIntro">
               {workerName && <p className="publicRevisionWorker" data-testid="revision-worker">{workerName}</p>}
-              <p className="pageEyebrow">{titleLine}</p>
+              <p className="publicRevisionTitleLine">{titleLine}</p>
               <h1>수정할 내용을 한 번에 남겨주세요</h1>
               <p>남겨주신 내용은 접수 시각과 함께 기록돼요. 서로 다른 수정사항은 번호를 붙이면 더 정확해요.</p>
             </div>
@@ -187,6 +280,7 @@ export function PublicRevisionView({
                 </div>
               )}
             </dl>
+            <PendingOverNotice revision={revision} />
 
             {stage !== undefined && (
               <ol className="customerStageChips" aria-label="진행 단계">
@@ -216,9 +310,16 @@ export function PublicRevisionView({
               </div>
             )}
 
+            <PublicRevisionRequestList requests={requests} />
+
             {/* 수정 횟수는 접수가 아니라 작업자가 수정을 마칠 때 쓴다(engine.ts completeRevision). 질문만 하려다 횟수를 걱정하지 않도록 제출 전에 알린다. */}
             <div className="publicRevisionNextStep" data-testid="revision-how-it-counts">
               <strong>요청을 남기면</strong>
+              {beforeDraft && (
+                <p className="publicRevisionBeforeDraft" data-testid="revision-before-draft">
+                  아직 시안 전이에요. 수정은 시안을 보신 뒤 남겨 주세요.
+                </p>
+              )}
               <p>
                 {revision.remaining > 0
                   ? "먼저 접수되고, 작업자가 수정을 마치면 그때 포함 수정 1회로 세요."

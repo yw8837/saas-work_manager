@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createStarterState, type AppSettings } from "@/lib/store";
@@ -12,6 +12,7 @@ vi.mock("./workspace-provider", async () => ({
 const updateSettings = vi.fn();
 const savePackage = vi.fn();
 const saveOption = vi.fn();
+const archivePackage = vi.fn();
 
 function mockWorkspace(settings: Partial<AppSettings> = {}) {
   const state = createStarterState("2026-11-02");
@@ -21,7 +22,7 @@ function mockWorkspace(settings: Partial<AppSettings> = {}) {
     settings: { ...state.settings, ...settings },
     updateSettings,
     savePackage,
-    archivePackage: vi.fn(),
+    archivePackage,
     saveOption,
     archiveOption: vi.fn(),
     canCreatePackage: true,
@@ -34,6 +35,7 @@ beforeEach(() => {
   updateSettings.mockReset();
   savePackage.mockReset();
   saveOption.mockReset();
+  archivePackage.mockReset();
   mockWorkspace();
 });
 
@@ -127,13 +129,135 @@ describe("한 건에 최소 남길 돈", () => {
     render(<PackageManager />);
     const cost = screen.getByLabelText("예상 원가 (원)");
     expect(cost).toHaveAttribute("placeholder", "예: 플랫폼 수수료, 외주비");
-    // 예시 Basic 홈페이지는 원가 95,000원이 그대로 보인다.
-    expect(cost).toHaveValue(95000);
+    // 예시 Basic 홈페이지는 원가 95,000원이 쉼표를 넣어 그대로 보인다.
+    expect(cost).toHaveValue("95,000");
     // 새 패키지(원가 0원)는 숫자 0 대신 예시 글이 보이게 칸을 비운다. 비운 칸은 0원으로 저장한다.
     fireEvent.click(screen.getByRole("button", { name: "새 패키지" }));
     const fresh = screen.getByLabelText("예상 원가 (원)");
-    expect(fresh).toHaveValue(null);
+    expect(fresh).toHaveValue("");
     fireEvent.click(screen.getByTestId("save-package"));
     expect(savePackage).toHaveBeenCalledWith(expect.objectContaining({ estimatedCost: 0 }));
+  });
+});
+
+describe("패키지 삭제", () => {
+  it("'보관' 대신 '패키지 삭제' 버튼이 보이고, 확인하면 목록에서 뺀다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<PackageManager />);
+    expect(screen.queryByRole("button", { name: "보관" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "패키지 삭제" }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("이미 만든 일감"));
+    expect(archivePackage).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
+  });
+});
+
+describe("저장 안 한 변경", () => {
+  it("금액을 바꾸고 다른 패키지를 누르면 확인을 받고, 취소하면 고치던 값이 그대로 남는다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<PackageManager />);
+    const price = screen.getByLabelText("기본 금액 (원)");
+    fireEvent.change(price, { target: { value: "450000" } });
+    expect(screen.getByTestId("package-unsaved")).toHaveTextContent("저장 안 한 변경이 있어요");
+    // 고치는 중에도 제목은 고치는 패키지 이름이다('새 패키지 만들기'가 아니다).
+    expect(screen.getByRole("heading", { level: 2, name: "Basic 홈페이지" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Standard 홈페이지/ }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("저장하지 않은 변경"));
+    expect(screen.getByLabelText("기본 금액 (원)")).toHaveValue("450,000");
+    confirm.mockRestore();
+  });
+
+  it("확인하면 변경을 버리고 다른 패키지로 간다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<PackageManager />);
+    fireEvent.change(screen.getByLabelText("기본 금액 (원)"), { target: { value: "450000" } });
+    fireEvent.click(screen.getByRole("button", { name: /Standard 홈페이지/ }));
+    expect(screen.getByLabelText("패키지 이름")).toHaveValue("Standard 홈페이지");
+    expect(screen.queryByTestId("package-unsaved")).not.toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it("바꾼 게 없으면 다른 패키지를 눌러도 묻지 않는다", () => {
+    const confirm = vi.spyOn(window, "confirm");
+    render(<PackageManager />);
+    fireEvent.click(screen.getByRole("button", { name: /Standard 홈페이지/ }));
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it("변경이 있으면 다른 화면 링크를 누를 때 확인을 받고, 취소하면 이동을 막는다", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const link = document.createElement("a");
+    link.href = "/today";
+    link.textContent = "오늘";
+    document.body.appendChild(link);
+    render(<PackageManager />);
+    fireEvent.change(screen.getByLabelText("기본 금액 (원)"), { target: { value: "450000" } });
+    const allowed = fireEvent.click(link);
+    expect(confirm).toHaveBeenCalled();
+    expect(allowed).toBe(false);
+    link.remove();
+    confirm.mockRestore();
+  });
+
+  it("변경이 있으면 탭을 닫을 때 브라우저가 묻게 한다(beforeunload)", () => {
+    render(<PackageManager />);
+    const clean = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(clean);
+    expect(clean.defaultPrevented).toBe(false);
+    fireEvent.change(screen.getByLabelText("기본 금액 (원)"), { target: { value: "450000" } });
+    const dirty = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(dirty);
+    expect(dirty.defaultPrevented).toBe(true);
+  });
+
+  it("저장하면 '저장 안 한 변경'이 사라지고, 저장 알림은 저장 버튼 바로 옆에 뜬다", () => {
+    render(<PackageManager />);
+    fireEvent.change(screen.getByLabelText("기본 금액 (원)"), { target: { value: "450000" } });
+    fireEvent.click(screen.getByTestId("save-package"));
+    expect(savePackage).toHaveBeenCalledWith(expect.objectContaining({ price: 450000 }));
+    expect(screen.queryByTestId("package-unsaved")).not.toBeInTheDocument();
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("패키지 조건을 저장했어요");
+    // 맨 위 머리글이 아니라 저장 버튼과 같은 줄에 있어야 휴대폰에서도 보인다.
+    expect(status.closest(".catalogActions")).toContainElement(screen.getByTestId("save-package"));
+    expect(status.closest(".catalogHeader")).toBeNull();
+  });
+});
+
+describe("금액 칸 쉼표", () => {
+  it("기본 금액·예상 원가는 쉼표를 넣어 보이고 숫자로 저장한다", () => {
+    render(<PackageManager />);
+    const price = screen.getByLabelText("기본 금액 (원)");
+    expect(price).toHaveValue("790,000");
+    expect(price).toHaveAttribute("inputmode", "numeric");
+    fireEvent.change(price, { target: { value: "1,234,567" } });
+    expect(price).toHaveValue("1,234,567");
+    fireEvent.click(screen.getByTestId("save-package"));
+    expect(savePackage).toHaveBeenCalledWith(expect.objectContaining({ price: 1234567 }));
+  });
+});
+
+describe("착수 전 질문", () => {
+  it("질문마다 입력 칸 하나, '질문 추가'로 늘리고 5개면 더 못 늘린다. 저장은 지금 형식(글 목록) 그대로", () => {
+    render(<PackageManager />);
+    const box = screen.getByTestId("package-brief-questions");
+    // 예시 Basic 홈페이지는 기본 질문 3개가 들어 있다.
+    expect(within(box).getAllByRole("textbox")).toHaveLength(3);
+    expect(within(box).getByLabelText("착수 전 질문 1")).toHaveValue("이 작업으로 가장 하고 싶은 일은 무엇인가요? (예: 예약 받기, 가게 소개)");
+    const add = within(box).getByRole("button", { name: "질문 추가" });
+    fireEvent.click(add);
+    // 칸 하나 = 질문 하나라 줄바꿈 글자는 띄어쓰기로 바꾼다(두 질문처럼 보이지 않게).
+    fireEvent.change(within(box).getByLabelText("착수 전 질문 4"), { target: { value: "오픈 날짜가\n정해져 있나요?" } });
+    expect(within(box).getByLabelText("착수 전 질문 4")).toHaveValue("오픈 날짜가 정해져 있나요?");
+    fireEvent.click(add);
+    expect(within(box).getAllByRole("textbox")).toHaveLength(5);
+    expect(add).toBeDisabled();
+    fireEvent.click(within(box).getByRole("button", { name: "착수 전 질문 5 삭제" }));
+    expect(within(box).getAllByRole("textbox")).toHaveLength(4);
+    fireEvent.click(screen.getByTestId("save-package"));
+    const saved = savePackage.mock.calls[0][0];
+    expect(saved.briefQuestions).toHaveLength(4);
+    expect(saved.briefQuestions[3]).toBe("오픈 날짜가 정해져 있나요?");
   });
 });

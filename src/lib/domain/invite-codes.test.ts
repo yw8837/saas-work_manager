@@ -36,7 +36,7 @@ describe("beta invite codes", () => {
 
 describe("한 번 쓴 코드 기억하기", () => {
   it("기간이 끝나도 다시 쓴 코드로 남는다", () => {
-    // 30일이 지나 승급이 사라져도, 같은 코드로 30일을 또 받을 수는 없어야 한다.
+    // 기간이 지나 승급이 사라져도, 같은 코드로 기간을 또 받을 수는 없어야 한다.
     const used = addRedeemedCode([], "BETA2026");
     expect(hasRedeemedCode(used, "BETA2026")).toBe(true);
     expect(hasRedeemedCode(used, "KMONG2026")).toBe(false);

@@ -10,6 +10,7 @@ import { clientShareMessage } from "./client-share";
 import {
   completeRevision,
   composeJob,
+  confirmAddon,
   createAddon,
   displayJobTitle,
   markRevisionExtraScope,
@@ -73,13 +74,14 @@ function allTasksDone(job: Job): Job {
 }
 
 describe("고객에게 보낼 말 — 상황 고르기", () => {
-  it("상황 이름은 7개다", () => {
+  it("상황 이름은 8개다", () => {
     expect(SITUATION_LABELS).toEqual({
       "revision-done": "수정 반영 알림",
       remaining: "남은 것 요청",
       waiting: "답 기다림",
       review: "시안 확인 부탁",
       start: "시작 안내",
+      addon: "추가 작업 안내",
       "out-of-scope": "범위 밖 안내",
       delivery: "납품 안내",
     });
@@ -88,29 +90,30 @@ describe("고객에게 보낼 말 — 상황 고르기", () => {
   it("상태에 맞는 상황만 우선순위대로 나온다", () => {
     let job = withDoneRevision(baseJob(), "r1");
     job = updateTaskStatus(job, job.tasks[1].id, "waiting", TODAY_NOON);
-    expect(availableSituations(job, TODAY)).toEqual(["revision-done", "remaining", "waiting", "review", "start"]);
+    // 납품 안내는 완료 전에도 목록 끝에 있다.
+    expect(availableSituations(job, TODAY)).toEqual(["revision-done", "remaining", "waiting", "review", "start", "delivery"]);
     // 수정 완료가 다른 날이면 수정 반영 알림은 없다.
-    expect(availableSituations(job, "2026-11-03")).toEqual(["remaining", "waiting", "review", "start"]);
+    expect(availableSituations(job, "2026-11-03")).toEqual(["remaining", "waiting", "review", "start", "delivery"]);
     // 되돌린 수정은 반영 알림을 띄우지 않는다.
-    expect(availableSituations(revertRevision(withDoneRevision(baseJob(), "r2"), "r2", "중복", TODAY_NOON), TODAY)).toEqual(["remaining", "review", "start"]);
+    expect(availableSituations(revertRevision(withDoneRevision(baseJob(), "r2"), "r2", "중복", TODAY_NOON), TODAY)).toEqual(["remaining", "review", "start", "delivery"]);
 
-    // 완료 일감은 납품 안내만(범위 밖이 있으면 범위 밖 안내도).
+    // 완료 일감은 납품 안내가 맨 앞이다(범위 밖이 있으면 범위 밖 안내가 그 뒤).
     expect(availableSituations({ ...baseJob(), status: "completed" }, TODAY)).toEqual(["delivery"]);
     expect(availableSituations({ ...withDoneRevision(baseJob(), "r3"), status: "completed" }, TODAY)).toEqual(["delivery"]);
     const extra = markRevisionExtraScope(recordRevision(baseJob(), { revisionId: "r4", source: "public", body: "페이지 추가", submittedAt: TODAY_NOON }).job, "r4", TODAY_NOON);
-    expect(availableSituations({ ...extra, status: "completed" }, TODAY)).toEqual(["out-of-scope", "delivery"]);
+    expect(availableSituations({ ...extra, status: "completed" }, TODAY)).toEqual(["delivery", "out-of-scope"]);
   });
 
   it("시작 안내를 아직 안 보낸 진행 중 일감은 시작 안내가 맨 앞이고, 보낸 뒤에는 설계 순서로 돌아간다", () => {
     const fresh = notSentYet(baseJob());
-    expect(availableSituations(fresh, TODAY)).toEqual(["start", "remaining", "review"]);
+    expect(availableSituations(fresh, TODAY)).toEqual(["start", "remaining", "review", "delivery"]);
     // 메신저로 받아 작업자가 직접 적은 요청도 이미 진행된 흔적이다. 보낸 기록이 없어도 설계 순서 그대로다.
     const manual = recordRevision(fresh, { revisionId: "r1", source: "manual", channel: "kakao", body: "전화로 받은 요청", submittedAt: TODAY_NOON }).job;
     let busy = completeRevision(manual, "r1", TODAY_NOON);
     busy = updateTaskStatus(busy, busy.tasks[1].id, "waiting", TODAY_NOON);
-    expect(availableSituations(busy, TODAY)).toEqual(["revision-done", "remaining", "waiting", "review", "start"]);
+    expect(availableSituations(busy, TODAY)).toEqual(["revision-done", "remaining", "waiting", "review", "start", "delivery"]);
     // 한 번 보내면 남은 것 요청이 앞선다.
-    expect(availableSituations(markStartShared(fresh, TODAY_NOON), TODAY)).toEqual(["remaining", "review", "start"]);
+    expect(availableSituations(markStartShared(fresh, TODAY_NOON), TODAY)).toEqual(["remaining", "review", "start", "delivery"]);
     // 끝난 일감에는 시작 안내가 없다.
     expect(availableSituations({ ...fresh, status: "completed" }, TODAY)).toEqual(["delivery"]);
   });
@@ -119,30 +122,31 @@ describe("고객에게 보낼 말 — 상황 고르기", () => {
     const fresh = notSentYet(baseJob());
     // 첫 실행 체크리스트의 '고객이 링크를 썼다'와 같은 기준: 고객 링크로 들어온 요청이 하나라도 있다.
     const fromLink = recordRevision(fresh, { revisionId: "r_link", source: "public", body: "사진 교체", submittedAt: TODAY_NOON }).job;
-    expect(availableSituations(fromLink, TODAY)).toEqual(["remaining", "review", "start"]);
+    expect(availableSituations(fromLink, TODAY)).toEqual(["remaining", "review", "start", "delivery"]);
     // 반려한 요청이어도 고객은 링크를 받은 것이다.
     const rejected = revertRevision(fromLink, "r_link", "질문이라 대화창으로 답함", TODAY_NOON);
-    expect(availableSituations(rejected, TODAY)).toEqual(["remaining", "review", "start"]);
+    expect(availableSituations(rejected, TODAY)).toEqual(["remaining", "review", "start", "delivery"]);
   });
 
   it("보낸 기록 칸이 생기기 전에 만든 일감도, 이미 진행된 흔적이 하나라도 있으면 시작 안내를 맨 앞에 두지 않는다", () => {
     const fresh = notSentYet(baseJob());
     // 아무 흔적 없는 새 일감은 그대로 시작 안내가 맨 앞이다.
-    expect(availableSituations(fresh, TODAY)).toEqual(["start", "remaining", "review"]);
+    expect(availableSituations(fresh, TODAY)).toEqual(["start", "remaining", "review", "delivery"]);
     // 고객 대기 할 일은 흔적이 아니다(고객에게 아직 아무것도 안 보냈을 수 있다).
     expect(availableSituations(updateTaskStatus(fresh, fresh.tasks[1].id, "waiting", TODAY_NOON), TODAY)[0]).toBe("start");
 
     const draft = createAddon(fresh, { addonId: "addon_trace", title: "배너 추가", amountDelta: 100_000, durationDaysDelta: 1, createdAt: TODAY_NOON });
     const traces: Array<[string, Job, MessageSituation[]]> = [
-      ["받은 자료 하나", toggleIntakeItem(fresh, fresh.intakeItems![0].id, TODAY_NOON), ["remaining", "review", "start"]],
-      ["답 받은 질문 하나", toggleBriefQuestion(fresh, fresh.briefQuestions![0].id, TODAY_NOON), ["remaining", "review", "start"]],
-      ["끝낸 할 일 하나", updateTaskStatus(fresh, fresh.tasks[0].id, "done", TODAY_NOON), ["remaining", "review", "start"]],
+      ["받은 자료 하나", toggleIntakeItem(fresh, fresh.intakeItems![0].id, TODAY_NOON), ["remaining", "review", "start", "delivery"]],
+      ["답 받은 질문 하나", toggleBriefQuestion(fresh, fresh.briefQuestions![0].id, TODAY_NOON), ["remaining", "review", "start", "delivery"]],
+      ["끝낸 할 일 하나", updateTaskStatus(fresh, fresh.tasks[0].id, "done", TODAY_NOON), ["remaining", "review", "start", "delivery"]],
       [
         "직접 적은 수정 기록 하나(확인 대기)",
         recordRevision(fresh, { revisionId: "r_manual", source: "manual", channel: "phone", body: "전화로 받은 요청", submittedAt: TODAY_NOON }).job,
-        ["remaining", "review", "start"],
+        ["remaining", "review", "start", "delivery"],
       ],
-      ["추가요청 하나", { ...fresh, addons: [draft] }, ["remaining", "review", "start", "out-of-scope"]],
+      // 초안 추가요청은 고객 동의를 받을 문구라 '추가 작업 안내'가 맨 앞이다.
+      ["추가요청 하나", { ...fresh, addons: [draft] }, ["addon", "remaining", "review", "start", "delivery"]],
     ];
     for (const [trace, job, expected] of traces) {
       expect(job.startSharedAt, trace).toBeUndefined();
@@ -150,22 +154,30 @@ describe("고객에게 보낼 말 — 상황 고르기", () => {
     }
   });
 
-  it("초안 추가요청이 있으면 범위 밖 안내, 할 일을 다 끝내면 납품 안내가 나온다", () => {
+  it("초안 추가요청이 있으면 추가 작업 안내가 맨 앞이고, 할 일을 다 끝내면 납품 안내가 맨 앞이다", () => {
     const plain = baseJob({ intakeItems: [], briefQuestions: [] });
-    expect(availableSituations(plain, TODAY)).toEqual(["review", "start"]);
+    expect(availableSituations(plain, TODAY)).toEqual(["review", "start", "delivery"]);
     const draft = createAddon(plain, { addonId: "addon_msg", title: "배너 추가", amountDelta: 100_000, durationDaysDelta: 1, createdAt: TODAY_NOON });
-    expect(availableSituations({ ...plain, addons: [draft] }, TODAY)).toEqual(["review", "start", "out-of-scope"]);
-    expect(availableSituations(allTasksDone(plain), TODAY)).toEqual(["review", "start", "delivery"]);
+    // 금액·기간이 정해진 초안은 '범위 밖 안내'(비용은 나중에 알림) 대신 '추가 작업 안내'로 보낸다.
+    expect(availableSituations({ ...plain, addons: [draft] }, TODAY)).toEqual(["addon", "review", "start", "delivery"]);
+    // 확정한 추가요청만 있으면 칩은 남기되 맨 앞에 두지 않는다.
+    const confirmed = confirmAddon({ ...plain, addons: [draft] }, "addon_msg", TODAY_NOON);
+    expect(availableSituations(confirmed, TODAY)).toEqual(["review", "start", "addon", "delivery"]);
+    // 취소한 추가요청만 있으면 칩이 없다.
+    expect(availableSituations({ ...plain, addons: [{ ...draft, status: "cancelled" }] }, TODAY)).toEqual(["review", "start", "delivery"]);
+    expect(availableSituations(allTasksDone(plain), TODAY)).toEqual(["delivery", "review", "start"]);
+    // 완료한 일감에 초안이 남아 있어도 납품 안내가 맨 앞이다.
+    expect(availableSituations({ ...plain, addons: [draft], status: "completed" }, TODAY)).toEqual(["delivery", "addon"]);
   });
 });
 
 describe("고객에게 보낼 말 — 문구", () => {
-  it("어떤 문구에도 금액·원가가 들어가지 않는다", () => {
+  it("추가 작업 안내 말고는 어떤 문구에도 금액·원가가 들어가지 않는다", () => {
     const job = withDoneRevision(baseJob(), "r1");
     expect(job.amount).toBe(790_000);
     expect(job.estimatedCost).toBe(95_000);
-    expect(ALL).toHaveLength(7);
-    for (const situation of ALL) {
+    expect(ALL).toHaveLength(8);
+    for (const situation of ALL.filter((item) => item !== "addon")) {
       for (const link of [LINK, null]) {
         const message = situationMessage(situation, { job, link });
         expect(message.split("\n")[0]).toBe("안녕하세요, 카페 모라님.");
@@ -173,6 +185,58 @@ describe("고객에게 보낼 말 — 문구", () => {
         expect(message).not.toMatch(/790|95,?000|695/);
       }
     }
+  });
+
+  it("추가 작업 안내는 요청 내용·추가 금액·추가 기간과 '진행할까요?'만 담고 계약 금액·원가는 넣지 않는다", () => {
+    const plain = baseJob();
+    const draft = createAddon(plain, { addonId: "addon_pay", title: "온라인 예약 기능", amountDelta: 200_000, estimatedCostDelta: 50_000, durationDaysDelta: 3, createdAt: TODAY_NOON });
+    const job: Job = { ...plain, addons: [draft] };
+    for (const link of [LINK, null]) {
+      const message = situationMessage("addon", { job, link });
+      expect(message).toBe([
+        "안녕하세요, 카페 모라님.",
+        "말씀하신 내용은 처음 정한 범위 밖이라 추가 작업으로 안내드려요.",
+        "- 온라인 예약 기능 (추가 비용 200,000원, 기간 3일 추가)",
+        "진행할까요? 괜찮으시면 이 대화로 답 주세요.",
+      ].join("\n"));
+      expect(message).not.toMatch(/790|95,?000|50,?000/);
+    }
+    // 금액·기간이 0이면 0원·0일 대신 쉬운 말로 쓴다.
+    const free = createAddon(plain, { addonId: "addon_free", title: "문구 한 줄 추가", amountDelta: 0, durationDaysDelta: 0, createdAt: TODAY_NOON });
+    expect(situationMessage("addon", { job: { ...plain, addons: [free] }, link: null })).toContain("- 문구 한 줄 추가 (추가 비용 없음, 마감은 그대로)");
+    // '추가 작업으로'에서 요청 원문(문장)을 그대로 쓴 초안도 끝 마침표를 떼고 자연스럽게 붙인다.
+    const sentence = createAddon(plain, { addonId: "addon_sentence", title: "온라인 예약 기능도 넣어 주세요.", amountDelta: 200_000, durationDaysDelta: 3, createdAt: TODAY_NOON });
+    expect(situationMessage("addon", { job: { ...plain, addons: [sentence] }, link: null })).toContain("- 온라인 예약 기능도 넣어 주세요 (추가 비용 200,000원, 기간 3일 추가)");
+  });
+
+  it("추가요청으로 금액을 정한 범위 밖 요청에는 '범위 밖 안내'를 따로 띄우지 않는다", () => {
+    const plain = baseJob({ intakeItems: [], briefQuestions: [] });
+    const extra = markRevisionExtraScope(recordRevision(plain, { revisionId: "r_out", source: "public", body: "예약 기능", submittedAt: TODAY_NOON }).job, "r_out", TODAY_NOON);
+    expect(availableSituations(extra, TODAY)).toEqual(["review", "start", "out-of-scope", "delivery"]);
+    const linked = createAddon(extra, { addonId: "addon_link", title: "예약 기능", amountDelta: 200_000, durationDaysDelta: 3, sourceRevisionId: "r_out", createdAt: TODAY_NOON });
+    expect(availableSituations({ ...extra, addons: [linked] }, TODAY)).toEqual(["addon", "review", "start", "delivery"]);
+    // 그 추가요청을 취소하면 다시 범위 밖 안내가 나온다.
+    expect(availableSituations({ ...extra, addons: [{ ...linked, status: "cancelled" }] }, TODAY)).toEqual(["review", "start", "out-of-scope", "delivery"]);
+  });
+
+  it("추가 작업 안내는 초안이 있으면 초안만, 없으면 가장 최근 확정한 것을 쓴다", () => {
+    const plain = baseJob();
+    const first = createAddon(plain, { addonId: "addon_1", title: "배너 추가", amountDelta: 100_000, durationDaysDelta: 1, createdAt: "2026-11-01T00:00:00.000Z" });
+    const second = createAddon(plain, { addonId: "addon_2", title: "팝업 추가", amountDelta: 50_000, durationDaysDelta: 0, createdAt: "2026-11-02T00:00:00.000Z" });
+    const confirmedFirst = confirmAddon({ ...plain, addons: [first, second] }, "addon_1", TODAY_NOON);
+    const withDraft = situationMessage("addon", { job: confirmedFirst, link: null });
+    expect(withDraft).toContain("- 팝업 추가 (추가 비용 50,000원, 마감은 그대로)");
+    expect(withDraft).not.toContain("배너 추가");
+    const allConfirmed = confirmAddon(confirmedFirst, "addon_2", TODAY_NOON);
+    const latest = situationMessage("addon", { job: allConfirmed, link: null });
+    expect(latest).toContain("- 팝업 추가 (추가 비용 50,000원, 마감은 그대로)");
+    expect(latest).not.toContain("배너 추가");
+    // 초안 두 개면 둘 다 만든 순서대로 쓴다.
+    const twoDrafts = situationMessage("addon", { job: { ...plain, addons: [first, second] }, link: null }).split("\n");
+    expect(twoDrafts.slice(2, 4)).toEqual([
+      "- 배너 추가 (추가 비용 100,000원, 기간 1일 추가)",
+      "- 팝업 추가 (추가 비용 50,000원, 마감은 그대로)",
+    ]);
   });
 
   it("받은 곳 이름은 고객 문구에 안 나간다", () => {
@@ -197,11 +261,23 @@ describe("고객에게 보낼 말 — 문구", () => {
   });
 
   it("시작 안내는 저장 직후 안내와 같은 문구이고 제목에서 고객 이름을 뗀다", () => {
-    const message = situationMessage("start", { job: baseJob(), link: LINK });
-    expect(message).toContain("Basic 홈페이지 작업의 수정 요청은 아래 링크에 한 번에 남겨주세요.");
+    const job = baseJob();
+    const message = situationMessage("start", { job, link: LINK });
+    expect(message).toBe(clientShareMessage({
+      clientLabel: job.clientLabel,
+      title: displayJobTitle(job),
+      included: 2,
+      remaining: 2,
+      dueDate: job.dueDate,
+      link: LINK,
+      pendingIntake: ["로고 파일"],
+      pendingQuestions: ["가장 하고 싶은 일은 무엇인가요?"],
+    }));
+    expect(message).toContain("Basic 홈페이지 작업은 11월 6일 완성 예정이에요.");
     expect(message).not.toContain("카페 모라 · Basic 홈페이지");
     expect(message).toContain("[보내 주실 자료]\n- 로고 파일");
-    expect(message.split("\n").at(-1)).toBe(LINK);
+    const lines = message.split("\n");
+    expect(lines[lines.indexOf(LINK) - 1]).toBe("수정 요청은 아래 링크에 한 번에 남겨 주세요. 로그인 없이 열려요.");
     expect(situationMessage("remaining", { job: baseJob(), link: LINK })).toBe(
       "안녕하세요, 카페 모라님.\n작업을 시작하기 전에 아래 내용만 이 대화로 보내 주세요. 모르는 건 '모름'이라고 적어 주셔도 괜찮아요.\n[보내 주실 자료]\n- 로고 파일\n[알려 주실 것]\n1. 가장 하고 싶은 일은 무엇인가요?",
     );
@@ -209,10 +285,11 @@ describe("고객에게 보낼 말 — 문구", () => {
 
   it("링크가 없으면 링크 줄을 빼고 남은 수정 0회면 횟수 안내를 바꾼다", () => {
     const job = withDoneRevision(baseJob(), "r1");
-    // 링크를 말하는 문구는 링크가 있을 때만 마지막 줄에 링크를 붙인다.
-    for (const situation of ["revision-done", "review", "start"] as const) {
+    // 링크를 말하는 문구는 링크가 있을 때만 링크를 붙인다(시작 안내는 설명 바로 다음 줄).
+    for (const situation of ["revision-done", "review"] as const) {
       expect(situationMessage(situation, { job, link: LINK }).split("\n").at(-1)).toBe(LINK);
     }
+    expect(situationMessage("start", { job, link: LINK }).split("\n")).toContain(LINK);
     expect(situationMessage("revision-done", { job, link: LINK })).toContain("포함 수정 2회 중 1회를 썼고, 남은 수정은 1회예요.");
     expect(situationMessage("review", { job, link: LINK })).toContain("남은 포함 수정은 1회예요.");
 
@@ -224,18 +301,18 @@ describe("고객에게 보낼 말 — 문구", () => {
     }
     expect(situationMessage("revision-done", { job, link: null })).toContain("이 대화로 한 번에 말씀해 주세요.");
     expect(situationMessage("review", { job, link: null })).toContain("이 대화로 한 번에 말씀해 주세요.");
-    expect(situationMessage("start", { job, link: null })).toContain("Basic 홈페이지 작업의 수정 요청은 이 대화로 한 번에 모아 주세요.");
+    expect(situationMessage("start", { job, link: null })).toContain("수정 요청은 이 대화로 한 번에 모아 주세요.");
 
     // 완료한 일감은 고객 링크가 서버에서 막히므로 링크를 넘겨도 넣지 않는다.
     for (const situation of ALL) {
       expect(situationMessage(situation, { job: { ...job, status: "completed" }, link: LINK })).not.toContain(LINK);
     }
 
-    // 포함 수정을 다 쓴 주문: "1회씩 세요"·"링크에 남겨 주세요" 대신 추가 작업으로 따로 말한다.
+    // 포함 수정을 다 쓴 주문: "1회로 셉니다"·"링크에 남겨 주세요" 대신 추가 작업으로 따로 말한다.
     const used = withDoneRevision(job, "r2");
     for (const situation of ALL) {
       const message = situationMessage(situation, { job: used, link: LINK });
-      expect(message).not.toContain("1회씩 세요");
+      expect(message).not.toContain("1회로 셉니다");
     }
     for (const situation of ["revision-done", "review"] as const) {
       const message = situationMessage(situation, { job: used, link: LINK });

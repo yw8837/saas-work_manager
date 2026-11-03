@@ -1,3 +1,4 @@
+import { marginAfterFee, normalizeFeeRate } from "./platform-fee";
 import type { Job, OrderSource } from "./types";
 
 /** 받은 곳 고르기 순서. 새 일감 칩·일감 화면·목록 거르기가 이 순서를 쓴다. */
@@ -34,13 +35,26 @@ export function pinLegacyCompletedAt(job: Job): Job {
 /**
  * 받은 곳을 바꾸거나 지운다(undefined면 칸 자체를 뺀다). 같은 값이면 일감을 그대로 돌려준다.
  * 받은 곳은 고객 링크·수정 횟수와 상관없어 완료한 일감에도 쓴다(지난달 정리를 고칠 수 있게).
+ * `feeRate`를 넘기면(바꾼 받은 곳의 지금 설정 비율) 떼이는 비율 스냅숏과 남는 돈을 그 값으로 다시 남긴다.
+ * 잘못 고른 받은 곳을 고쳤는데 앞 받은 곳의 수수료가 남지 않게 하기 위해서다. 넘기지 않으면 스냅숏을 그대로 둔다.
  */
-export function setJobSource(job: Job, source: OrderSource | undefined, now = new Date().toISOString()): Job {
+export function setJobSource(
+  job: Job,
+  source: OrderSource | undefined,
+  now = new Date().toISOString(),
+  feeRate?: number,
+): Job {
   const next = normalizeOrderSource(source);
   if (job.source === next && (next !== undefined || !("source" in job))) return job;
   const updated: Job = { ...pinLegacyCompletedAt(job), updatedAt: now };
   if (next) updated.source = next;
   else delete updated.source;
+  if (feeRate !== undefined) {
+    const rate = normalizeFeeRate(feeRate);
+    if (rate > 0) updated.feeRate = rate;
+    else delete updated.feeRate;
+    updated.margin = marginAfterFee(updated.amount, updated.estimatedCost, rate);
+  }
   return updated;
 }
 

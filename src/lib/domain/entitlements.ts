@@ -104,7 +104,7 @@ const DAY_MS = 86_400_000;
 /** 첫 일감을 만든 순간 시작되는 무제한 체험 기간(일). */
 export const TRIAL_DAYS = 7;
 /** 베타 이용 코드가 열어주는 Pro 기간(일). */
-export const BETA_GRANT_DAYS = 30;
+export const BETA_GRANT_DAYS = 14;
 
 /** 베타 이용 코드로 받은 Pro 권한. 로컬 모드 저장분은 클라이언트 상태다. */
 export interface BetaAccess {
@@ -144,7 +144,7 @@ export function trialExpiresAt(trialStartedAt: string | null): string | null {
   return new Date(started + TRIAL_DAYS * DAY_MS).toISOString();
 }
 
-/** 베타 코드를 넣은 시각에서 30일 뒤. */
+/** 베타 코드를 넣은 시각에서 BETA_GRANT_DAYS(14일) 뒤. */
 export function betaExpiresAt(grantedAt: string): string {
   const granted = parseTime(grantedAt) ?? Date.now();
   return new Date(granted + BETA_GRANT_DAYS * DAY_MS).toISOString();

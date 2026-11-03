@@ -6,12 +6,12 @@ import {
   CheckCircle2,
   ChevronRight,
   Coffee,
-  MousePointer2,
   MousePointerClick,
   PackageCheck,
 } from "lucide-react";
 import { Brand } from "./brand";
 import { ProductPreview } from "./product-preview";
+import { WorkFlowChart } from "./work-flow-chart";
 import { getPublicServiceConfig } from "@/lib/policies";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
 import { BUSINESS_IDENTITY } from "@/lib/business-identity";
@@ -95,20 +95,7 @@ export function MarketingHome() {
               <h2>처음 한 번만 정리하면,<br />다음 주문부터는 고르기만.</h2>
               <p>패키지를 한 번 저장해두면, 주문마다 반복되던 할 일과 마감이 바로 펼쳐져요.</p>
             </div>
-            <ol className="workflowRail">
-              <li>
-                <span>처음 한 번</span>
-                <div><PackageCheck size={21} /><strong>내 패키지 저장</strong><p>금액, 기간, 수정 횟수와 기본 할 일을 등록해요.</p></div>
-              </li>
-              <li>
-                <span>주문이 오면</span>
-                <div><MousePointer2 size={21} /><strong>네 가지만 선택</strong><p>고객, 시작일, 패키지, 옵션만 고르면 계산이 끝나요.</p></div>
-              </li>
-              <li>
-                <span>매일 아침</span>
-                <div><CheckCircle2 size={21} /><strong>오늘 화면에서 처리</strong><p>완료, 대기, 수정 사용을 한두 번의 탭으로 남겨요.</p></div>
-              </li>
-            </ol>
+            <WorkFlowChart headingId="landing-flow-title" headingLevel="h3" />
           </div>
         </section>
 
@@ -183,7 +170,7 @@ export function MarketingHome() {
               </details>
               <details className="faqItem">
                 <summary>요금은 어떻게 되나요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
-                <p>무료 플랜은 동시에 진행하는 의뢰 {PLAN_LIMITS.free.activeJobs}건, 지금까지 만든 의뢰 누적 {PLAN_LIMITS.free.totalJobs}건까지예요. 완료한 의뢰는 동시 진행 수에서는 빠지지만 누적 수에서는 빠지지 않아요. 더 필요하면 Basic({PLAN_PRICES.basic.label}) 또는 Pro({PLAN_PRICES.pro.label})로 넓힐 수 있어요. 결제는 아직 준비 중입니다. 30일 Pro 이용 코드를 적용한 계정은 결제 오픈 후 Basic 정가 월 14,900원을 월 9,900원에 12개월 이용할 수 있어요.</p>
+                <p>무료 플랜은 동시에 진행하는 의뢰 {PLAN_LIMITS.free.activeJobs}건, 지금까지 만든 의뢰 누적 {PLAN_LIMITS.free.totalJobs}건까지예요. 완료한 의뢰는 동시 진행 수에서는 빠지지만 누적 수에서는 빠지지 않아요. 더 필요하면 Basic({PLAN_PRICES.basic.label}) 또는 Pro({PLAN_PRICES.pro.label})로 넓힐 수 있어요. 결제는 아직 준비 중입니다. 베타 이용 코드를 적용한 계정은 결제 오픈 후 Basic 정가 월 14,900원을 월 9,900원에 12개월 이용할 수 있어요.</p>
               </details>
             </div>
           </div>
@@ -194,7 +181,7 @@ export function MarketingHome() {
               <p>직원을 뽑기엔 아직 이르고, 잡일은 이미 많다면</p>
             <h2>운영은 덜고, 작업에 더 집중하세요.</h2>
           </div>
-          <Link href="/today" className="invertedButton">
+          <Link href="/today" className="primaryButton">
             무료로 시작하기
             <ArrowRight size={18} />
           </Link>

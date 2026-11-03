@@ -338,7 +338,8 @@ describe("hosted auth activation", () => {
 
     await waitFor(() => expect(hosted.signInWithOAuth).toHaveBeenCalledWith({
       provider: "google",
-      options: { redirectTo: `${origin}/today` },
+      // 구글 계정이 여럿이면 고를 수 있어야 한다(한 계정으로 바로 들어가 버리면 다른 계정으로 가입할 길이 없다). 앱 로그인과 같다.
+      options: { redirectTo: `${origin}/today`, queryParams: { prompt: "select_account" } },
     }));
   });
 

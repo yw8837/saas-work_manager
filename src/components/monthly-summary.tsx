@@ -101,6 +101,13 @@ export function MonthlySummary({ timeZone = browserTimeZone() }: { timeZone?: st
         <dl className="summaryTotals">
           <div><dt>완료 주문</dt><dd data-testid="summary-total-count">{summary.totals.count}건</dd></div>
           <div><dt>주문 금액 합계</dt><dd data-testid="summary-total-amount">{formatWon(summary.totals.amount)}</dd></div>
+          {/* 떼인 돈이 있는 달만 보인다(비율을 안 적었으면 지금 화면과 같다). */}
+          {summary.totals.fee > 0 && (
+            <>
+              <div><dt>수수료</dt><dd data-testid="summary-total-fee">{formatWon(summary.totals.fee)}</dd></div>
+              <div><dt>수수료 빼고 받는 돈</dt><dd data-testid="summary-total-net">{formatWon(summary.totals.netAmount)}</dd></div>
+            </>
+          )}
           <div><dt>예상 원가</dt><dd data-testid="summary-total-cost">{formatWon(summary.totals.estimatedCost)}</dd></div>
           <div><dt>남는 돈(예상)</dt><dd data-testid="summary-total-margin">{formatWon(summary.totals.margin)}</dd></div>
         </dl>
@@ -136,6 +143,11 @@ export function MonthlySummary({ timeZone = browserTimeZone() }: { timeZone?: st
                 <span>{item.label}</span>
                 <span>{item.count}건</span>
                 <strong>{formatWon(item.amount)}</strong>
+                {item.fee > 0 && (
+                  <small className="summarySourceNet" data-testid={`summary-source-${item.source}-net`}>
+                    수수료 빼고 {formatWon(item.netAmount)}
+                  </small>
+                )}
               </li>
             ))}
           </ul>
