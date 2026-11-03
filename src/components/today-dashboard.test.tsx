@@ -266,15 +266,118 @@ describe("TodayDashboard 일감별 작업 범위", () => {
   });
 
   it("범위를 바꾸면 펼쳐 둔 작업 목록을 다시 여섯 개로 접는다", () => {
-    const manyTasks = Array.from({ length: 8 }, (_, index) => ({
-      ...jobs[0].tasks[0],
-      id: `many-${index}`,
-      title: `로고 작업 ${index}`,
+    // 우선 처리는 일감마다 한 줄이라, 줄이 7개를 넘으려면 일감이 여러 개여야 한다.
+    const manyJobs = Array.from({ length: 8 }, (_, index) => ({
+      ...jobs[0],
+      id: `many-job-${index}`,
+      title: `로고 제작 ${index}`,
+      tasks: [{ ...jobs[0].tasks[0], id: `many-${index}`, title: `로고 작업 ${index}` }],
     }));
-    setup([{ ...jobs[0], tasks: manyTasks }, jobs[1]]);
+    setup(manyJobs);
     fireEvent.click(screen.getByRole("button", { name: /나머지 .*개도 보기/ }));
     expect(screen.getByRole("button", { name: "로고 작업 7 완료 처리" })).toBeInTheDocument();
-    fireEvent.change(screen.getByRole("combobox", { name: "일감별로 보기" }), { target: { value: jobs[0].id } });
+    fireEvent.change(screen.getByRole("combobox", { name: "일감별로 보기" }), { target: { value: manyJobs[0].id } });
     expect(screen.queryByRole("button", { name: "로고 작업 7 완료 처리" })).not.toBeInTheDocument();
+  });
+});
+
+describe("TodayDashboard 일감마다 한 줄", () => {
+  // 시작일이 과거라 할 일 6개가 모두 밀린 일감 하나, 마감이 아직 남은 일감 하나.
+  const overdueJob = {
+    ...seed.jobs[0],
+    id: "job-overdue",
+    clientLabel: "온새미 공방",
+    status: "active" as const,
+    dueDate: "2020-01-20",
+    revisions: [],
+    tasks: Array.from({ length: 6 }, (_, index) => ({
+      ...seed.jobs[0].tasks[0],
+      id: `overdue-${index}`,
+      title: `밀린 할 일 ${index}`,
+      status: "todo" as const,
+      dueDate: `2020-01-0${index + 1}`,
+    })),
+  };
+  const laterJob = {
+    ...seed.jobs[1],
+    id: "job-later",
+    clientLabel: "필라테스 온유",
+    status: "active" as const,
+    dueDate: "2099-01-01",
+    revisions: [],
+    tasks: [{ ...seed.jobs[1].tasks[0], id: "later-task", title: "다음 할 일", status: "todo" as const, dueDate: "2099-01-01" }],
+  };
+  const toggleTask = vi.fn();
+
+  function setup(currentJobs: typeof seed.jobs) {
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: currentJobs,
+      alerts: [],
+      settings: seed.settings,
+      runtimeMode: "local",
+      toggleTask,
+      toggleJobWaiting: vi.fn(),
+      resetDemo: resetDemoSpy,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    return render(<TodayDashboard />);
+  }
+
+  beforeEach(() => toggleTask.mockReset());
+
+  it("밀린 할 일이 여러 개인 일감은 가장 급한 할 일 한 줄과 '밀린 할 일 N개 더'로 묶는다", () => {
+    setup([overdueJob, laterJob]);
+    const rows = document.querySelectorAll(".focusSection .taskRow");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("밀린 할 일 0");
+    expect(rows[0]).toHaveTextContent("밀린 할 일 5개 더");
+    expect(screen.queryByRole("button", { name: "밀린 할 일 1 완료 처리" })).not.toBeInTheDocument();
+    // '오늘' 숫자는 할 일 6개가 아니라 처리할 일감 1건이다.
+    expect(screen.getByLabelText("오늘 업무 요약")).toHaveTextContent("오늘1");
+    expect(screen.getByText("1개", { selector: ".focusSection .sectionCount" })).toBeInTheDocument();
+  });
+
+  it("마감이 지난 일감도 '다가오는 마감' 맨 위에 지연으로 남긴다", () => {
+    setup([laterJob, overdueJob]);
+    const upcoming = document.querySelectorAll(".upcomingItem");
+    expect(upcoming).toHaveLength(2);
+    expect(upcoming[0]).toHaveTextContent("온새미 공방");
+    expect(upcoming[0]).toHaveTextContent("지연");
+    expect(upcoming[0]).toHaveAttribute("data-overdue", "true");
+    expect(upcoming[1]).toHaveTextContent("필라테스 온유");
+  });
+
+  it("받을 자료나 답이 남은 진행 중 일감을 '자료 대기'로 센다", () => {
+    const waitingMaterial = {
+      ...laterJob,
+      id: "job-material",
+      intakeItems: [{ id: "i1", label: "로고 파일" }, { id: "i2", label: "사진", receivedAt: "2026-11-01T00:00:00.000Z" }],
+      briefQuestions: [],
+    };
+    const waitingAnswer = {
+      ...laterJob,
+      id: "job-answer",
+      intakeItems: [],
+      briefQuestions: [{ id: "q1", question: "목적은?" }],
+    };
+    const allReceived = {
+      ...laterJob,
+      id: "job-done-material",
+      intakeItems: [{ id: "i3", label: "로고", receivedAt: "2026-11-01T00:00:00.000Z" }],
+      briefQuestions: [{ id: "q2", question: "목적은?", answeredAt: "2026-11-01T00:00:00.000Z" }],
+    };
+    setup([waitingMaterial, waitingAnswer, allReceived, { ...waitingMaterial, id: "job-finished", status: "completed" as const }]);
+    expect(screen.getByLabelText("오늘 업무 요약")).toHaveTextContent("자료 대기2");
+  });
+
+  it("할 일을 체크하면 알림에 '되돌리기'가 있고, 누르면 체크를 되돌린다", () => {
+    setup([overdueJob]);
+    fireEvent.click(screen.getByRole("button", { name: "밀린 할 일 0 완료 처리" }));
+    expect(toggleTask).toHaveBeenCalledWith("job-overdue", "overdue-0");
+    const toast = screen.getByRole("status");
+    expect(toast).toHaveTextContent("밀린 할 일 0 완료했어요");
+    fireEvent.click(within(toast).getByRole("button", { name: "되돌리기" }));
+    expect(toggleTask).toHaveBeenCalledTimes(2);
+    expect(toggleTask).toHaveBeenLastCalledWith("job-overdue", "overdue-0");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

@@ -14,7 +14,7 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { FirstRunChecklist } from "./first-run-checklist";
 import { displayJobTitle, orderSourceLabel } from "@/lib/domain";
 import { emptyTodaySearch, subscribeTodayLocation, todaySearchSnapshot, updateTodayScope } from "@/lib/today-location";
@@ -27,7 +27,8 @@ import {
   type Task,
 } from "./workspace-provider";
 
-type QueueItem = { job: Job; task: Task };
+/** 우선 처리 한 줄 = 일감 하나. 가장 급한 할 일 하나를 보이고, 나머지 밀린 할 일은 개수만 붙인다. */
+type QueueItem = { job: Job; task: Task; more: number };
 
 /** 줄에 보이는 일감 이름. 받은 곳이 있으면 뒤에 작게 붙인다("Basic 홈페이지 · 크몽"). */
 function jobLine(job: Job) {
@@ -78,6 +79,7 @@ function QueueRow({ item, onComplete }: { item: QueueItem; onComplete: (item: Qu
           </span>
         </div>
         <strong>{task.title}</strong>
+        {item.more > 0 && <span className="taskMore" data-testid={`task-more-${job.id}`}>{urgent ? "밀린" : "오늘"} 할 일 {item.more}개 더</span>}
         <span className="taskContext">{jobLine(job)} · {formatShortDate(job.dueDate)} 마감</span>
       </Link>
       {(contactLink || workLink) && (
@@ -116,7 +118,9 @@ function RequestRow({ job, pending }: { job: Job; pending: number }) {
 
 export function TodayDashboard() {
   const { jobs, jobsCreatedTotal, toggleTask, toggleJobWaiting, resetDemo, alerts, settings, runtimeMode } = useWorkspace();
-  const [completedLabel, setCompletedLabel] = useState<string | null>(null);
+  // 방금 체크한 할 일. 알림의 '되돌리기'로 체크를 되돌린다.
+  const [completed, setCompleted] = useState<{ jobId: string; taskId: string; title: string } | null>(null);
+  const completedTimer = useRef<number | undefined>(undefined);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const search = useSyncExternalStore(subscribeTodayLocation, todaySearchSnapshot, emptyTodaySearch);
   const selectedJobId = new URLSearchParams(search).get("job") ?? "";
@@ -130,14 +134,16 @@ export function TodayDashboard() {
     [activeJobs, scopeJobId],
   );
 
+  // 시작일이 과거인 일감은 할 일이 한꺼번에 밀려 화면을 덮는다. 일감마다 한 줄로 묶는다.
   const queue = useMemo(
     () =>
       scopedJobs
-        .flatMap((job) =>
-          job.tasks
+        .flatMap((job): QueueItem[] => {
+          const due = job.tasks
             .filter((task) => task.status !== "done" && task.status !== "waiting" && task.dueDate <= now)
-            .map((task) => ({ job, task })),
-        )
+            .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.order - b.order);
+          return due.length ? [{ job, task: due[0], more: due.length - 1 }] : [];
+        })
         .sort((a, b) => a.task.dueDate.localeCompare(b.task.dueDate)),
     [scopedJobs, now],
   );
@@ -150,10 +156,18 @@ export function TodayDashboard() {
   const waitingJobs = scopedJobs.filter(
     (job) => job.status === "active" && job.tasks.some((task) => task.status === "waiting"),
   );
+  // 마감이 지난 일감도 빼지 않는다. 날짜순이라 지연 일감이 맨 위에 온다.
   const upcomingJobs = scopedJobs
-    .filter((job) => job.status === "active" && job.dueDate >= now)
+    .filter((job) => job.status === "active")
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 4);
+  // 받을 자료나 착수 전 질문의 답이 남은 진행 중 일감.
+  const materialWaitingJobs = scopedJobs.filter(
+    (job) => job.status === "active" && (
+      (job.intakeItems ?? []).some((item) => !item.receivedAt)
+      || (job.briefQuestions ?? []).some((question) => !question.answeredAt)
+    ),
+  );
   // 수정을 한 번도 안 쓴 일감까지 세면, 포함 수정 1회짜리 패키지는 만들자마자 "임박"이 뜬다.
   // 실제로 수정을 쓰기 시작한 일감만 센다.
   const nearRevisionLimit = scopedJobs.filter((job) => {
@@ -165,10 +179,26 @@ export function TodayDashboard() {
   const primaryAlert = alerts.find((alert) => !scopeJobId || alert.jobId === scopeJobId);
   const visibleQueue = showAllTasks ? queue : queue.slice(0, 6);
 
+  // 되돌리기를 누를 시간을 준다.
+  const restartCompletedTimer = () => {
+    window.clearTimeout(completedTimer.current);
+    completedTimer.current = window.setTimeout(() => setCompleted(null), 6000);
+  };
+  const closeCompleted = () => {
+    window.clearTimeout(completedTimer.current);
+    setCompleted(null);
+  };
+  useEffect(() => () => window.clearTimeout(completedTimer.current), []);
+
   const handleComplete = (item: QueueItem) => {
     toggleTask(item.job.id, item.task.id);
-    setCompletedLabel(item.task.title);
-    window.setTimeout(() => setCompletedLabel(null), 2600);
+    setCompleted({ jobId: item.job.id, taskId: item.task.id, title: item.task.title });
+    restartCompletedTimer();
+  };
+
+  const undoComplete = () => {
+    if (completed) toggleTask(completed.jobId, completed.taskId);
+    closeCompleted();
   };
 
   const handleResetDemo = () => {
@@ -231,6 +261,7 @@ export function TodayDashboard() {
         </div>
         <dl className="briefStats">
           <div><dt>오늘</dt><dd>{queue.length}</dd></div>
+          <div><dt>자료 대기</dt><dd>{materialWaitingJobs.length}</dd></div>
           <div><dt>고객 대기</dt><dd>{waitingJobs.length}</dd></div>
           <div><dt>수정 거의 다 씀</dt><dd>{nearRevisionLimit.length}</dd></div>
         </dl>
@@ -318,9 +349,10 @@ export function TodayDashboard() {
               {upcomingJobs.map((job) => {
                 const finished = job.tasks.filter((task) => task.status === "done").length;
                 const progress = Math.round((finished / Math.max(1, job.tasks.length)) * 100);
+                const overdue = job.dueDate < now;
                 return (
-                  <Link href={`/jobs/${job.id}`} className="upcomingItem" key={job.id}>
-                    <div className="upcomingTop"><span>{job.clientLabel}</span><strong>{getDday(job.dueDate)}</strong></div>
+                  <Link href={`/jobs/${job.id}`} className="upcomingItem" key={job.id} data-overdue={overdue}>
+                    <div className="upcomingTop"><span>{job.clientLabel}</span><strong>{overdue && <AlarmClock size={13} aria-hidden="true" />}{getDday(job.dueDate)}</strong></div>
                     <p>{jobLine(job)}</p>
                     <div className="progressLine" aria-label={`${progress}% 완료`}><span style={{ width: `${progress}%` }} /></div>
                     <span className="progressCaption">{finished}/{job.tasks.length} 완료</span>
@@ -339,11 +371,19 @@ export function TodayDashboard() {
         </>
       )}
 
-      {completedLabel && (
-        <div className="actionToast" role="status">
+      {completed && (
+        <div
+          className="actionToast"
+          role="status"
+          // 알림 안에 포커스나 마우스가 있는 동안은 저절로 닫지 않는다(일감 화면 알림과 같은 규칙).
+          onMouseEnter={() => window.clearTimeout(completedTimer.current)}
+          onFocus={() => window.clearTimeout(completedTimer.current)}
+          onMouseLeave={restartCompletedTimer}
+          onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) restartCompletedTimer(); }}
+        >
           <CheckCircle2 size={19} />
-          <span><strong>{completedLabel}</strong> 완료했어요</span>
-          <button type="button" onClick={() => setCompletedLabel(null)}>닫기</button>
+          <span><strong>{completed.title}</strong> 완료했어요</span>
+          <button type="button" onClick={undoComplete}>되돌리기</button>
         </div>
       )}
     </div>

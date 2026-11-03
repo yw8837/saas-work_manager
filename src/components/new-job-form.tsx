@@ -86,9 +86,9 @@ export function NewJobForm() {
   const [startDate, setStartDate] = useState(currentDate());
   const [packageId, setPackageId] = useState(activePackages[0]?.id ?? "");
   const [optionIds, setOptionIds] = useState<string[]>([]);
-  // 받은 곳 기본값은 가장 최근에 만든 일감의 받은 곳이다(설정 칸에 저장하지 않음). 칩을 누르면 그 선택을 따른다.
-  const [sourceChoice, setSourceChoice] = useState<{ value: OrderSource | undefined } | null>(null);
-  const source = sourceChoice ? sourceChoice.value : latestOrderSource(jobs);
+  // 받은 곳은 비워 두고 고른 것만 쓴다. 지난 일감의 받은 곳은 미리 고르지 않고 힌트로만 보인다(다른 곳에서 온 주문이 잘못 기록되지 않게).
+  const [source, setSource] = useState<OrderSource | undefined>(undefined);
+  const lastSource = latestOrderSource(jobs);
   // 고른 받은 곳의 떼이는 비율(설정). 0이면 미리보기에 수수료 줄을 두지 않는다.
   const feeRate = feeRateForSource(settings.feeRates, source);
   const [submitting, setSubmitting] = useState(false);
@@ -197,7 +197,7 @@ export function NewJobForm() {
                       type="button"
                       aria-pressed={checked}
                       className="sourceChip"
-                      onClick={() => setSourceChoice({ value: checked ? undefined : value })}
+                      onClick={() => setSource(checked ? undefined : value)}
                       data-testid={`order-source-${value}`}
                     >
                       {checked && <Check size={14} aria-hidden="true" />}
@@ -205,6 +205,9 @@ export function NewJobForm() {
                     </button>
                   );
                 })}
+                {lastSource && (
+                  <span className="sourceHint" data-testid="order-source-hint">지난번: {ORDER_SOURCE_LABELS[lastSource]}</span>
+                )}
               </div>
             </div>
           </section>
@@ -242,19 +245,22 @@ export function NewJobForm() {
                   const selected = packageId === item.id;
                   return (
                     <label className="packageChoice" key={item.id} data-selected={selected}>
+                      {/* 화면 낭독기는 내부 이름(value) 대신 패키지 이름을 읽는다. 금액·기간은 설명으로 붙인다. */}
                       <input
                         type="radio"
                         name="packageId"
                         value={item.id}
                         checked={selected}
                         onChange={() => setPackageId(item.id)}
+                        aria-label={item.name}
+                        aria-describedby={`package-choice-meta-${item.id}`}
                       />
                       <span className="choiceRadio">{selected && <Check size={14} />}</span>
                       <span className="packageChoiceMain">
                         <strong>{item.name}</strong>
                         <span>{item.description ?? "반복 업무 패키지"}</span>
                       </span>
-                      <span className="packageChoiceMeta">
+                      <span className="packageChoiceMeta" id={`package-choice-meta-${item.id}`}>
                         <strong>{formatWon(item.price)}</strong>
                         <span>{item.durationDays}일 · 수정 {item.revisionLimit}회</span>
                       </span>
@@ -283,11 +289,13 @@ export function NewJobForm() {
                         value={item.id}
                         checked={selected}
                         onChange={() => toggleOption(item.id)}
+                        aria-label={item.name}
+                        aria-describedby={`option-choice-meta-${item.id}`}
                       />
                       <span className="choiceCheckbox">{selected && <Check size={14} />}</span>
                       <span className="optionChoiceMain">
                         <strong>{item.name}</strong>
-                        <span>+{formatWon(item.priceDelta)} · +{item.durationDaysDelta}일{item.revisionLimitDelta ? ` · 수정 +${item.revisionLimitDelta}회` : ""}</span>
+                        <span id={`option-choice-meta-${item.id}`}>+{formatWon(item.priceDelta)} · +{item.durationDaysDelta}일{item.revisionLimitDelta ? ` · 수정 +${item.revisionLimitDelta}회` : ""}</span>
                       </span>
                     </label>
                   );
