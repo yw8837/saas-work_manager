@@ -35,9 +35,11 @@ describe("Sites 공개 단독 경로", () => {
   it("/guide 에서도 WorkspaceProvider를 띄우지 않는다", () => {
     window.history.pushState({}, "", "/guide");
     render(<SiteShell />);
-    expect(screen.getByRole("heading", { level: 1, name: "그림으로 보는 일감체크" })).toBeInTheDocument();
-    // 장 그림 8장 + 맨 위 가입 그림 1장(목차 띠 그림은 장식이라 빈 alt)
-    expect(screen.getAllByRole("img")).toHaveLength(9);
+    expect(screen.getByRole("heading", { level: 1, name: "그림 설명서" })).toBeInTheDocument();
+    // 한 장씩 보기: 첫 단계는 흐름도 요약이라 그림이 없다.
+    expect(screen.getByTestId("guide-progress")).toHaveTextContent("1 / 10");
+    expect(screen.getByTestId("work-flow-chart")).toBeInTheDocument();
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
     expect(WorkspaceProvider).not.toHaveBeenCalled();
   });
 

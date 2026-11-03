@@ -1535,65 +1535,103 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .demoNoticeActions a { min-height: 44px; display: inline-flex; align-items: center; color: var(--blue); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .demoResetButton { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; padding: 0; color: var(--ink-soft); background: transparent; border: 0; font: inherit; font-weight: 600; cursor: pointer; }
 
-.guidePage { min-height: 100svh; color: var(--ink); background: var(--paper); }
-.guideHeader { min-height: 72px; max-width: 1040px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+/* 그림 사용설명서(/guide) — 한 장씩 보기(2026-11-04 사용자 불만 "오르내리고 오가야 해서 불편" 반영).
+   바탕 canvas 위 흰 그림 카드, 진행 표시·'다음'은 파랑, 그림 속 누를 곳 표시만 주황(캡처에 그려 넣음).
+   휴대폰: 제목·설명 → 그림 → 엄지가 닿는 아래 '이전·다음'(화면 아래에 붙음).
+   데스크톱: 가운데 휴대폰 너비 틀에 그림, 왼쪽에 큰 제목, 그림은 화면 높이 안으로 줄인다. */
+.guidePage { min-height: 100svh; display: flex; flex-direction: column; color: var(--ink); background: var(--canvas); }
+.guideHeader { width: 100%; min-height: 64px; max-width: 1040px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .guideHeader nav { display: flex; gap: 18px; font-size: 14px; font-weight: 600; }
 .guideHeader nav a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); }
 .guideHeader nav a:last-child { color: var(--blue); }
-.guideMain { max-width: 1040px; margin: 0 auto; padding: 56px 24px 88px; }
-.guideIntro h1 { margin: 0 0 10px; font-family: var(--font-display); font-size: clamp(34px, 5vw, 48px); font-weight: 500; line-height: 1.16; letter-spacing: -.02em; }
-.guideIntro > p { margin: 0; color: var(--ink-soft); font-size: 17px; }
-.guideIntroActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
-.guideIntroActions > * { min-height: 48px; gap: 7px; }
-/* 그림 위주(작업 9): 가입은 맨 위 작게, 장마다 그림이 먼저 오고 아래 제목 한 줄·설명 한 줄, 긴 글은 '자세히' 접기. */
-.guideSignup { display: flex; align-items: center; gap: 14px; margin: 32px 0 0; padding: 12px; background: var(--canvas); border: 0; border-radius: var(--web-card-radius, 18px); }
-.guideSignup img { flex: 0 0 auto; display: block; width: 84px; height: auto; background: var(--paper); border: 0; border-radius: 10px; }
-.guideSignup figcaption { display: grid; gap: 3px; min-width: 0; word-break: keep-all; }
-.guideSignup strong { font-size: 16px; }
-.guideSignup span { color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
-.guideChapters { margin: 56px 0 0; padding: 0; list-style: none; }
-.guideChapter { padding: 44px 0; border-top: 1px solid var(--line); }
-.guideChapter > h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 24px; font-size: 24px; line-height: 1.3; word-break: keep-all; }
-.guideStepNumber { display: inline-grid; place-items: center; flex: 0 0 auto; width: 32px; height: 32px; color: var(--on-primary); background: var(--primary); border-radius: 50%; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
-/* 데스크톱에서는 휴대폰 캡처를 원래 크기 가까이(400px까지) 두 장씩 놓는다. */
-.guideShots { display: grid; grid-template-columns: repeat(2, minmax(0, 400px)); gap: 40px; align-items: start; margin: 0; padding: 0; list-style: none; }
-.guideShotItem { min-width: 0; }
-.guideShotItem h3 { margin: 16px 0 4px; font-size: 18px; line-height: 1.35; word-break: keep-all; }
-.guideShotItem > p { margin: 0; color: var(--ink-soft); font-size: 15px; line-height: 1.6; word-break: keep-all; }
+.guideMain { flex: 1 0 auto; width: 100%; max-width: 1040px; margin: 0 auto; padding: 8px 24px 0; }
+
+.guideProgress { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 8px 12px; }
+.guideProgressTitle { margin: 0; color: var(--muted); font-size: 14px; font-weight: 600; line-height: 1.4; }
+.guideProgressCount { margin: 0; color: var(--muted); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.guideProgressCount b { color: var(--web-accent); font-size: 18px; font-weight: 700; }
+.guideProgressBar { grid-column: 1 / -1; display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 4px; }
+.guideProgressBar span { height: 6px; background: var(--line-strong); border-radius: 999px; transition: background-color .16s ease; }
+.guideProgressBar span:is([data-state="done"], [data-state="current"]) { background: var(--web-accent); }
+
+.guideStage { display: grid; gap: 14px; margin-top: 18px; }
+.guideStageText { min-width: 0; }
+.guideStageChapter { margin: 0 0 4px; color: var(--web-accent-ink); font-size: 13px; font-weight: 650; }
+.guideStageText h2 { margin: 0; font-size: 22px; font-weight: 650; line-height: 1.3; letter-spacing: -.02em; word-break: keep-all; }
+.guideStageText h2:focus { outline: none; }
+.guideStageText h2:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 4px; }
+.guideStageCaption { margin: 6px 0 0; color: var(--ink-soft); font-size: 15px; line-height: 1.55; word-break: keep-all; }
 .guideDetail { color: var(--ink-soft); font-size: 14px; }
 .guideDetail summary { min-height: 44px; display: inline-flex; align-items: center; gap: 4px; color: var(--ink); font-weight: 600; cursor: pointer; list-style: none; }
 .guideDetail summary::-webkit-details-marker { display: none; }
 .guideDetail[open] summary svg { transform: rotate(180deg); }
-.guideDetail p { margin: 0; line-height: 1.6; word-break: keep-all; }
-/* 흰 바탕 캡처가 흰 페이지에 묻히지 않게 canvas 틀 위에 흰 그림을 얹는다(테두리 없음). */
-.guideShot { margin: 0; padding: 12px; overflow: hidden; background: var(--canvas); border: 0; border-radius: var(--web-preview-radius, 20px); }
-.guideShot img { display: block; width: 100%; height: auto; border-radius: 12px; }
-.guideOutro { margin-top: 24px; padding: 32px; background: var(--canvas); border: 0; border-radius: var(--web-card-radius, 18px); }
-.guideOutro h2 { margin: 0 0 8px; font-size: 22px; }
-.guideOutro p { margin: 0 0 18px; color: var(--ink-soft); }
-.guideOutro p:last-child { margin-bottom: 0; }
-.guideFooter { max-width: 1040px; margin: 0 auto; padding: 24px; display: flex; flex-wrap: wrap; gap: 6px 20px; color: var(--muted); border-top: 1px solid var(--line); font-size: 13px; }
+.guideDetail p { margin: 0 0 4px; line-height: 1.6; word-break: keep-all; }
+/* 흰 바탕 캡처가 canvas 바탕 위 흰 카드로 보인다. 휴대폰에서는 틀 여백 없이 폭을 가득 써서 글자를 키운다. */
+.guideStageShot { min-width: 0; margin: 0; justify-self: center; width: 100%; }
+.guideStageShot img { display: block; width: 100%; height: auto; margin: 0 auto; background: var(--paper); border-radius: 18px; }
+/* 첫 단계 흐름도 요약: 흰 카드, 할 일 설명 줄은 빼고 제목·자동 줄만. */
+.guideStage .flowChart { margin-top: 0; padding: 16px; background: var(--paper); }
+.flowChart[data-compact] .flowLegend { margin-bottom: 8px; }
+.flowChart[data-compact] .flowStep { grid-template-columns: 26px minmax(0, 1fr); gap: 2px 12px; padding: 3px 0; }
+.flowChart[data-compact] .flowStep:not(:last-child)::after { left: 12px; top: 31px; bottom: -3px; }
+.flowChart[data-compact] .flowNumber { width: 26px; height: 26px; font-size: 13px; }
+.flowChart[data-compact] .flowTitle { margin-top: 1px; gap: 6px; font-size: 15px; line-height: 1.35; }
+.flowChart[data-compact] .flowWho { height: 20px; }
+.flowChart[data-compact] .flowAuto { grid-column: 2; padding: 0; color: var(--ink-soft); background: transparent; font-size: 13px; line-height: 1.4; }
+.flowChart[data-compact] .flowAuto svg { margin-top: 2px; }
+.flowChart[data-compact] .flowAutoEmpty { display: none; }
+
+.guideFinish { display: grid; gap: 12px; }
+.guideOutro { padding: 18px; background: var(--paper); border: 0; border-radius: var(--web-card-radius, 18px); }
+.guideOutro h3 { margin: 0 0 6px; font-size: 17px; }
+.guideOutro p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }
+/* 마지막 단계: 위 줄 '고객이 받는 화면 체험'(보조, canvas 바탕 위라 흰 면), 아래 줄 이전·무료로 시작하기. */
+.guideStepNav[data-last] { grid-template-areas: "demo demo" "prev next"; }
+.guideStepNav[data-last] .guidePrevButton { grid-area: prev; }
+.guideStepNav[data-last] .guideNextButton { grid-area: next; }
+.guideViewer .guideDemoLink { grid-area: demo; min-height: 44px; gap: 7px; background: var(--paper); }
+.guideViewer .guideDemoLink:hover { background: var(--line); }
+
+/* 이전·다음: 화면 아래에 붙어 있어 그림이 길어도 늘 엄지 닿는 곳에 있다. 주 버튼(파랑)은 '다음' 하나. */
+.guideStepNav { position: sticky; bottom: 0; z-index: 5; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; margin: 16px -24px 0; padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--canvas); }
+.guidePrevButton { min-width: 92px; min-height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 16px; color: var(--ink); background: var(--paper); border: 0; border-radius: 12px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.guidePrevButton:hover { background: var(--line); }
+.guidePrevButton[aria-disabled="true"] { color: var(--muted); background: var(--paper); cursor: default; opacity: .6; }
+.guideViewer .guideNextButton { min-height: 52px; justify-content: center; gap: 6px; font-size: 17px; font-weight: 650; }
+.guideFooter { width: 100%; max-width: 1040px; margin: 0 auto; padding: 24px; display: flex; flex-wrap: wrap; gap: 6px 20px; color: var(--muted); font-size: 13px; }
 .guideFooter a { min-height: 44px; display: inline-flex; align-items: center; }
+
+/* 데스크톱: 가운데 휴대폰 너비 틀(460px)에 그림, 왼쪽에 큰 제목. 그림은 화면 높이 안으로 줄여 '다음'까지 한 화면에 보인다. */
+@media (min-width: 900px) {
+  .guideMain { padding-top: 12px; }
+  .guideProgress { max-width: 760px; margin: 0 auto; }
+  .guideStage { grid-template-columns: minmax(0, 1fr) minmax(0, 460px) minmax(0, 1fr); grid-template-areas: "text shot ." "finish shot ."; align-items: start; gap: 16px 40px; margin-top: 22px; }
+  .guideStageText { grid-area: text; align-self: center; text-align: right; }
+  .guideStageText h2 { font-size: 32px; line-height: 1.18; letter-spacing: -.035em; }
+  .guideStageChapter { font-size: 14px; }
+  .guideStageCaption { margin-top: 10px; font-size: 16px; }
+  .guideStageShot { grid-area: shot; padding: 10px; background: var(--paper); border-radius: 28px; }
+  .guideStageShot img { width: auto; max-width: 100%; max-height: calc(100svh - 300px); border-radius: 18px; }
+  .guideStage[data-kind="flow"] { grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); grid-template-areas: "text shot"; }
+  .guideStage[data-kind="flow"] .flowChart { grid-area: shot; }
+  .guideFinish { grid-area: finish; justify-items: end; }
+  .guideFinish .guideOutro { max-width: 360px; text-align: left; }
+  .guideStepNav { width: 100%; max-width: 460px; margin: 20px auto 0; padding-left: 0; padding-right: 0; }
+  .guideMain { padding-bottom: 40px; }
+}
 
 @media (max-width: 760px) {
   .demoRevisionPage { gap: 0; }
   .demoNotice { padding: 14px 18px; border-width: 0 0 1px; border-radius: 0; }
   .demoOrderFacts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .demoRevisionPage .publicRevisionCard { min-height: auto; }
-  .guideHeader { min-height: calc(62px + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 18px 0; }
+  .guideHeader { min-height: calc(56px + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 16px 0; }
   .guideHeader nav { gap: 14px; font-size: 13px; }
-  .guideMain { padding: 36px 18px 64px; }
-  .guideIntro > p { font-size: 16px; }
-  .guideIntroActions { flex-direction: column; }
-  .guideIntroActions > * { width: 100%; }
-  .guideSignup { margin-top: 24px; }
-  .guideChapters { margin-top: 36px; }
-  .guideChapter { padding: 32px 0; }
-  .guideChapter > h2 { margin-bottom: 18px; font-size: 21px; }
-  /* 휴대폰에서는 그림이 본문 폭을 가득 채운다. */
-  .guideShots { grid-template-columns: 1fr; gap: 32px; }
-  .guideOutro { padding: 24px 20px; }
-  .guideFooter { padding: 18px; }
+  .guideMain { padding: 4px 16px 0; }
+  .guideStage { margin-top: 14px; gap: 12px; }
+  .guideStepNav { margin: 12px -16px 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .guideStage .flowChart { padding: 14px 12px; }
+  .guideFooter { padding: 18px 16px; }
 }
 
 /* ============================================================
@@ -1742,17 +1780,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .customerSceneField { display: flex; align-items: flex-start; gap: 6px; min-height: 84px; padding: 10px 12px; color: var(--ink-soft); border: 1px solid var(--line-strong); border-radius: 12px; font-size: 11px; }
 .customerSceneSend { padding: 10px; text-align: center; font-size: 11px; border-radius: 12px; }
 
-/* 7. 설명서 맨 위 네 장 목차 띠 */
-.guideStrip { margin-top: 40px; }
-.guideStrip ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
-.guideStrip li { position: relative; min-width: 0; }
-.guideStrip li + li::before { content: ""; position: absolute; left: -9px; top: 42%; width: 8px; height: 1px; background: var(--line-strong); }
-.guideStrip a { display: grid; gap: 8px; padding: 10px; color: var(--ink); background: var(--canvas); border: 0; border-radius: var(--web-card-radius, 18px); transition: background .14s ease; }
-.guideStrip a:hover { background: var(--line); }
-.guideStrip img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; object-position: top; background: var(--paper); border-radius: 10px; }
-.guideStrip span { display: flex; align-items: center; gap: 6px; min-height: 22px; font-size: 13px; font-weight: 600; word-break: keep-all; }
-.guideStrip b { display: inline-grid; place-items: center; flex: 0 0 auto; width: 22px; height: 22px; color: var(--on-primary); background: var(--primary); border-radius: 50%; font-size: 12px; font-variant-numeric: tabular-nums; }
-.guideTryButton { min-height: 44px; margin-top: 16px; gap: 6px; text-align: left; }
 
 @media (max-width: 760px) {
   /* 8. 작은 버튼도 휴대폰에서는 손가락 크기(44px) */
@@ -1768,9 +1795,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .firstRunShot { grid-column: 2; max-height: 200px; }
   .firstRunActions .primaryButton, .firstRunActions .secondaryButton { width: 100%; }
   .customerSceneBody { min-height: 0; padding: 22px 18px; }
-  .guideStrip ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .guideStrip li + li::before { display: none; }
-  .guideTryButton { width: 100%; }
 }
 
 /* 고객 화면 장면이 늘어 점이 6개가 됐다. 360px 이하에서는 점 줄을 한 줄 전체로 펴서 넘치지 않게 한다(높이 44px 유지). */

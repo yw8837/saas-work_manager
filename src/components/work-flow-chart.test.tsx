@@ -1,8 +1,8 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { MarketingHome } from "./marketing-home";
-import { UserGuide } from "./user-guide";
+import { GUIDE_STEPS, UserGuide } from "./user-guide";
 import { FLOW_STEPS, WorkFlowChart } from "./work-flow-chart";
 
 describe("주문 하나가 끝나기까지 흐름도", () => {
@@ -24,12 +24,21 @@ describe("주문 하나가 끝나기까지 흐름도", () => {
     expect(screen.getByTestId("flow-step-register")).toHaveTextContent("자동 금액·마감·할 일·수정 횟수가 채워져요");
   });
 
-  it("설명서는 그림보다 흐름도를 먼저 보여 준다", () => {
+  it("설명서 첫 단계는 그림보다 먼저 흐름도 요약을 보여 주고, 제목은 단계 제목 하나다", () => {
+    window.history.replaceState(null, "", "/guide");
     render(<UserGuide />);
-    const chart = screen.getByTestId("work-flow-chart");
-    const signup = screen.getByTestId("guide-signup");
-    expect(chart.compareDocumentPosition(signup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(chart).getByRole("heading", { level: 2 })).toHaveTextContent("주문 하나가 끝나기까지");
+    // 구획 이름은 단계 구획 하나(흐름도는 그 안에 들어 있다).
+    const stage = screen.getByRole("region", { name: "주문 하나가 끝나기까지" });
+    expect(stage).toHaveAttribute("data-testid", "guide-step");
+    const chart = within(stage).getByTestId("work-flow-chart");
+    expect(screen.getByTestId("guide-step-title").tagName).toBe("H2");
+    // 제목은 단계 제목 하나뿐(흐름도 안에 같은 제목을 또 그리지 않는다).
+    expect(within(chart).queryByRole("heading")).toBeNull();
+    // 요약: 단계는 그대로 8개, 할 일 설명 줄은 빼고 자동 줄은 남긴다.
+    expect(within(chart).getAllByRole("listitem")).toHaveLength(FLOW_STEPS.length);
+    expect(chart.querySelector(".flowAction")).toBeNull();
+    expect(screen.getByTestId("flow-step-register")).toHaveTextContent("자동 금액·마감·할 일·수정 횟수가 채워져요");
+    expect(document.images).toHaveLength(0);
   });
 
   it("첫 화면 사용 방식 칸에도 같은 흐름도가 h3로 들어간다", () => {
@@ -39,10 +48,18 @@ describe("주문 하나가 끝나기까지 흐름도", () => {
     expect(within(section).getAllByRole("listitem")).toHaveLength(FLOW_STEPS.length);
   });
 
-  it("설명서 맨 위 주 버튼(파랑)은 '무료로 시작하기' 하나이고, 고객 화면 체험은 보조 버튼이다", () => {
+  it("설명서는 단계마다 주 버튼(파랑)이 하나: 중간은 '다음', 마지막은 '무료로 시작하기'", () => {
+    window.history.replaceState(null, "", "/guide");
     render(<UserGuide />);
-    const start = screen.getByRole("link", { name: "무료로 시작하기" });
-    expect(start).toHaveClass("primaryButton");
+    expect(document.querySelectorAll(".primaryButton")).toHaveLength(1);
+    expect(screen.getByTestId("guide-next")).toHaveClass("primaryButton");
+    act(() => {
+      window.history.replaceState(null, "", `/guide#step-${GUIDE_STEPS.length}`);
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    expect(document.querySelectorAll(".primaryButton")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "무료로 시작하기" })).toHaveClass("primaryButton");
     expect(screen.getByTestId("guide-demo-link")).toHaveClass("secondaryButton");
+    window.history.replaceState(null, "", "/guide");
   });
 });
