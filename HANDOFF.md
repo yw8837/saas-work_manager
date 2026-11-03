@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-11-03 (PR #30 운영 배포 결과, 네이버 소유확인 브랜치 `claude/naver-verification`)
+마지막 갱신: 2026-11-03 (PR #31 네이버 소유확인 운영 배포, PRODUCT.md 기능 상태 정리)
 
 ## 제품 한 줄
 
@@ -21,7 +21,7 @@
   - `Cache-Control: s-maxage=31536000, no-transform`이 붙는다.
   - 압축은 br로 온다. gzip만 받으면 gzip, 압축을 안 받으면 압축 없이 온다.
   - 콘솔 오류는 합계 7개 → 2개가 됐다. 남은 2개는 `/privacy`·`/terms`의 React #418인데, workers.dev에서도 나는 앱 자체 문제라서 별도 세션이 고친다.
-- 검색 등록: 구글 Search Console('URL 접두어', HTML 태그 확인, PR #29 `a5f53a9` 2026-11-02 운영 배포 Worker `3ce81d4a`)과 사이트맵 성공. Bing 웹마스터는 Search Console 가져오기로 일감체크 하나만 추가했고(2026-11-03) 사이트맵이 따라 들어와 처리 중이다. 네이버 서치어드바이저는 Claude 브라우저에서 안전 제한으로 막혀 사용자가 사이트를 등록했고(2026-11-03), 'HTML 태그' 값을 `SITE_VERIFICATION.other`의 `naver-site-verification`에 넣었다(브랜치 `claude/naver-verification`). 배포 뒤 사용자가 '소유확인'과 사이트맵 제출을 한다.
+- 검색 등록: 구글 Search Console('URL 접두어', HTML 태그 확인, PR #29 `a5f53a9` 2026-11-02 운영 배포 Worker `3ce81d4a`)과 사이트맵 성공. Bing 웹마스터는 Search Console 가져오기로 일감체크 하나만 추가했고(2026-11-03) 사이트맵이 따라 들어와 처리 중이다. 네이버 서치어드바이저는 Claude 브라우저에서 안전 제한으로 막혀 사용자가 사이트를 등록했고(2026-11-03), 'HTML 태그' 값을 `SITE_VERIFICATION.other`의 `naver-site-verification`에 넣었다(PR #31, main `aeec2fd`, 2026-11-03 03:28 운영 배포 Worker `c13232ed`). 운영 첫 화면 HTML에 태그가 있는 것을 확인했다. '소유확인'과 사이트맵 제출은 사용자가 서치어드바이저에서 한다.
 - Cloudflare 'Always Use HTTPS'를 켰다(2026-11-02, `http://` 요청이 301로 https 이동). 프록시하지 않는 다른 호스트는 영향 없다.
 
 ### 2026-11-02 작업 집중 묶음 A~D (PR #28, 2026-11-02 main `a918865` 병합·21:25 운영 배포 Worker `214d1e10`)
@@ -226,9 +226,9 @@
 
 ## 다음 작업
 
-### 네이버 소유확인 배포 (2026-11-03)
+### 네이버 소유확인 마무리 (2026-11-03)
 
-1. `claude/naver-verification` PR이 CI를 통과하고 병합되면 깨끗한 `main`에서 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번 절차로 배포한다(DB 변경 없음). 배포 뒤 운영 첫 화면 HTML에 `<meta name="naver-site-verification" …>`가 있는지 확인하고 사용자에게 알린다. 그다음 사용자가 서치어드바이저에서 '소유확인'을 누르고 '요청 → 사이트맵 제출'에 `https://ilgam.studioyeolmae.com/sitemap.xml`을 넣는다.
+1. 네이버 태그는 운영에 나갔다(PR #31, Worker `c13232ed`). 사용자가 서치어드바이저에서 '소유확인'을 누르고 '요청 → 사이트맵 제출'에 `https://ilgam.studioyeolmae.com/sitemap.xml`을 넣었는지 확인해 기록한다. `SITE_VERIFICATION`의 값을 지우면 구글·네이버 소유확인이 풀릴 수 있으니 지우지 않는다.
 2. 분석 스크립트를 막은 방식(`custom-worker.ts`, PR #30)을 되돌릴 때는 `wrangler.jsonc`의 `main`을 `.open-next/worker.js`로 바꿔 배포한다. 그러면 스크립트가 다시 끼워질 수 있다.
 3. 사람 확인이 남은 것: 카카오톡 공유 미리보기, 옛 chatgpt.site·workers.dev 주소 정리 여부(사용자 결정).
 
