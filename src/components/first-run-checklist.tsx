@@ -29,19 +29,19 @@ const STEP_COPY: Record<FirstRunStepId, { title: string; body: string; image: { 
   packages: {
     title: "내 일에 맞는 예시 패키지 고르기",
     body: "업종을 고르면 그 업종 예시 패키지로 바꿔 드려요. 금액은 예시라서 패키지 화면에서 내 조건으로 고쳐 쓰면 돼요.",
-    image: { src: "/guide/02-packages.webp", width: 750, height: 2242 },
+    image: { src: "/guide/02-packages.webp", width: 750, height: 2258 },
     alt: "받을 자료·착수 전 질문 칸이 보이는 패키지 화면 예시",
   },
   "first-job": {
     title: "첫 일감 만들기",
     body: "고객, 시작일, 패키지, 옵션 네 가지만 고르면 금액·마감·할 일·수정 횟수가 채워져요.",
-    image: { src: "/guide/03-new-job.webp", width: 750, height: 2544 },
+    image: { src: "/guide/03-new-job.webp", width: 750, height: 2530 },
     alt: "고객 이름·받은 곳·시작일이 보이는 새 일감 화면 예시",
   },
   "send-link": {
     title: "고객에게 수정 요청 링크 보내기",
     body: "일감 화면에서 링크나 카톡 문구를 복사해 보내요. 고객은 로그인 없이 열어 수정 요청을 남겨요.",
-    image: { src: "/guide/04-send-message.webp", width: 750, height: 824 },
+    image: { src: "/guide/04-send-message.webp", width: 750, height: 840 },
     alt: "카톡 문구 복사 버튼과 보낼 문구가 보이는 저장 직후 안내 예시",
   },
 };
