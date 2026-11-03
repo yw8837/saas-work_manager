@@ -83,18 +83,20 @@ describe("일감 저장 직후 상세", () => {
     expect(screen.getByTestId("send-to-client-banner")).toBeInTheDocument();
   });
 
-  // 일감의 실제 남은 횟수가 카톡 문구까지 전달돼야 다 쓴 주문에 "1회씩 세요"라고 보내지 않는다.
+  // 일감의 실제 남은 횟수가 카톡 문구까지 전달돼야 다 쓴 주문에 "1회로 셉니다"라고 보내지 않는다.
   it("포함 수정을 다 쓴 일감이면 카톡 문구가 추가 작업으로 따로 말한다고 쓴다", () => {
     renderAt("https://ilgam.example/jobs/job_send?send=1", { usedRevisions: 2 });
     const preview = screen.getByTestId("send-message-preview");
     expect(preview).toHaveTextContent("포함된 수정 2회를 모두 써서, 새 요청은 추가 작업으로 따로 말씀드릴게요.");
-    expect(preview).not.toHaveTextContent("1회씩 세요");
+    expect(preview).not.toHaveTextContent("1회로 셉니다");
   });
 
-  it("남은 수정이 있는 일감이면 카톡 문구가 '수정을 마칠 때마다 1회씩 세요'라고 쓴다", () => {
+  it("남은 수정이 있는 일감이면 카톡 문구가 '수정을 마칠 때마다 포함 수정 1회로 셉니다'라고 쓰고 완성 예정일을 넣는다", () => {
     renderAt("https://ilgam.example/jobs/job_send?send=1", { usedRevisions: 1 });
     const preview = screen.getByTestId("send-message-preview");
-    expect(preview).toHaveTextContent("제가 수정을 마칠 때마다 1회씩 세요.");
+    expect(preview).toHaveTextContent("수정을 마칠 때마다 포함 수정 1회로 셉니다. 남은 포함 수정은 1회예요.");
+    // 일감의 마감일이 '완성 예정'으로 들어간다.
+    expect(preview).toHaveTextContent("작업은 11월 4일 완성 예정이에요.");
   });
 
   it("표시가 없으면 띄우지 않는다", () => {
@@ -180,13 +182,10 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
     expect(updateBriefNote).toHaveBeenCalledWith("job_send", "job_send_brief_2", "인스타 계정 참고");
   });
 
-  // 남은 것 다시 보내기는 '고객에게 보낼 말'의 '남은 것 요청' 칩으로 옮겼다(복사 버튼이 두 군데 생기지 않게).
   it("'고객에게 보낼 말'의 남은 것 요청은 인사와 남은 자료·질문만 복사하고, 복사가 막히면 문구를 그대로 보여 준다", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     renderBrief("https://ilgam.example/jobs/job_send", false, "2026-10-30T00:10:00.000Z");
-    // 착수 전 질문 구획에는 따로 복사 버튼을 두지 않는다.
-    expect(within(screen.getByTestId("brief-section")).queryByRole("button", { name: /복사/ })).not.toBeInTheDocument();
     // 시작 안내를 보낸 뒤 아직 못 받은 자료·질문이 있으면 '남은 것 요청'이 처음부터 골라져 있다.
     expect(screen.getByTestId("client-message-chip-remaining")).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByTestId("client-message-copy"));
@@ -201,6 +200,54 @@ describe("시작 전 받을 자료·착수 전 질문", () => {
     renderBrief("https://ilgam.example/jobs/job_send", false, "2026-10-30T00:10:00.000Z");
     fireEvent.click(screen.getByTestId("client-message-copy"));
     await waitFor(() => expect(screen.getByTestId("client-message-text")).toHaveValue(writeText.mock.calls[0][0]));
+  });
+
+  // 자료·질문을 체크한 그 자리에서 남은 것만 복사한다(위 '고객에게 보낼 말'까지 올라가지 않게).
+  it("받을 자료·착수 전 질문 구획에서 '남은 것만 문구 복사'로 남은 자료·질문 문구를 바로 복사한다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderBrief("https://ilgam.example/jobs/job_send", true, "2026-10-30T00:10:00.000Z");
+    const expected = "안녕하세요, 보내기 고객님.\n작업을 시작하기 전에 아래 내용만 이 대화로 보내 주세요. 모르는 건 '모름'이라고 적어 주셔도 괜찮아요.\n[보내 주실 자료]\n- 로고 원본 파일\n[알려 주실 것]\n1. 참고 예시가 있나요?";
+    for (const section of ["intake-section", "brief-section"]) {
+      writeText.mockClear();
+      const button = within(screen.getByTestId(section)).getByRole("button", { name: "남은 것만 문구 복사" });
+      // 구획 머리 오른쪽에 둔다.
+      expect(button.closest(".sectionHeadingRow")).not.toBeNull();
+      fireEvent.click(button);
+      await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+      expect(writeText).toHaveBeenCalledWith(expected);
+    }
+    await waitFor(() => expect(screen.getByTestId("job-toast")).toHaveTextContent("남은 자료·질문만 복사했어요."));
+  });
+
+  it("남은 자료·질문이 없으면 '남은 것만 문구 복사'를 보이지 않는다", () => {
+    jsdom.reconfigure({ url: "https://ilgam.example/jobs/job_send" });
+    let composed = composeJob({ jobId: "job_send", revisionPortalToken: "token_send", clientLabel: "보내기 고객", startDate: "2026-10-30", package: briefTemplate, now: "2026-10-30T00:00:00.000Z" });
+    composed = {
+      ...composed,
+      intakeItems: composed.intakeItems!.map((item) => ({ ...item, receivedAt: "2026-10-30T01:00:00.000Z" })),
+      briefQuestions: composed.briefQuestions!.map((item) => ({ ...item, answeredAt: "2026-10-30T01:00:00.000Z" })),
+    };
+    vi.mocked(useWorkspace).mockReturnValue({
+      jobs: [composed],
+      settings: {},
+      hydrated: true,
+      runtimeMode: "hosted",
+      saveStatus: "saved",
+      markStartShared,
+    } as unknown as ReturnType<typeof useWorkspace>);
+    render(<JobDetail jobId="job_send" />);
+    expect(screen.queryByRole("button", { name: "남은 것만 문구 복사" })).not.toBeInTheDocument();
+  });
+
+  it("복사가 막히면 남은 것 문구를 알림에 그대로 보여 준다", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("blocked"));
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderBrief("https://ilgam.example/jobs/job_send", false, "2026-10-30T00:10:00.000Z");
+    fireEvent.click(within(screen.getByTestId("intake-section")).getByRole("button", { name: "남은 것만 문구 복사" }));
+    await waitFor(() => expect(screen.getByTestId("job-toast")).toHaveAttribute("role", "alert"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("자동 복사가 막혔어요.");
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("[보내 주실 자료] - 로고 원본 파일");
   });
 
   it("안내 띠를 닫아도 '고객에게 보낼 말'에서 같은 시작 안내 문구를 다시 복사할 수 있다", async () => {

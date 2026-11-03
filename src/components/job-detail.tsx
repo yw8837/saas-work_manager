@@ -32,7 +32,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { emptyJobListSearch, jobListReturnHref, jobListSearchSnapshot, subscribeJobListLocation } from "@/lib/jobs-list-location";
-import { revisionPortalUrl } from "@/lib/client-share";
+import { revisionPortalUrl, startReminderMessage } from "@/lib/client-share";
 import { markFirstRun } from "@/lib/first-run";
 import { localToday } from "@/lib/store";
 import { ClientMessages } from "./client-messages";
@@ -130,6 +130,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [addonDays, setAddonDays] = useState("0");
   const [addonTaskTitle, setAddonTaskTitle] = useState("");
   const [addonTaskDay, setAddonTaskDay] = useState("0");
+  // '추가 작업으로'에서 연 초안이면 그 요청 id. 저장할 때 추가요청에 연결해 둔다.
+  const [addonSourceRevisionId, setAddonSourceRevisionId] = useState<string | null>(null);
+  const [addonFocusRequest, setAddonFocusRequest] = useState(0);
+  const addonAmountRef = useRef<HTMLInputElement>(null);
+  // 서버 저장까지 끝난 고객 링크. 다른 내용을 저장하는 동안에도 '고객에게 보낼 말'에 그대로 넣어 문구 높이가 출렁이지 않게 한다.
+  const [savedPortalLink, setSavedPortalLink] = useState<string | null>(null);
   // 처리 결과는 화면 아래 알림 하나로 보인다(맨 아래 문단은 휴대폰에서 안 보임). 일감 완료만 '되돌리기'를 단다.
   const [notice, setNoticeState] = useState<{ text: string; tone: "ok" | "error"; undo?: { linkWasOn: boolean } } | null>(null);
   // 되돌리기 알림 안에 포커스나 마우스가 있는 동안은 저절로 닫지 않는다(WCAG 2.2.1).
@@ -167,6 +173,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
     return () => window.cancelAnimationFrame(frame);
   }, [revisionFocusRequest, revisionOpen]);
+
+  // '추가 작업으로'로 초안을 열면 바로 금액을 넣게 추가금 칸으로 간다(포커스가 칸을 화면 안으로 데려온다).
+  useEffect(() => {
+    if (!addonOpen || addonFocusRequest === 0) return;
+    addonAmountRef.current?.focus();
+  }, [addonFocusRequest, addonOpen]);
 
   const toastHeld = Boolean(notice?.undo) && (toastHold.focus || toastHold.hover);
   useEffect(() => {
@@ -263,19 +275,55 @@ export function JobDetail({ jobId }: { jobId: string }) {
     }
   };
 
-  const handleExtraScopeRevision = (revisionId: string) => {
+  // 분류와 함께 요청 원문을 채운 추가요청 초안을 연다. 작업자는 금액·기간만 넣고 저장한다.
+  const handleExtraScopeRevision = (revisionId: string, body: string) => {
     try {
       markRevisionExtraScope(job.id, revisionId);
-      notify("추가 작업으로 분류했어요. 금액·기간은 아래 추가요청에 기록하세요.");
     } catch (error) {
       notifyError(error, "추가 작업으로 분류하지 못했어요.");
+      return;
     }
+    // 내용 칸은 한 줄 입력이라 줄바꿈은 띄어쓰기로 바꾼다.
+    setAddonTitle(body.replace(/\s+/g, " ").trim());
+    setAddonAmount("");
+    setAddonCost("0");
+    setAddonDays("");
+    setAddonTaskTitle("");
+    setAddonTaskDay("0");
+    setAddonSourceRevisionId(revisionId);
+    setAddonOpen(true);
+    setAddonFocusRequest((value) => value + 1);
+    notify("추가 작업으로 분류했어요. 금액·기간만 넣고 저장하세요.");
   };
+
+  // 받을 자료·착수 전 질문 구획에서 남은 것만 바로 복사한다('고객에게 보낼 말'의 '남은 것 요청'과 같은 문구).
+  const remainingMessage = job.status === "active" ? startReminderMessage({ clientLabel: job.clientLabel, pendingIntake, pendingQuestions }) : "";
+  const copyRemaining = async () => {
+    if (!remainingMessage) return;
+    try {
+      await navigator.clipboard.writeText(remainingMessage);
+    } catch {
+      setNotice({ text: `자동 복사가 막혔어요. 아래 문구를 직접 복사해 주세요.\n${remainingMessage}`, tone: "error" });
+      return;
+    }
+    notify("남은 자료·질문만 복사했어요.");
+  };
+  const remainingCopyButton = (testId: string) => remainingMessage ? (
+    <button type="button" className="compactButton" onClick={copyRemaining} data-testid={testId}>
+      <Copy size={15} aria-hidden="true" /> 남은 것만 문구 복사
+    </button>
+  ) : null;
+
+  // 체크리스트는 날짜순으로 보인다(옵션·추가요청 할 일이 데이터 끝에 붙어도). 같은 날은 원래 순서. 저장된 순서는 바꾸지 않는다.
+  const orderedTasks = [...job.tasks].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
   const portalLink = revisionPortalUrl(
     nativePlatform() === "web" ? window.location.origin : deploymentOrigin(),
     job.revisionPortalToken,
   );
+  // 저장이 끝난 링크를 기억해 둔다. 저장 중에는 같은 주소일 때만(재발급한 새 주소는 저장 전이라 빼고) 계속 넣는다. 링크를 끄면 바로 뺀다.
+  if (portalEnabled && portalSynced && savedPortalLink !== portalLink) setSavedPortalLink(portalLink);
+  const messageLink = portalEnabled && (portalSynced || savedPortalLink === portalLink) ? portalLink : null;
 
   const copyPortalLink = async () => {
     if (!portalEnabled) return;
@@ -417,6 +465,16 @@ export function JobDetail({ jobId }: { jobId: string }) {
     }
   };
 
+  // 요청에서 연 초안을 닫으면 채워 둔 내용과 연결을 지운다(다음에 직접 열 때 남지 않게). 직접 적던 초안은 그대로 둔다.
+  const closeAddonForm = () => {
+    setAddonOpen(false);
+    if (!addonSourceRevisionId) return;
+    setAddonSourceRevisionId(null);
+    setAddonTitle("");
+    setAddonAmount("0");
+    setAddonDays("0");
+  };
+
   const submitAddon = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!addonTitle.trim()) return;
@@ -429,6 +487,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
         tasks: addonTaskTitle.trim()
           ? [{ taskKey: `addon-${Date.now()}`, title: addonTaskTitle.trim(), relativeDay: Math.max(0, Number.parseInt(addonTaskDay || "0", 10) || 0), order: 0 }]
           : [],
+        ...(addonSourceRevisionId ? { sourceRevisionId: addonSourceRevisionId } : {}),
       });
       setAddonTitle("");
       setAddonAmount("0");
@@ -436,6 +495,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       setAddonDays("0");
       setAddonTaskTitle("");
       setAddonTaskDay("0");
+      setAddonSourceRevisionId(null);
       setAddonOpen(false);
       notify("추가요청 초안을 만들었어요. 확정 전에는 합계에 반영되지 않아요.");
     } catch (error) {
@@ -567,6 +627,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           title={shownTitle}
           included={revision.included}
           remaining={revision.remaining}
+          dueDate={job.dueDate}
           pendingIntake={pendingIntake}
           pendingQuestions={pendingQuestions}
           ready={portalEnabled && portalSynced}
@@ -642,7 +703,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
         <div className="detailMain">
           {/* 안내 띠를 닫으면 지금 상황에 맞는 문구를 다시 복사할 수 있다. 링크 준비 여부는 저장 직후 안내와 같다.
               Sites는 알림 팝오버로 다른 일감을 열어도 이 화면을 다시 쓰므로, 일감마다 새로 그려 앞 일감에서 고른 칩을 넘기지 않는다. */}
-          {!sendBannerOpen && <ClientMessages key={job.id} job={job} link={portalEnabled && portalSynced ? portalLink : null} today={localToday()} onStartShared={recordStartShared} />}
+          {!sendBannerOpen && <ClientMessages key={job.id} job={job} link={messageLink} today={localToday()} onStartShared={recordStartShared} />}
 
           <section className="contentSection taskDetailSection">
             <div className="sectionHeadingRow">
@@ -653,7 +714,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
             </div>
             <div className="detailProgress"><span style={{ width: `${progress}%` }} /></div>
             <div className="detailTaskList">
-              {job.tasks.map((task, index) => (
+              {orderedTasks.map((task, index) => (
                 <div className="detailTaskRow" key={task.id} data-state={task.status}>
                   <button
                     type="button"
@@ -692,6 +753,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
                   <h2 id="intake-title">시작 전 받을 자료</h2>
                   <p className="sectionHint">{intakeReceived}/{intakeItems.length} 받음 · 아직 못 받은 것은 고객 링크와 카톡 문구에 들어가요</p>
                 </div>
+                {remainingCopyButton("intake-copy-remaining")}
               </div>
               <ul className="intakeList">
                 {intakeItems.map((item) => (
@@ -721,6 +783,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
             active={job.status === "active"}
             onToggle={toggleBriefQuestion}
             onNote={updateBriefNote}
+            action={remainingCopyButton("brief-copy-remaining")}
           />
 
           <section id="revisions" className="contentSection jobRevisionSection" ref={revisionSectionRef}>
@@ -784,13 +847,22 @@ export function JobDetail({ jobId }: { jobId: string }) {
               </form>
             )}
 
+            {/* 고객이 한꺼번에 여러 건을 남기면 남은 포함 수정을 넘는 건 추가 작업이 된다. 처리하기 전에 한 줄로 알린다. */}
+            {job.status === "active" && revision.pending > revision.remaining && (
+              <p className="revisionOverflowWarning" data-testid="revision-overflow-warning">
+                <CircleAlert size={15} aria-hidden="true" />
+                <span>확인 대기 {revision.pending}건 · 남은 포함 수정 {revision.remaining}회라 {revision.pending - revision.remaining}건은 추가 작업이 될 수 있어요</span>
+              </p>
+            )}
+
             <div className="revisionLogList">
               {[...job.revisions].reverse().map((item) => {
                 const reverted = Boolean(item.revertedAt);
                 const pending = item.usage === "pending";
                 // 끝난 일감의 기록은 흔들지 않는다. 진행 중이면 반려·되돌리기·완료·분류를 할 수 있다.
                 const canRevert = job.status === "active" && !reverted;
-                const canComplete = canRevert && item.usage !== "used";
+                // '수정 완료'는 확인 대기 요청에만 둔다. 추가 작업으로 분류한 요청에는 두지 않는다(꺼진 버튼도 남기지 않음).
+                const canComplete = canRevert && pending;
                 const revertLabel = pending ? "반려" : "되돌리기";
                 return (
                   <article className="revisionLogRow" key={item.id} data-reverted={reverted}>
@@ -823,7 +895,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
                             <button
                               type="button"
                               className="compactButton"
-                              onClick={() => handleExtraScopeRevision(item.id)}
+                              onClick={() => handleExtraScopeRevision(item.id, item.body)}
                               data-testid={`extra-revision-${item.id}`}
                             >
                               <Plus size={14} /> 추가 작업으로
@@ -882,7 +954,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
               <div>
                 <h2>추가요청</h2>
               </div>
-              <button type="button" className="compactButton emphasized" onClick={() => setAddonOpen((value) => !value)} disabled={job.status !== "active"} data-testid="open-addon">
+              <button type="button" className="compactButton emphasized" onClick={() => (addonOpen ? closeAddonForm() : setAddonOpen(true))} disabled={job.status !== "active"} data-testid="open-addon">
                 <Plus size={15} /> 추가요청 기록
               </button>
             </div>
@@ -890,10 +962,10 @@ export function JobDetail({ jobId }: { jobId: string }) {
             {addonOpen && (
               <form className="addonForm" onSubmit={submitAddon}>
                 <label><span>추가요청 내용</span><input required value={addonTitle} onChange={(event) => setAddonTitle(event.target.value)} placeholder="예: 이벤트 랜딩 페이지 1장" /></label>
-                <div className="addonFieldPair"><label><span>추가금 (원)</span><input type="number" min="0" value={addonAmount} onChange={(event) => setAddonAmount(event.target.value)} /></label><label><span>추가 원가 (원)</span><input type="number" min="0" value={addonCost} onChange={(event) => setAddonCost(event.target.value)} /></label></div>
-                <div className="addonFieldPair"><label><span>추가 기간 (일)</span><input type="number" min="0" value={addonDays} onChange={(event) => setAddonDays(event.target.value)} /></label></div>
+                <div className="addonFieldPair"><label><span>추가금 (원)</span><input ref={addonAmountRef} type="number" min="0" placeholder="0" value={addonAmount} onChange={(event) => setAddonAmount(event.target.value)} /></label><label><span>추가 원가 (원)</span><input type="number" min="0" value={addonCost} onChange={(event) => setAddonCost(event.target.value)} /></label></div>
+                <div className="addonFieldPair"><label><span>추가 기간 (일)</span><input type="number" min="0" placeholder="0" value={addonDays} onChange={(event) => setAddonDays(event.target.value)} /></label></div>
                 <div className="addonFieldPair"><label><span>추가 할 일 <small>선택</small></span><input value={addonTaskTitle} onChange={(event) => setAddonTaskTitle(event.target.value)} placeholder="예: 랜딩 페이지 제작" /></label><label><span>할 일 날짜 (시작 며칠 뒤)</span><input type="number" min="0" value={addonTaskDay} onChange={(event) => setAddonTaskDay(event.target.value)} /></label></div>
-                <div className="revisionFormActions"><button type="button" className="textOnlyButton" onClick={() => setAddonOpen(false)}>취소</button><button type="submit" className="primaryButton compactSubmit"><Save size={16} /> 초안 기록</button></div>
+                <div className="revisionFormActions"><button type="button" className="textOnlyButton" onClick={closeAddonForm}>취소</button><button type="submit" className="primaryButton compactSubmit"><Save size={16} /> 초안 기록</button></div>
               </form>
             )}
             <div className="addonList">
@@ -1012,7 +1084,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       <div className="jobActionBar">
         <div className="actionBarInfo">
           <span className={delayed ? "actionBarStatus delayed" : "actionBarStatus"}><Clock3 size={15} /> {getDday(job.dueDate)}</span>
-          <strong>{job.status === "completed" ? "일감 완료됨" : `다음: ${job.tasks.find((task) => task.status === "todo")?.title ?? "모든 작업 처리됨"}`}</strong>
+          <strong>{job.status === "completed" ? "일감 완료됨" : `다음: ${orderedTasks.find((task) => task.status === "todo")?.title ?? "모든 작업 처리됨"}`}</strong>
         </div>
         <div className="actionBarButtons">
           <button type="button" className="quietButton" onClick={() => toggleJobWaiting(job.id)} disabled={job.status !== "active"} data-testid="toggle-waiting" aria-label={waitingTask ? "답변 받음" : "고객 대기"}>

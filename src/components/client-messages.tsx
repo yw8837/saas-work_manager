@@ -35,7 +35,11 @@ export function ClientMessages({
   const situations = availableSituations(job, today);
   // 고른 뒤 새 상황이 생기면(예: 오늘 '수정 완료'를 눌러 '수정 반영 알림') 고정을 풀고 맨 앞 상황으로 돌아간다.
   // 순서만 바뀐 건(처음 '시작 안내'를 보내 뒤로 간 경우) 그대로 둔다. 한 번 푼 고정은 그 상황이 다시 사라져도 되살리지 않는다.
-  const released = pin !== null && situations.some((item) => !pin.known.includes(item));
+  // 납품 안내는 늘 목록에 있어서 새 상황이 아니다. 완료·할 일 끝으로 맨 앞에 오면 그때도 고정을 푼다.
+  const released = pin !== null && (
+    situations.some((item) => !pin.known.includes(item))
+    || (situations[0] === "delivery" && pin.known[0] !== "delivery")
+  );
   if (released) setPin(null);
   if (situations.length === 0) return null;
   // 고른 상황이 일감 상태가 바뀌어 사라져도 맨 앞 상황으로 돌아간다.
