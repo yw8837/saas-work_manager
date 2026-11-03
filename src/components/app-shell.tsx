@@ -28,7 +28,8 @@ const primaryNavigation = [
 ];
 
 const supportNavigation = [{ href: "/feedback", label: "의견 보내기", icon: MessageSquareText }];
-const BETA_SURVEY_START_DAY = 14;
+// 14일 이용권의 절반(7일째)부터 설문 안내를 띄운다.
+const BETA_SURVEY_START_DAY = 7;
 
 function isCurrent(pathname: string, href: string) {
   if (href === "/today") return pathname === href;

@@ -55,7 +55,7 @@ describe("AppShell runtime status", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("keeps the 14-day survey link visible after beta Pro expires", () => {
+  it("keeps the survey link visible after beta Pro expires", () => {
     const formUrl = "https://docs.google.com/forms/d/e/TEST/viewform";
     vi.stubEnv("NEXT_PUBLIC_FEEDBACK_FORM_URL", formUrl);
     vi.mocked(useWorkspace).mockReturnValue({
@@ -74,7 +74,7 @@ describe("AppShell runtime status", () => {
     expect(screen.getByRole("link", { name: "설문 작성하기" })).toHaveAttribute("href", formUrl);
   });
 
-  it("shows the survey after 14 days while beta Pro remains active", () => {
+  it("shows the survey from day 7 of the 14-day beta while Pro remains active", () => {
     vi.stubEnv("NEXT_PUBLIC_FEEDBACK_FORM_URL", "https://docs.google.com/forms/d/e/TEST/viewform");
     vi.mocked(useWorkspace).mockReturnValue({
       ...baseWorkspace,
@@ -82,7 +82,7 @@ describe("AppShell runtime status", () => {
         ...baseWorkspace.planAccess,
         source: "beta",
         plan: "pro",
-        remainingDays: 16,
+        remainingDays: 7,
         expiresAt: "2026-09-11T00:00:00.000Z",
       },
     });
@@ -92,7 +92,7 @@ describe("AppShell runtime status", () => {
     expect(screen.getByText("써 보니 어떠셨나요?")).toBeInTheDocument();
   });
 
-  it("does not ask for the survey before 14 days of beta use", () => {
+  it("does not ask for the survey before day 7 of beta use", () => {
     vi.stubEnv("NEXT_PUBLIC_FEEDBACK_FORM_URL", "https://docs.google.com/forms/d/e/TEST/viewform");
     vi.mocked(useWorkspace).mockReturnValue({
       ...baseWorkspace,
@@ -100,7 +100,7 @@ describe("AppShell runtime status", () => {
         ...baseWorkspace.planAccess,
         source: "beta",
         plan: "pro",
-        remainingDays: 17,
+        remainingDays: 8,
         expiresAt: "2026-09-12T00:00:00.000Z",
       },
     });

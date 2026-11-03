@@ -27,7 +27,7 @@ import {
   type BrowserNotificationState,
   type NotificationCapability,
 } from "@/lib/notifications";
-import { PLAN_LIMITS, PLAN_NAMES, PLAN_PRICES, TRIAL_DAYS, type Plan } from "@/lib/domain";
+import { BETA_GRANT_DAYS, PLAN_LIMITS, PLAN_NAMES, PLAN_PRICES, TRIAL_DAYS, type Plan } from "@/lib/domain";
 import { InstallAppCard } from "./install-app-card";
 import { useWorkspace } from "./workspace-provider";
 import { nativePlatform } from "@/lib/native/platform";
@@ -257,7 +257,7 @@ export function SettingsPanel() {
         )}
         <p className="planPrice">
           {runtimeMode === "hosted"
-            ? "코드는 계정에 한 번 적용되며, 적용일부터 30일 동안 Pro를 이용할 수 있어요. 30일 Pro 이용 코드를 적용한 계정은 결제 오픈 후 Basic 정가 월 14,900원을 월 9,900원에 12개월 이용할 수 있어요."
+            ? `코드는 계정에 한 번 적용되며, 적용일부터 ${BETA_GRANT_DAYS}일 동안 Pro를 이용할 수 있어요. 베타 이용 코드를 적용한 계정은 결제 오픈 후 Basic 정가 월 14,900원을 월 9,900원에 12개월 이용할 수 있어요.`
             : "로컬 미리보기에서는 코드가 이 브라우저에만 저장돼요. 실제 서비스에서는 서버가 계정별로 확인합니다."}
         </p>
 

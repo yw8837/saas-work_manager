@@ -132,7 +132,7 @@ describe("SettingsPanel account deletion", () => {
 
 describe("SettingsPanel 플랜 섹션", () => {
   beforeEach(() => {
-    activateInviteCode.mockReset().mockResolvedValue({ ok: true, message: "코드를 확인했어요. 30일 동안 Pro를 무제한으로 써요." });
+    activateInviteCode.mockReset().mockResolvedValue({ ok: true, message: "코드를 확인했어요. 14일 동안 Pro를 무제한으로 써요." });
     vi.mocked(useWorkspace).mockReturnValue(hostedWorkspace);
   });
 
@@ -153,14 +153,14 @@ describe("SettingsPanel 플랜 섹션", () => {
     expect(screen.getByTestId("upgrade-cta")).toBeDisabled();
   });
 
-  it("입력한 베타 이용 코드를 그대로 넘기고 30일 Pro와 파운더 혜택을 설명한다", async () => {
+  it("입력한 베타 이용 코드를 그대로 넘기고 14일 Pro와 파운더 혜택을 설명한다", async () => {
     render(<SettingsPanel />);
     fireEvent.change(screen.getByLabelText("베타 이용 코드"), { target: { value: " beta2026 " } });
     fireEvent.click(screen.getByTestId("redeem-invite"));
 
     expect(activateInviteCode).toHaveBeenCalledWith(" beta2026 ");
     // 서버 확인을 기다리므로 문구도 응답 뒤에 나타난다.
-    expect(await screen.findByText(/30일 동안 Pro를 무제한으로 써요./)).toBeInTheDocument();
+    expect(await screen.findByText(/14일 동안 Pro를 무제한으로 써요./)).toBeInTheDocument();
     expect(screen.getByText(/Basic 정가 월 14,900원을 월 9,900원에 12개월/)).toBeInTheDocument();
   });
 

@@ -342,7 +342,7 @@ describe("workspace plan — 체험과 베타 코드", () => {
     expect(screen.getByTestId("plan")).toHaveTextContent("free");
   });
 
-  it("이미 다른 베타 코드를 쓴 계정도 두 번째 30일을 받을 수 없다", async () => {
+  it("이미 다른 베타 코드를 쓴 계정도 두 번째 Pro 기간을 받을 수 없다", async () => {
     await mountWith({
       jobsCreatedTotal: 4,
       trialStartedAt: EXPIRED_TRIAL,

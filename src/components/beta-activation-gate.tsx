@@ -4,6 +4,7 @@ import { ArrowRight, BadgeCheck, KeyRound } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { captureInviteFromLocation, clearPendingInvite, peekPendingInvite, readPendingInvite } from "@/lib/invite-link";
+import { BETA_GRANT_DAYS } from "@/lib/domain";
 import { Brand } from "./brand";
 import { useWorkspace } from "./workspace-provider";
 
@@ -133,11 +134,11 @@ export function BetaActivationGate({ children }: { children: ReactNode }) {
         <span className="authIcon"><KeyRound size={23} /></span>
         <div className="authHeading">
           <h1>베타 코드가 있나요?</h1>
-          <p>초대 코드를 받았다면 지금 입력해 30일 동안 Pro 기능을 사용하세요.</p>
+          <p>초대 코드를 받았다면 지금 입력해 {BETA_GRANT_DAYS}일 동안 Pro 기능을 사용하세요.</p>
         </div>
 
         <div className="betaActivationBenefits" aria-label="베타 이용 혜택">
-          <span><BadgeCheck size={16} />30일 동안 일감·패키지 무제한</span>
+          <span><BadgeCheck size={16} />{BETA_GRANT_DAYS}일 동안 일감·패키지 무제한</span>
           <span><BadgeCheck size={16} />사용 이력은 베타 참여 혜택으로 기록</span>
         </div>
 

@@ -33,7 +33,7 @@ describe("BetaActivationGate", () => {
   beforeEach(() => {
     activateInviteCode.mockReset().mockResolvedValue({
       ok: true,
-      message: "코드를 확인했어요. 30일 동안 Pro를 무제한으로 써요.",
+      message: "코드를 확인했어요. 14일 동안 Pro를 무제한으로 써요.",
     });
     updateSettings.mockReset();
     vi.mocked(useWorkspace).mockReturnValue(hostedWorkspace);
@@ -47,6 +47,9 @@ describe("BetaActivationGate", () => {
     expect(screen.getByRole("button", { name: "코드 적용하고 Pro 시작" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "코드 없이 무료로 시작" })).toBeInTheDocument();
     expect(screen.queryByText("작업공간")).not.toBeInTheDocument();
+    // 2026-11-03 사용자 지시: 베타 이용 코드는 14일 Pro.
+    expect(screen.getByText(/지금 입력해 14일 동안 Pro 기능을 사용하세요/)).toBeInTheDocument();
+    expect(screen.queryByText(/30일/)).not.toBeInTheDocument();
   });
 
   it("코드 적용 성공 뒤 완료 상태를 저장하고 작업공간을 연다", async () => {
