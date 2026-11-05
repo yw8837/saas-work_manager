@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 // non-route asset name so every navigation reaches the Worker first.
 export const SITES_STATIC_SPA_ROUTES = [
   "today", "jobs", "jobs/new", "packages", "settings", "feedback", "privacy", "terms",
+  "apply", "ops/applications",
 ];
 
 export const SITES_STATIC_SECURITY_HEADERS = `/*
