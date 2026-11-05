@@ -7,7 +7,7 @@
  * 지금은 결제가 없어 "정직한 임시 장치"로만 쓰고,
  * 결제를 붙일 때 반드시 서버 검증(1회용 코드 발급·사용 기록·서버측 만료)으로 교체해야 한다.
  */
-export const BETA_INVITE_CODES = ["KMONG2026", "SOOMGO2026", "BETA2026"] as const;
+export const BETA_INVITE_CODES = ["BETA2026"] as const;
 
 /** 앞뒤 공백을 없애고 대문자로 맞춘다. 저장·비교는 항상 이 형태를 쓴다. */
 export function normalizeInviteCode(value: string): string {
@@ -23,7 +23,7 @@ export function isValidInviteCode(value: string): boolean {
 
 /**
  * 이미 써버린 코드 목록의 표준 형태.
- * 코드는 3개뿐이고 공유되기 때문에, 기간이 끝난 코드를 다시 넣어 Pro 기간을 무한히 늘리는 길을 막으려면
+ * 코드는 하나뿐이고 공유되기 때문에, 기간이 끝난 코드를 다시 넣어 Pro 기간을 무한히 늘리는 길을 막으려면
  * "지금 살아 있는 승급"과 별개로 "한 번이라도 쓴 코드"를 따로 기억해야 한다.
  * 저장소에서 온 값은 어떤 모양이든 올 수 있으니 항상 이 함수를 거쳐 문자열 배열로 만든다.
  */
