@@ -2,7 +2,7 @@
 
 새 세션을 열면 이 파일부터 읽고 "다음 작업" 1번부터 진행한다. 사람이 첫 메시지로 "HANDOFF.md 보고 다음 작업 진행해"라고만 써도 되게 만든 문서다.
 
-마지막 갱신: 2026-11-05 (벤치마킹 적용 2가지, 브랜치 `claude/benchmark-apply` 로컬 커밋까지, **배포 전**)
+마지막 갱신: 2026-11-05 (벤치마킹 적용 2가지, PR #36)
 
 ## 제품 한 줄
 
@@ -12,13 +12,13 @@
 
 ## 지금 상태
 
-### 2026-11-05 벤치마킹 적용: 홈 첫 문구 · 업종별 예시 페이지 (**배포 전**: 브랜치 `claude/benchmark-apply`, origin/main `f0dad51` 기준, 로컬 커밋만. push·PR·운영 배포 안 함, DB 변경 없음)
+### 2026-11-05 벤치마킹 적용: 홈 첫 문구 · 업종별 예시 페이지 (PR #36, 브랜치 `claude/benchmark-apply`, origin/main `f0dad51` 기준, DB 변경 없음)
 
 - **홈 첫 문구**: 고객 무가입 링크는 경쟁 서비스(모아로 등)에도 있어 앞세우지 않고, 주문 때 정한 포함 수정 횟수와 그 뒤 처리 기록을 앞세운다. 제목 3줄 "수정 몇 번까지였는지," / "다시 찾지" / "않아도 돼요.". 수정 횟수는 작업자가 '수정 완료'를 누를 때 1회 쓰고 회차가 남는다(`completeRevision`의 `sequence`, 일감 화면 'n회차').
 - 제목이 어느 폭에서든 지정한 3줄로 나오게 `.heroLine`을 880px 이하에서도 줄 단위로 두고, 데스크톱 글자 크기를 `clamp(40px, 3.8vw, 54px)`로, 휴대폰 자간을 DESIGN.md 제목 토큰 `-.035em`으로 바꿨다. 휴대폰 크기 `clamp(38px, 10.8vw, 46px)`는 글꼴 정책 시험(`scripts/typography-policy.test.mjs`)이 고정한 값이라 그대로 두고, 그 값으로 첫 줄이 안 들어가는 360px 미만만 33px로 뒀다.
 - **공개 페이지 `/examples`**(`src/components/industry-examples.tsx`): 데이터는 `INDUSTRY_ORDER`·`INDUSTRY_LABELS`·`INDUSTRY_STARTERS`만 쓴다. 업종별 패키지(이름·설명·예시 금액·기간·포함 수정·받을 자료), 옵션 묶음 '범위 밖·추가 작업은 이렇게 더해요', 버튼 '이 예시로 시작하기' → `/today?starter=<업종>`. 작업공간을 띄우지 않는 독립 경로이고(`standalone-routes.ts`, Sites 경로에도 추가) 사이트맵에 넣었다. 진입은 홈 히어로 아래 링크 1곳, 설명서 바닥글 1곳.
 - **`/today?starter=<업종>`**(`src/lib/starter-link.ts`, `src/components/starter-link-notice.tsx`): 초대 링크와 같은 방식. 주소에서 바로 지우고 sessionStorage `ilgamcheck:pending-starter`에 Google 로그인 왕복 동안 보관한다. 오늘 화면이 작업공간을 다 불러온 뒤 한 번 꺼내, 일감 0건·누적 0건·손대지 않은 예시 패키지일 때만 업종 칩과 같은 `applyIndustryStarter`를 부른다. 일감이나 고친 패키지가 있으면 아무것도 안 바꾸고 짧게 안내한다. 잘못된 키는 조용히 버린다.
-- 검증(로컬 모드): `npx tsc --noEmit` 0, 바꾼 파일 eslint 0, `npx vitest run --maxWorkers=3` 159파일 1335개 통과, `npm run build` 0. 홈·`/examples`·`/today?starter=design`을 375×812·1280×800에서 캡처해 가로 넘침 0·콘솔 오류 0(`qa-screenshots/benchmark-apply/`, git 제외). 실제 브라우저로 버튼 클릭 적용·새로 고침 재적용 없음·고친 패키지·실제 일감·잘못된 키도 확인했다.
+- 검증(로컬 모드): `npx tsc --noEmit` 0, 바꾼 파일 eslint 0, `npx vitest run --maxWorkers=3` 160파일 1342개 통과, `npm run build` 0. 홈·`/examples`·`/today?starter=design`을 375×812·1280×800에서 캡처해 가로 넘침 0·콘솔 오류 0(`qa-screenshots/benchmark-apply/`, git 제외). 실제 브라우저로 버튼 클릭 적용·새로 고침 재적용 없음·고친 패키지·실제 일감·잘못된 키도 확인했다.
 - **미검증**: 진짜 Google 로그인 왕복과 로그인 상태의 적용. 가짜 Supabase 주소로 로그인 화면까지 값이 남는 것과 쿼리 없는 `/today`로 다시 들어와도 남는 것만 확인했고, 로그인 뒤 적용은 단위 시험(작업공간 흉내)뿐이다. 이 흉내 환경의 React #418은 starter 없는 `/today`에서도 똑같이 나서 이번 변경 때문이 아니다(서버는 로컬 모드로 그리고 브라우저만 로그인 모드로 바꾼 시험 환경 탓으로 추정).
 - **안 고친 옛 문구**: 공유 이미지 `public/og/ilgamcheck-social.png`와 `scripts/build-social-card.mjs`에 옛 제목이 남아 있다(배경 원본 이미지가 저장소에 없어 다시 못 만듦). `PRODUCT.md` '카피 후보'도 그대로다. 검색 설명(`LANDING_DESCRIPTION`)은 '남은 수정 횟수를 한곳에서'라 새 문구와 충돌하지 않아 두었다. `public/llms.txt`에는 `/examples`를 넣지 않았다.
 
@@ -261,7 +261,7 @@
 
 ### 벤치마킹 적용 배포 대기 (2026-11-05)
 
-1. `claude/benchmark-apply`는 로컬 커밋만 있다. 사용자 승인 뒤 push·PR·CI·병합·운영 배포(`docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번). DB migration은 없다.
+1. PR #36을 병합·운영 배포한다(사용자 지시 2026-11-05, `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번). DB migration은 없다.
 2. 배포 뒤 시험 계정으로 `/examples` → '이 예시로 시작하기' → Google 로그인 → 약관·베타 관문 → `/today` 적용까지 실제로 확인한다(이번엔 미검증).
 3. 사용자 결정 대기: 공유 이미지 옛 제목 교체(배경 원본 필요), `PRODUCT.md` 카피 후보·`llms.txt` 갱신 여부.
 

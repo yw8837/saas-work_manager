@@ -34,6 +34,16 @@ afterEach(() => {
 });
 
 describe("업종 예시 링크 값 받아 두기", () => {
+  it("잘못된 값이 오면 전에 받아 둔 업종도 지운다(마지막 링크를 따른다)", () => {
+    jsdom.reconfigure({ url: "https://ilgam.example/today?starter=design" });
+    captureStarterFromLocation();
+    expect(readPendingStarter()).toBe("design");
+    jsdom.reconfigure({ url: "https://ilgam.example/today?starter=bogus" });
+    captureStarterFromLocation();
+    expect(readPendingStarter()).toBeNull();
+    expect(window.location.search).toBe("");
+  });
+
   it("주소의 starter를 이 탭에만 보관하고 주소에서 지운다(다른 값·해시는 남김)", () => {
     jsdom.reconfigure({ url: "https://ilgam.example/today?job=job_1&starter=design#top" });
     const state = { idx: 3 };

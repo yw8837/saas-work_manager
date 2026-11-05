@@ -8,6 +8,7 @@ import { INDUSTRY_ORDER, usesOnlyStarterPackages, type Industry } from "@/lib/st
  * - 읽자마자 주소창에서 지운다(history.replaceState). 새로고침·Google 로그인 왕복 주소에 남지 않게.
  * - Google 로그인으로 다른 사이트에 다녀오는 동안만 이 탭의 sessionStorage에 둔다.
  * - 오늘 화면이 작업공간을 다 불러온 뒤 한 번만 꺼내 쓰고 지운다(적용 여부와 상관없이).
+ * - 로그아웃·계정 삭제 때도 지운다. 같은 탭에서 로그인하는 다른 계정에 넘어가지 않게.
  * - 값은 INDUSTRY_ORDER에 있는 키만 받는다. 그 밖의 값은 버린다.
  */
 export const STARTER_PARAM = "starter";
@@ -27,7 +28,11 @@ export function captureStarterFromLocation(): void {
   params.delete(STARTER_PARAM);
   const query = params.toString();
   window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
-  if (!industry) return;
+  if (!industry) {
+    // 마지막 링크를 따른다. 잘못된 값이면 전에 받아 둔 업종도 쓰지 않는다.
+    clearPendingStarter();
+    return;
+  }
   try {
     window.sessionStorage.setItem(PENDING_STARTER_KEY, industry);
   } catch {
