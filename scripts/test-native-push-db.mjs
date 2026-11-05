@@ -73,6 +73,7 @@ try {
   await db.exec(await readFile(resolve("supabase/tests/workspace_fee_fields.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/public_revision_status.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/policy_beta4_acceptance.sql"), "utf8"));
+  await db.exec(await readFile(resolve("supabase/tests/single_beta_code.sql"), "utf8"));
   const access = await db.query(await readFile(resolve("supabase/tests/rpc_execution_surface.sql"), "utf8"));
   assert.equal(access.rows.length, 24);
   assert.ok(access.rows.every((row) => row.passed), JSON.stringify(access.rows.filter((row) => !row.passed)));

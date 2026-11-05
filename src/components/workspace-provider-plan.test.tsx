@@ -375,7 +375,7 @@ describe("workspace plan — 체험과 베타 코드", () => {
     expect(screen.getByTestId("plan")).toHaveTextContent("free");
   });
 
-  it("이미 다른 베타 코드를 쓴 계정도 두 번째 Pro 기간을 받을 수 없다", async () => {
+  it("닫힌 코드를 전에 쓴 계정도 남은 코드로 두 번째 Pro 기간을 받을 수 없다", async () => {
     await mountWith({
       jobsCreatedTotal: 4,
       trialStartedAt: EXPIRED_TRIAL,
@@ -389,7 +389,7 @@ describe("workspace plan — 체험과 베타 코드", () => {
 
     let result: { ok: boolean; message: string } | null = null;
     await act(async () => {
-      result = await workspace!.activateInviteCode("SOOMGO2026");
+      result = await workspace!.activateInviteCode("BETA2026");
     });
 
     expect(result!.ok).toBe(false);
