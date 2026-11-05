@@ -236,7 +236,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   max-width: 620px;
   margin: 0 0 24px;
   font-family: var(--font-display);
-  font-size: clamp(42px, 3.8vw, 56px);
+  font-size: clamp(40px, 3.8vw, 54px); /* 첫 줄이 왼쪽 칸(최소 340px·최대 455px)을 넘어 4줄이 되지 않는 크기 */
   font-weight: 500;
   line-height: 1.14;
   letter-spacing: -.022em;
@@ -907,8 +907,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .heroSection { grid-template-columns: 1fr; padding-top: 64px; }
   .heroCopy { max-width: 700px; }
   .heroCopy h1 { max-width: 100%; }
-  .heroLine { display: inline; }
-  .heroLine:not(:last-child)::after { content: " "; }
   .productScene { width: min(820px, 100%); }
   .previewCarousel { width: min(820px, 100%); margin: 0 auto; }
 }
@@ -919,7 +917,8 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .marketingNav { display: none; }
   .headerDemoLink { font-size: 13px; }
   .heroSection { padding: 56px 18px 64px; gap: 42px; }
-  .heroCopy h1 { max-width: 100%; font-size: clamp(38px, 10.8vw, 46px); line-height: 1.14; letter-spacing: -.018em; }
+  /* 자간은 DESIGN.md 제목 토큰. 첫 줄(수정 몇 번까지였는지,)이 폭 360px부터 한 줄에 들어간다. */
+  .heroCopy h1 { max-width: 100%; font-size: clamp(38px, 10.8vw, 46px); line-height: 1.14; letter-spacing: -.035em; }
   .heroLead { font-size: 16px; }
   .heroActions { flex-direction: column; align-items: stretch; }
   .heroActions > * { width: 100%; }
@@ -2036,3 +2035,53 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .publicRevisionCard { border-radius: 0; }
   .demoNotice { border-bottom: 1px solid var(--line); border-radius: 0; }
 }
+
+/* 폭 360px 미만은 정책 최소 크기(38px)로도 히어로 첫 줄이 넘쳐 4줄이 되므로 이 구간만 줄인다. */
+@media (max-width: 359px) {
+  .heroCopy h1 { font-size: 33px; }
+}
+
+/* 업종별 예시 패키지(/examples, 2026-11-05). 설명서와 같은 웹 토큰: canvas 바탕 위 흰 카드(18px), 주 버튼 파랑.
+   휴대폰 한 열, 넓은 화면은 패키지 세 칸. 숫자는 tabular-nums. */
+.examplesMain { padding-bottom: 32px; }
+.examplesMain h1 { margin: 16px 0 10px; font-size: clamp(28px, 3.4vw, 36px); font-weight: 650; line-height: 1.2; letter-spacing: -.025em; }
+.examplesLead { max-width: 62ch; margin: 0 0 12px; color: var(--ink-soft); font-size: 16px; line-height: 1.65; word-break: keep-all; }
+.examplesNotice { max-width: 62ch; margin: 0 0 16px; padding: 12px 14px; color: var(--web-accent-ink); background: var(--web-accent-soft); border-radius: 12px; font-size: 14px; font-weight: 600; line-height: 1.55; word-break: keep-all; }
+.examplesJump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.examplesJump a { min-height: 44px; display: inline-flex; align-items: center; padding: 0 14px; color: var(--ink); background: var(--paper); border-radius: 999px; font-size: 14px; font-weight: 600; }
+.examplesJump a:hover { background: var(--line); }
+.examplesIndustry { margin-top: 28px; scroll-margin-top: 16px; }
+.examplesIndustry > h2 { margin: 0 0 12px; font-size: 22px; font-weight: 650; letter-spacing: -.02em; }
+.examplesPackages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.examplesPackage { min-width: 0; display: flex; flex-direction: column; padding: 22px; background: var(--paper); border-radius: var(--web-card-radius, 18px); }
+.examplesPackage h3 { margin: 0 0 6px; font-size: 17px; font-weight: 650; line-height: 1.3; word-break: keep-all; }
+.examplesDescription { margin: 0 0 12px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; word-break: keep-all; }
+.examplesPrice { margin: auto 0 10px; color: var(--ink); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.examplesFacts { display: flex; gap: 24px; margin: 0 0 14px; }
+.examplesFacts dt { color: var(--muted); font-size: 13px; }
+.examplesFacts dd { margin: 2px 0 0; color: var(--ink); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.examplesIntake { padding-top: 12px; border-top: 1px solid var(--line); }
+.examplesIntake p { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
+.examplesIntake ul { margin: 0; padding-left: 18px; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }
+.examplesOptions { margin-top: 12px; padding: 18px 22px; background: var(--paper); border-radius: var(--web-card-radius, 18px); }
+.examplesOptions h3 { margin: 0 0 8px; font-size: 15px; font-weight: 650; word-break: keep-all; }
+.examplesOptions ul { margin: 0; padding: 0; list-style: none; }
+.examplesOptions li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; padding: 8px 0; font-size: 14px; line-height: 1.5; }
+.examplesOptions li + li { border-top: 1px solid var(--line); }
+.examplesOptionName { min-width: 0; color: var(--ink); font-weight: 600; word-break: keep-all; }
+.examplesOptionDelta { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.examplesStart { margin-top: 12px; min-height: 52px; padding-inline: 22px; }
+@media (max-width: 880px) {
+  .examplesPackages { grid-template-columns: minmax(0, 1fr); }
+  .examplesPrice { margin-top: 0; }
+}
+@media (max-width: 760px) {
+  .examplesPackage { padding: 16px; }
+  .examplesOptions { padding: 14px 16px; }
+  .examplesStart { width: 100%; justify-content: center; }
+}
+
+/* 오늘 화면: 업종 예시 링크로 들어온 결과 한 줄(작업 화면 토큰). */
+.starterLinkNotice { margin: 0 0 12px; padding: 12px 16px; color: var(--ink); background: var(--paper); border-radius: 12px; font-size: 14px; font-weight: 600; line-height: 1.5; word-break: keep-all; }
+.starterLinkNotice[data-tone="ok"] { color: var(--green); }
+.starterLinkNotice[data-tone="error"] { color: var(--red); }

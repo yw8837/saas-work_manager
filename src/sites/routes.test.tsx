@@ -27,6 +27,7 @@ describe("Sites route contract", () => {
       "/privacy",
       "/terms",
       "/guide",
+      "/examples",
       "/demo/r",
     ]);
   });

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { FirstRunChecklist } from "./first-run-checklist";
+import { StarterLinkNotice } from "./starter-link-notice";
 import { displayJobTitle, orderSourceLabel } from "@/lib/domain";
 import { localTodayISO } from "@/lib/due-tile";
 import { hasMaterialWaiting, isNearRevisionLimit } from "@/lib/job-chips";
@@ -269,6 +270,7 @@ export function TodayDashboard() {
         </div>
       </header>
 
+      <StarterLinkNotice />
       {jobs.length === 0 ? (
         <FirstRunChecklist />
       ) : (
