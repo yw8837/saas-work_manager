@@ -16,6 +16,7 @@ import { nativePlatform } from "@/lib/native/platform";
 import { subscribeNativeAuth, nativeAuthStatus, cancelNativeOAuth } from "@/lib/native/auth-runtime";
 import { NativeOfflineWorkspace } from "./native-offline-workspace";
 import { captureInviteFromLocation, readPendingInvite } from "@/lib/invite-link";
+import { captureStarterFromLocation } from "@/lib/starter-link";
 
 export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   const native = nativePlatform() !== "web";
@@ -30,9 +31,10 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   const [policyChanged, setPolicyChanged] = useState(false);
   const [inviteReady, setInviteReady] = useState(false);
 
-  // 초대 링크(/today?invite=CODE): 주소에서 바로 지우고 Google 로그인 왕복 동안만 이 탭에 보관한다.
+  // 초대 링크(/today?invite=CODE)·업종 예시 링크(/today?starter=design): 주소에서 바로 지우고 Google 로그인 왕복 동안만 이 탭에 보관한다.
   useEffect(() => {
     captureInviteFromLocation();
+    captureStarterFromLocation();
     let active = true;
     queueMicrotask(() => { if (active) setInviteReady(Boolean(readPendingInvite())); });
     return () => { active = false; };

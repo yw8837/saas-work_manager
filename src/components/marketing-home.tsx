@@ -49,13 +49,15 @@ export function MarketingHome() {
       <main>
         <section className="heroSection">
           <div className="heroCopy">
-            <h1>
-              <span className="heroLine">혼자 일해도,</span>
-              <span className="heroLine heroAccent">운영까지 혼자 할</span>
-              <span className="heroLine heroAccent">필요는 없어요.</span>
+            {/* 2026-11-05 벤치마킹: 고객 무가입 링크는 경쟁 서비스에도 있어 앞세우지 않는다.
+                앞세울 가치 = 주문 때 정한 포함 수정 횟수와 그 뒤 처리 기록(수정 완료 때 1회·회차 기록, engine.ts completeRevision). */}
+            <h1 data-testid="landing-hero-title">
+              <span className="heroLine">수정 몇 번까지였는지,</span>{" "}
+              <span className="heroLine heroAccent">다시 찾지</span>{" "}
+              <span className="heroLine heroAccent">않아도 돼요.</span>
             </h1>
-            <p className="heroLead">
-              주문을 등록하면 할 일, 마감, 수정 요청이 한곳에 정리돼요. 당신은 작업에 집중하세요.
+            <p className="heroLead" data-testid="landing-hero-lead">
+              고객·시작일·패키지만 고르면 금액·마감·포함 수정 횟수가 정해져요. 고객 수정 요청은 링크로 모이고, 수정 완료를 누를 때마다 몇 번째인지 남아요.
             </p>
             <div className="heroActions">
               <Link href="/today" className="primaryButton heroPrimary" data-testid="landing-demo">
@@ -77,6 +79,8 @@ export function MarketingHome() {
               <a href="#workflow">어떻게 편해지나요?</a>
               <span aria-hidden="true">·</span>
               <Link href="/guide" data-testid="landing-guide">그림 사용설명서</Link>
+              <span aria-hidden="true">·</span>
+              <Link href="/examples" data-testid="landing-examples">업종별 예시 패키지</Link>
             </p>
           </div>
 

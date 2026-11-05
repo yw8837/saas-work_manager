@@ -15,6 +15,8 @@ import {
 import type { RevisionUsage } from "@/lib/domain/types";
 import { getPublicServiceConfig } from "@/lib/policies";
 
+const REQUEST_FORM_ID = "revision-request-form";
+
 /**
  * 고객 수정요청 화면의 겉모습만 담는다.
  * 실제 링크(/r/[token])와 체험 링크(/demo/r)가 같은 화면을 쓰도록 저장·네트워크는 부르지 않고,
@@ -262,6 +264,8 @@ export function PublicRevisionView({
               <p className="publicRevisionTitleLine">{titleLine}</p>
               <h1>수정할 내용을 한 번에 남겨주세요</h1>
               <p>남겨주신 내용은 접수 시각과 함께 기록돼요. 서로 다른 수정사항은 번호를 붙이면 더 정확해요.</p>
+              {/* 입력칸이 단계·자료·요청 목록 아래에 있어서, 요청만 남기러 온 고객이 바로 갈 수 있게 한다. */}
+              <a className="publicRevisionJump" href={`#${REQUEST_FORM_ID}`}>수정 요청 바로 남기기</a>
             </div>
 
             <dl className="publicRevisionFacts" data-has-due={Boolean(dueLabel)}>
@@ -328,7 +332,7 @@ export function PublicRevisionView({
               </p>
             </div>
 
-            <form className="publicRevisionFields" onSubmit={submit}>
+            <form id={REQUEST_FORM_ID} className="publicRevisionFields" onSubmit={submit}>
               <label>
                 <span>이름 또는 담당자명 <small>선택</small></span>
                 <input maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="예: 김담당" />

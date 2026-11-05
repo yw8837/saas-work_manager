@@ -8,6 +8,14 @@ import { PublicRevisionCompleted, PublicRevisionUnavailable, PublicRevisionView 
 const revision = { included: 3, used: 1, remaining: 2 };
 
 describe("고객 링크 화면", () => {
+  it("맨 위에 입력칸으로 바로 가는 링크가 있고, 입력 폼과 연결된다", () => {
+    render(<PublicRevisionView title="브랜드 사이트" packageName="Standard" revision={revision} badgeLabel="보안 링크" footnote="안내" onSubmit={vi.fn()} />);
+    const jump = screen.getByRole("link", { name: "수정 요청 바로 남기기" });
+    const target = jump.getAttribute("href")?.replace("#", "") ?? "";
+    expect(target).not.toBe("");
+    expect(document.getElementById(target)?.tagName).toBe("FORM");
+  });
+
   it("실제 링크(서버가 주는 값만): 남은 수정을 큰 숫자로, 작업자 이름·마감·단계는 그리지 않는다", () => {
     render(<PublicRevisionView title="브랜드 사이트" packageName="Standard" revision={revision} badgeLabel="보안 링크" footnote="안내" onSubmit={vi.fn()} />);
     expect(screen.getByTestId("revision-remaining")).toHaveTextContent("2");

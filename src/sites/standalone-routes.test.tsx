@@ -18,6 +18,7 @@ describe("Sites 공개 단독 경로", () => {
 
   it("설명서와 체험 링크만 작업공간 없이 그린다", () => {
     expect(isStandaloneRoutePath("/guide")).toBe(true);
+    expect(isStandaloneRoutePath("/examples")).toBe(true);
     expect(isStandaloneRoutePath("/demo/r")).toBe(true);
     expect(isStandaloneRoutePath("/demo/r/")).toBe(true);
     expect(isStandaloneRoutePath("/r/demo")).toBe(false);
@@ -29,6 +30,13 @@ describe("Sites 공개 단독 경로", () => {
     window.history.pushState({}, "", "/demo/r");
     render(<SiteShell />);
     expect(screen.getByRole("note")).toHaveTextContent("체험용 예시 화면이에요");
+    expect(WorkspaceProvider).not.toHaveBeenCalled();
+  });
+
+  it("/examples 에서도 WorkspaceProvider를 띄우지 않는다", () => {
+    window.history.pushState({}, "", "/examples");
+    render(<SiteShell />);
+    expect(screen.getByRole("heading", { level: 1, name: "업종별 예시 패키지" })).toBeInTheDocument();
     expect(WorkspaceProvider).not.toHaveBeenCalled();
   });
 

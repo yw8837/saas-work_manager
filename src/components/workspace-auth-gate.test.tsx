@@ -197,6 +197,16 @@ describe("WorkspaceAuthGate 초대 링크", () => {
     expect(document.body.textContent).not.toContain("MAILCODE");
   });
 
+  it("업종 예시 링크: 로그인 전에 주소의 업종을 이 탭에 옮겨 두고 주소에서 지운다(Google 복귀 주소 /today에 없어도 살아 있게)", async () => {
+    jsdom.reconfigure({ url: "https://ilgam.example/today?starter=design" });
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    expect(window.location.search).toBe("");
+    expect(window.sessionStorage.getItem("ilgamcheck:pending-starter")).toBe("design");
+    await waitFor(() => expect(screen.getByRole("button", { name: /Google로 계속하기/ })).toBeInTheDocument());
+    // 로그인 화면에서는 아직 적용하지 않아 값을 그대로 둔다.
+    expect(window.sessionStorage.getItem("ilgamcheck:pending-starter")).toBe("design");
+  });
+
   it("초대 링크가 아니면 안내를 띄우지 않는다", async () => {
     jsdom.reconfigure({ url: "https://ilgam.example/today" });
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);

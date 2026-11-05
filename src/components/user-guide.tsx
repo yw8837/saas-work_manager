@@ -309,6 +309,7 @@ export function UserGuide() {
 
       <footer className="guideFooter">
         <Link href="/">일감체크 소개</Link>
+        <Link href="/examples" data-testid="guide-examples">업종별 예시 패키지</Link>
         <Link href="/terms">이용약관</Link>
         <Link href="/privacy">개인정보처리방침</Link>
       </footer>

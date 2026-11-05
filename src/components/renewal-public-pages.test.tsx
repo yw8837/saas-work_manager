@@ -6,6 +6,20 @@ import { MarketingHome } from "./marketing-home";
 import { GUIDE_STEPS, UserGuide } from "./user-guide";
 
 describe("랜딩 히어로", () => {
+  it("첫 문구는 포함 수정 횟수와 처리 기록을 앞세운다(3줄 구조 유지)", () => {
+    render(<MarketingHome />);
+    const title = screen.getByTestId("landing-hero-title");
+    const lines = [...title.querySelectorAll(".heroLine")].map((line) => line.textContent);
+    expect(lines).toEqual(["수정 몇 번까지였는지,", "다시 찾지", "않아도 돼요."]);
+    expect(title.querySelectorAll(".heroAccent")).toHaveLength(2);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("수정 몇 번까지였는지, 다시 찾지 않아도 돼요.");
+    expect(screen.getByTestId("landing-hero-lead")).toHaveTextContent(
+      "고객·시작일·패키지만 고르면 금액·마감·포함 수정 횟수가 정해져요. 고객 수정 요청은 링크로 모이고, 수정 완료를 누를 때마다 몇 번째인지 남아요.",
+    );
+    // 예전 문구가 남아 있지 않다.
+    expect(document.body.textContent).not.toContain("운영까지 혼자 할");
+  });
+
   it("보조 버튼은 가입 없이 고객 화면 체험으로 간다", () => {
     render(<MarketingHome />);
     const demo = screen.getByTestId("landing-customer-demo");
