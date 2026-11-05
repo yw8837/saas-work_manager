@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { BetaActivationGate } from "@/components/beta-activation-gate";
 import { CustomerRevisionDemo } from "@/components/customer-revision-demo";
 import { FeedbackPanel } from "@/components/feedback-panel";
+import { IndustryExamples } from "@/components/industry-examples";
 import { JobDetail } from "@/components/job-detail";
 import { JobsOverview } from "@/components/jobs-overview";
 import { MarketingHome } from "@/components/marketing-home";
@@ -34,6 +35,7 @@ export const SITE_ROUTE_PATHS = [
   "/privacy",
   "/terms",
   "/guide",
+  "/examples",
   "/demo/r",
 ] as const;
 
@@ -41,6 +43,7 @@ export function StandaloneRoutes() {
   return (
     <Routes>
       <Route path="/guide" element={<UserGuide />} />
+      <Route path="/examples" element={<IndustryExamples />} />
       <Route path="/demo/r" element={<CustomerRevisionDemo />} />
     </Routes>
   );

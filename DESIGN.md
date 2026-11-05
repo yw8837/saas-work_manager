@@ -9,6 +9,7 @@ colors:
   canvas: "#f2f4f6"
   line: "#e5e8eb"
   line-strong: "#d1d6db"
+  field-line: "#7f8a96"
   primary: "#2563eb"
   primary-active: "#1d4ed8"
   blue-soft: "#e8f0fe"
@@ -182,7 +183,7 @@ Sidecar의 8단계 tonalRamp는 패널 탐색용으로 합성한 OKLCH 명도 �
 - **백지 / paper:** 작업 본문과 상·하단 내비게이션.
 - **작업대 회색 / canvas:** 사이드바, 검색, 프리뷰, 안내와 보조 영역.
 - **보조 잉크 / ink-soft, muted:** 본문 보조 설명과 날짜·고객·기한·메타 정보.
-- **구분선 / line, line-strong, border-strong:** 정보 구획, 입력 테두리, 호버 등 더 또렷한 경계.
+- **구분선 / line, line-strong, border-strong:** 정보 구획, 호버 등 더 또렷한 경계. 입력칸 테두리는 field-line.
 - **상태 회색 / state-soft:** 진행·대기·완료 등 비위험 상태의 배경. 역사적 CSS 변수 blue/green/amber는 작업 화면에서 중립색 별칭이며 실제 파랑·초록·황토색을 뜻하지 않는다.
 
 **The Neutral Selection Rule.** 선택·완료·대기·Pro는 중립 명도와 문구·아이콘으로 구분하고, 체리색을 선택 강조나 업그레이드 판촉색으로 쓰지 않는다.
@@ -246,7 +247,7 @@ Sidecar의 8단계 tonalRamp는 패널 탐색용으로 합성한 OKLCH 명도 �
 
 ### Inputs / Fields
 
-흰 바탕과 line-strong 테두리, field 모서리. 일반 작업 입력 값은 (16px)와 최소 (44px) 높이다. 아이콘 입력은 (46px) 높이, 왼쪽 (41px) 여백을 확보한다. 검색·일감 범위 선택기는 canvas 배경이다. 범위 선택기는 데스크톱 최대 (430px), 모바일 전체 너비·최소 (48px) 높이와 (16px) 글자다. 오류를 색만으로 전달하지 않는다.
+흰 바탕과 field-line 테두리(`#7f8a96`, 바탕 대비 3:1 이상), field 모서리. 일반 작업 입력 값은 (16px)와 최소 (44px) 높이다. 아이콘 입력은 (46px) 높이, 왼쪽 (41px) 여백을 확보한다. 검색·일감 범위 선택기는 canvas 배경이다. 범위 선택기는 데스크톱 최대 (430px), 모바일 전체 너비·최소 (48px) 높이와 (16px) 글자다. 오류를 색만으로 전달하지 않는다.
 
 ### Navigation
 

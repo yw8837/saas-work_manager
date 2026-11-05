@@ -64,6 +64,7 @@ import {
   type AppState,
   type Industry,
 } from "@/lib/store";
+import { clearPendingStarter } from "@/lib/starter-link";
 import { deriveInAppAlerts, registerIlgamcheckServiceWorker } from "@/lib/notifications";
 import { nativePlatform, nativeApiUrl } from "@/lib/native/platform";
 import { subscribeNativeResume } from "@/lib/native/lifecycle";
@@ -1185,6 +1186,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw new Error(error.message);
+    clearPendingStarter();
     if (ownerId) {
       window.localStorage.removeItem(storageKeyForUser(ownerId));
       clearHostedDraft(ownerId);
@@ -1231,6 +1233,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       await initializeNativePush(null);
     }
 
+    clearPendingStarter();
     hostedOwnerRef.current = null;
     remoteVersionRef.current = 0;
     lastSyncedStateRef.current = null;
