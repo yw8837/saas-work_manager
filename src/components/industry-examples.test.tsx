@@ -53,13 +53,20 @@ describe("업종별 예시 패키지 공개 페이지", () => {
     const group = screen.getByTestId(`examples-options-${industry}`);
     expect(within(group).getByRole("heading", { level: 3, name: "범위 밖·추가 작업은 이렇게 더해요" })).toBeInTheDocument();
     const rows = within(group).getAllByRole("listitem");
-    const { options } = INDUSTRY_STARTERS[industry];
+    const options = INDUSTRY_STARTERS[industry].options.filter((option) => option.priceDelta !== 0 || option.durationDaysDelta !== 0 || option.revisionLimitDelta !== 0);
     expect(rows).toHaveLength(options.length);
     options.forEach((option, index) => {
       expect(rows[index]).toHaveTextContent(option.name);
       expect(rows[index]).toHaveTextContent(option.priceDelta === 0 ? "금액 그대로" : `+${won(option.priceDelta)}`);
       expect(rows[index]).toHaveTextContent(option.durationDaysDelta === 0 ? "기간 그대로" : `+${option.durationDaysDelta}일`);
     });
+  });
+
+  it("금액·기간·수정 횟수 중 더해지는 게 없는 옵션은 '범위 밖·추가 작업' 묶음에 안 보인다", () => {
+    render(<IndustryExamples />);
+    const group = screen.getByTestId("examples-options-web");
+    expect(within(group).queryByText("고객 디자인 제공")).not.toBeInTheDocument();
+    expect(within(group).getByText("문구 정리")).toBeInTheDocument();
   });
 
   it("화면의 원 단위 숫자는 모두 INDUSTRY_STARTERS에 있는 값이다(새 숫자·평균 없음)", () => {

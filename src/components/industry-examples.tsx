@@ -9,6 +9,11 @@ const won = new Intl.NumberFormat("ko-KR");
 
 export const EXAMPLES_NOTICE = "금액과 횟수는 예시예요. 업계 평균이 아니에요. 가입 뒤 패키지 화면에서 고쳐 써요.";
 
+/** '범위 밖·추가 작업' 묶음에는 금액·기간·수정 횟수 중 하나라도 더해지는 옵션만 보여 준다. */
+function addsSomething(option: OptionTemplate): boolean {
+  return option.priceDelta !== 0 || option.durationDaysDelta !== 0 || option.revisionLimitDelta !== 0;
+}
+
 function optionPrice(option: OptionTemplate): string {
   return option.priceDelta === 0 ? "금액 그대로" : `+${won.format(option.priceDelta)}원`;
 }
@@ -78,7 +83,7 @@ export function IndustryExamples() {
               <div className="examplesOptions" data-testid={`examples-options-${industry}`}>
                 <h3>범위 밖·추가 작업은 이렇게 더해요</h3>
                 <ul>
-                  {starter.options.map((option) => (
+                  {starter.options.filter(addsSomething).map((option) => (
                     <li key={option.id}>
                       <span className="examplesOptionName">{option.name}</span>
                       <span className="examplesOptionDelta">
