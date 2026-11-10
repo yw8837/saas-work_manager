@@ -19,6 +19,7 @@ describe("Sites 공개 단독 경로", () => {
   it("설명서와 체험 링크만 작업공간 없이 그린다", () => {
     expect(isStandaloneRoutePath("/guide")).toBe(true);
     expect(isStandaloneRoutePath("/examples")).toBe(true);
+    expect(isStandaloneRoutePath("/try")).toBe(true);
     expect(isStandaloneRoutePath("/demo/r")).toBe(true);
     expect(isStandaloneRoutePath("/demo/r/")).toBe(true);
     expect(isStandaloneRoutePath("/r/demo")).toBe(false);

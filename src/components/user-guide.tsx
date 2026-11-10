@@ -92,7 +92,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: "상황별 문구를 골라 보내요",
     caption: "남은 것 요청·시안 확인·범위 밖 안내 등을 골라 복사해요.",
     detail: "금액·받은 곳은 문구에 넣지 않아요.",
-    image: { src: "/guide/08-messages.webp", alt: "고객에게 보낼 말 구획. 시안 확인 부탁 칩에 1번, 문구 복사 버튼에 2번 표시", width: 750, height: 792 },
+    image: { src: "/guide/08-messages.webp", alt: "고객에게 보낼 말 구획. 시안 확인 부탁 칩에 1번, 문구 복사 버튼에 2번 표시", width: 750, height: 838 },
   },
   {
     id: "monthly",

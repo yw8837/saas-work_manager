@@ -237,6 +237,9 @@ export function SettingsPanel() {
               name="betaInviteCode"
               type="text"
               autoComplete="off"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="받은 코드를 입력해주세요"
               value={inviteCode}
               onChange={(event) => setInviteCode(event.target.value)}
