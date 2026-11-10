@@ -26,7 +26,7 @@
 - **약관·개인정보처리방침 React 418(운영에서 확인)**: 원인은 `policy-page.tsx` 머리의 `<Link href="/"><Brand /></Link>`. `Brand`가 이미 홈 링크라 a 안에 a가 생겨 브라우저가 HTML을 고쳐 버렸다. 로그인 연결 모드 운영 빌드에서 재현 → 고친 뒤 /terms·/privacy·/guide·/·/today 오류 0. 시험 `policy-page.test.tsx`(고치기 전 실패 확인).
 - **코드 칸**: 베타 관문·설정의 코드 입력에 `autoCapitalize="characters"`·`autoCorrect="off"`·`spellCheck={false}`. 초대 링크 자동 적용은 가짜 서버 응답으로 /try → 시작 → 로그인 → 약관 동의 → `redeem_invite_code("BETA2026")` → 오늘 화면까지 휴대폰·PC 확인(실제 계정·운영 DB로는 안 해 봄).
 - **설명서 8번 그림**: 미리보기 칸 안쪽 스크롤 때문에 고객 링크가 잘리던 것을 그림에서만 칸을 펼쳐 다시 찍음(750×838).
-- **남은 판단**: 고객 화면 단계 규칙은 받을 자료가 남아 있으면 수정 기록이 있어도 '자료 받는 중'으로 보인다(체험 /demo/r에서 '시안 전' 문구와 '수정 완료 1회차'가 같이 보임). 같은 규칙이 DB 함수 `get_workspace_revision_view`에도 있어 바꾸려면 migration이 필요하다. 문의 메일은 아직 `studioyeolmae.com@gmail.com`(사용자 새 주소 yeolmae@studioyeolmae.com로 바꿀지 결정 필요).
+- **남은 판단**: 고객 화면 단계 규칙은 받을 자료가 남아 있으면 수정 기록이 있어도 '자료 받는 중'으로 보인다(체험 /demo/r에서 '시안 전' 문구와 '수정 완료 1회차'가 같이 보임). 같은 규칙이 DB 함수 `get_workspace_revision_view`에도 있어 바꾸려면 migration이 필요하다. 문의 메일은 사용자 결정(11-10)으로 `yeolmae@studioyeolmae.com`으로 바꿨다(코드 기본값과 배포 공개값 `NEXT_PUBLIC_SUPPORT_EMAIL` 둘 다).
 - **운영 메모**: 배포용 깨끗한 main 폴더(`%TEMP%/ilgam-cloudflare-deploy-20261101`)에서 추적 파일 406개와 `.env.local`이 11-05~11-10 사이에 사라짐(오늘 작업 전부터). Windows 임시 폴더 정리로 추정. 다음 배포는 Temp 밖에 새 폴더를 받아서 쓴다.
 
 ### 2026-11-05 베타 코드 하나로 · PR #36 운영 배포

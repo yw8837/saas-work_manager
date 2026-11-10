@@ -10,7 +10,7 @@ export const BUSINESS_IDENTITY = {
   mailOrderNumber: "2026-부산영도-0153",
   address: "부산광역시 영도구 동삼서로51-7, 3층 302호 (동삼동, 금관빌리지)",
   phone: "010-8282-8837",
-  email: "studioyeolmae.com@gmail.com",
+  email: "yeolmae@studioyeolmae.com",
   privacyOfficer: "최용우 (대표)",
 } as const;
 

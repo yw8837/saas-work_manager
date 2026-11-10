@@ -98,7 +98,7 @@ describe("Hosted entry safety", () => {
     expect(legal).toHaveTextContent("사업자등록번호665-38-01736");
     expect(legal).toHaveTextContent("통신판매업신고2026-부산영도-0153");
     expect(legal).toHaveTextContent("연락처010-8282-8837");
-    expect(legal).toHaveTextContent("문의studioyeolmae.com@gmail.com");
+    expect(legal).toHaveTextContent("문의yeolmae@studioyeolmae.com");
   });
 
   it("shows only the registered business name and inquiry in the compact legal footer", () => {
