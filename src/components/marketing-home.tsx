@@ -43,22 +43,25 @@ export function MarketingHome() {
           <div className="heroCopy">
             {/* 2026-11-05 벤치마킹: 고객 무가입 링크는 경쟁 서비스에도 있어 앞세우지 않는다.
                 앞세울 가치 = 주문 때 정한 포함 수정 횟수와 그 뒤 처리 기록(수정 완료 때 1회·회차 기록, engine.ts completeRevision). */}
+            {/* 2026-11-11: 처음 온 사람이 첫 화면만 보고 "누구를 위한 무엇"인지 알 수 있게 한 줄을 둔다(블로그 판매자가 홈만 보고 무슨 서비스인지 모르겠다고 답함). */}
+            <p className="heroEyebrow" data-testid="landing-hero-eyebrow">디자인·영상·웹 외주 제작자를 위한 작업 관리 도구</p>
             <h1 data-testid="landing-hero-title">
               <span className="heroLine">수정 몇 번까지였는지,</span>{" "}
               <span className="heroLine heroAccent">다시 찾지</span>{" "}
               <span className="heroLine heroAccent">않아도 돼요.</span>
             </h1>
             <p className="heroLead" data-testid="landing-hero-lead">
-              고객·시작일·패키지만 고르면 금액·마감·포함 수정 횟수가 정해져요. 고객 수정 요청은 링크로 모이고, 수정 완료를 누를 때마다 몇 번째인지 남아요.
+              외주 주문마다 약속한 수정 횟수와 마감을 적어 두면, 고객은 링크 하나로 수정 요청을 남기고 남은 횟수를 같이 봐요. 카톡으로 오는 요청을 따로 셀 필요가 없어요.
             </p>
             <div className="heroActions">
               <Link href="/today" className="primaryButton heroPrimary" data-testid="landing-demo">
                 무료로 시작하기
                 <ArrowRight size={18} />
               </Link>
-              <Link href="/demo/r" className="secondaryButton" data-testid="landing-customer-demo">
+              {/* 고객 화면만 보여 주는 /demo/r보다 네 단계를 한 번에 눌러 보는 /try가 처음 온 사람에게 이해가 빠르다. */}
+              <Link href="/try" className="secondaryButton" data-testid="landing-try">
                 <MousePointerClick size={18} aria-hidden="true" />
-                가입 없이 고객 화면 체험
+                가입 없이 둘러보기
               </Link>
             </div>
             {/* 사실만 적는다: 로그인은 Google만, 결제 기능이 아직 없어 카드를 받지 않는다, 무료 한도는 entitlements 값. */}

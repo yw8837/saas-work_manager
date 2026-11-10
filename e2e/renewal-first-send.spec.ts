@@ -160,16 +160,20 @@ test("2번: 고객 링크 화면은 남은 수정을 크게, 개인정보 안내
   await noHorizontalOverflow(page);
 });
 
-test("4번: 랜딩 보조 버튼은 가입 없이 고객 화면 체험으로, CTA 아래 안심 줄", async ({ page }) => {
+test("4번: 랜딩 보조 버튼은 가입 없이 둘러보기로, CTA 아래 안심 줄, 고객 화면 체험은 그대로 열린다", async ({ page }) => {
   await page.goto("/");
   const reassure = page.getByTestId("landing-reassure");
   await expect(reassure).toBeVisible();
   await expect(reassure).toContainText("카드 등록 없음");
-  await expect(page.locator(".heroActions").getByTestId("landing-customer-demo")).toBeVisible();
+  await expect(page.getByTestId("landing-hero-eyebrow")).toBeVisible();
+  await expect(page.locator(".heroActions").getByTestId("landing-try")).toBeVisible();
   await noHorizontalOverflow(page);
 
-  await page.getByTestId("landing-customer-demo").click();
-  await expect(page).toHaveURL(/\/demo\/r$/);
+  await page.getByTestId("landing-try").click();
+  await expect(page).toHaveURL(/\/try$/);
+  await noHorizontalOverflow(page);
+
+  await page.goto("/demo/r");
   await expect(page.getByTestId("revision-worker")).toHaveText("샘플 디자인 스튜디오");
   // 예시 주문은 받을 자료가 남아 있어서 '자료 받는 중'이다.
   await expect(page.getByRole("list", { name: "진행 단계" }).locator("[aria-current=step]")).toContainText("자료 받는 중");
