@@ -14,18 +14,30 @@ describe("랜딩 히어로", () => {
     expect(title.querySelectorAll(".heroAccent")).toHaveLength(2);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("수정 몇 번까지였는지, 다시 찾지 않아도 돼요.");
     expect(screen.getByTestId("landing-hero-lead")).toHaveTextContent(
-      "고객·시작일·패키지만 고르면 금액·마감·포함 수정 횟수가 정해져요. 고객 수정 요청은 링크로 모이고, 수정 완료를 누를 때마다 몇 번째인지 남아요.",
+      "외주 주문마다 약속한 수정 횟수와 마감을 적어 두면, 고객은 링크 하나로 수정 요청을 남기고 남은 횟수를 같이 봐요. 카톡으로 오는 요청을 따로 셀 필요가 없어요.",
     );
     // 예전 문구가 남아 있지 않다.
     expect(document.body.textContent).not.toContain("운영까지 혼자 할");
   });
 
-  it("보조 버튼은 가입 없이 고객 화면 체험으로 간다", () => {
+  it("큰 글자 위 한 줄로 누구를 위한 무엇인지 먼저 말한다(첫 화면만 보고도 알 수 있게)", () => {
     render(<MarketingHome />);
-    const demo = screen.getByTestId("landing-customer-demo");
-    expect(demo).toHaveAttribute("href", "/demo/r");
-    expect(demo).toHaveTextContent("가입 없이 고객 화면 체험");
-    expect(demo.closest(".heroActions")).not.toBeNull();
+    const eyebrow = screen.getByTestId("landing-hero-eyebrow");
+    expect(eyebrow).toHaveTextContent("디자인·영상·웹 외주 제작자를 위한 작업 관리 도구");
+    // 제목보다 먼저 읽힌다.
+    const title = screen.getByTestId("landing-hero-title");
+    expect(eyebrow.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 설명에 '외주'가 들어가 맥락 없이 읽어도 뜻이 통한다.
+    expect(screen.getByTestId("landing-hero-lead")).toHaveTextContent("외주 주문마다");
+  });
+
+  it("보조 버튼은 가입 없이 둘러보기(/try)로 간다", () => {
+    render(<MarketingHome />);
+    const tryLink = screen.getByTestId("landing-try");
+    expect(tryLink).toHaveAttribute("href", "/try");
+    expect(tryLink).toHaveTextContent("가입 없이 둘러보기");
+    expect(tryLink.closest(".heroActions")).not.toBeNull();
+    expect(screen.queryByTestId("landing-customer-demo")).toBeNull();
   });
 
   it("CTA 아래 안심 줄은 사실만, 무료 한도는 플랜 값 그대로", () => {

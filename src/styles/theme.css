@@ -233,6 +233,7 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   display: grid; grid-template-columns: minmax(340px, .84fr) minmax(0, 1.16fr); gap: 56px; align-items: center;
 }
 .heroCopy { min-width: 0; }
+.heroEyebrow { margin: 0 0 14px; color: var(--ink-soft); font-size: 15px; font-weight: 600; line-height: 1.5; word-break: keep-all; }
 .heroCopy h1 {
   max-width: 620px;
   margin: 0 0 24px;

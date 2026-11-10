@@ -110,9 +110,9 @@ test("고객 체험 링크는 검색에 막혀 있고, 요청을 남겨도 서�
   await expect(page.getByTestId("demo-revision-usage")).toHaveText("3회 중 1회 사용");
 });
 
-test("첫 화면에서 설명서와 고객 체험 링크로 갈 수 있다", async ({ page }) => {
+test("첫 화면에서 설명서와 가입 없이 둘러보기로 갈 수 있다", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("landing-guide")).toHaveAttribute("href", "/guide");
-  await page.getByTestId("landing-customer-demo").click();
-  await expect(page).toHaveURL(/\/demo\/r$/);
+  await page.getByTestId("landing-try").click();
+  await expect(page).toHaveURL(/\/try$/);
 });
