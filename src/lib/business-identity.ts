@@ -1,3 +1,5 @@
+import { getPublicEnvironmentValue } from "./public-environment";
+
 // 사업자등록증·통신판매업 신고 기준 운영 주체 정보.
 // 배포 환경변수(NEXT_PUBLIC_BUSINESS_* 등)가 있으면 그 값이 우선하고, 없으면 이 값을 보여 준다.
 export const BUSINESS_IDENTITY = {
@@ -11,3 +13,19 @@ export const BUSINESS_IDENTITY = {
   email: "studioyeolmae.com@gmail.com",
   privacyOfficer: "최용우 (대표)",
 } as const;
+
+/**
+ * 화면에 보여 줄 사업자 정보. 배포 환경변수(NEXT_PUBLIC_BUSINESS_*)가 있으면 그 값을, 없으면 위 사업자등록 기준 값을 쓴다.
+ * 홈 바닥글과 /try가 같은 값을 보이도록 이 함수 하나만 쓴다.
+ */
+export function publicBusinessIdentity() {
+  return {
+    businessName: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NAME")?.trim() || BUSINESS_IDENTITY.businessName,
+    brandName: BUSINESS_IDENTITY.brandName,
+    representative: BUSINESS_IDENTITY.representative,
+    regNo: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NUMBER")?.trim() || BUSINESS_IDENTITY.registrationNumber,
+    mailOrderNo: getPublicEnvironmentValue("NEXT_PUBLIC_MAIL_ORDER_NUMBER")?.trim() || BUSINESS_IDENTITY.mailOrderNumber,
+    address: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_ADDRESS")?.trim() || BUSINESS_IDENTITY.address,
+    phone: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_PHONE")?.trim() || BUSINESS_IDENTITY.phone,
+  };
+}

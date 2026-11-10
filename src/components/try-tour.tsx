@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, CheckCircle2, MessageSquareText, RotateCcw, Send } from "lucide-react";
 
 import { SAMPLE_PACKAGES } from "@/lib/demo/sample-order";
 import { BETA_GRANT_DAYS } from "@/lib/domain/entitlements";
 import { BETA_INVITE_CODES } from "@/lib/domain/invite-codes";
-import { BUSINESS_IDENTITY } from "@/lib/business-identity";
+import { BUSINESS_IDENTITY, publicBusinessIdentity } from "@/lib/business-identity";
 import { getPublicServiceConfig } from "@/lib/policies";
 import { Brand } from "./brand";
 
@@ -37,6 +37,23 @@ export function TryTour() {
   const remaining = chosen.revisionLimit - used;
   const service = getPublicServiceConfig();
   const contact = service.supportEmail ?? BUSINESS_IDENTITY.email;
+  const business = publicBusinessIdentity();
+  // 단계가 바뀌면 누른 버튼이 사라진다. 키보드·화면 읽기 사용자가 위치를 잃지 않게 새 단계 제목으로 포커스를 옮긴다.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    headingRef.current?.focus();
+  }, [step]);
+  // 처음부터 있는 빈 알림 칸의 글만 바꿔야 화면 읽기 프로그램이 읽어 준다.
+  const announcement = step === 2 && pending > 0
+    ? `요청을 남겼어요. 확인 대기 ${pending}건, 남은 수정은 그대로 ${remaining}회예요.`
+    : step === 3 && used > 0
+      ? `수정 완료. 포함 수정 ${chosen.revisionLimit}회 중 ${used}회 썼어요. 남은 수정 ${remaining}회.`
+      : "";
 
   function restart() {
     setStep(0);
@@ -78,7 +95,7 @@ export function TryTour() {
           <div className="tryPanel" data-testid={`try-step-${step + 1}`}>
             {step === 0 && (
               <>
-                <h3>1. 주문이 오면 패키지를 골라요</h3>
+                <h3 ref={headingRef} tabIndex={-1}>1. 주문이 오면 패키지를 골라요</h3>
                 <p className="tryHint">패키지에 금액·기간·포함 수정 횟수를 한 번 적어 두면, 주문마다 고르기만 하면 돼요.</p>
                 <fieldset className="tryPackages">
                   <legend className="srOnly">예시 패키지</legend>
@@ -98,12 +115,12 @@ export function TryTour() {
 
             {step === 1 && (
               <>
-                <h3>2. 카톡 문구를 복사해 고객에게 보내요</h3>
+                <h3 ref={headingRef} tabIndex={-1}>2. 카톡 문구를 복사해 고객에게 보내요</h3>
                 <p className="tryHint">일감을 만들면 고객 링크가 들어간 문구가 바로 나와요. 문구는 내가 복사해서 붙여 넣어요. 자동으로 보내지지 않아요.</p>
                 <div className="tryMessage" data-testid="try-message">
                   안녕하세요, 예시 고객님.{"\n"}
                   작업을 시작해요. 수정 요청은 아래 링크에 번호를 붙여 한 번에 남겨 주세요.{"\n"}
-                  포함 수정은 {chosen.revisionLimit}회예요.{"\n"}
+                  남은 포함 수정은 {chosen.revisionLimit}회예요.{"\n"}
                   https://ilgam.studioyeolmae.com/r/예시
                 </div>
                 <button type="button" className="primaryButton tryNext" onClick={() => setStep(2)} data-testid="try-next-2">
@@ -114,7 +131,7 @@ export function TryTour() {
 
             {step === 2 && (
               <>
-                <h3>3. 고객은 가입 없이 링크에서 요청을 남겨요</h3>
+                <h3 ref={headingRef} tabIndex={-1}>3. 고객은 가입 없이 링크에서 요청을 남겨요</h3>
                 <div className="tryCustomer" aria-label="고객 화면">
                   <p className="tryCustomerTag">고객 화면</p>
                   <p className="tryRemaining">남은 수정 <strong data-testid="try-remaining-customer">{remaining}</strong>회</p>
@@ -135,7 +152,7 @@ export function TryTour() {
                       </button>
                     </>
                   ) : (
-                    <p className="tryResult" role="status" data-testid="try-request-sent">
+                    <p className="tryResult" data-testid="try-request-sent">
                       요청을 남겼어요. 작업자 화면에 &lsquo;확인 대기 {pending}건&rsquo;으로 들어가요. 아직 횟수는 그대로 {remaining}회예요.
                     </p>
                   )}
@@ -150,7 +167,7 @@ export function TryTour() {
 
             {step === 3 && (
               <>
-                <h3>4. 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회 줄어요</h3>
+                <h3 ref={headingRef} tabIndex={-1}>4. 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회 줄어요</h3>
                 <p className="tryHint">요청만 남겼을 때는 줄지 않아요. 질문이나 중복 요청은 반려하면 횟수가 그대로예요.</p>
                 <div className="tryWorker" aria-label="작업자 화면">
                   <p className="tryCustomerTag">작업자 화면</p>
@@ -175,7 +192,7 @@ export function TryTour() {
                     ))}
                   </ul>
                 </div>
-                <p className="tryResult" role="status" data-testid="try-result">
+                <p className="tryResult" data-testid="try-result">
                   {used > 0
                     ? `포함 수정 ${chosen.revisionLimit}회 중 ${used}회 썼어요. 고객 링크에도 남은 수정 ${remaining}회로 보여요.`
                     : `아직 ${remaining}회 남았어요. 고친 뒤 수정 완료를 눌러 보세요.`}
@@ -186,6 +203,7 @@ export function TryTour() {
               </>
             )}
           </div>
+          <p className="srOnly" role="status" aria-live="polite" data-testid="try-announcer">{announcement}</p>
         </section>
 
         <section className="tryStart" aria-labelledby="try-start-title" data-testid="try-start">
@@ -210,10 +228,13 @@ export function TryTour() {
         <section className="tryMaker" aria-labelledby="try-maker-title" data-testid="try-maker">
           <h2 id="try-maker-title">만든 곳</h2>
           <dl>
-            <div><dt>상호</dt><dd>{BUSINESS_IDENTITY.businessName} ({BUSINESS_IDENTITY.brandName})</dd></div>
-            <div><dt>대표</dt><dd>{BUSINESS_IDENTITY.representative}</dd></div>
-            <div><dt>사업자등록번호</dt><dd>{BUSINESS_IDENTITY.registrationNumber}</dd></div>
-            <div><dt>문의</dt><dd><a href={`mailto:${contact}`}>{contact}</a></dd></div>
+            <div><dt>상호</dt><dd>{business.businessName} ({business.brandName})</dd></div>
+            <div><dt>대표</dt><dd>{business.representative}</dd></div>
+            <div><dt>사업자등록번호</dt><dd>{business.regNo}</dd></div>
+            <div><dt>통신판매업 신고번호</dt><dd>{business.mailOrderNo}</dd></div>
+            <div><dt>전화</dt><dd><a href={`tel:${business.phone.replace(/[^0-9+]/g, "")}`}>{business.phone}</a></dd></div>
+            <div><dt>문의 메일</dt><dd><a href={`mailto:${contact}`}>{contact}</a></dd></div>
+            <div className="tryMakerWide"><dt>주소</dt><dd>{business.address}</dd></div>
           </dl>
         </section>
       </main>

@@ -2145,3 +2145,9 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .tryPackages { grid-template-columns: 1fr; }
   .tryMaker dl { grid-template-columns: 1fr; }
 }
+/* /try는 앱 화면(.pageSurface) 밖이라 모바일 44px 보정을 따로 준다. */
+.tryPage .compactButton { min-height: 44px; padding-inline: 14px; }
+.tryMore a { display: inline-flex; align-items: center; min-height: 44px; }
+.tryPanel h3:focus { outline: none; }
+.tryPanel h3:focus-visible { outline: 3px solid var(--primary); outline-offset: 4px; border-radius: 6px; }
+.tryMakerWide { grid-column: 1 / -1; }
