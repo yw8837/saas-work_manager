@@ -19,7 +19,7 @@ vi.mock("@/lib/supabase", async () => {
   };
 });
 
-import { WorkspaceProvider, useWorkspace } from "./workspace-provider";
+import { REOPEN_LIMIT_MESSAGE, WorkspaceProvider, useWorkspace } from "./workspace-provider";
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -263,6 +263,16 @@ describe("workspace plan — 무료 한도", () => {
 
     expect(screen.getByTestId("can-create")).toHaveTextContent("false");
     expect(screen.getByTestId("limit-hit")).toHaveTextContent("activeJobs");
+  });
+});
+
+describe("workspace plan — 다시 진행 한도(2026-11-11)", () => {
+  it("동시 진행 한도에 닿으면 완료한 일감을 다시 진행할 때 이유를 알려 준다", async () => {
+    const seed = twoActiveJobs();
+    const done = { ...seed.jobs[0], id: "job_done_for_reopen", status: "completed" as const, revisionPortalToken: "done-token-for-reopen-test-000000000000000" };
+    await mountWith({ jobsCreatedTotal: 3, trialStartedAt: EXPIRED_TRIAL }, { ...seed, jobs: [...seed.jobs, done] });
+    expect(() => act(() => { workspace!.completeJob("job_done_for_reopen"); })).toThrow(REOPEN_LIMIT_MESSAGE);
+    expect(workspace!.jobs.find((job) => job.id === "job_done_for_reopen")?.status).toBe("completed");
   });
 });
 

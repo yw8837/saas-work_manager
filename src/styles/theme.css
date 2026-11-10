@@ -1434,7 +1434,11 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .feedbackForm { display: grid; gap: 14px; }
 .feedbackSection fieldset { margin: 0; padding: 0; border: 0; }
 .feedbackSection .fieldLabel { width: 100%; }
-.feedbackSection .fieldLabel em { margin-left: 4px; color: var(--muted); font-size: 11px; font-style: normal; font-weight: 500; }
+.feedbackSection .fieldLabel em,
+.settingTime small,
+.catalogFieldGrid small,
+.catalogFullField small,
+.briefQuestionField small { margin-left: 4px; color: var(--muted); font-size: 11px; font-style: normal; font-weight: 500; }
 .feedbackSection textarea { padding: 12px; min-height: 132px; }
 .feedbackSection select, .feedbackSection input[type="email"] { height: 44px; padding: 0 11px; }
 .feedbackChoices { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2151,3 +2155,104 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .tryPanel h3:focus { outline: none; }
 .tryPanel h3:focus-visible { outline: 3px solid var(--primary); outline-offset: 4px; border-radius: 6px; }
 .tryMakerWide { grid-column: 1 / -1; }
+
+/* 2026-11-11 모바일 점검: 읽고 누르는 글자는 12px 아래로 내려가지 않게 한다.
+ * 홈 제품 미리보기 그림 안의 축소 글자(scene·pp·preview·customerScene 등)와 숫자 배지는 장식·축약이라 뺐다. */
+.pageEyebrow,
+.sectionKicker,
+.sectionMiniLabel,
+.microLabel,
+.navEyebrow,
+.marketingFooterIdentity small,
+.marketingFooterLegal dt,
+.marketingFooterLegal dd,
+.policyReferences,
+.localModeNotice span,
+.topbarContext span,
+.saveState,
+.briefMessage p,
+.briefStats dt,
+.sectionHeadingRow p,
+.sectionCount,
+.clientName,
+.dueTag,
+.taskContext,
+.waitingMain span,
+.waitingDays,
+.clearState span,
+.quickGuide p,
+.actionToast button,
+.formTimePromise,
+.fieldProgress > span,
+.fieldLabel > span,
+.packageChoiceMain span,
+.optionChoiceMain span,
+.packageChoiceMeta span,
+.moreTasks,
+.selectedOptionSummary span,
+.selectedOptionSummary b,
+.snapshotNote,
+.jobIdentity span,
+.statusBadge,
+.taskStateLabel,
+.usageBadge,
+.waitingChip,
+.revisionImpact,
+.actionBarStatus,
+.jobFactRail dt,
+.jobFactRail dd small,
+.detailTaskRow span,
+.revisionRevertNote,
+.revisionRevertButton,
+.intakeToggle small,
+.remainingRevision,
+.portalStatus,
+.copyFeedback,
+.localDemoBadge,
+.mobileSubmitBar span,
+.mobileRuntimeAlert span,
+.mobileRuntimeAlert a,
+.bottomNavItem,
+.mobileCreateNav,
+.addonForm label > span,
+.optionEffectFields label > span,
+.optionRemoveField > span,
+.addonRow span,
+.addonRow p,
+.linkShortcutGrid a,
+.linkShortcutGrid p,
+.linkPresetButtons button,
+.catalogListItem span,
+.catalogEditorHead span,
+.catalogFieldGrid label > span,
+.catalogTaskHead,
+.catalogTaskRow label span,
+.optionTodoEffect legend,
+.effectToggle button,
+.authCard > small,
+.authForm label,
+.closedBetaNotice p,
+.closedBetaNotice a,
+.authTextButton,
+.accountDeletionConfirmHead small,
+.accountDeletionConfirm label,
+.settingRow small,
+.permissionBadge,
+.alertPopoverHead span,
+.alertPopoverHead a,
+.profileSummary small,
+.alertPopoverItem span,
+.alertPopoverItem p,
+.todayAlertRow span,
+.todayAlertRow p,
+.planInviteForm label,
+.feedbackSection .fieldLabel em,
+.customerStageChips em { font-size: 12px; }
+
+/* 2026-11-11 모바일 점검: 휴대폰에서 누르는 곳은 높이 44px 이상(WCAG 2.5.5 권장 크기). */
+@media (max-width: 767px) {
+  .headerDemoLink, .marketingNav a, .heroGuideLinks a, .marketingFooter nav a, .policyHeader nav a, .policyFooter a, .inlineLink, .guideHeader nav a, .publicRevisionPrivacyNotice a { min-height: 44px; display: inline-flex; align-items: center; }
+  .brand { min-height: 44px; }
+  .previewArrow { width: 44px; height: 44px; }
+  .previewDot { min-width: 24px; }
+}

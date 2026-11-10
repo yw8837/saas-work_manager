@@ -151,8 +151,11 @@ export function mutateStoredState(
   mutator: (current: AppState) => AppState,
   storage?: Storage,
   key = STORAGE_KEY,
+  base?: AppState,
 ): { state: AppState; saved: boolean } {
-  const current = loadState(storage, undefined, key);
+  // base가 있으면 저장소 대신 그 상태에서 고친다. 직전 저장이 실패했을 때 쓴다:
+  // 실패한 편집은 저장소에 없으므로, 저장소에서 다시 읽으면 그 편집이 사라진다.
+  const current = base ?? loadState(storage, undefined, key);
   const next = mutator(current);
   const saved = saveState(next, storage, key);
   return { state: next, saved };

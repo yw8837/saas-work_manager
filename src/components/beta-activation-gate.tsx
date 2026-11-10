@@ -54,6 +54,13 @@ export function BetaActivationGate({ children }: { children: ReactNode }) {
     void activateInviteCode(code)
       .then((result) => {
         clearPendingInvite();
+        // 이미 코드를 쓴 계정이 초대 링크로 다시 들어오면 관문에 세우지 않는다. 다시 받을 수 없을 뿐 막을 이유는 없다.
+        if (!result.ok && result.reason === "already_redeemed") {
+          updateSettings({ betaCodeOnboardingCompletedAt: new Date().toISOString() });
+          setCompleted(true);
+          setInviteStatus("none");
+          return;
+        }
         if (!result.ok) {
           fail(result.message);
           return;

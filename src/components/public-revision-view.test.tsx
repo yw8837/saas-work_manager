@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { PublicRevisionCompleted, PublicRevisionUnavailable, PublicRevisionView } from "./public-revision-view";
+import { PublicRevisionCompleted, PublicRevisionUnavailable, PublicRevisionView, SHORT_REQUEST_MESSAGE } from "./public-revision-view";
 
 const revision = { included: 3, used: 1, remaining: 2 };
 
@@ -246,5 +246,16 @@ describe("고객 링크 화면", () => {
     const header = document.querySelector(".publicRevisionEmpty > .publicRevisionHeader");
     expect(header?.querySelector("svg.lucide-lock-keyhole")).toBeNull();
     expect(document.querySelector(".publicRevisionEmptyIcon svg")).not.toBeNull();
+  });
+});
+
+describe("고객 링크 화면 — 짧은 요청(2026-11-11)", () => {
+  it("공백을 빼고 두 글자가 안 되면 보내지 않고 바로 안내한다", async () => {
+    const onSubmit = vi.fn();
+    render(<PublicRevisionView title="브랜드 사이트" packageName="Standard" revision={revision} badgeLabel="보안 링크" footnote="안내" onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "a   " } });
+    fireEvent.submit(screen.getByRole("button", { name: /요청 남기기/ }).closest("form")!);
+    expect(await screen.findByRole("alert")).toHaveTextContent(SHORT_REQUEST_MESSAGE);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
