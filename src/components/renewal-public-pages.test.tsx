@@ -113,8 +113,10 @@ describe("그림 사용설명서(한 장씩 보기)", () => {
 
   it("무기 3개 순서의 장 4개(장마다 그림 2장)가 가입 그림 뒤에 이어진다", () => {
     const chapters = GUIDE_STEPS.filter((step) => step.chapter).map((step) => step.chapter);
-    expect(chapters).toEqual(["주문 30초 등록", "주문 30초 등록", "시작 안내 한 방", "시작 안내 한 방", "수정 범위 정리", "수정 범위 정리", "더 편하게", "더 편하게"]);
+    expect(chapters).toEqual(["주문 등록", "주문 등록", "시작 안내 한 방", "시작 안내 한 방", "수정 범위 정리", "수정 범위 정리", "더 편하게", "더 편하게"]);
     expect(GUIDE_STEPS.filter((step) => step.image)).toHaveLength(9);
+    // 장 제목·그림 제목·설명에 재 본 적 없는 시간 숫자를 쓰지 않는다.
+    for (const step of GUIDE_STEPS) expect(JSON.stringify(step)).not.toMatch(/\d+\s*초/);
   });
 
   it("단계마다 그림(또는 흐름도)은 하나, 설명(alt)이 있고 '로그'를 쓰지 않는다", () => {

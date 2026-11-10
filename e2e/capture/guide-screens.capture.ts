@@ -368,7 +368,7 @@ test("가입 화면", async ({ page }) => {
   await save(page, "01-signup", region, 10);
 });
 
-test.describe("주문 30초 등록", () => {
+test.describe("주문 등록", () => {
   test.beforeEach(async ({ page }) => {
     await seedStorage(page, progressedOrder());
   });

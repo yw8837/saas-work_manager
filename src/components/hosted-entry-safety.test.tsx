@@ -73,6 +73,8 @@ describe("Hosted entry safety", () => {
 
     expect(screen.getAllByText(/네 가지만 고르면/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/평균 30초/)).not.toBeInTheDocument();
+    // 재 본 적 없는 시간 숫자(30초면 끝 등)는 홈 어디에도 쓰지 않는다(2026-11-11, 메일·블로그 금지어와 같은 기준).
+    expect(document.body.textContent ?? "").not.toMatch(/\d+\s*초/);
     expect(screen.getByText(/베타 이용 코드를 적용한 계정/)).toBeInTheDocument();
     expect(screen.getByText(/Basic 정가 월 14,900원을 월 9,900원에 12개월/)).toBeInTheDocument();
   });

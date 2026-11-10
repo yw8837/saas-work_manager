@@ -173,7 +173,7 @@ const slides: Slide[] = [
     key: "compose",
     caption: "네 가지만 고르면 금액과 마감, 체크리스트가 만들어져요",
     render: () => (
-      <Scene title="새 일감 만들기" live="30초면 끝" active="일감">
+      <Scene title="새 일감 만들기" live="네 가지만 고르면 끝" active="일감">
         <div className="sceneHeading">
           <div>
             <span>새 일감</span>
