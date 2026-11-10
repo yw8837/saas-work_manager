@@ -41,14 +41,14 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "packages",
-    chapter: "주문 30초 등록",
+    chapter: "주문 등록",
     title: "패키지는 한 번만 저장해요",
     caption: "금액·기간·수정 횟수에 받을 자료·질문까지 묶어 둬요.",
     image: { src: "/guide/02-packages.webp", alt: "패키지 편집 화면. 받을 자료 칸에 1번, 착수 전 질문 칸에 2번, 패키지 저장 버튼에 3번 표시", width: 750, height: 722 },
   },
   {
     id: "new-job",
-    chapter: "주문 30초 등록",
+    chapter: "주문 등록",
     title: "주문 오면 네 가지만 골라요",
     caption: "고객·시작일·패키지·옵션을 고르면 금액·마감이 채워져요.",
     detail: "할 일·수정 횟수도 함께 채워져요. 받은 곳은 비워 두고, 지난 주문의 받은 곳을 옆에 작게 알려 줘요.",
