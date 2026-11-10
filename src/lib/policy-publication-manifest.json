@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "finalized": false,
-  "effectiveDate": "2026-11-03",
-  "effectiveDateLabel": "2026년 11월 3일",
-  "bundleDigest": "sha256:893f6274790fc040aac49950bc44f7d4f0f58b38c8e1f9060372bcf80020567a",
+  "effectiveDate": "2026-11-11",
+  "effectiveDateLabel": "2026년 11월 11일",
+  "bundleDigest": "sha256:11feb9c1f524ebc45012c9422b598b2bdcc80614a7bed3da5d42a233d2ba322a",
   "shared": {
     "draftNoticeTitle": "베타 서비스 정책 안내",
     "draftNoticeBody": "일감체크는 Google 계정으로 가입하고 로그인할 수 있는 베타 서비스입니다. 베타 이용 코드는 가입 후 14일 Pro 권한을 제공하며, 유료 결제·정기결제·환불 정책은 실제 도입 전에 별도로 확정해 안내합니다.",
@@ -19,8 +19,8 @@
       "eyebrow": "Privacy",
       "title": "개인정보처리방침",
       "metadataDescription": "일감체크 베타의 개인정보 처리 기준",
-      "version": "2026-11-03-beta.4",
-      "contentDigest": "sha256:317712b240ddd2705021062a8a161096a899982fae76ce0af080c005e9043fbf",
+      "version": "2026-11-11-beta.5",
+      "contentDigest": "sha256:92a1f0c3cf995666e5a9e4954886cea9da8a154ac9473812695f677521dcd037",
       "lead": "일감체크는 1인 사업자의 일감 관리를 돕는 베타 서비스입니다. 아래 내용은 현재 구현된 인증·작업공간·고객 수정 링크 흐름을 기준으로 작성했으며, 결제 정보는 아직 수집하지 않습니다.",
       "sections": [
         {
@@ -33,6 +33,7 @@
                 ["회원 인증·계정 분리", "Google 계정 이메일, 사용자 식별자, 약관·방침 동의 버전과 시각", "Google 로그인"],
                 ["일감 관리", "사용자가 입력한 고객 표시명, 패키지·옵션·금액, 일정·할 일, 연락·작업 링크, 메모와 설정", "사용자 직접 입력"],
                 ["고객 수정 요청", "요청 내용, 고객이 선택 입력한 표시명, 접수 시각, 요청 횟수와 처리 기록", "사용자가 발급한 공개 링크"],
+                ["유입 경로 확인", "가입할 때 들어온 링크에 붙은 유입 경로 표시(예: 메일, 블로그). 받는 사람을 구분하는 값은 붙이지 않음", "링크로 접속해 가입할 때 한 번 기록"],
                 ["보안·장애 대응", "접속 시각, IP 주소, 브라우저·기기 정보 등 호스팅 사업자가 생성하는 기술 로그", "서비스 접속 시 자동 생성"]
               ]
             },
@@ -130,8 +131,8 @@
       "eyebrow": "Terms",
       "title": "이용약관",
       "metadataDescription": "일감체크 베타 이용약관",
-      "version": "2026-11-03-beta.4",
-      "contentDigest": "sha256:a0789ea1b44fc04af5a57b1c8fb21225612dd3766117b337f08d8a171b9ffc59",
+      "version": "2026-11-11-beta.5",
+      "contentDigest": "sha256:e38cdaf52ec2a4fb1acf99bc1484935f1e5564eea425960b5e2f821df649ba4a",
       "lead": "이 약관은 일감체크 베타의 이용 조건을 정합니다. 누구나 Google 계정으로 가입하고 로그인할 수 있으며, 현재는 유료 결제나 외부 플랫폼의 주문 중개 기능을 제공하지 않습니다.",
       "sections": [
         {
