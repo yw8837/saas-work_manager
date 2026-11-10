@@ -79,7 +79,7 @@
 .appFrame .navCount { color: var(--ink-soft); background: var(--paper); }
 .appFrame .navDivider { margin-block: 18px; background: var(--line); }
 .appFrame .localModeNotice { padding: 14px 8px; border: 0; background: transparent; }
-.appFrame .localModeNotice span { color: var(--muted); font-size: 11px; }
+.appFrame .localModeNotice span { color: var(--muted); font-size: 12px; }
 .appFrame .statusDot { background: var(--muted); box-shadow: none; }
 .appFrame .helpLink { color: var(--muted); }
 .appFrame :is(.betaLabel, .soonLabel) { color: var(--muted); background: var(--canvas); }
@@ -222,7 +222,7 @@
 .appFrame .jobFactRail dl { min-width: 0; border: 0; padding: 0; }
 .appFrame .jobFactRail dt { font-size: 12px; }
 .appFrame .jobFactRail dd { margin-top: 8px; font-size: 16px; }
-.appFrame .jobFactRail dd small { margin-top: 4px; font-size: 11px; }
+.appFrame .jobFactRail dd small { margin-top: 4px; font-size: 12px; }
 .appFrame .jobFactRail > div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
 .appFrame .settingsPage > .contentSection { margin-bottom: 24px; }
 .appFrame .settingsGrid { gap: 24px; margin-block: 24px; }
@@ -316,7 +316,7 @@
   .appFrame .portalLinkSection { padding: 18px; }
   .appFrame .mobileBottomNav { height: calc(70px + env(safe-area-inset-bottom, 0px)); }
   .appFrame .mobileSubmitBar { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
-  .appFrame :is(.bottomNavItem, .mobileCreateNav) { font-size: 11px; gap: 4px; }
+  .appFrame :is(.bottomNavItem, .mobileCreateNav) { font-size: 12px; gap: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .appFrame *, .appFrame *::before, .appFrame *::after { transition: none; scroll-behavior: auto; }
@@ -518,3 +518,15 @@
 }
 
 /* 고객 링크 화면은 앱 틀 밖이라 theme.css 끝 '디자인 A — 앱' 구역에 둔다. */
+
+/* 2026-11-11 모바일·화면 점검: 앱에서 읽는 글자는 12px 아래로 내려가지 않게 한다.
+   새 일감의 오른쪽 미리보기 칸(태블릿·PC), 패키지·설정 안내 글자처럼 상대 크기(small)로 작아지던 곳. */
+.appFrame .previewMetrics dt,
+.appFrame .previewMetrics dd span,
+.appFrame .previewTitle > span,
+.appFrame .selectedOptionSummary span,
+.appFrame .selectedOptionSummary b,
+.appFrame .catalogFieldGrid small,
+.appFrame .catalogFullField small,
+.appFrame .briefQuestionField small,
+.appFrame .settingTime small { font-size: 12px; }

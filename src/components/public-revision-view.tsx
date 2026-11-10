@@ -185,6 +185,8 @@ export type PublicRevisionViewProps = {
   pageClassName?: string;
 };
 
+export const SHORT_REQUEST_MESSAGE = "수정 요청 내용을 두 글자 이상 적어 주세요.";
+
 export function PublicRevisionView({
   title,
   packageName,
@@ -212,6 +214,11 @@ export function PublicRevisionView({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    // 입력칸의 최소 길이 검사는 공백도 글자로 센다. 서버는 앞뒤 공백을 뺀 2자부터 받으므로 여기서 먼저 알려 준다.
+    if (content.trim().length < 2) {
+      setError(SHORT_REQUEST_MESSAGE);
+      return;
+    }
     setPending(true);
     try {
       setReceipt(await onSubmit({ name, content }));

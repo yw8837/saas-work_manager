@@ -39,6 +39,7 @@ import { ClientMessages } from "./client-messages";
 import { SendToClientBanner } from "./send-to-client-banner";
 import { StartChecklist } from "./start-checklist";
 import { displayJobTitle, normalizeOrderSource, ORDER_SOURCE_LABELS, ORDER_SOURCES, pendingBriefQuestions, pendingIntakeLabels } from "@/lib/domain";
+import { localTodayISO } from "@/lib/due-tile";
 import { jobFee, jobFeeRate } from "@/lib/domain/platform-fee";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { nativePlatform } from "@/lib/native/platform";
@@ -211,7 +212,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const waitingTask = job.tasks.find((task) => task.status === "waiting");
   const doneTasks = job.tasks.filter((task) => task.status === "done").length;
   const progress = Math.round((doneTasks / Math.max(job.tasks.length, 1)) * 100);
-  const delayed = job.status !== "completed" && job.dueDate < new Date().toISOString().slice(0, 10);
+  const delayed = job.status !== "completed" && job.dueDate < localTodayISO(); // 한국 시간 0~9시에도 오늘 날짜로 비교한다(toISOString은 UTC 기준)
   const marginRate = job.amount > 0 ? Math.round((job.margin / job.amount) * 100) : null;
   // 최소 남길 돈 경고는 패키지 화면과 새 일감에만 둔다. 이미 만든 주문(일감 화면)에는 띄우지 않는다(잔소리 방지).
   const portalEnabled = job.status === "active" && job.revisionPortalEnabled;
@@ -230,7 +231,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const handleCompleteJob = () => {
     if (job.status !== "active") {
       setNotice(null);
-      completeJob(job.id);
+      try {
+        completeJob(job.id);
+      } catch (error) {
+        notifyError(error, "다시 진행하지 못했어요.");
+      }
       return;
     }
     completeJob(job.id);
@@ -245,7 +250,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
     setNotice(null);
     // 알림이 떠 있는 사이 이미 다시 진행했으면 또 바꾸지 않는다.
     if (job.status !== "completed") return;
-    completeJob(job.id);
+    try {
+      completeJob(job.id);
+    } catch (error) {
+      notifyError(error, "완료를 되돌리지 못했어요.");
+      return;
+    }
     if (linkWasOn) setRevisionPortalEnabled(job.id, true);
   };
 
