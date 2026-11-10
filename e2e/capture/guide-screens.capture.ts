@@ -494,6 +494,8 @@ test.describe("수정 범위 정리 · 더 편하게", () => {
     await page.getByTestId("client-message-chip-review").click();
     await expect(page.getByTestId("client-message-chip-review")).toHaveAttribute("aria-pressed", "true");
     await showServiceOrigin(page, "[data-testid=client-message-preview]");
+    // 미리보기 칸은 화면에서 안쪽 스크롤이라 그대로 찍으면 문구 끝(고객 링크)이 잘린다. 그림에서만 칸을 펼쳐 문구 전체를 보여 준다.
+    await page.getByTestId("client-message-preview").evaluate((element) => { const box = element as HTMLElement; box.style.maxHeight = "none"; box.style.height = "auto"; box.style.overflow = "visible"; });
     await frame(page, [section]);
     await annotate(page, [
       { selector: "[data-testid=client-message-chip-review]", n: 1 },

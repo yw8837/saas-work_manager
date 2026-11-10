@@ -151,6 +151,9 @@ export function BetaActivationGate({ children }: { children: ReactNode }) {
                 value={inviteCode}
                 onChange={(event) => setInviteCode(event.target.value)}
                 autoComplete="off"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
                 inputMode="text"
                 placeholder="받은 코드를 입력하세요"
                 aria-describedby={feedback ? "beta-activation-feedback" : undefined}

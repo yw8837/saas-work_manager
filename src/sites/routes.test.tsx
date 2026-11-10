@@ -28,6 +28,7 @@ describe("Sites route contract", () => {
       "/terms",
       "/guide",
       "/examples",
+      "/try",
       "/demo/r",
     ]);
   });
