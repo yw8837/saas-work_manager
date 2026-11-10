@@ -16,9 +16,9 @@ describe("beta invite codes", () => {
   });
 
   it("ignores case and surrounding whitespace", () => {
-    expect(isValidInviteCode("kmong2026")).toBe(true);
+    expect(isValidInviteCode("beta2026")).toBe(true);
     expect(isValidInviteCode("  Beta2026  ")).toBe(true);
-    expect(isValidInviteCode("\tsoomgo2026\n")).toBe(true);
+    expect(isValidInviteCode("\tBETA2026\n")).toBe(true);
   });
 
   it("rejects unknown, empty, and near-miss codes", () => {
@@ -27,6 +27,12 @@ describe("beta invite codes", () => {
     expect(isValidInviteCode("BETA2025")).toBe(false);
     expect(isValidInviteCode("BETA 2026")).toBe(false);
     expect(isValidInviteCode("BETA2026!")).toBe(false);
+  });
+
+  it("범용 코드 하나만 받고 닫은 경로별 코드는 받지 않는다", () => {
+    expect(BETA_INVITE_CODES).toEqual(["BETA2026"]);
+    expect(isValidInviteCode("KMONG2026")).toBe(false);
+    expect(isValidInviteCode("SOOMGO2026")).toBe(false);
   });
 
   it("normalizes to the stored form", () => {

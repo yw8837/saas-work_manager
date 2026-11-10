@@ -14,20 +14,12 @@ import { ProductPreview } from "./product-preview";
 import { WorkFlowChart } from "./work-flow-chart";
 import { getPublicServiceConfig } from "@/lib/policies";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
-import { BUSINESS_IDENTITY } from "@/lib/business-identity";
-import { getPublicEnvironmentValue } from "@/lib/public-environment";
+import { BUSINESS_IDENTITY, publicBusinessIdentity } from "@/lib/business-identity";
 
 export function MarketingHome() {
   const service = getPublicServiceConfig();
   // 전자상거래법 사업자 정보 고지 — 배포 시 NEXT_PUBLIC_* 가 있으면 그 값, 없으면 사업자등록 기준 값
-  const legal = {
-    businessName: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NAME")?.trim() || BUSINESS_IDENTITY.businessName,
-    representative: BUSINESS_IDENTITY.representative,
-    regNo: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_NUMBER")?.trim() || BUSINESS_IDENTITY.registrationNumber,
-    mailOrderNo: getPublicEnvironmentValue("NEXT_PUBLIC_MAIL_ORDER_NUMBER")?.trim() || BUSINESS_IDENTITY.mailOrderNumber,
-    address: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_ADDRESS")?.trim() || BUSINESS_IDENTITY.address,
-    phone: getPublicEnvironmentValue("NEXT_PUBLIC_BUSINESS_PHONE")?.trim() || BUSINESS_IDENTITY.phone,
-  };
+  const legal = publicBusinessIdentity();
   const supportEmail = service.supportEmail ?? BUSINESS_IDENTITY.email;
 
   return (

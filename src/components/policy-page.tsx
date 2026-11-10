@@ -55,7 +55,8 @@ export function PolicyPage({ document }: PolicyPageProps) {
   return (
     <div className="policyPage">
       <header className="policyHeader">
-        <Link href="/" aria-label="일감체크 홈"><Brand /></Link>
+        {/* Brand가 이미 홈 링크다. 링크로 한 번 더 감싸면 a 안에 a가 생겨 화면 복원(hydration)이 깨진다. */}
+        <Brand />
         <nav aria-label="정책 메뉴">
           <Link href={manifest.documents.privacy.pathname}>{manifest.documents.privacy.title}</Link>
           <Link href={manifest.documents.terms.pathname}>{manifest.documents.terms.title}</Link>

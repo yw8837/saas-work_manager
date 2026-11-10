@@ -9,6 +9,7 @@ import { BetaUnsubscribeView } from "@/components/beta-unsubscribe-view";
 import { CustomerRevisionDemo } from "@/components/customer-revision-demo";
 import { FeedbackPanel } from "@/components/feedback-panel";
 import { IndustryExamples } from "@/components/industry-examples";
+import { TryTour } from "@/components/try-tour";
 import { JobDetail } from "@/components/job-detail";
 import { JobsOverview } from "@/components/jobs-overview";
 import { MarketingHome } from "@/components/marketing-home";
@@ -40,6 +41,7 @@ export const SITE_ROUTE_PATHS = [
   "/terms",
   "/guide",
   "/examples",
+  "/try",
   "/demo/r",
   "/apply",
   "/apply/confirm/:token",
@@ -62,6 +64,7 @@ export function StandaloneRoutes() {
     <Routes>
       <Route path="/guide" element={<UserGuide />} />
       <Route path="/examples" element={<IndustryExamples />} />
+      <Route path="/try" element={<TryTour />} />
       <Route path="/demo/r" element={<CustomerRevisionDemo />} />
       <Route path="/apply" element={<BetaApplyForm />} />
       <Route path="/apply/confirm/:token" element={<BetaConfirmRoute />} />

@@ -174,12 +174,12 @@ describe("robots.txt · sitemap.xml · llms.txt", () => {
     expect(robots).toMatch(/^Sitemap: https:\/\/ilgam\.studioyeolmae\.com\/sitemap\.xml\r?$/m);
   });
 
-  it("sitemap.xml은 공개 페이지 5개만 절대 https 주소로 담는다", () => {
+  it("sitemap.xml은 공개 페이지 6개만 절대 https 주소로 담는다", () => {
     const sitemap = read("sitemap.xml");
     expect(sitemap.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(sitemap).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
     const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-    expect(locations).toEqual([`${ORIGIN}/`, `${ORIGIN}/guide`, `${ORIGIN}/examples`, `${ORIGIN}/privacy`, `${ORIGIN}/terms`]);
+    expect(locations).toEqual([`${ORIGIN}/`, `${ORIGIN}/guide`, `${ORIGIN}/examples`, `${ORIGIN}/try`, `${ORIGIN}/privacy`, `${ORIGIN}/terms`]);
   });
 
   it("llms.txt는 소개·핵심 페이지와 지금 되는 것·아직 안 되는 것을 나눠 적는다", () => {
