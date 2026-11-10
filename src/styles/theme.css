@@ -2253,7 +2253,6 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 @media (max-width: 767px) {
   .headerDemoLink, .marketingNav a, .heroGuideLinks a, .marketingFooter nav a, .policyHeader nav a, .policyFooter a, .inlineLink, .guideHeader nav a, .publicRevisionPrivacyNotice a { min-height: 44px; display: inline-flex; align-items: center; }
   .brand { min-height: 44px; }
-  .avatar.avatarButton { width: 44px; height: 44px; }
   .previewArrow { width: 44px; height: 44px; }
   .previewDot { min-width: 24px; }
 }
