@@ -5,7 +5,7 @@ import type { Job, Revision } from "./types";
  * 규칙(단순하고 예측 가능하게):
  * - 일감 완료, 또는 취소를 뺀 할 일이 모두 끝남 → 납품
  * - '시작 전 받을 자료'가 아직 남음 → 자료 받는 중 (자료 없이 '수정'으로 보이던 문제)
- * - 되돌리지 않은 수정 요청이 하나라도 있음 → 수정
+ * - 확인 대기 중인(되돌리지 않은) 수정 요청이 하나라도 있음 → 수정
  * - 할 일이 절반 이상 끝남 → 시안 확인
  * - 그 밖 → 작업 중
  */
@@ -38,7 +38,9 @@ export function customerProgressOf(job: Pick<Job, "status" | "tasks" | "revision
   return {
     total: tasks.length,
     done: tasks.filter((task) => task.status === "done").length,
-    hasOpenRevision: job.revisions.some((revision) => !revision.revertedAt),
+    // 열린 요청 = 아직 확인 대기인 요청. 수정 완료·추가 작업으로 처리한 요청까지 세면 고객 단계가 '수정'에 머문다.
+    // DB 함수 get_workspace_revision_view(migration 20261103180000)와 같은 규칙이다.
+    hasOpenRevision: job.revisions.some((revision) => !revision.revertedAt && revision.usage === "pending"),
     completed: job.status === "completed",
     intakePending: (job.intakeItems ?? []).filter((item) => !item.receivedAt).length,
   };

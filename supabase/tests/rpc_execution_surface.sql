@@ -26,6 +26,7 @@ with expected(signature, anon_allowed, authenticated_allowed) as (
     ('public.beta_ops_mark_deletion_emailed(uuid)', false, true),
     ('public.beta_ops_purge_expired()', false, true),
     ('public.beta_ops_prune_call_counters()', false, true),
+    ('public.record_signup_source(text,text,text)', false, true),
     ('public.handle_new_user()', false, false),
     ('public.protect_revision_request_evidence()', false, false),
     ('public.record_signup_policy_acceptance()', false, false),

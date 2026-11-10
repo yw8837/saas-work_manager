@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { Info, RotateCcw } from "lucide-react";
 
 import { PublicRevisionView } from "@/components/public-revision-view";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/demo/sample-order";
 
 const wonFormatter = new Intl.NumberFormat("ko-KR");
+const subscribeNothing = () => () => {};
 
 /**
  * 로그인 없이 "고객은 이런 화면을 받는다"를 체험하는 링크.
@@ -27,6 +28,13 @@ export function CustomerRevisionDemo({ initialState }: { initialState?: Customer
   // 같은 이벤트 안에서 연달아 제출돼도 차감이 겹치지 않게 최신 상태를 따로 잡아 둔다.
   const stateRef = useRef(state);
   const [resetKey, setResetKey] = useState(0);
+  // 예시 주문은 '오늘' 기준 날짜로 만든다. 이 화면은 빌드 때 HTML로 미리 만들어지므로,
+  // 서버에서 날짜를 그리면 배포 다음 날부터 브라우저 날짜와 어긋나 화면 복원(hydration)이 깨진다.
+  // 서버와 브라우저 첫 그림은 빈 틀로 같게 두고, 날짜가 든 내용은 브라우저에서만 그린다.
+  const inBrowser = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  if (!inBrowser) {
+    return <main className="publicRevisionPage demoRevisionPage" aria-busy="true"><p>체험 화면을 준비하고 있어요.</p></main>;
+  }
   const view = viewCustomerDemo(state);
 
   async function submit({ name, content }: { name: string; content: string }) {

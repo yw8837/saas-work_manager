@@ -58,8 +58,8 @@ export const POLICY_EFFECTIVE_DATE = POLICY_PUBLICATION_MANIFEST.effectiveDateLa
  * 버전을 올리면 이 문구도 같이 고쳐야 한다(시험이 version 일치를 강제한다).
  */
 export const POLICY_CHANGE_NOTICE = {
-  version: "2026-11-03-beta.4",
-  summary: "베타 이용 코드 Pro 기간 14일 · 호스팅 사업자 Cloudflare로 표기",
+  version: "2026-11-11-beta.5",
+  summary: "가입할 때 들어온 링크의 유입 경로(메일·블로그 등)를 한 번 기록하는 항목 추가",
 } as const;
 
 export type PolicyAcceptance = {

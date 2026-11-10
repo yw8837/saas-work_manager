@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 
 import { captureInviteFromLocation, clearPendingInvite, peekPendingInvite, readPendingInvite } from "@/lib/invite-link";
 import { BETA_GRANT_DAYS } from "@/lib/domain";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { recordPendingSignupSource } from "@/lib/supabase/signup-source";
 import { Brand } from "./brand";
 import { useWorkspace } from "./workspace-provider";
 
@@ -54,6 +56,13 @@ export function BetaActivationGate({ children }: { children: ReactNode }) {
     void activateInviteCode(code)
       .then((result) => {
         clearPendingInvite();
+        // 이미 코드를 쓴 계정이 초대 링크로 다시 들어오면 관문에 세우지 않는다. 다시 받을 수 없을 뿐 막을 이유는 없다.
+        if (!result.ok && result.reason === "already_redeemed") {
+          updateSettings({ betaCodeOnboardingCompletedAt: new Date().toISOString() });
+          setCompleted(true);
+          setInviteStatus("none");
+          return;
+        }
         if (!result.ok) {
           fail(result.message);
           return;
@@ -67,6 +76,12 @@ export function BetaActivationGate({ children }: { children: ReactNode }) {
         fail("코드를 확인하지 못했어요. 잠시 뒤 다시 시도해주세요.");
       });
   }, [activateInviteCode, hydrated, inviteStatus, planAccess.source, runtimeMode, updateSettings]);
+
+  // 이 화면은 로그인·약관 동의가 끝난 뒤에만 뜬다. 링크에 붙어 온 유입 경로를 새 계정에 한 번 남긴다(서버가 판정).
+  useEffect(() => {
+    if (runtimeMode !== "hosted" || !hydrated) return;
+    void recordPendingSignupSource(getSupabaseBrowserClient());
+  }, [hydrated, runtimeMode]);
 
   const showGate = inviteStatus === "failed" || !(alreadyCompleted || completed);
   if (runtimeMode !== "hosted" || (hydrated && inviteStatus === "none" && !showGate)) {

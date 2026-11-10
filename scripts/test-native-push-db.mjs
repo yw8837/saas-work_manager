@@ -72,12 +72,15 @@ try {
   await db.exec(await readFile(resolve("supabase/tests/revision_pending_submit.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/workspace_fee_fields.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/public_revision_status.sql"), "utf8"));
-  await db.exec(await readFile(resolve("supabase/tests/policy_beta4_acceptance.sql"), "utf8"));
+  await db.exec(await readFile(resolve("supabase/tests/policy_beta5_acceptance.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/single_beta_code.sql"), "utf8"));
+  await db.exec(await readFile(resolve("supabase/tests/account_delete_with_requests.sql"), "utf8"));
+  await db.exec(await readFile(resolve("supabase/tests/review_hardening.sql"), "utf8"));
+  await db.exec(await readFile(resolve("supabase/tests/signup_source.sql"), "utf8"));
   const access = await db.query(await readFile(resolve("supabase/tests/rpc_execution_surface.sql"), "utf8"));
-  assert.equal(access.rows.length, 36);
+  assert.equal(access.rows.length, 37);
   assert.ok(access.rows.every((row) => row.passed), JSON.stringify(access.rows.filter((row) => !row.passed)));
-  console.log("PASS: native SQL contract, deletion regression, pending revision submit, fee fields round trip, public link status view, policy beta.4 acceptance, 36 RPC privilege checks (ephemeral PGlite).");
+  console.log("PASS: native SQL contract, deletion regression, pending revision submit, fee fields round trip, public link status view, policy beta.5 acceptance, signup source, 37 RPC privilege checks (ephemeral PGlite).");
 } catch (error) {
   console.error(`FAIL: ${error.message}`);
   if (error.where) console.error(error.where);

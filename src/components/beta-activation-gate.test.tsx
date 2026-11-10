@@ -193,6 +193,16 @@ describe("BetaActivationGate", () => {
       expect(screen.getByText("작업공간")).toBeInTheDocument();
     });
 
+    it("이미 코드를 쓴 계정이 초대 링크로 다시 오면 관문에 세우지 않고 작업공간을 연다", async () => {
+      activateInviteCode.mockResolvedValue({ ok: false, message: "베타 Pro는 계정당 한 번만 사용할 수 있어요.", reason: "already_redeemed" });
+      session.setItem(PENDING_INVITE_KEY, "BETA2026");
+      render(<BetaActivationGate><div>작업공간</div></BetaActivationGate>);
+      expect(await screen.findByText("작업공간")).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "베타 코드가 있나요?" })).not.toBeInTheDocument();
+      expect(updateSettings).toHaveBeenCalledWith({ betaCodeOnboardingCompletedAt: expect.stringMatching(/^\d{4}-/) });
+      expect(session.getItem(PENDING_INVITE_KEY)).toBeNull();
+    });
+
     it("이미 베타 Pro인 계정이나 로컬 모드에서는 적용하지 않는다", async () => {
       vi.mocked(useWorkspace).mockReturnValue({
         ...hostedWorkspace,

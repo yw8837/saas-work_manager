@@ -372,6 +372,12 @@ export async function submitHostedPublicRevision(
     if (error.message.includes("rate_limited")) {
       throw new Error("요청이 너무 빨라요. 잠시 뒤 다시 시도해주세요.");
     }
+    if (error.message.includes("invalid_revision_request")) {
+      throw new Error("수정 요청 내용을 두 글자 이상, 4,000자 이하로 적어 주세요.");
+    }
+    if (error.message.includes("pending_request_limit")) {
+      throw new Error("아직 확인하지 않은 요청이 많아요. 작업자가 확인한 뒤 다시 남겨 주세요.");
+    }
     throw new Error("수정 요청을 저장하지 못했어요. 링크 상태를 확인해주세요.");
   }
 

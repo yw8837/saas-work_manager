@@ -131,7 +131,7 @@ type WorkspaceContextValue = AppState & {
   canCreatePackage: boolean;
   canCreateOption: boolean;
   /** 베타 이용 코드를 적용한다. 성공/실패와 화면에 그대로 쓸 문구를 돌려준다. */
-  activateInviteCode: (code: string) => Promise<{ ok: boolean; message: string }>;
+  activateInviteCode: (code: string) => Promise<{ ok: boolean; message: string; reason?: "already_redeemed" }>;
   signInWithGoogle: (redirectPath?: string) => Promise<void>;
   signOut: (options?: { discardUnsaved?: boolean }) => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -468,6 +468,9 @@ function timeSignalOf(at: Date, access: PlanAccess, settings: AppSettings): stri
   return `${localDate}|${access.plan}|${access.source}|${access.remainingDays}|${digestDue}`;
 }
 
+/** 동시 진행 한도 때문에 완료한 일감을 다시 진행할 수 없을 때 보여 주는 안내. */
+export const REOPEN_LIMIT_MESSAGE = "동시에 진행할 수 있는 일감 수에 닿아서 다시 진행할 수 없어요. 진행 중인 일감 하나를 완료한 뒤 다시 눌러 주세요.";
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const boundary = useMemo(() => getHostedRuntimeBoundary(), []);
   const hostedRequested = boundary.requestedMode === "hosted";
@@ -488,6 +491,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
    * 화면에 보이는 것이 실제로 달라졌을 때(날짜가 넘어갔거나 플랜이 바뀌었을 때)만 갱신한다.
    */
   const [now, setNow] = useState(() => Date.now());
+  /** 로컬 모드에서 직전 저장이 실패했는지. 실패했으면 다음 편집은 화면 상태에서 이어 간다. */
+  const localSaveFailedRef = useRef(false);
   const timeSignalRef = useRef<() => string>(() => "");
   const lastTimeSignalRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1329,7 +1334,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const commitState = useCallback((mutator: (current: AppState) => AppState) => {
     if (!hostedRequested) {
-      const { state: next, saved } = mutateStoredState(mutator);
+      const { state: next, saved } = mutateStoredState(
+        mutator,
+        undefined,
+        undefined,
+        localSaveFailedRef.current ? stateRef.current : undefined,
+      );
+      localSaveFailedRef.current = !saved;
       setCurrentState(next);
       // 저장에 실패해도 화면은 갱신한다. 다만 조용히 넘어가면 사용자는 탭을 닫은 뒤에야 잃은 걸 안다.
       if (saved) {
@@ -1451,7 +1462,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         // 재진행(완료 → 활성)은 새 활성 일감을 만드는 것과 같으므로 동시 진행 한도를 다시 확인한다.
         // 누적 수는 늘지 않으니 누적 한도로는 막지 않는다.
         if (next.status === "active" && target.status !== "active" && !canActivateJobFor(plan, current.jobs)) {
-          return current;
+          // 조용히 무시하면 버튼이 고장 난 것처럼 보인다. 이유를 알려 화면이 안내하게 한다.
+          throw new Error(REOPEN_LIMIT_MESSAGE);
         }
         // 완료하면 링크는 상태(completed)로 닫힌다. 켜 둔 값은 남겨서 고객 링크가 '사용할 수 없음' 대신
         // 완료 화면을 보이게 한다(작업자가 끈 링크와 구분). 다시 진행할 때는 지금처럼 꺼진 채로 시작한다.
@@ -1695,7 +1707,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       try {
         const result = await redeemHostedInviteCode(client, code);
         if (result.status === "already_redeemed") {
-          return { ok: false, message: "베타 Pro는 계정당 한 번만 사용할 수 있어요." };
+          return { ok: false, message: "베타 Pro는 계정당 한 번만 사용할 수 있어요.", reason: "already_redeemed" as const };
         }
         if (result.status === "rate_limited") {
           return { ok: false, message: "코드를 여러 번 잘못 넣었어요. 한 시간 뒤에 다시 시도해주세요." };
@@ -1724,7 +1736,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
     // 코드 종류를 바꿔도 계정당 한 번만 허용한다.
     if (current.redeemedInviteCodes.length > 0) {
-      return { ok: false, message: "베타 Pro는 계정당 한 번만 사용할 수 있어요." };
+      return { ok: false, message: "베타 Pro는 계정당 한 번만 사용할 수 있어요.", reason: "already_redeemed" as const };
     }
 
     const grantedAt = new Date().toISOString();

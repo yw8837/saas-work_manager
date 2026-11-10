@@ -19,11 +19,11 @@ describe("beta terms responsibility boundary", () => {
     expect(text).not.toContain("30일");
   });
 
-  it("14일 문구는 새 버전으로 올려 기존 계정도 다시 동의하게 한다", () => {
-    expect(POLICY_PUBLICATION_MANIFEST.documents.terms.version).toBe("2026-11-03-beta.4");
-    expect(POLICY_PUBLICATION_MANIFEST.documents.privacy.version).toBe("2026-11-03-beta.4");
-    expect(POLICY_PUBLICATION_MANIFEST.effectiveDate).toBe("2026-11-03");
-    expect(POLICY_PUBLICATION_MANIFEST.effectiveDateLabel).toBe("2026년 11월 3일");
+  it("수집 항목이 바뀌면 새 버전으로 올려 기존 계정도 다시 동의하게 한다(유입 경로 항목, 2026-11-11)", () => {
+    expect(POLICY_PUBLICATION_MANIFEST.documents.terms.version).toBe("2026-11-11-beta.5");
+    expect(POLICY_PUBLICATION_MANIFEST.documents.privacy.version).toBe("2026-11-11-beta.5");
+    expect(POLICY_PUBLICATION_MANIFEST.effectiveDate).toBe("2026-11-11");
+    expect(POLICY_PUBLICATION_MANIFEST.effectiveDateLabel).toBe("2026년 11월 11일");
     expect(POLICY_PUBLICATION_MANIFEST.finalized).toBe(false);
   });
 
@@ -46,7 +46,7 @@ describe("beta terms responsibility boundary", () => {
 
   it("다시 동의 화면의 바뀐 점 안내는 지금 버전 것이다", () => {
     expect(POLICY_CHANGE_NOTICE.version).toBe(POLICY_PUBLICATION_MANIFEST.documents.terms.version);
-    expect(POLICY_CHANGE_NOTICE.summary).toBe("베타 이용 코드 Pro 기간 14일 · 호스팅 사업자 Cloudflare로 표기");
+    expect(POLICY_CHANGE_NOTICE.summary).toBe("가입할 때 들어온 링크의 유입 경로(메일·블로그 등)를 한 번 기록하는 항목 추가");
   });
 
   it("keeps the beta limitation clear without excluding mandatory liability", () => {
