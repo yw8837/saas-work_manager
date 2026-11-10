@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { AcquisitionCapture } from "@/components/acquisition-capture";
 import { WorkspaceBoundary } from "@/components/workspace-boundary";
 import { deploymentOrigin } from "@/lib/deployment-origin";
 import { SITE_OPEN_GRAPH, SITE_TWITTER, SITE_VERIFICATION } from "@/lib/site-meta";
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <link rel="preload" href="/fonts/paperlogy/Paperlogy-5Medium.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
       <body>
+        <AcquisitionCapture />
         <WorkspaceBoundary>{children}</WorkspaceBoundary>
       </body>
     </html>

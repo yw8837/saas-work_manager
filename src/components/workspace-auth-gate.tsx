@@ -15,6 +15,7 @@ import { POLICY_CHANGE_NOTICE, TERMS_VERSION, currentPolicyAcceptance } from "@/
 import { nativePlatform } from "@/lib/native/platform";
 import { subscribeNativeAuth, nativeAuthStatus, cancelNativeOAuth } from "@/lib/native/auth-runtime";
 import { NativeOfflineWorkspace } from "./native-offline-workspace";
+import { captureAcquisitionFromLocation } from "@/lib/acquisition-link";
 import { captureInviteFromLocation, readPendingInvite } from "@/lib/invite-link";
 import { captureStarterFromLocation } from "@/lib/starter-link";
 
@@ -35,6 +36,7 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     captureInviteFromLocation();
     captureStarterFromLocation();
+    captureAcquisitionFromLocation();
     let active = true;
     queueMicrotask(() => { if (active) setInviteReady(Boolean(readPendingInvite())); });
     return () => { active = false; };

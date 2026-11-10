@@ -17,6 +17,7 @@ with expected(signature, anon_allowed, authenticated_allowed) as (
     ('public.submit_manual_revision_request(uuid,text,text,text,text,uuid)', false, true),
     ('public.update_job_links(uuid,text,text)', false, true),
     ('public.redeem_invite_code(text)', false, true),
+    ('public.record_signup_source(text,text,text)', false, true),
     ('public.handle_new_user()', false, false),
     ('public.protect_revision_request_evidence()', false, false),
     ('public.record_signup_policy_acceptance()', false, false),
