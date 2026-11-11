@@ -51,6 +51,13 @@ describe("가입 없이 둘러보기(/try)", () => {
     expect(screen.getByTestId("try-start")).toHaveTextContent("BETA2026");
   });
 
+  it("베타 코드 안내 문장의 조사가 코드 글자에 따라 틀리지 않는다(코드 뒤에 바로 조사를 붙이지 않음)", () => {
+    render(<TryTour />);
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("베타 코드(BETA2026)가 자동으로 들어가요.");
+    expect(text).not.toContain("BETA2026가");
+  });
+
   it("체험을 눌러도 링크 안에 링크가 생기지 않는다(서버 화면과 브라우저 화면이 어긋나지 않게)", () => {
     const { container } = render(<TryTour />);
     fireEvent.click(screen.getByTestId("try-next-1"));
