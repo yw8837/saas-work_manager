@@ -58,7 +58,8 @@ describe("주문 하나가 끝나기까지 흐름도", () => {
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
     expect(document.querySelectorAll(".primaryButton")).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "무료로 시작하기" })).toHaveClass("primaryButton");
+    // 머리글에도 '무료로 시작하기'(연한 파랑, 주 버튼 아님)가 있어 단계 버튼 줄 안에서 찾는다.
+    expect(within(screen.getByRole("navigation", { name: "단계 이동" })).getByRole("link", { name: "무료로 시작하기" })).toHaveClass("primaryButton");
     expect(screen.getByTestId("guide-demo-link")).toHaveClass("secondaryButton");
     window.history.replaceState(null, "", "/guide");
   });

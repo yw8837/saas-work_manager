@@ -4,7 +4,9 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronDown, MousePointerClick } from "lucide-react";
 import { useCallback, useEffect, useRef, useSyncExternalStore, type TouchEvent } from "react";
 
+import { SIGNUP_START_HREF } from "@/lib/signup-start";
 import { Brand } from "./brand";
+import { SignupOffer } from "./signup-offer";
 import { WorkFlowChart } from "./work-flow-chart";
 
 /**
@@ -202,9 +204,11 @@ export function UserGuide() {
     <div className="guidePage guideViewer">
       <header className="guideHeader">
         <Brand />
+        {/* 처음 온 사람에게 '로그인'은 가입 버튼으로 안 읽혀서 눈에 띄는 시작 버튼을 따로 둔다. 휴대폰 폭에서는 고객 화면 체험을 접는다(마지막 단계에 있음). */}
         <nav aria-label="설명서 메뉴">
-          <Link href="/demo/r">고객 화면 체험</Link>
-          <Link href="/today">로그인</Link>
+          <Link href="/demo/r" className="guideHeaderExtra">고객 화면 체험</Link>
+          <Link href="/today" className="guideHeaderLogin" data-testid="guide-header-login">로그인</Link>
+          <Link href={SIGNUP_START_HREF} className="guideHeaderStart" data-testid="guide-header-start">무료로 시작하기</Link>
         </nav>
       </header>
 
@@ -248,6 +252,9 @@ export function UserGuide() {
             {step.chapter && <p className="guideStageChapter">{step.chapter}</p>}
             <h2 id="guide-step-title" ref={titleRef} tabIndex={-1} data-testid="guide-step-title">{step.title}</h2>
             <p className="guideStageCaption">{step.caption}</p>
+            {isFirst && (
+              <Link href="/try" className="guideTryLink" data-testid="guide-try">가입 없이 둘러보기</Link>
+            )}
             {step.detail && (
               <details className="guideDetail">
                 {/* 낭독기에는 단계 제목을 붙여 어떤 '자세히'인지 알린다. 보이는 글은 '자세히' 그대로다. */}
@@ -274,6 +281,8 @@ export function UserGuide() {
                 <h3 id="guide-not-yet-title">아직 안 되는 것</h3>
                 <p>플랫폼·메신저의 주문과 대화를 자동으로 가져오지 않아요. 주문은 직접 등록하고 링크도 직접 보내요. 고객에게 자동으로 답장하지 않고, 고객이 결과를 확인한 뒤에 차감하는 방식과 웹에서 새 요청 알림도 아직 준비 전이에요.</p>
               </section>
+              {/* 아래 '무료로 시작하기' 바로 위에 베타 코드·무료 범위를 둔다(네 공개 화면 같은 문장). */}
+              <SignupOffer testId="guide-offer" className="guideOffer" />
             </div>
           )}
         </section>
@@ -296,7 +305,7 @@ export function UserGuide() {
             <ArrowLeft size={18} aria-hidden="true" /> 이전
           </button>
           {isLast ? (
-            <Link href="/today" className="primaryButton guideNextButton" data-testid="guide-start">
+            <Link href={SIGNUP_START_HREF} className="primaryButton guideNextButton" data-testid="guide-start">
               무료로 시작하기 <ArrowRight size={18} aria-hidden="true" />
             </Link>
           ) : (

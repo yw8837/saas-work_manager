@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {} from "vitest/jsdom";
 
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/policies";
+import { FREE_PLAN_TEXT, INVITE_OTHER_TEXT, INVITE_READY_TEXT, SIGNUP_NEXT_TEXT, signupStartHref } from "@/lib/signup-start";
 
 const auth = vi.hoisted(() => ({
   authStatus: "signed_out" as "signed_out" | "signed_in" | "offline",
@@ -89,6 +90,22 @@ describe("WorkspaceAuthGate Google login", () => {
     expect(screen.queryByText(/초대형|폐쇄 베타|베타 계정/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "이용약관" })).toHaveAttribute("href", "/terms");
     expect(screen.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
+  });
+
+  it("개발 용어 없이 비밀번호를 저장하지 않는다고 말하고, 버튼 아래에 가입하면 어떻게 되는지(약관 동의 뒤 작업공간·무료 범위·카드 없음)를 알린다", () => {
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    expect(document.body).not.toHaveTextContent(/Supabase|Auth|OAuth/);
+    expect(document.body).toHaveTextContent("Google 비밀번호는 일감체크에 저장되지 않아요.");
+    const next = screen.getByTestId("auth-signup-next");
+    expect(next).toHaveTextContent(SIGNUP_NEXT_TEXT);
+    expect(next).toHaveTextContent("약관에 동의하면 바로 작업공간이 열려요.");
+    expect(next).toHaveTextContent(FREE_PLAN_TEXT);
+    expect(next).toHaveTextContent("카드 등록은 없어요");
+    // 버튼 아래에 있다.
+    const button = screen.getByRole("button", { name: "Google로 계속하기" });
+    expect(button.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 시간 숫자는 쓰지 않는다.
+    expect(document.body.textContent ?? "").not.toMatch(/\d+\s*(초|분)/);
   });
 
   it("starts Google OAuth from the only login action", async () => {
@@ -187,14 +204,48 @@ describe("WorkspaceAuthGate 초대 링크", () => {
   });
   afterEach(() => jsdom.reconfigure({ url: originalUrl }));
 
-  it("로그인 전에 주소의 코드를 이 탭에 옮겨 두고 주소에서 지운 뒤, 자동 적용된다고 알린다", async () => {
+  it("로그인 전에 주소의 코드를 이 탭에 옮겨 두고 주소에서 지운 뒤, 자동으로 들어간다고 알린다(모르는 코드면 값·혜택을 말하지 않음)", async () => {
     jsdom.reconfigure({ url: "https://ilgam.example/today?invite=MAILCODE" });
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
     expect(window.location.search).toBe("");
     expect(window.sessionStorage.getItem("ilgamcheck:pending-invite")).toBe("MAILCODE");
-    expect(await screen.findByTestId("invite-ready")).toHaveTextContent("베타 코드가 자동으로 적용돼요");
+    const notice = await screen.findByTestId("invite-ready");
+    expect(notice).toHaveTextContent(INVITE_OTHER_TEXT);
+    expect(notice).toHaveTextContent("베타 코드가 자동으로 들어가요");
+    expect(notice).not.toHaveTextContent(/BETA2026|Pro를/);
     // 화면 어디에도 코드 값을 그대로 보여 주지 않는다.
     expect(document.body.textContent).not.toContain("MAILCODE");
+  });
+
+  it("공개 시작 버튼의 코드(BETA2026)로 들어오면 코드와 혜택(Pro 14일, 계정당 한 번)을 보여 주고 '초대 링크로 들어오셨어요'라고 하지 않는다", async () => {
+    jsdom.reconfigure({ url: "https://ilgam.example/today?invite=BETA2026" });
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    const notice = await screen.findByTestId("invite-ready");
+    expect(notice).toHaveTextContent(INVITE_READY_TEXT);
+    expect(notice).toHaveTextContent("베타 코드 BETA2026이 자동으로 들어가요. Pro를 14일 동안 무료로 써요(계정당 한 번).");
+    expect(document.body).not.toHaveTextContent("초대 링크로 들어오셨어요");
+    expect(window.sessionStorage.getItem("ilgamcheck:pending-invite")).toBe("BETA2026");
+  });
+
+  it("업종과 베타 코드가 같이 붙어 와도(예시 화면 버튼) 둘 다 이 탭에 남고 주소에서는 지워진다", async () => {
+    jsdom.reconfigure({ url: `https://ilgam.example${signupStartHref("design")}` });
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    expect(window.location.search).toBe("");
+    expect(window.sessionStorage.getItem("ilgamcheck:pending-starter")).toBe("design");
+    expect(window.sessionStorage.getItem("ilgamcheck:pending-invite")).toBe("BETA2026");
+    expect(await screen.findByTestId("invite-ready")).toHaveTextContent(INVITE_READY_TEXT);
+  });
+
+  it("초대 값이 있든 없든 주 버튼 모양(클래스)은 같다", async () => {
+    jsdom.reconfigure({ url: "https://ilgam.example/today" });
+    const { unmount } = render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    const plain = (await screen.findByRole("button", { name: "Google로 계속하기" })).className;
+    unmount();
+    jsdom.reconfigure({ url: "https://ilgam.example/today?invite=BETA2026" });
+    render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
+    await screen.findByTestId("invite-ready");
+    expect(screen.getByRole("button", { name: "Google로 계속하기" }).className).toBe(plain);
+    expect(plain).toBe("primaryButton authPrimary");
   });
 
   it("업종 예시 링크: 로그인 전에 주소의 업종을 이 탭에 옮겨 두고 주소에서 지운다(Google 복귀 주소 /today에 없어도 살아 있게)", async () => {

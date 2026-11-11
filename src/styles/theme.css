@@ -2257,3 +2257,67 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
   .previewArrow { width: 44px; height: 44px; }
   .previewDot { min-width: 24px; }
 }
+
+/* 2026-11-11 가입 흐름 점검(블로그 → 메인·둘러보기·설명서·예시 → 가입 화면).
+   시작 버튼 옆 안내 두 줄(베타 코드·무료 범위)은 네 화면 같은 문장(signup-start.ts). */
+.signupOffer { max-width: 62ch; margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }
+.signupOffer span { display: block; }
+.heroOffer { margin: 0 0 14px; }
+.tryOffer { margin-top: 12px; }
+.guideFinish .guideOffer { padding: 0 2px; }
+.examplesOffer { margin: 0 0 8px; }
+.examplesSectionOffer { margin-top: 10px; font-size: 13px; }
+@media (min-width: 900px) {
+  .guideFinish .guideOffer { max-width: 360px; text-align: left; }
+}
+
+/* 설명서·예시 머리글: 눈에 띄는 '무료로 시작하기'(연한 파랑 버튼)와 그 옆 글자 링크 '로그인'. 화면마다 파랑 채움 주 버튼은 하나(설명서 '다음'·'무료로 시작하기')라 머리글은 연한 파랑으로 둔다. 휴대폰 폭에서는 보조 링크를 접어 한 줄을 지킨다. */
+.guideHeader nav { align-items: center; }
+.guideHeader nav a.guideHeaderStart { min-height: 44px; padding: 0 14px; color: var(--web-accent-ink); background: var(--web-accent-soft); border-radius: 12px; font-size: 14px; font-weight: 650; white-space: nowrap; }
+.guideHeader nav a.guideHeaderStart:hover { background: #d6e4fd; }
+.guideHeader nav a.guideHeaderLogin { min-width: 44px; justify-content: center; white-space: nowrap; }
+@media (max-width: 520px) {
+  .guideHeader nav .guideHeaderExtra { display: none; }
+  .guideHeader nav { gap: 12px; }
+}
+/* 가입 없이 둘러보기(/try)로 가는 글자 링크: 설명서 첫 단계, 예시 위쪽 안내. */
+.guideTryLink, .examplesTry { min-height: 44px; display: inline-flex; align-items: center; color: var(--web-accent-ink); font-size: 15px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.guideTryLink { margin-top: 4px; }
+.examplesTry { margin-bottom: 8px; }
+
+/* /try 4단계 완료 상자: 주 버튼 'Google로 시작하기', '처음부터 다시'는 옆의 글자 버튼. */
+.tryDoneBox { max-width: 62ch; margin: 0 0 4px; padding: 14px; background: var(--green-soft); border-radius: 12px; }
+.tryDoneBox .tryResult { margin: 0 0 12px; padding: 0; background: transparent; }
+.tryDoneActions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
+.tryDoneStart { min-height: 52px; padding-inline: 22px; display: inline-flex; align-items: center; gap: 8px; }
+.tryRestartLink { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; padding: 0; color: var(--ink-soft); background: transparent; border: 0; font: inherit; font-size: 15px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.tryRestartLink:hover { color: var(--ink); }
+@media (max-width: 760px) {
+  .tryDoneStart { width: 100%; justify-content: center; }
+}
+
+/* 메인 휴대폰 아래 고정 시작 줄: 첫 화면 시작 버튼이 위로 지나가면 나타나고, 맨 아래 시작 구역이 보이면 숨는다. 넓은 화면은 그리지 않는다. */
+.stickyStart { display: none; }
+@media (max-width: 720px) {
+  .stickyStart {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+    padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: var(--paper); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px rgb(25 31 40 / 8%);
+    transition: transform .2s ease, visibility .2s;
+  }
+  .stickyStart[data-visible="false"] { transform: translateY(110%); visibility: hidden; }
+  .stickyStart .primaryButton, .stickyStart .secondaryButton { min-height: 48px; padding-inline: 16px; font-size: 16px; font-weight: 600; white-space: nowrap; }
+  /* 고정 줄이 바닥글(사업자 정보)을 가리지 않게 그 높이만큼 아래 여백을 둔다. */
+  .marketingFooter { padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  .stickyStart { transition: none; }
+}
+
+/* 가입 화면: 버튼 아래 '가입하면 어떻게 되는지'. 주 버튼은 초대 값이 있든 없든 같은 파랑(마우스·손가락이 올라가도 검정으로 바뀌지 않게). */
+.authCard > p.authSignupNext { color: var(--ink-soft); font-size: 13px; line-height: 1.6; word-break: keep-all; }
+.authSignupNext span { display: block; }
+.authPage .primaryButton:hover { background: var(--primary-active); }
+/* 예시 구역의 옛 주소(#examples-design 등)가 닿는 빈 표시. 구역 맨 위와 같은 자리, 같은 위 여백. */
+.examplesAnchor { display: block; scroll-margin-top: 16px; }
