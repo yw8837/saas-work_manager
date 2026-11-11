@@ -40,4 +40,4 @@ export const INVITE_READY_TEXT = `베타 코드 ${START_INVITE_CODE}이 자동�
 /** 가입 화면: 다른 코드가 붙어 왔을 때. 코드 값은 화면에 보이지 않는다(검증은 약관 동의 뒤 서버가 한다). */
 export const INVITE_OTHER_TEXT = "로그인하고 약관에 동의하면 링크의 베타 코드가 자동으로 들어가요.";
 /** 가입 화면: 버튼 아래, 가입하면 어떻게 되는지. */
-export const SIGNUP_NEXT_TEXT = "Google로 로그인하고 약관에 동의하면 바로 작업공간이 열려요.";
+export const SIGNUP_NEXT_TEXT = "Google로 로그인하고 약관에 동의하면 작업공간이 열려요.";

@@ -20,7 +20,8 @@ describe("베타 코드·무료 범위 안내는 네 공개 화면에서 같은 
 
   it("메인: 첫 화면 시작 버튼 바로 아래", () => {
     render(<MarketingHome />);
-    expect(offerText("landing-offer")).toBe(EXPECTED);
+    // 메인은 바로 아래 체크 줄이 무료 범위·카드 등록 없음을 이미 말해서 베타 코드 줄만 둔다.
+    expect(offerText("landing-offer")).toBe(BETA_OFFER_TEXT);
     const actions = screen.getByTestId("landing-demo").closest(".heroActions")!;
     expect(actions.nextElementSibling).toBe(screen.getByTestId("landing-offer"));
     // 홈에는 시간 숫자를 쓰지 않는다(hosted-entry-safety 시험과 같은 기준).

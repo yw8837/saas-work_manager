@@ -98,7 +98,7 @@ describe("WorkspaceAuthGate Google login", () => {
     expect(document.body).toHaveTextContent("Google 비밀번호는 일감체크에 저장되지 않아요.");
     const next = screen.getByTestId("auth-signup-next");
     expect(next).toHaveTextContent(SIGNUP_NEXT_TEXT);
-    expect(next).toHaveTextContent("약관에 동의하면 바로 작업공간이 열려요.");
+    expect(next).toHaveTextContent("약관에 동의하면 작업공간이 열려요.");
     expect(next).toHaveTextContent(FREE_PLAN_TEXT);
     expect(next).toHaveTextContent("카드 등록은 없어요");
     // 버튼 아래에 있다.

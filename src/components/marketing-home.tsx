@@ -68,7 +68,7 @@ export function MarketingHome() {
                 가입 없이 둘러보기
               </Link>
             </div>
-            <SignupOffer testId="landing-offer" className="heroOffer" />
+            <SignupOffer betaOnly testId="landing-offer" className="heroOffer" />
             {/* 사실만 적는다: 로그인은 Google만, 결제 기능이 아직 없어 카드를 받지 않는다, 무료 한도는 entitlements 값. */}
             <ul className="heroReassure" aria-label="시작 조건" data-testid="landing-reassure">
               <li><Check size={15} aria-hidden="true" /> Google 계정으로 가입</li>
