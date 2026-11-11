@@ -20,6 +20,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   PackageCheck,
+  PenLine,
   Plus,
   RotateCcw,
   Save,
@@ -86,6 +87,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     completeJob,
     setJobSource,
     markStartShared,
+    updateJobInfo,
     deleteJob,
     setRevisionPortalEnabled,
     rotateRevisionPortalToken,
@@ -104,6 +106,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const job = jobs.find((item) => item.id === jobId);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
+  // 더보기 > '일감 정보 고치기' 양식(고객 이름·시작일·마감일). 금액·패키지·옵션은 고치지 않는다.
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [infoName, setInfoName] = useState("");
+  const [infoStart, setInfoStart] = useState("");
+  const [infoDue, setInfoDue] = useState("");
+  const [infoError, setInfoError] = useState("");
   // 휴대폰에서 금액·원가·남는 돈 칸은 '금액 보기'를 눌렀을 때만 보인다(데스크톱은 늘 6칸).
   const [moneyOpen, setMoneyOpen] = useState(false);
   const handleDeleteJob = () => {
@@ -221,6 +229,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const sourceLabel = currentSource ? ORDER_SOURCE_LABELS[currentSource] : undefined;
   const shownTitle = displayJobTitle(job);
   const dueDday = getDday(job.dueDate);
+  // 완료한 일감은 지연 대신 완료로 보인다. 완료 시각이 있으면 그날(이 기기 날짜), 없던 예전 저장본은 '완료'만.
+  const doneLabel = job.status === "completed"
+    ? job.completedAt && !Number.isNaN(Date.parse(job.completedAt))
+      ? `${formatShortDate(localTodayISO(new Date(job.completedAt)))} 완료`
+      : "완료"
+    : null;
   // 저장 직후 안내 띠가 열려 있는 동안은 같은 문구가 두 벌 보이지 않게 '고객에게 보낼 말'을 숨긴다.
   const sendBannerOpen = sendBannerRequested && !sendBannerDismissed && job.status === "active";
   const notify = (text: string) => setNotice({ text, tone: "ok" });
@@ -257,6 +271,46 @@ export function JobDetail({ jobId }: { jobId: string }) {
       return;
     }
     if (linkWasOn) setRevisionPortalEnabled(job.id, true);
+  };
+
+  const openJobInfo = () => {
+    setInfoName(job.clientLabel);
+    setInfoStart(job.startDate);
+    setInfoDue(job.dueDate);
+    setInfoError("");
+    setNotice(null);
+    setInfoOpen(true);
+  };
+
+  // 잘못된 값은 저장하지 않고 이유를 양식 안에 보인다. 날짜 칸 값은 YYYY-MM-DD라 글자 비교로 앞뒤를 본다.
+  const saveJobInfo = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = infoName.trim();
+    if (!name) {
+      setInfoError("고객 이름을 적어 주세요. 비워 둘 수 없어요.");
+      return;
+    }
+    if (!infoStart || !infoDue) {
+      setInfoError(!infoStart ? "시작일을 골라 주세요." : "마감일을 골라 주세요.");
+      return;
+    }
+    if (infoDue < infoStart) {
+      setInfoError("마감일이 시작일보다 앞이에요. 시작일과 같은 날이나 그 뒤로 골라 주세요.");
+      return;
+    }
+    const datesChanged = infoStart !== job.startDate || infoDue !== job.dueDate;
+    if (name === job.clientLabel && !datesChanged) {
+      setInfoOpen(false);
+      return;
+    }
+    try {
+      updateJobInfo(job.id, { clientLabel: name, startDate: infoStart, dueDate: infoDue });
+    } catch (error) {
+      setInfoError(error instanceof Error ? error.message : "일감 정보를 고치지 못했어요.");
+      return;
+    }
+    setInfoOpen(false);
+    notify(datesChanged ? "일감 정보를 고쳤어요. 할 일 날짜도 새 일정에 맞췄어요." : "일감 정보를 고쳤어요.");
   };
 
   // 메신저·전화로 받은 요청을 적는다. 기본은 확인 대기, 이미 고쳤으면 '수정 완료로 기록'으로 바로 1회를 쓴다.
@@ -606,6 +660,18 @@ export function JobDetail({ jobId }: { jobId: string }) {
                   <button
                     type="button"
                     role="menuitem"
+                    className="detailMoreItem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openJobInfo();
+                    }}
+                    data-testid="edit-job-info"
+                  >
+                    <PenLine size={16} /> 일감 정보 고치기
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
                     className="detailMoreItem danger"
                     onClick={() => {
                       setMenuOpen(false);
@@ -620,6 +686,32 @@ export function JobDetail({ jobId }: { jobId: string }) {
           </div>
         </div>
       </header>
+
+      {infoOpen && (
+        <form className="jobInfoForm" onSubmit={saveJobInfo} noValidate aria-labelledby="job-info-title" data-testid="job-info-form">
+          <h2 id="job-info-title">일감 정보 고치기</h2>
+          <label>
+            <span>고객 이름</span>
+            <input value={infoName} onChange={(event) => setInfoName(event.target.value)} autoComplete="organization" autoFocus data-testid="job-info-client" />
+          </label>
+          <div className="jobInfoDates">
+            <label>
+              <span>시작일</span>
+              <input type="date" value={infoStart} onChange={(event) => setInfoStart(event.target.value)} data-testid="job-info-start" />
+            </label>
+            <label>
+              <span>마감일</span>
+              <input type="date" value={infoDue} min={infoStart || undefined} onChange={(event) => setInfoDue(event.target.value)} data-testid="job-info-due" />
+            </label>
+          </div>
+          <p className="jobInfoNote" data-testid="job-info-amount-note">금액을 바꾸려면 추가요청으로 적어 주세요.</p>
+          {infoError && <p className="jobInfoError" role="alert" data-testid="job-info-error">{infoError}</p>}
+          <div className="revisionFormActions">
+            <button type="button" className="textOnlyButton" onClick={() => setInfoOpen(false)} data-testid="job-info-cancel">취소</button>
+            <button type="submit" className="primaryButton compactSubmit" data-testid="job-info-save"><Save size={16} /> 일감 정보 저장</button>
+          </div>
+        </form>
+      )}
 
       {/* 고객이 링크로 남긴 새 요청은 휴대폰에서도 첫 화면에 보이게 제목 바로 아래에 알린다. */}
       {revision.pending > 0 && (
@@ -651,7 +743,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       {/* 휴대폰 첫 화면에는 사실 6칸 대신 이 한 줄만 보인다(데스크톱에서는 숨김). 금액은 '금액 보기'로 펼친다. */}
       <p className="jobFactLine" data-testid="job-fact-line">
         <span>
-          {dueDday === "오늘 마감" ? dueDday : `${formatShortDate(job.dueDate)} 마감 ${dueDday}`} · 남은 수정 {revision.remaining}회 · 할 일 {doneTasks}/{job.tasks.length}
+          {doneLabel ?? (dueDday === "오늘 마감" ? dueDday : `${formatShortDate(job.dueDate)} 마감 ${dueDday}`)} · 남은 수정 {revision.remaining}회 · 할 일 {doneTasks}/{job.tasks.length}
         </span>
         <button
           type="button"
@@ -668,7 +760,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       <section id="job-fact-rail" className="jobFactRail" data-money-open={moneyOpen} aria-label="일감 핵심 정보">
         <div>
           <span className="factIcon"><CalendarDays size={18} /></span>
-          <dl><dt>마감</dt><dd>{formatShortDate(job.dueDate)} <small>{dueDday}</small></dd></dl>
+          <dl><dt>마감</dt><dd>{formatShortDate(job.dueDate)} <small>{doneLabel ?? dueDday}</small></dd></dl>
         </div>
         <div className="jobFactMoney">
           <span className="factIcon"><CircleDollarSign size={18} /></span>
@@ -748,7 +840,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
                     <span className="taskStateLabel waiting"><MessageSquareText size={14} /> 대기</span>
                   ) : task.status === "done" ? (
                     <span className="taskStateLabel done"><CheckCircle2 size={14} /> 완료</span>
-                  ) : (
+                  ) : job.status === "completed" ? null : (
+                    // 완료한 일감에 남은 할 일에는 지연을 붙이지 않는다(날짜는 위 줄에 있다).
                     <span className="taskStateLabel">{getDday(task.dueDate)}</span>
                   )}
                 </div>
@@ -823,7 +916,6 @@ export function JobDetail({ jobId }: { jobId: string }) {
                       <select value={channel} onChange={(event) => setChannel(event.target.value as keyof typeof channelLabels)}>
                         {Object.entries(channelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select>
-                      <ChevronDown size={15} />
                     </span>
                   </label>
                   <span className={revision.remaining === 0 ? "revisionImpact extra" : "revisionImpact"} data-testid="revision-impact">
@@ -1006,7 +1098,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
               {Array.from({ length: revision.included }, (_, index) => <span key={index} data-used={index < revision.used} />)}
             </div>
             {revision.pending > 0 && (
-              <p className="revisionPendingNote" data-testid="revision-pending-count">확인 대기 {revision.pending}건 · 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회를 써요</p>
+              <p className="revisionPendingNote" data-testid="revision-pending-count">
+                {/* 남은 포함 수정이 없으면 '수정 완료'가 꺼져 있다. 왜 꺼졌는지와 할 수 있는 일을 말한다(둘 다 횟수를 안 씀). */}
+                {revision.remaining > 0
+                  ? <>확인 대기 {revision.pending}건 · 고친 뒤 &lsquo;수정 완료&rsquo;를 누르면 1회를 써요</>
+                  : <>확인 대기 {revision.pending}건 · 포함 수정을 다 써서 &lsquo;수정 완료&rsquo;는 꺼져 있어요. 범위 밖이면 &lsquo;추가 작업으로&rsquo;, 질문·중복이면 &lsquo;반려&rsquo;를 눌러요. 둘 다 횟수를 안 써요.</>}
+              </p>
             )}
             {/* 수정 횟수 규칙은 접기 하나에 모은다(고객 링크 구획의 설명도 여기로 옮김). */}
             <details className="revisionRules">
@@ -1093,7 +1190,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
       <div className="jobActionBar">
         <div className="actionBarInfo">
-          <span className={delayed ? "actionBarStatus delayed" : "actionBarStatus"}><Clock3 size={15} /> {getDday(job.dueDate)}</span>
+          <span className={delayed ? "actionBarStatus delayed" : "actionBarStatus"}><Clock3 size={15} /> {doneLabel ?? getDday(job.dueDate)}</span>
           <strong>{job.status === "completed" ? "일감 완료됨" : `다음: ${orderedTasks.find((task) => task.status === "todo")?.title ?? "모든 작업 처리됨"}`}</strong>
         </div>
         <div className="actionBarButtons">

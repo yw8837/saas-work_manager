@@ -530,3 +530,29 @@
 .appFrame .catalogFullField small,
 .appFrame .briefQuestionField small,
 .appFrame .settingTime small { font-size: 12px; }
+
+/* 2026-11-11 앱 점검 고침 — 일감 화면 '요청 직접 적기'(휴대폰에서 버튼 글자가 두 줄로 깨지고, 남은 수정 안내가
+   칸 높이만큼 늘어난 큰 타원으로 뜨던 것)와 더보기 > '일감 정보 고치기' 양식. */
+.appFrame :is(.revisionQuickForm, .jobInfoForm) .revisionFormActions { flex-wrap: wrap; }
+.appFrame :is(.revisionQuickForm, .jobInfoForm) .revisionFormActions button { white-space: nowrap; }
+.appFrame .revisionQuickForm .revisionFormTop { flex-wrap: wrap; }
+/* 남은 수정 안내는 채널 칸 아래 한 줄 띠로 둔다(알약을 칸 높이로 늘리지 않음). */
+.appFrame .revisionQuickForm .revisionImpact { flex: 1 1 100%; width: auto; align-self: auto; padding: 8px 12px; border-radius: 8px; white-space: normal; }
+.appFrame .jobInfoForm { display: grid; gap: 12px; margin: 0 0 16px; padding: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-card); }
+.appFrame .jobInfoForm h2 { margin: 0; font-size: 17px; }
+.appFrame .jobInfoForm label { display: grid; gap: 6px; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+.appFrame .jobInfoForm input { min-height: 44px; padding: 0 12px; color: var(--ink); font-size: 15px; font-weight: 500; }
+.appFrame .jobInfoDates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.appFrame .jobInfoNote { margin: 0; color: var(--muted); font-size: 13px; }
+.appFrame .jobInfoError { margin: 0; color: var(--red); font-size: 13px; font-weight: 600; }
+@media (max-width: 760px) {
+  /* 더보기 메뉴 항목('일감 정보 고치기'·'일감 삭제')도 휴대폰에서는 44px 높이로 누른다. */
+  .appFrame .detailMoreItem { min-height: 44px; }
+}
+@media (max-width: 520px) {
+  /* 좁은 화면은 버튼을 세로로 쌓는다(주 버튼이 맨 위). 글자는 한 줄, 누르는 높이는 44px 이상. */
+  .appFrame :is(.revisionQuickForm, .jobInfoForm) .revisionFormActions { flex-direction: column-reverse; align-items: stretch; }
+  .appFrame :is(.revisionQuickForm, .jobInfoForm) .revisionFormActions button { width: 100%; min-height: 44px; }
+  .appFrame .jobInfoForm { padding: 16px; }
+  .appFrame .jobInfoDates { grid-template-columns: minmax(0, 1fr); }
+}

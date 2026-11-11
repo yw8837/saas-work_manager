@@ -1,6 +1,6 @@
 /**
  * 목록 줄 왼쪽 44px 날짜 칸(디자인 A 3절 3번). 위 큰 글자 D-7/D-day/D+2, 아래 작은 글자 월.일.
- * 색: 지연 late(빨강), 2일 이내 soon(주황), 그 밖 normal(파랑), 끝난 일 done(회색).
+ * 색: 지연 late(빨강), 2일 이내 soon(주황), 그 밖 normal(파랑), 끝난 일 done(회색, 위 '완료'·아래 완료일).
  * 읽어 주는 글(spoken)은 화면 곳곳에서 쓰던 기존 표기(11월 10일 마감, D-7 / 오늘 마감 / n일 지연)를 그대로 쓴다.
  */
 export type DueTileTone = "late" | "soon" | "normal" | "done";
@@ -15,11 +15,18 @@ function daysBetween(today: string, due: string): number {
   return Math.round((toUtc(due) - toUtc(today)) / 86_400_000);
 }
 
-export function dueTileOf(dueDate: string, today: string, done = false): DueTile {
+export function dueTileOf(dueDate: string, today: string, done = false, completedAt?: string): DueTile {
+  if (done) {
+    // 끝난 일감은 마감이 지났어도 지연(D+n) 대신 완료로 보인다. 완료 시각이 있으면 그날(이 기기 날짜)을 아래 줄에 쓴다.
+    const completedDay = completedAt && !Number.isNaN(Date.parse(completedAt)) ? localTodayISO(new Date(completedAt)) : null;
+    if (!completedDay) return { label: "완료", date: "", tone: "done", spoken: "완료" };
+    const [, doneMonth, doneDay] = completedDay.split("-").map(Number);
+    return { label: "완료", date: `${doneMonth}.${String(doneDay).padStart(2, "0")}`, tone: "done", spoken: `${doneMonth}월 ${doneDay}일 완료` };
+  }
   const diff = daysBetween(today, dueDate);
   const [, month, day] = dueDate.split("-").map(Number);
   const label = diff === 0 ? "D-day" : diff > 0 ? `D-${diff}` : `D+${-diff}`;
-  const tone: DueTileTone = done ? "done" : diff < 0 ? "late" : diff <= 2 ? "soon" : "normal";
+  const tone: DueTileTone = diff < 0 ? "late" : diff <= 2 ? "soon" : "normal";
   const words = diff === 0 ? "오늘 마감" : diff > 0 ? `D-${diff}` : `${-diff}일 지연`;
   return {
     label,

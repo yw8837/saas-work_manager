@@ -32,6 +32,7 @@ import {
   setBriefQuestionNote as applyBriefNote,
   setJobSource as applyJobSource,
   toggleJobCompletion,
+  updateJobInfo as applyJobInfo,
   updateTaskStatus,
   BETA_GRANT_DAYS,
   type CreateAddonInput,
@@ -47,6 +48,7 @@ import {
   type RevisionChannel,
   type RevisionUsage,
   type Task,
+  type UpdateJobInfoInput,
 } from "@/lib/domain";
 import {
   applyIndustryStarter as applyIndustryStarterTo,
@@ -149,6 +151,8 @@ type WorkspaceContextValue = AppState & {
   setJobSource: (jobId: string, source: OrderSource | undefined) => void;
   /** 시작 안내(저장 직후 안내의 문구·링크, '시작 안내' 칩)를 처음 복사한 시각을 남긴다. 이미 남겼거나 진행 중이 아니면 그대로 둔다. */
   markStartShared: (jobId: string) => void;
+  /** 고객 이름·시작일·마감일을 고친다(금액·패키지·옵션은 그대로). 잘못된 값이면 도메인 오류를 던진다. 완료한 일감에서도 된다. */
+  updateJobInfo: (jobId: string, input: UpdateJobInfoInput) => void;
   deleteJob: (jobId: string) => void;
   setRevisionPortalEnabled: (jobId: string, enabled: boolean) => void;
   rotateRevisionPortalToken: (jobId: string) => string | null;
@@ -165,7 +169,8 @@ type WorkspaceContextValue = AppState & {
     content: string,
     clientLabel?: string,
   ) => { jobId: string; usage: RevisionUsage } | null;
-  savePackage: (template: PackageTemplate) => void;
+  /** 패키지를 목록에 반영했으면 true. 보관된 패키지이거나 플랜 한도로 새 패키지를 못 넣으면 아무것도 바꾸지 않고 false. */
+  savePackage: (template: PackageTemplate) => boolean;
   archivePackage: (packageId: string) => void;
   saveOption: (template: OptionTemplate) => void;
   archiveOption: (optionId: string) => void;
@@ -1497,6 +1502,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     updateJob(jobId, (job) => (job.status === "active" ? applyStartShared(job) : job));
   }, [updateJob]);
 
+  // 받은 곳처럼 고객 링크·수정 횟수와 상관없는 정보라 완료한 일감에서도 고친다(지난달 정리의 이름 오타 등).
+  const updateJobInfo = useCallback((jobId: string, input: UpdateJobInfoInput) => {
+    updateJob(jobId, (job) => (job.status === "archived" ? job : applyJobInfo(job, input)));
+  }, [updateJob]);
+
   const deleteJob = useCallback((jobId: string) => {
     commitState((current) => ({
       ...current,
@@ -1599,10 +1609,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const savePackage = useCallback((template: PackageTemplate) => {
     const normalized = clonePackage({ ...template, id: template.id || createDomainId("pkg") });
+    // 보관한(목록에 없는) 패키지는 저장해도 목록에 안 보인다. 저장했다고 알리지 않게 거절한다.
+    if (normalized.archivedAt) return false;
+    let saved = false;
     commitState((current) => {
       const isExisting = current.packages.some((item) => item.id === normalized.id);
       // 새 패키지 추가만 한도로 막는다. 기존 패키지 편집은 항상 허용한다.
       if (!isExisting && !canCreatePackageFor(plan, current.packages)) return current;
+      saved = true;
       return {
         ...current,
         packages: isExisting
@@ -1610,6 +1624,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           : [...current.packages, normalized],
       };
     });
+    return saved;
   }, [commitState, plan]);
 
   const archivePackage = useCallback((packageId: string) => {
@@ -1810,6 +1825,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       completeJob,
       setJobSource,
       markStartShared,
+      updateJobInfo,
       deleteJob,
       setRevisionPortalEnabled,
       rotateRevisionPortalToken,
@@ -1830,7 +1846,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, setJobSource, markStartShared, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, setJobSource, markStartShared, updateJobInfo, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (

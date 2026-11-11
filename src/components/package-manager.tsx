@@ -152,20 +152,24 @@ export function PackageManager() {
   const [packageDraft, setPackageDraft] = useState<PackageTemplate | null>(null);
   const [optionDraft, setOptionDraft] = useState<OptionTemplate | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
+  // 저장을 눌렀는데 목록에 반영되지 않았을 때의 안내('저장했어요' 대신).
+  const [packageSaveError, setPackageSaveError] = useState("");
   // 한 건에 최소 남길 돈(내 기준). 정했을 때만 덜 남는 패키지를 한 줄로 알리고, 저장은 막지 않는다.
   const floor = typeof settings.minMarginPerJob === "number" && settings.minMarginPerJob > 0 ? settings.minMarginPerJob : undefined;
   const [floorOpen, setFloorOpen] = useState(false);
   const [floorDraft, setFloorDraft] = useState("");
   const [floorError, setFloorError] = useState("");
 
-  const selectedPackage = useMemo(
-    () => packageDraft ?? packages.find((item) => item.id === selectedPackageId) ?? packages[0] ?? newPackage(),
-    [packageDraft, packages, selectedPackageId],
-  );
-  const selectedOption = useMemo(
-    () => optionDraft ?? options.find((item) => item.id === selectedOptionId) ?? options[0] ?? newOption(),
-    [optionDraft, options, selectedOptionId],
-  );
+  // 편집 칸에는 목록(보관하지 않은 것)에 있는 것만 올린다. 화면이 저장본을 불러오기 전 기본 예시로 먼저 그려져
+  // 고른 id가 불러온 뒤 보관된 예시를 가리킬 수 있다(업종 예시를 바꾼 뒤). 그때는 목록 첫 항목으로 맞춘다.
+  const selectedPackage = useMemo(() => {
+    const live = packages.filter((item) => !item.archivedAt);
+    return packageDraft ?? live.find((item) => item.id === selectedPackageId) ?? live[0] ?? newPackage();
+  }, [packageDraft, packages, selectedPackageId]);
+  const selectedOption = useMemo(() => {
+    const live = options.filter((item) => !item.archivedAt);
+    return optionDraft ?? live.find((item) => item.id === selectedOptionId) ?? live[0] ?? newOption();
+  }, [optionDraft, options, selectedOptionId]);
 
   const flashSaved = (message: string) => {
     setSavedMessage(message);
@@ -206,6 +210,7 @@ export function PackageManager() {
     if (packageDirty && !window.confirm(LEAVE_MESSAGE)) return;
     setSelectedPackageId(id);
     setPackageDraft(null);
+    setPackageSaveError("");
   };
   const selectOption = (id: string) => {
     if (id === selectedOption.id) return;
@@ -246,7 +251,12 @@ export function PackageManager() {
         .filter((task) => task.title.trim())
         .map((task, index) => ({ ...task, taskKey: task.taskKey || taskKey(task.title, index), order: index })),
     };
-    savePackage(normalized);
+    // 목록에 반영되지 않았으면(보관된 패키지, 플랜 한도) '저장했어요'를 띄우지 않고 고치던 내용을 그대로 둔다.
+    if (!savePackage(normalized)) {
+      setPackageSaveError("패키지를 저장하지 못했어요. 목록을 확인하고 다시 저장해 주세요.");
+      return;
+    }
+    setPackageSaveError("");
     setSelectedPackageId(normalized.id);
     setPackageDraft(null);
     flashSaved("패키지 조건을 저장했어요. 새 일감부터 적용돼요.");
@@ -284,11 +294,14 @@ export function PackageManager() {
   const firstRemovableKey = removableTasks.keys().next().value;
 
   // 저장 알림·저장 안 한 변경은 저장 버튼 옆에 보인다(맨 위에 두면 휴대폰에서 화면 밖이다).
-  const saveNote = (unsaved: boolean) => savedMessage
+  const saveNote = (unsaved: boolean, error = "") => savedMessage
     ? <span className="catalogSaved" role="status"><Check size={16} /> {savedMessage}</span>
-    : unsaved
-      ? <span className="catalogUnsaved" data-testid="package-unsaved"><CircleAlert size={16} aria-hidden="true" /> 저장 안 한 변경이 있어요</span>
-      : null;
+    : (
+      <>
+        {error && <span className="catalogUnsaved" role="alert" data-testid="package-save-error"><CircleAlert size={16} aria-hidden="true" /> {error}</span>}
+        {unsaved && <span className="catalogUnsaved" data-testid="package-unsaved"><CircleAlert size={16} aria-hidden="true" /> 저장 안 한 변경이 있어요</span>}
+      </>
+    );
 
   return (
     <div className="pageSurface catalogPage">
@@ -433,7 +446,7 @@ export function PackageManager() {
               )}
             </div>
             <TaskRows tasks={selectedPackage.tasks} onChange={(tasks) => setPackageDraft({ ...selectedPackage, tasks })} />
-            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentPackage} data-testid="save-package"><Save size={16} /> 패키지 저장</button>{!packageDraft && <button type="button" className="quietButton" data-testid="delete-package" onClick={() => { if (window.confirm("이 패키지를 지울까요? 이미 만든 일감의 금액·마감·할 일은 그대로예요.")) { archivePackage(selectedPackage.id); flashSaved("패키지를 지웠어요."); } }}><Trash2 size={16} /> 패키지 삭제</button>}{saveNote(packageDirty)}</div>
+            <div className="catalogActions"><button type="button" className="primaryButton" onClick={saveCurrentPackage} data-testid="save-package"><Save size={16} /> 패키지 저장</button>{!packageDraft && <button type="button" className="quietButton" data-testid="delete-package" onClick={() => { if (window.confirm("이 패키지를 지울까요? 이미 만든 일감의 금액·마감·할 일은 그대로예요.")) { archivePackage(selectedPackage.id); flashSaved("패키지를 지웠어요."); } }}><Trash2 size={16} /> 패키지 삭제</button>}{saveNote(packageDirty, packageSaveError)}</div>
           </section>
         </div>
       ) : (

@@ -26,3 +26,19 @@ describe("날짜 칸(왼쪽 44px) 글자와 색", () => {
     expect(dueTileOf("2026-11-01", TODAY).spoken).toBe("11월 1일 마감, 2일 지연");
   });
 });
+
+describe("끝난 일감의 날짜 칸(2026-11-11 점검 문제 4)", () => {
+  it("마감이 지났어도 D+n 대신 '완료'와 완료일(이 기기 날짜)을 보인다", () => {
+    const completedAt = new Date(2026, 9, 31, 15, 0).toISOString();
+    expect(dueTileOf("2026-10-27", TODAY, true, completedAt)).toEqual({ label: "완료", date: "10.31", tone: "done", spoken: "10월 31일 완료" });
+  });
+
+  it("완료 시각이 없던 예전 일감은 '완료'만 보인다", () => {
+    expect(dueTileOf("2026-10-27", TODAY, true)).toEqual({ label: "완료", date: "", tone: "done", spoken: "완료" });
+    expect(dueTileOf("2026-10-27", TODAY, true, "잘못된 값")).toMatchObject({ label: "완료", date: "" });
+  });
+
+  it("다시 진행해 끝나지 않은 일감은 원래대로 D+n과 지연을 보인다", () => {
+    expect(dueTileOf("2026-10-27", TODAY, false, "2026-10-31T06:00:00.000Z")).toMatchObject({ label: "D+7", tone: "late", spoken: "10월 27일 마감, 7일 지연" });
+  });
+});

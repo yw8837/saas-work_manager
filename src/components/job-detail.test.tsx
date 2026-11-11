@@ -50,6 +50,7 @@ const setJobSourceSpy = vi.fn();
 const completeJobSpy = vi.fn();
 const setPortalSpy = vi.fn();
 const markStartSharedSpy = vi.fn();
+const updateJobInfoSpy = vi.fn();
 
 function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hosted"; saveStatus?: "saved" | "saving"; settings?: { minMarginPerJob?: number } } = {}) {
   vi.mocked(useWorkspace).mockReturnValue({
@@ -75,6 +76,7 @@ function renderDetail(job = baseJob(), options: { runtimeMode?: "local" | "hoste
     cancelAddon: cancelAddonSpy,
     setJobSource: setJobSourceSpy,
     markStartShared: markStartSharedSpy,
+    updateJobInfo: updateJobInfoSpy,
   } as unknown as ReturnType<typeof useWorkspace>);
   return render(<JobDetail jobId={job.id} />);
 }
@@ -93,6 +95,7 @@ beforeEach(() => {
   completeJobSpy.mockReset();
   setPortalSpy.mockReset();
   markStartSharedSpy.mockReset();
+  updateJobInfoSpy.mockReset();
 });
 
 /** 제공자가 상태를 바꾼 뒤의 화면: 같은 동작 함수에 일감만 바꿔 다시 그린다. */
@@ -965,5 +968,150 @@ describe("JobDetail 추가요청 취소", () => {
       "job_detail",
       expect.objectContaining({ amountDelta: 200_000, estimatedCostDelta: 50_000 }),
     );
+  });
+});
+
+describe("JobDetail 일감 정보 고치기(2026-11-11 점검 문제 2)", () => {
+  function openInfo() {
+    fireEvent.click(screen.getByRole("button", { name: "더보기" }));
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
+    expect(items).toEqual(["일감 정보 고치기", "일감 삭제"]);
+    fireEvent.click(screen.getByTestId("edit-job-info"));
+    return screen.getByTestId("job-info-form");
+  }
+
+  it("더보기에서 열면 지금 고객 이름·시작일·마감일이 채워져 있고, 금액은 추가요청으로 바꾸라고 한 줄 알린다", () => {
+    renderDetail();
+    const form = openInfo();
+    expect(within(form).getByLabelText("고객 이름")).toHaveValue("상세 고객");
+    expect(within(form).getByLabelText("시작일")).toHaveValue("2026-08-01");
+    expect(within(form).getByLabelText("마감일")).toHaveValue("2026-08-11");
+    expect(screen.getByTestId("job-info-amount-note")).toHaveTextContent("금액을 바꾸려면 추가요청으로 적어 주세요.");
+    // 금액·패키지·옵션 칸은 없다.
+    expect(within(form).queryByLabelText(/금액|패키지|옵션/)).not.toBeInTheDocument();
+  });
+
+  it("고친 값을 저장하면 제공자에 넘기고 양식을 닫은 뒤 안내를 띄운다", () => {
+    renderDetail();
+    const form = openInfo();
+    fireEvent.change(within(form).getByLabelText("고객 이름"), { target: { value: "  상세 고객사 " } });
+    fireEvent.change(within(form).getByLabelText("마감일"), { target: { value: "2026-08-20" } });
+    fireEvent.click(screen.getByTestId("job-info-save"));
+    expect(updateJobInfoSpy).toHaveBeenCalledWith("job_detail", { clientLabel: "상세 고객사", startDate: "2026-08-01", dueDate: "2026-08-20" });
+    expect(screen.queryByTestId("job-info-form")).not.toBeInTheDocument();
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("일감 정보를 고쳤어요. 할 일 날짜도 새 일정에 맞췄어요.");
+  });
+
+  it("이름만 고치면 날짜 안내 없이 알리고, 바뀐 게 없으면 저장하지 않고 닫는다", () => {
+    renderDetail();
+    let form = openInfo();
+    fireEvent.change(within(form).getByLabelText("고객 이름"), { target: { value: "새 이름" } });
+    fireEvent.click(screen.getByTestId("job-info-save"));
+    expect(screen.getByTestId("job-toast")).toHaveTextContent("일감 정보를 고쳤어요.");
+    expect(screen.getByTestId("job-toast")).not.toHaveTextContent("할 일 날짜");
+    updateJobInfoSpy.mockClear();
+    form = openInfo();
+    fireEvent.click(within(form).getByTestId("job-info-save"));
+    expect(updateJobInfoSpy).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("job-info-form")).not.toBeInTheDocument();
+  });
+
+  it("이름을 비우거나 마감일을 시작일보다 앞으로 넣으면 저장하지 않고 이유를 보인다", () => {
+    renderDetail();
+    const form = openInfo();
+    fireEvent.change(within(form).getByLabelText("고객 이름"), { target: { value: "   " } });
+    fireEvent.click(screen.getByTestId("job-info-save"));
+    expect(screen.getByTestId("job-info-error")).toHaveTextContent("고객 이름을 적어 주세요. 비워 둘 수 없어요.");
+    expect(screen.getByRole("alert")).toBe(screen.getByTestId("job-info-error"));
+
+    fireEvent.change(within(form).getByLabelText("고객 이름"), { target: { value: "상세 고객" } });
+    fireEvent.change(within(form).getByLabelText("마감일"), { target: { value: "2026-07-31" } });
+    fireEvent.click(screen.getByTestId("job-info-save"));
+    expect(screen.getByTestId("job-info-error")).toHaveTextContent("마감일이 시작일보다 앞이에요. 시작일과 같은 날이나 그 뒤로 골라 주세요.");
+
+    fireEvent.change(within(form).getByLabelText("마감일"), { target: { value: "" } });
+    fireEvent.click(screen.getByTestId("job-info-save"));
+    expect(screen.getByTestId("job-info-error")).toHaveTextContent("마감일을 골라 주세요.");
+    expect(updateJobInfoSpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId("job-info-form")).toBeInTheDocument();
+  });
+
+  it("제공자가 막으면(오래된 탭 등) 던지지 않고 이유를 양식에 보인다", () => {
+    updateJobInfoSpy.mockImplementation(() => { throw new DomainValidationError("마감일이 시작일보다 앞이에요. 시작일과 같은 날이나 그 뒤로 골라 주세요.", "INVALID_INPUT"); });
+    renderDetail();
+    const form = openInfo();
+    fireEvent.change(within(form).getByLabelText("시작일"), { target: { value: "2026-08-05" } });
+    fireEvent.click(screen.getByTestId("job-info-save"));
+    expect(screen.getByTestId("job-info-error")).toHaveTextContent("마감일이 시작일보다 앞이에요");
+    expect(screen.getByTestId("job-info-form")).toBeInTheDocument();
+  });
+
+  it("취소하면 아무것도 바꾸지 않고 닫는다", () => {
+    renderDetail();
+    const form = openInfo();
+    fireEvent.change(within(form).getByLabelText("고객 이름"), { target: { value: "바꾸다 만 이름" } });
+    fireEvent.click(screen.getByTestId("job-info-cancel"));
+    expect(updateJobInfoSpy).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("job-info-form")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobDetail 완료한 일감의 지연 표시(2026-11-11 점검 문제 4)", () => {
+  // 마감 2026-08-11로 오늘(시험 실행일)보다 한참 지난 일감.
+  it("완료하면 지연 대신 완료일을 보이고, 할 일에도 지연을 붙이지 않는다", () => {
+    const completedAt = new Date(2026, 7, 14, 12, 0).toISOString();
+    renderDetail(toggleJobCompletion(baseJob(), completedAt));
+    const fact = screen.getByTestId("job-fact-line");
+    expect(fact).toHaveTextContent("8월 14일 완료 · 남은 수정 2회");
+    expect(fact).not.toHaveTextContent("지연");
+    expect(document.querySelector(".jobFactRail")).toHaveTextContent("8월 11일 8월 14일 완료");
+    expect(document.querySelector(".actionBarStatus")).toHaveTextContent("8월 14일 완료");
+    expect(document.querySelector(".actionBarStatus")).not.toHaveClass("delayed");
+    expect(document.querySelector(".detailTaskList")).not.toHaveTextContent("지연");
+  });
+
+  it("완료 시각이 없던 예전 완료 일감은 '완료'만 보인다", () => {
+    renderDetail({ ...baseJob(), status: "completed" as const });
+    expect(screen.getByTestId("job-fact-line")).toHaveTextContent(/^완료 · 남은 수정 2회/);
+  });
+
+  it("다시 진행하면 원래대로 마감과 지연을 보인다", () => {
+    const reopened = toggleJobCompletion(toggleJobCompletion(baseJob(), "2026-08-14T03:00:00.000Z"), "2026-08-15T03:00:00.000Z");
+    renderDetail(reopened);
+    expect(screen.getByTestId("job-fact-line")).toHaveTextContent(/8월 11일 마감 \d+일 지연/);
+    expect(document.querySelector(".actionBarStatus")).toHaveClass("delayed");
+  });
+});
+
+describe("JobDetail 요청 직접 적기·남은 수정 0회(2026-11-11 점검 문제 3·5)", () => {
+  function usedUp() {
+    let job = recordRevision(baseJob(), { revisionId: "pending_x", source: "public", body: "한도 밖 요청" }).job;
+    for (const id of ["done_a", "done_b"]) {
+      job = completeRevision(recordRevision(job, { revisionId: id, source: "public", body: `${id} 요청` }).job, id);
+    }
+    return job;
+  }
+
+  it("채널 칸에는 화살표를 더 붙이지 않고, 안내는 띠(revision-impact) 하나로 보인다", () => {
+    renderDetail(usedUp());
+    fireEvent.click(screen.getByTestId("record-revision"));
+    const form = document.getElementById("revision-entry-form")!;
+    expect(form.querySelector(".selectShell svg")).toBeNull();
+    expect(screen.getByTestId("revision-impact")).toHaveTextContent("남은 수정 없음 · 기록 뒤 추가 작업으로");
+    // 버튼 세 개는 그대로(좁은 화면에서 세로로 쌓는 건 CSS).
+    expect([...form.querySelectorAll(".revisionFormActions button")].map((button) => button.textContent?.trim())).toEqual(["취소", "수정 완료로 기록", "요청으로 기록"]);
+  });
+
+  it("남은 수정이 0회면 '수정 완료'가 꺼진 이유와 할 수 있는 일(추가 작업으로·반려)을 알린다", () => {
+    renderDetail(usedUp());
+    expect(screen.getByTestId("complete-revision-pending_x")).toBeDisabled();
+    const note = screen.getByTestId("revision-pending-count");
+    expect(note).toHaveTextContent("확인 대기 1건 · 포함 수정을 다 써서 ‘수정 완료’는 꺼져 있어요. 범위 밖이면 ‘추가 작업으로’, 질문·중복이면 ‘반려’를 눌러요. 둘 다 횟수를 안 써요.");
+    expect(note).not.toHaveTextContent("누르면 1회를 써요");
+  });
+
+  it("남은 수정이 있으면 지금처럼 '고친 뒤 수정 완료를 누르면 1회'라고 알린다", () => {
+    renderDetail(recordRevision(baseJob(), { revisionId: "pending_y", source: "public", body: "요청" }).job);
+    expect(screen.getByTestId("revision-pending-count")).toHaveTextContent("확인 대기 1건 · 고친 뒤 ‘수정 완료’를 누르면 1회를 써요");
   });
 });

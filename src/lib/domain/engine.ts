@@ -14,8 +14,9 @@ import type {
   Task,
   TaskStatus,
   TaskTemplate,
+  UpdateJobInfoInput,
 } from "./types";
-import { normalizeOrderSource } from "./order-source";
+import { normalizeOrderSource, pinLegacyCompletedAt } from "./order-source";
 import { jobFeeRate, marginAfterFee, normalizeFeeRate } from "./platform-fee";
 
 export class DomainValidationError extends Error {
@@ -802,6 +803,56 @@ export function toggleJobCompletion(job: Job, now = new Date().toISOString()): J
     return reopened;
   }
   return { ...job, status: "completed", completedAt: now, updatedAt: now };
+}
+
+/**
+ * 만든 일감의 고객 이름·시작일·마감일을 고친다. 금액·패키지·옵션은 바꾸지 않는다(금액은 추가요청으로).
+ * 마감일은 만들 때 '시작일 + 기간'으로 정한 뒤 추가요청 확정·취소가 날수만큼 밀고 당기는 저장값이라 고친 날을 그대로 넣는다.
+ * 할 일은 기존 규칙을 따른다:
+ * - 할 일 날짜는 '시작일 + 시작 며칠 뒤'라 시작일을 옮긴 날수만큼 같이 옮긴다('시작 며칠 뒤'는 그대로).
+ * - 기간이 바뀌면 마감 날에 걸린 아직 안 한 할 일(보통 납품)이 새 마감을 따라간다(추가요청 확정과 같은 규칙).
+ * - 새 마감보다 뒤에 남는 끝내지 않은 할 일은 마감 날로 당긴다. 끝낸·취소한 할 일은 기록이라 더 건드리지 않는다.
+ * 자동 제목("고객 이름 · 패키지")은 앞의 이름도 바꿔 고객 링크·알림에 새 이름이 보이게 한다. 사용자가 바꾼 제목은 그대로 둔다.
+ */
+export function updateJobInfo(job: Job, input: UpdateJobInfoInput, now = new Date().toISOString()): Job {
+  const clientLabel = input.clientLabel.trim();
+  if (!clientLabel) {
+    throw new DomainValidationError("고객 이름을 적어 주세요.", "INVALID_INPUT");
+  }
+  parseISODate(input.startDate);
+  parseISODate(input.dueDate);
+  const nextDuration = countCalendarDays(input.startDate, input.dueDate);
+  if (nextDuration < 0) {
+    throw new DomainValidationError("마감일이 시작일보다 앞이에요. 시작일과 같은 날이나 그 뒤로 골라 주세요.", "INVALID_INPUT");
+  }
+  if (clientLabel === job.clientLabel && input.startDate === job.startDate && input.dueDate === job.dueDate) return job;
+
+  const startShift = countCalendarDays(job.startDate, input.startDate);
+  const moved: Job = {
+    ...job,
+    startDate: input.startDate,
+    dueDate: shiftCalendarDays(job.dueDate, startShift),
+    tasks: job.tasks.map((task) => ({ ...task, dueDate: shiftCalendarDays(task.dueDate, startShift) })),
+  };
+  const durationDelta = nextDuration - countCalendarDays(moved.startDate, moved.dueDate);
+  const tasks = shiftDeadlineTasks(moved, durationDelta).map((task) =>
+    (task.status === "todo" || task.status === "waiting") && task.relativeDay > nextDuration
+      ? { ...task, relativeDay: nextDuration, dueDate: input.dueDate }
+      : task,
+  );
+  const oldPrefix = `${job.clientLabel.trim()} · `;
+  const title = job.title.startsWith(oldPrefix) ? `${clientLabel} · ${job.title.slice(oldPrefix.length)}` : job.title;
+
+  return {
+    ...pinLegacyCompletedAt(job),
+    clientLabel,
+    title,
+    startDate: input.startDate,
+    calculatedDueDate: shiftCalendarDays(job.calculatedDueDate, countCalendarDays(job.dueDate, input.dueDate)),
+    dueDate: input.dueDate,
+    tasks,
+    updatedAt: now,
+  };
 }
 
 /** 시작 안내를 처음 복사한 시각을 남긴다. 이미 남겼으면 그대로 둔다(처음 한 번만). */
