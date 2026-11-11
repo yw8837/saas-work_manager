@@ -209,7 +209,7 @@ export function TryTour() {
         <section className="tryStart" aria-labelledby="try-start-title" data-testid="try-start">
           <h2 id="try-start-title">바로 써 보기</h2>
           <p>
-            아래 버튼으로 들어가 Google로 가입하면 베타 코드 <strong>{TRY_INVITE_CODE}</strong>가 자동으로 들어가요.
+            아래 버튼으로 들어가 Google로 가입하면 베타 코드(<strong>{TRY_INVITE_CODE}</strong>)가 자동으로 들어가요.
             Pro를 {BETA_GRANT_DAYS}일 동안 무료로 써요(계정당 한 번).
           </p>
           <Link href={TRY_START_HREF} className="primaryButton tryStartButton" data-testid="try-start-button">
