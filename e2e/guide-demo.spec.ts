@@ -36,7 +36,8 @@ test("그림 사용설명서는 한 장씩 '다음'만 눌러 끝까지 가고, 
 
   expect(await page.evaluate(() => (window as typeof window & { __guideStay?: number }).__guideStay)).toBe(1);
   await expect(page.getByTestId("guide-next")).toHaveCount(0);
-  await expect(page.getByTestId("guide-start")).toHaveAttribute("href", "/today");
+  // 시작 버튼은 베타 코드를 붙여 간다(src/lib/signup-start.ts).
+  await expect(page.getByTestId("guide-start")).toHaveAttribute("href", "/today?invite=BETA2026");
   await expect(page.getByTestId("guide-not-yet")).toBeVisible();
   await page.getByTestId("guide-demo-link").click();
   await expect(page).toHaveURL(/\/demo\/r$/);

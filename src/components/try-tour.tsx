@@ -5,16 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, CheckCircle2, MessageSquareText, RotateCcw, Send } from "lucide-react";
 
 import { SAMPLE_PACKAGES } from "@/lib/demo/sample-order";
-import { BETA_GRANT_DAYS } from "@/lib/domain/entitlements";
-import { BETA_INVITE_CODES } from "@/lib/domain/invite-codes";
 import { BUSINESS_IDENTITY, publicBusinessIdentity } from "@/lib/business-identity";
 import { getPublicServiceConfig } from "@/lib/policies";
+import { SIGNUP_START_HREF, START_INVITE_CODE } from "@/lib/signup-start";
 import { Brand } from "./brand";
+import { SignupOffer } from "./signup-offer";
 
 const won = new Intl.NumberFormat("ko-KR");
-/** 메일 받은 사람이 누르는 시작 버튼. 로그인·약관 동의 뒤 베타 코드가 자동으로 적용된다(invite-link.ts). */
-export const TRY_INVITE_CODE = BETA_INVITE_CODES[0];
-export const TRY_START_HREF = `/today?invite=${TRY_INVITE_CODE}`;
+/** 메일 받은 사람이 누르는 시작 버튼. 로그인·약관 동의 뒤 베타 코드가 자동으로 적용된다(invite-link.ts). 주소는 공용 시작 주소(signup-start.ts). */
+export const TRY_INVITE_CODE = START_INVITE_CODE;
+export const TRY_START_HREF = SIGNUP_START_HREF;
 const SAMPLE_REQUEST = "로고 글자 색을 조금 더 진하게 해 주세요.";
 
 const STEPS = ["패키지 고르기", "고객에게 링크 보내기", "고객이 수정 요청 남기기", "고친 뒤 수정 완료"] as const;
@@ -48,6 +48,14 @@ export function TryTour() {
     }
     headingRef.current?.focus();
   }, [step]);
+  // 4단계 '수정 완료' 뒤 나타나는 완료 상자(가입 버튼 포함)가 휴대폰 화면 아래로 잘리지 않게 보이는 곳까지만 올린다.
+  const doneRef = useRef<HTMLDivElement>(null);
+  const finished = step === 3 && used > 0;
+  useEffect(() => {
+    if (!finished) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    doneRef.current?.scrollIntoView?.({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+  }, [finished]);
   // 처음부터 있는 빈 알림 칸의 글만 바꿔야 화면 읽기 프로그램이 읽어 준다.
   const announcement = step === 2 && pending > 0
     ? `요청을 남겼어요. 확인 대기 ${pending}건, 남은 수정은 그대로 ${remaining}회예요.`
@@ -192,14 +200,31 @@ export function TryTour() {
                     ))}
                   </ul>
                 </div>
-                <p className="tryResult" data-testid="try-result">
-                  {used > 0
-                    ? `포함 수정 ${chosen.revisionLimit}회 중 ${used}회 썼어요. 고객 링크에도 남은 수정 ${remaining}회로 보여요.`
-                    : `아직 ${remaining}회 남았어요. 고친 뒤 수정 완료를 눌러 보세요.`}
-                </p>
-                <button type="button" className="secondaryButton tryNext" onClick={restart} data-testid="try-restart">
-                  <RotateCcw size={16} aria-hidden="true" /> 처음부터 다시
-                </button>
+                {finished ? (
+                  // 체험을 끝낸 순간 다음 행동은 가입 하나. '처음부터 다시'는 옆의 글자 버튼으로 낮춘다.
+                  <div className="tryDoneBox" ref={doneRef} data-testid="try-done">
+                    <p className="tryResult" data-testid="try-result">
+                      {`포함 수정 ${chosen.revisionLimit}회 중 ${used}회 썼어요. 고객 링크에도 남은 수정 ${remaining}회로 보여요.`}
+                    </p>
+                    <div className="tryDoneActions">
+                      <Link href={TRY_START_HREF} className="primaryButton tryDoneStart" data-testid="try-done-start">
+                        Google로 시작하기 <ArrowRight size={18} aria-hidden="true" />
+                      </Link>
+                      <button type="button" className="tryRestartLink" onClick={restart} data-testid="try-restart">
+                        <RotateCcw size={15} aria-hidden="true" /> 처음부터 다시
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="tryResult" data-testid="try-result">
+                      {`아직 ${remaining}회 남았어요. 고친 뒤 수정 완료를 눌러 보세요.`}
+                    </p>
+                    <button type="button" className="secondaryButton tryNext" onClick={restart} data-testid="try-restart">
+                      <RotateCcw size={16} aria-hidden="true" /> 처음부터 다시
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -208,13 +233,14 @@ export function TryTour() {
 
         <section className="tryStart" aria-labelledby="try-start-title" data-testid="try-start">
           <h2 id="try-start-title">바로 써 보기</h2>
+          {/* 혜택(Pro 14일)과 무료 범위는 버튼 아래 공용 안내 두 줄에 있다. 여기서 같은 말을 두 번 하지 않는다. */}
           <p>
             아래 버튼으로 들어가 Google로 가입하면 베타 코드(<strong>{TRY_INVITE_CODE}</strong>)가 자동으로 들어가요.
-            Pro를 {BETA_GRANT_DAYS}일 동안 무료로 써요(계정당 한 번).
           </p>
           <Link href={TRY_START_HREF} className="primaryButton tryStartButton" data-testid="try-start-button">
             Google로 시작하기 <ArrowRight size={18} aria-hidden="true" />
           </Link>
+          <SignupOffer testId="try-offer" className="tryOffer" />
           <ul className="tryFacts">
             <li>설치 없이 웹에서 바로 열려요</li>
             <li>카드 등록이 없어요</li>

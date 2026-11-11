@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { BETA_OFFER_TEXT, FREE_PLAN_TEXT, SIGNUP_START_HREF } from "@/lib/signup-start";
 import { GUIDE_STEPS, UserGuide } from "./user-guide";
 
 const TOTAL = GUIDE_STEPS.length;
@@ -137,18 +138,50 @@ describe("한 장씩 보는 사용설명서", () => {
     expect(screen.queryByTestId("guide-next")).toBeNull();
     const start = screen.getByTestId("guide-start");
     expect(start).toHaveTextContent("무료로 시작하기");
-    expect(start).toHaveAttribute("href", "/today");
+    expect(start).toHaveAttribute("href", SIGNUP_START_HREF);
     expect(start).toHaveClass("primaryButton");
     const demo = screen.getByTestId("guide-demo-link");
     expect(demo).toHaveTextContent("고객이 받는 화면 체험");
     expect(demo).toHaveAttribute("href", "/demo/r");
     expect(demo).toHaveClass("secondaryButton");
-    expect(screen.getAllByRole("link", { name: "무료로 시작하기" })).toHaveLength(1);
+    // 단계 버튼 줄의 시작 버튼은 하나(머리글의 '무료로 시작하기'는 따로 늘 있다).
+    expect(within(screen.getByRole("navigation", { name: "단계 이동" })).getAllByRole("link", { name: "무료로 시작하기" })).toHaveLength(1);
+    // 시작 버튼 바로 위에 베타 코드·무료 범위 안내가 있다.
+    expect(screen.getByTestId("guide-offer")).toHaveTextContent(BETA_OFFER_TEXT);
+    expect(screen.getByTestId("guide-offer")).toHaveTextContent(FREE_PLAN_TEXT);
     // 마지막 단계에서 오른쪽으로 더 넘겨도 그대로다.
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(progress()).toBe(`${TOTAL} / ${TOTAL}`);
     // 구현된 것과 아직 안 되는 것을 섞지 않는다. 마지막 단계에 남긴다.
     expect(screen.getByTestId("guide-not-yet")).toHaveTextContent("자동으로 가져오지 않아요");
+  });
+
+  it("머리글에 눈에 띄는 '무료로 시작하기'(베타 코드 주소)와 그 옆 글자 링크 '로그인'이 있다", () => {
+    render(<UserGuide />);
+    const nav = screen.getByRole("navigation", { name: "설명서 메뉴" });
+    const start = within(nav).getByTestId("guide-header-start");
+    expect(start).toHaveTextContent("무료로 시작하기");
+    expect(start).toHaveAttribute("href", SIGNUP_START_HREF);
+    // 버튼 모양(연한 파랑)이지만 파랑 채움 주 버튼은 아니다. 단계마다 주 버튼은 하나(work-flow-chart.test.tsx).
+    expect(start).toHaveClass("guideHeaderStart");
+    expect(start).not.toHaveClass("primaryButton");
+    const login = within(nav).getByTestId("guide-header-login");
+    expect(login).toHaveTextContent("로그인");
+    // 로그인은 기존 사용자용이라 베타 코드를 붙이지 않는다.
+    expect(login).toHaveAttribute("href", "/today");
+    expect(login).not.toHaveClass("primaryButton");
+    // 어느 단계에서든 머리글 시작 버튼은 그대로다.
+    next();
+    expect(within(screen.getByRole("navigation", { name: "설명서 메뉴" })).getByTestId("guide-header-start")).toHaveAttribute("href", SIGNUP_START_HREF);
+  });
+
+  it("첫 단계에 '가입 없이 둘러보기'(/try) 링크가 있고, 다음 단계부터는 없다", () => {
+    render(<UserGuide />);
+    const link = within(screen.getByTestId("guide-step")).getByTestId("guide-try");
+    expect(link).toHaveTextContent("가입 없이 둘러보기");
+    expect(link).toHaveAttribute("href", "/try");
+    next();
+    expect(screen.queryByTestId("guide-try")).toBeNull();
   });
 
   it("제목은 짧게(16자 이하), 설명은 한 줄(36자 이하), 그림에는 설명(alt)이 있다", () => {

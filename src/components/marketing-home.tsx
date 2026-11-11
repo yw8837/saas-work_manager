@@ -10,11 +10,14 @@ import {
   PackageCheck,
 } from "lucide-react";
 import { Brand } from "./brand";
+import { LANDING_FINAL_CTA_ID, LANDING_HERO_ACTIONS_ID, MarketingStickyStart } from "./marketing-sticky-start";
 import { ProductPreview } from "./product-preview";
+import { SignupOffer } from "./signup-offer";
 import { WorkFlowChart } from "./work-flow-chart";
 import { getPublicServiceConfig } from "@/lib/policies";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
 import { BUSINESS_IDENTITY, publicBusinessIdentity } from "@/lib/business-identity";
+import { SIGNUP_START_HREF } from "@/lib/signup-start";
 
 export function MarketingHome() {
   const service = getPublicServiceConfig();
@@ -53,8 +56,9 @@ export function MarketingHome() {
             <p className="heroLead" data-testid="landing-hero-lead">
               외주 주문마다 약속한 수정 횟수와 마감을 적어 두면, 고객은 링크 하나로 수정 요청을 남기고 남은 횟수를 같이 봐요. 카톡으로 오는 요청을 따로 셀 필요가 없어요.
             </p>
-            <div className="heroActions">
-              <Link href="/today" className="primaryButton heroPrimary" data-testid="landing-demo">
+            {/* 시작 버튼은 베타 코드를 붙여 간다(signup-start.ts). 머리글 '로그인'은 기존 사용자용이라 /today 그대로. */}
+            <div className="heroActions" id={LANDING_HERO_ACTIONS_ID}>
+              <Link href={SIGNUP_START_HREF} className="primaryButton heroPrimary" data-testid="landing-demo">
                 무료로 시작하기
                 <ArrowRight size={18} />
               </Link>
@@ -64,6 +68,7 @@ export function MarketingHome() {
                 가입 없이 둘러보기
               </Link>
             </div>
+            <SignupOffer betaOnly testId="landing-offer" className="heroOffer" />
             {/* 사실만 적는다: 로그인은 Google만, 결제 기능이 아직 없어 카드를 받지 않는다, 무료 한도는 entitlements 값. */}
             <ul className="heroReassure" aria-label="시작 조건" data-testid="landing-reassure">
               <li><Check size={15} aria-hidden="true" /> Google 계정으로 가입</li>
@@ -175,12 +180,12 @@ export function MarketingHome() {
           </div>
         </section>
 
-        <section className="finalCta">
+        <section className="finalCta" id={LANDING_FINAL_CTA_ID}>
           <div>
               <p>직원을 뽑기엔 아직 이르고, 잡일은 이미 많다면</p>
             <h2>운영은 덜고, 작업에 더 집중하세요.</h2>
           </div>
-          <Link href="/today" className="primaryButton">
+          <Link href={SIGNUP_START_HREF} className="primaryButton" data-testid="landing-final-start">
             무료로 시작하기
             <ArrowRight size={18} />
           </Link>
@@ -211,6 +216,7 @@ export function MarketingHome() {
           <div><dt>문의</dt><dd><a href={`mailto:${supportEmail}`}>{supportEmail}</a></dd></div>
         </dl>
       </footer>
+      <MarketingStickyStart href={SIGNUP_START_HREF} />
     </div>
   );
 }

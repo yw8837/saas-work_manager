@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SIGNUP_START_HREF } from "@/lib/signup-start";
 import { createSeedState } from "@/lib/store";
 import { MarketingHome } from "./marketing-home";
 import { TodayDashboard } from "./today-dashboard";
@@ -60,12 +61,14 @@ describe("Hosted entry safety", () => {
     expect(screen.getByRole("link", { name: "자주 묻는 질문" })).toHaveAttribute("href", "#faq");
     expect(screen.getByRole("link", { name: "어떻게 편해지나요?" })).toHaveAttribute("href", "#workflow");
 
-    const workspaceEntries = [
-      screen.getByRole("link", { name: "로그인" }),
-      ...screen.getAllByRole("link", { name: "무료로 시작하기" }),
-    ];
-    expect(workspaceEntries).toHaveLength(3);
-    for (const entry of workspaceEntries) expect(entry).toHaveAttribute("href", "/today");
+    // 로그인은 기존 사용자용이라 /today 그대로, 시작 버튼(위·아래)은 베타 코드를 붙여 간다.
+    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/today");
+    // 아래 고정 줄은 첫 화면에서 숨어 있어(aria-hidden) 여기 세지 않는다.
+    const startEntries = screen.getAllByRole("link", { name: "무료로 시작하기" });
+    expect(startEntries).toHaveLength(2);
+    for (const entry of startEntries) expect(entry).toHaveAttribute("href", "/today?invite=BETA2026");
+    expect(screen.getByTestId("landing-demo")).toHaveAttribute("href", SIGNUP_START_HREF);
+    expect(screen.getByTestId("landing-final-start")).toHaveAttribute("href", SIGNUP_START_HREF);
   });
 
   it("keeps the landing-page pricing and speed copy factual for the beta", () => {

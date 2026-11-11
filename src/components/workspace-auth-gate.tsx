@@ -16,7 +16,9 @@ import { nativePlatform } from "@/lib/native/platform";
 import { subscribeNativeAuth, nativeAuthStatus, cancelNativeOAuth } from "@/lib/native/auth-runtime";
 import { NativeOfflineWorkspace } from "./native-offline-workspace";
 import { captureAcquisitionFromLocation } from "@/lib/acquisition-link";
+import { normalizeInviteCode } from "@/lib/domain/invite-codes";
 import { captureInviteFromLocation, readPendingInvite } from "@/lib/invite-link";
+import { FREE_PLAN_TEXT, INVITE_OTHER_TEXT, INVITE_READY_TEXT, SIGNUP_NEXT_TEXT, START_INVITE_CODE } from "@/lib/signup-start";
 import { captureStarterFromLocation } from "@/lib/starter-link";
 
 export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
@@ -30,7 +32,8 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
   const [policyGateError, setPolicyGateError] = useState<string | null>(null);
   // 예전 버전 동의 기록만 있는 계정(약관이 바뀜). 처음 가입하는 계정은 false.
   const [policyChanged, setPolicyChanged] = useState(false);
-  const [inviteReady, setInviteReady] = useState(false);
+  // 붙어 온 베타 코드: 없음 / 공개 시작 버튼의 코드(혜택까지 보여 줌) / 다른 코드(값은 보이지 않음).
+  const [invite, setInvite] = useState<"none" | "start" | "other">("none");
 
   // 초대 링크(/today?invite=CODE)·업종 예시 링크(/today?starter=design): 주소에서 바로 지우고 Google 로그인 왕복 동안만 이 탭에 보관한다.
   useEffect(() => {
@@ -38,7 +41,11 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
     captureStarterFromLocation();
     captureAcquisitionFromLocation();
     let active = true;
-    queueMicrotask(() => { if (active) setInviteReady(Boolean(readPendingInvite())); });
+    queueMicrotask(() => {
+      if (!active) return;
+      const code = readPendingInvite();
+      setInvite(!code ? "none" : normalizeInviteCode(code) === START_INVITE_CODE ? "start" : "other");
+    });
     return () => { active = false; };
   }, []);
 
@@ -201,9 +208,9 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           <h1>Google 계정으로 시작하기</h1>
           <p>한 번 로그인하면 내 고객·금액·수정 기록만 따로 저장돼요.</p>
         </div>
-        {inviteReady && (
+        {invite !== "none" && (
           <p className="authInviteNotice" data-testid="invite-ready">
-            초대 링크로 들어오셨어요. 로그인하고 약관에 동의하면 베타 코드가 자동으로 적용돼요.
+            {invite === "start" ? INVITE_READY_TEXT : INVITE_OTHER_TEXT}
           </p>
         )}
         <form className="authForm" onSubmit={(event) => {
@@ -221,8 +228,13 @@ export function WorkspaceAuthGate({ children }: { children: ReactNode }) {
           )}
         </form>
         {(feedback || authError || (native && nativeAuth.error)) && <p className="authFeedback" role="status">{feedback ?? authError ?? nativeAuth.error}</p>}
+        {/* 가입하면 어떻게 되는지: 다음 화면(약관 동의)과 무료 범위·카드 등록 없음. 무료 범위 문장은 공개 화면과 같다(signup-start.ts). */}
+        <p className="authSignupNext" data-testid="auth-signup-next">
+          <span>{SIGNUP_NEXT_TEXT}</span>
+          <span>{FREE_PLAN_TEXT}</span>
+        </p>
         <small>
-          Google 인증은 Supabase Auth가 처리하며 Google 비밀번호는 일감체크에 저장되지 않아요.
+          Google 비밀번호는 일감체크에 저장되지 않아요.
           {' '}<Link href="/terms">이용약관</Link> · <Link href="/privacy">개인정보처리방침</Link>
         </small>
         <p className="authGuideLinks">
