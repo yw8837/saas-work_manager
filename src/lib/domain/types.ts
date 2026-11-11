@@ -216,6 +216,13 @@ export interface ComposeJobInput {
   feeRate?: number;
 }
 
+/** 만든 일감에서 고칠 수 있는 정보. 금액·패키지·옵션은 넣지 않는다(금액은 추가요청으로 바꾼다). */
+export interface UpdateJobInfoInput {
+  clientLabel: string;
+  startDate: ISODate;
+  dueDate: ISODate;
+}
+
 export interface RecordRevisionInput {
   source: RevisionSource;
   channel?: RevisionChannel;

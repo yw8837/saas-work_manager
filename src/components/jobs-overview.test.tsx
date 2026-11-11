@@ -148,3 +148,18 @@ it("디자인 A: 줄마다 왼쪽 날짜 칸, 상태 칩(알약)·수정 n/m 칩
   expect(doneRow.querySelector(".stateChip")).toHaveTextContent("완료");
   expect(doneRow.querySelector(".stateChip")).toHaveAttribute("data-tone", "green");
 });
+
+it("완료한 일감 줄은 지난 마감이라도 D+n·지연 대신 완료와 완료일을 보인다(2026-11-11 점검 문제 4)", () => {
+  const base = createSeedState().jobs[0];
+  const finished = {
+    ...base, id: "job-finished-late", clientLabel: "한결 세무회계", status: "completed", dueDate: "2020-10-27",
+    completedAt: new Date(2020, 10, 11, 10, 0).toISOString(), revisions: [],
+  };
+  vi.mocked(useWorkspace).mockReturnValue({ jobs: [finished] } as unknown as ReturnType<typeof useWorkspace>);
+  render(<JobsOverview />);
+  const row = screen.getByText("한결 세무회계").closest("a")!;
+  const tile = row.querySelector(".dueTile")!;
+  expect(tile).toHaveAttribute("data-tone", "done");
+  expect(tile).toHaveTextContent("완료11.1111월 11일 완료");
+  expect(row).not.toHaveTextContent(/D\+|지연/);
+});
