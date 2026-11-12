@@ -5,6 +5,8 @@ import { useLayoutEffect, useRef } from "react";
 import type { BetaSurveyPromptChoice } from "@/lib/beta-survey-prompt";
 import { BETA_GRANT_DAYS, PLAN_LIMITS } from "@/lib/domain";
 
+/** 설문 문항 수 안내. 구글 설문(docs/BETA-SURVEY.md)의 문항 수가 바뀌면 같이 고친다. */
+export const BETA_SURVEY_SIZE_TEXT = "질문은 7개이고, 꼭 답해야 하는 것은 고르기 3개뿐이에요.";
 export const BETA_SURVEY_DIALOG_TITLE = `Pro ${BETA_GRANT_DAYS}일 이용권이 끝났어요. 써 보니 어떠셨나요?`;
 const FOCUSABLE = "a[href], button:not([disabled])";
 
@@ -87,6 +89,7 @@ export function BetaSurveyDialog({ formUrl, onChoose }: { formUrl: string; onCho
         <h2 id="beta-survey-dialog-title">{BETA_SURVEY_DIALOG_TITLE}</h2>
         <div id="beta-survey-dialog-body" className="betaSurveyBody">
           <p>설문 답변은 일감체크의 기능과 요금을 정하는 데 써요.</p>
+          <p data-testid="beta-survey-size">{BETA_SURVEY_SIZE_TEXT}</p>
           <p>지금은 무료 플랜(동시 {PLAN_LIMITS.free.activeJobs}건·누적 {PLAN_LIMITS.free.totalJobs}건)으로 계속 쓸 수 있어요.</p>
           <p className="betaSurveyPrivacy">설문에는 고객 이름이나 연락처 같은 개인정보는 적지 말아주세요.</p>
         </div>

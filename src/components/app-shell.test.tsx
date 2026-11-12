@@ -220,6 +220,9 @@ describe("AppShell 이용권이 끝난 뒤 설문 팝업", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(BETA_SURVEY_DIALOG_TITLE).toBe("Pro 14일 이용권이 끝났어요. 써 보니 어떠셨나요?");
     expect(dialog).toHaveTextContent("설문 답변은 일감체크의 기능과 요금을 정하는 데 써요.");
+    // 누르기 전에 설문이 짧다는 것을 알려 준다. 걸리는 시간은 적지 않는다(재 본 적이 없다).
+    expect(dialog).toHaveTextContent("질문은 7개이고, 꼭 답해야 하는 것은 고르기 3개뿐이에요.");
+    expect(dialog.textContent ?? "").not.toMatch(/\d+\s*(초|분)/);
     expect(dialog).toHaveTextContent("지금은 무료 플랜(동시 2건·누적 10건)으로 계속 쓸 수 있어요.");
     expect(dialog).toHaveTextContent("고객 이름이나 연락처 같은 개인정보는 적지 말아주세요.");
     // 시간 숫자('1분이면' 같은)는 쓰지 않는다.
