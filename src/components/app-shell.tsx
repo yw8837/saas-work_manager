@@ -12,9 +12,20 @@ import {
   Plus,
   Settings2,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  betaSurveyPromptAnswered,
+  loadBetaSurveyPrompt,
+  markBetaSurveyPromptShown,
+  nextBetaSurveyPromptRecord,
+  saveBetaSurveyPrompt,
+  shouldShowBetaSurveyPrompt,
+  type BetaSurveyPromptChoice,
+  type BetaSurveyPromptMemory,
+} from "@/lib/beta-survey-prompt";
 import { BETA_GRANT_DAYS, type InAppAlertKind } from "@/lib/domain";
 import { getPublicEnvironmentValue } from "@/lib/public-environment";
+import { BetaSurveyDialog } from "./beta-survey-dialog";
 import { Brand } from "./brand";
 import { ProfileMenu } from "./profile-menu";
 import { useWorkspace } from "./workspace-provider";
@@ -30,6 +41,16 @@ const primaryNavigation = [
 const supportNavigation = [{ href: "/feedback", label: "의견 보내기", icon: MessageSquareText }];
 // 14일 이용권의 절반(7일째)부터 설문 안내를 띄운다.
 const BETA_SURVEY_START_DAY = 7;
+// 이용권이 끝난 뒤 설문 팝업: 브라우저 저장소를 못 쓸 때 이번 방문(새로 고침 전까지)만 기억하는 곳.
+const betaSurveyPromptMemory: BetaSurveyPromptMemory = new Map();
+
+function browserStorage(): Storage | undefined {
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
 
 function isCurrent(pathname: string, href: string) {
   if (href === "/today") return pathname === href;
@@ -58,7 +79,7 @@ function pageContext(pathname: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { jobs, alerts, runtimeMode, saveStatus, saveError, realtimeStatus, realtimeError, planAccess } = useWorkspace();
+  const { jobs, alerts, runtimeMode, saveStatus, saveError, realtimeStatus, realtimeError, planAccess, userId } = useWorkspace();
   const [alertOpen, setAlertOpen] = useState(false);
   const alertButtonRef = useRef<HTMLButtonElement>(null);
   const alertPopoverRef = useRef<HTMLElement>(null);
@@ -69,6 +90,40 @@ export function AppShell({ children }: { children: ReactNode }) {
     planAccess.source === "beta"
     && planAccess.remainingDays <= BETA_GRANT_DAYS - BETA_SURVEY_START_DAY
   );
+  // 팝업은 이용권이 끝난 계정에만 판정한다. 기록은 계정별(로그인 모드는 계정 id가 잡힌 뒤, 로컬 모드는 이 기기 하나)로 나눈다.
+  const surveyAccountKey = runtimeMode === "hosted" ? userId : "local";
+  const surveyPromptAccount = planAccess.betaExpired && feedbackFormUrl && surveyAccountKey ? surveyAccountKey : null;
+  const [surveyPrompt, setSurveyPrompt] = useState<{ account: string; open: boolean; answered: boolean } | null>(null);
+  const currentSurveyPrompt = surveyPrompt && surveyPrompt.account === surveyPromptAccount ? surveyPrompt : null;
+  // 판정 전·팝업이 떠 있는 동안·설문을 열었거나 다시 보지 않기로 한 뒤에는 띠를 숨긴다.
+  const surveyBannerHidden = surveyPromptAccount !== null
+    && (currentSurveyPrompt === null || currentSurveyPrompt.open || currentSurveyPrompt.answered);
+
+  useEffect(() => {
+    if (!surveyPromptAccount) return;
+    let cancelled = false;
+    // 서버 렌더와 어긋나지 않게 화면이 준비된 뒤 이 브라우저의 기록으로 판정한다.
+    // 효과가 두 번 도는 개발 모드에서도 '이번 방문에 한 번'이 먼저 소모되지 않게 마지막 판정만 쓴다.
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const loaded = loadBetaSurveyPrompt(browserStorage(), surveyPromptAccount, betaSurveyPromptMemory);
+      const open = shouldShowBetaSurveyPrompt({ eligible: true, ...loaded, now: new Date() });
+      if (open && !loaded.storageAvailable) markBetaSurveyPromptShown(surveyPromptAccount, loaded.record, betaSurveyPromptMemory);
+      setSurveyPrompt({ account: surveyPromptAccount, open, answered: betaSurveyPromptAnswered(loaded.record) });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [surveyPromptAccount]);
+
+  const chooseSurveyPrompt = useCallback((choice: BetaSurveyPromptChoice) => {
+    if (!surveyPromptAccount) return;
+    const storage = browserStorage();
+    const { record } = loadBetaSurveyPrompt(storage, surveyPromptAccount, betaSurveyPromptMemory);
+    const next = nextBetaSurveyPromptRecord(record, choice, new Date());
+    saveBetaSurveyPrompt(storage, surveyPromptAccount, next, betaSurveyPromptMemory);
+    setSurveyPrompt({ account: surveyPromptAccount, open: false, answered: betaSurveyPromptAnswered(next) });
+  }, [surveyPromptAccount]);
 
   useEffect(() => {
     if (!alertOpen) return;
@@ -226,7 +281,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {betaSurveyDue && feedbackFormUrl && (
+        {betaSurveyDue && feedbackFormUrl && !surveyBannerHidden && (
           <aside className="betaSurveyBanner" aria-labelledby="beta-survey-title">
             <div>
               <strong id="beta-survey-title">써 보니 어떠셨나요?</strong>
@@ -275,6 +330,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
+
+      {currentSurveyPrompt?.open && feedbackFormUrl && (
+        <BetaSurveyDialog formUrl={feedbackFormUrl} onChoose={chooseSurveyPrompt} />
+      )}
     </div>
   );
 }

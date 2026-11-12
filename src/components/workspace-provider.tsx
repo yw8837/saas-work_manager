@@ -115,6 +115,8 @@ type WorkspaceContextValue = AppState & {
   authStatus: "local" | "loading" | "signed_out" | "signed_in" | "offline" | "configuration_error";
   authError: string | null;
   userEmail: string | null;
+  /** 로그인 계정 id. 로컬 모드·로그인 전에는 null. 브라우저 기록을 계정별로 나눌 때만 쓴다. */
+  userId: string | null;
   saveStatus: "saved" | "saving" | "error";
   saveError: string | null;
   realtimeStatus: "local" | "idle" | "connecting" | "connected" | "error";
@@ -586,6 +588,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       : null,
   );
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<WorkspaceContextValue["saveStatus"]>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<WorkspaceContextValue["realtimeStatus"]>(
@@ -782,6 +785,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         refreshActiveWorkspace = null;
         setCurrentState(createSeedState());
         setUserEmail(null);
+        setUserId(null);
         setHostedSubscription(null);
         setHydrated(false);
         setAuthStatus("loading");
@@ -826,6 +830,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           lastSyncedStateRef.current = null;
           setCurrentState(createSeedState());
           setUserEmail(null);
+          setUserId(null);
           setAuthStatus("signed_out");
           setAuthError(null);
           setRealtimeStatus("idle");
@@ -843,6 +848,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         hostedConflictRef.current = null;
         saveFailureRef.current = null;
         setUserEmail(session.user.email ?? null);
+        setUserId(session.user.id);
         const isStaleActivation = () => (
           cancelled
           || currentActivation !== activation
@@ -1263,6 +1269,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     setCurrentState(createSeedState());
     setUserEmail(null);
+    setUserId(null);
     setAuthStatus("signed_out");
     setAuthError(null);
     setSaveStatus("saved");
@@ -1798,6 +1805,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       authStatus,
       authError,
       userEmail,
+      userId,
       saveStatus,
       saveError,
       realtimeStatus,
@@ -1846,7 +1854,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateSettings,
       resetDemo,
     }),
-    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, setJobSource, markStartShared, updateJobInfo, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
+    [state, hydrated, boundary.requestedMode, authStatus, authError, userEmail, userId, saveStatus, saveError, realtimeStatus, realtimeError, alerts, plan, basePlan, planAccess, limits, activeJobs, canCreateJob, jobLimitHit, canCreatePackage, canCreateOption, activateInviteCode, signInWithGoogle, signOut, deleteAccount, createJob, toggleTask, toggleIntake, toggleBriefQuestion, updateBriefNote, toggleJobWaiting, completeJob, setJobSource, markStartShared, updateJobInfo, deleteJob, setRevisionPortalEnabled, rotateRevisionPortalToken, recordRevision, revertRevision, completeRevision, markRevisionExtraScope, recordPublicRevision, savePackage, archivePackage, saveOption, archiveOption, applyIndustryStarter, updateJobLinks, createAddon, confirmAddon, cancelAddon, updateSettings, resetDemo],
   );
 
   return (
