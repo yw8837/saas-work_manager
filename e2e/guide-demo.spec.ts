@@ -15,11 +15,14 @@ test("그림 사용설명서는 한 장씩 '다음'만 눌러 끝까지 가고, 
   for (let step = 1; step <= 10; step += 1) {
     await expect(progress).toHaveText(`${step} / 10`);
     await expect(page.getByTestId("guide-step")).toHaveCount(1);
-    if (step > 1) {
-      expect(new URL(page.url()).hash).toBe(`#step-${step}`);
-      const image = page.getByTestId("guide-step").locator("img");
-      await expect(image).toHaveCount(1);
-      await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+    if (step > 1) expect(new URL(page.url()).hash).toBe(`#step-${step}`);
+    // 단계마다 저절로 움직이는 시연 하나(그림 파일 대신 화면 모형)와 비지 않은 자막.
+    const demo = page.getByTestId("guide-step").getByTestId("guide-demo");
+    await expect(demo).toHaveCount(1);
+    await expect(demo).toBeVisible();
+    await expect(demo.getByTestId("guide-demo-caption")).not.toHaveText("");
+    for (const control of await demo.locator(".gdControl").all()) {
+      expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     // 가로로 넘치지 않아야 휴대폰에서 읽힌다.
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

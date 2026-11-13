@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import sharp from "sharp";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BETA_OFFER_TEXT, FREE_PLAN_TEXT, SIGNUP_START_HREF } from "@/lib/signup-start";
 import { GUIDE_STEPS, UserGuide } from "./user-guide";
@@ -25,13 +25,14 @@ describe("한 장씩 보는 사용설명서", () => {
     window.history.replaceState(null, "", "/guide");
   });
 
-  it("단계는 흐름도 → 가입 → 그림 8장 순서로 10개다", () => {
+  it("단계는 흐름도 → 가입 → 화면 시연 8개 순서로 10개다", () => {
     expect(TOTAL).toBe(10);
     expect(GUIDE_STEPS.map((step) => step.id)).toEqual([
       "flow", "signup", "packages", "new-job", "send-message", "check-answers", "revisions", "addon", "messages", "monthly",
     ]);
-    expect(GUIDE_STEPS[0].image).toBeUndefined();
-    for (const step of GUIDE_STEPS.slice(1)) expect(step.image, step.id).toBeDefined();
+    // 흐름도는 글이 그대로 읽히는 시연, 나머지는 화면 모형 시연(그림 설명이 있음).
+    expect(GUIDE_STEPS[0].demo.alt).toBeUndefined();
+    for (const step of GUIDE_STEPS.slice(1)) expect(step.demo.alt, step.id).toBeTruthy();
   });
 
   it("한 화면에 한 단계만 보이고, 진행 표시는 '1 / 10'과 막대로 보인다", () => {
@@ -50,7 +51,8 @@ describe("한 장씩 보는 사용설명서", () => {
     next();
     expect(progress()).toBe(`2 / ${TOTAL}`);
     expect(screen.getByTestId("guide-step-title")).toHaveTextContent(GUIDE_STEPS[1].title);
-    expect(within(screen.getByTestId("guide-step")).getByRole("img")).toHaveAttribute("src", GUIDE_STEPS[1].image!.src);
+    const stage = within(screen.getByTestId("guide-step"));
+    expect(stage.getByRole("img", { name: GUIDE_STEPS[1].demo.alt })).toBe(stage.getByTestId("guide-demo-screen"));
     expect(window.location.pathname).toBe("/guide");
     expect(window.location.hash).toBe("#step-2");
     fireEvent.click(screen.getByTestId("guide-prev"));
@@ -184,25 +186,44 @@ describe("한 장씩 보는 사용설명서", () => {
     expect(screen.queryByTestId("guide-try")).toBeNull();
   });
 
-  it("제목은 짧게(16자 이하), 설명은 한 줄(36자 이하), 그림에는 설명(alt)이 있다", () => {
+  it("제목은 짧게(16자 이하), 설명은 한 줄(36자 이하), 시연 모형에는 설명(alt)이 있다", () => {
     for (const step of GUIDE_STEPS) {
       expect(step.title.length, step.title).toBeLessThanOrEqual(16);
       expect(step.caption.length, step.caption).toBeLessThanOrEqual(36);
-      if (step.image) {
-        expect(step.image.alt.trim(), step.id).not.toBe("");
-        expect(step.image.alt).not.toMatch(/로그(?!인|아웃)/);
+      if (step.demo.alt) {
+        expect(step.demo.alt.trim(), step.id).not.toBe("");
+        expect(step.demo.alt).not.toMatch(/로그(?!인|아웃)/);
       }
     }
   });
 
-  it("그림은 휴대폰 한 화면 안(750×1100px 이하) 크기이고, 적어 둔 크기와 실제 파일 크기가 같다", async () => {
-    for (const step of GUIDE_STEPS) {
-      if (!step.image) continue;
-      const file = readFileSync(resolve(process.cwd(), "public", step.image.src.replace(/^\//, "")));
-      const meta = await sharp(file).metadata();
-      expect({ id: step.id, width: meta.width, height: meta.height }).toEqual({ id: step.id, width: step.image.width, height: step.image.height });
-      expect(step.image.width, step.id).toBe(750);
-      expect(step.image.height, step.id).toBeLessThanOrEqual(1100);
+  it("단계마다 시연(모형·자막·멈춤/재생·처음부터)이 하나씩 있고, 그림 파일은 받지 않는다", () => {
+    render(<UserGuide />);
+    for (let index = 0; index < TOTAL; index += 1) {
+      const stage = within(screen.getByTestId("guide-step"));
+      expect(stage.getAllByTestId("guide-demo"), GUIDE_STEPS[index].id).toHaveLength(1);
+      expect(stage.getByTestId("guide-demo-caption")).toHaveTextContent(GUIDE_STEPS[index].demo.scenes[0].caption);
+      expect(stage.getByTestId("guide-demo-toggle")).toHaveAccessibleName("시연 멈춤");
+      expect(stage.getByTestId("guide-demo-restart")).toHaveAccessibleName("시연 처음부터");
+      expect(stage.getByTestId("guide-demo")).toHaveAccessibleName(`시연: ${GUIDE_STEPS[index].title}`);
+      expect(document.images).toHaveLength(0);
+      if (index < TOTAL - 1) next();
+    }
+  });
+
+  it("단계를 넘기면 시연이 첫 장면부터 다시 돌고, 다음 단계로 저절로 넘어가지 않는다", () => {
+    vi.useFakeTimers();
+    try {
+      render(<UserGuide />);
+      next();
+      // 한 바퀴를 훨씬 넘게 흘려도 단계는 그대로다.
+      for (let tick = 0; tick < 40; tick += 1) act(() => { vi.advanceTimersByTime(1_000); });
+      expect(progress()).toBe(`2 / ${TOTAL}`);
+      next();
+      expect(screen.getByTestId("guide-demo")).toHaveAttribute("data-scene", "1");
+      expect(screen.getByTestId("guide-demo-caption")).toHaveTextContent(GUIDE_STEPS[2].demo.scenes[0].caption);
+    } finally {
+      vi.useRealTimers();
     }
   });
 
