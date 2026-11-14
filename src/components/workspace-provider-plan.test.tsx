@@ -202,6 +202,60 @@ describe("workspace 받은 곳별 떼이는 비율", () => {
   });
 });
 
+describe("workspace 일감 정보 고치기(2026-11-11 점검 문제 2)", () => {
+  it("고객 이름·시작일·마감일을 기존 저장 경로로 남기고, 완료한 일감에서도 고친다", async () => {
+    await mountWith({});
+    const packageId = workspace!.packages.find((item) => !item.archivedAt)!.id;
+    let jobId = "";
+    act(() => {
+      jobId = workspace!.createJob({ clientLabel: "한결 세무회계", startDate: "2026-10-20", packageId, optionIds: [] });
+    });
+    const find = () => workspace!.jobs.find((job) => job.id === jobId)!;
+    const before = find();
+
+    act(() => workspace!.updateJobInfo(jobId, { clientLabel: "한결세무 회계사무소", startDate: "2026-10-22", dueDate: "2026-11-05" }));
+    expect(find()).toMatchObject({ clientLabel: "한결세무 회계사무소", startDate: "2026-10-22", dueDate: "2026-11-05", amount: before.amount });
+    expect(find().title.startsWith("한결세무 회계사무소 · ")).toBe(true);
+    // 이 브라우저 저장소(로그인 모드라면 같은 작업공간 문서)에 그대로 남는다.
+    const stored = JSON.parse(window.localStorage.getItem("ilgamcheck:mvp:v2")!);
+    expect(stored.jobs.find((job: { id: string }) => job.id === jobId)).toMatchObject({ clientLabel: "한결세무 회계사무소", dueDate: "2026-11-05" });
+
+    act(() => workspace!.completeJob(jobId));
+    act(() => workspace!.updateJobInfo(jobId, { clientLabel: "한결 세무", startDate: "2026-10-22", dueDate: "2026-11-05" }));
+    expect(find()).toMatchObject({ clientLabel: "한결 세무", status: "completed" });
+
+    // 잘못된 값은 저장하지 않고 이유를 던진다(화면이 먼저 막고, 오래된 탭은 여기서 막힌다).
+    expect(() => act(() => workspace!.updateJobInfo(jobId, { clientLabel: "한결 세무", startDate: "2026-11-06", dueDate: "2026-11-05" }))).toThrow("마감일이 시작일보다 앞이에요");
+    expect(find().startDate).toBe("2026-10-22");
+  });
+});
+
+describe("workspace 패키지 저장 결과(2026-11-11 점검 문제 1)", () => {
+  it("목록에 반영했을 때만 true, 보관된 패키지와 한도를 넘는 새 패키지는 바꾸지 않고 false", async () => {
+    await mountWith({ trialStartedAt: EXPIRED_TRIAL });
+    expect(workspace!.plan).toBe("free");
+    const live = workspace!.packages.find((item) => !item.archivedAt)!;
+    let saved: boolean | undefined;
+    act(() => { saved = workspace!.savePackage({ ...live, name: "고친 이름" }); });
+    expect(saved).toBe(true);
+    expect(workspace!.packages.find((item) => item.id === live.id)!.name).toBe("고친 이름");
+
+    const before = workspace!.packages;
+    act(() => { saved = workspace!.savePackage({ ...live, name: "보관된 채 저장", archivedAt: "2026-11-11T00:00:00.000Z" }); });
+    expect(saved).toBe(false);
+    expect(workspace!.packages).toBe(before);
+
+    const liveCount = workspace!.packages.filter((item) => !item.archivedAt).length;
+    for (let index = liveCount; index < PLAN_LIMITS.free.packages; index += 1) {
+      act(() => { saved = workspace!.savePackage({ ...live, id: `pkg_extra_${index}`, name: `추가 ${index}` }); });
+      expect(saved).toBe(true);
+    }
+    act(() => { saved = workspace!.savePackage({ ...live, id: "pkg_over_limit", name: "한도 밖" }); });
+    expect(saved).toBe(false);
+    expect(workspace!.packages.some((item) => item.id === "pkg_over_limit")).toBe(false);
+  });
+});
+
 describe("workspace 시작 안내 보낸 시각", () => {
   it("처음 복사한 시각만 남기고(다시 불러도 저장하지 않음), 끝난 일감에는 남기지 않는다", async () => {
     const base = twoActiveJobs();

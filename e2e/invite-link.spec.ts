@@ -32,7 +32,7 @@ test("초대 링크 코드는 주소에서 바로 지우고 이 탭에만 보관
 
   await expect(page.getByRole("heading", { name: "Google 계정으로 시작하기" })).toBeVisible();
   await expect(page).toHaveURL(/\/today$/);
-  await expect(page.getByTestId("invite-ready")).toContainText("베타 코드가 자동으로 적용돼요");
+  await expect(page.getByTestId("invite-ready")).toContainText("베타 코드가 자동으로 들어가요");
   expect(await page.evaluate(() => sessionStorage.getItem("ilgamcheck:pending-invite"))).toBe(CODE);
   expect(await page.evaluate(() => localStorage.getItem("ilgamcheck:pending-invite"))).toBeNull();
   await expect(page.locator("body")).not.toContainText(CODE);

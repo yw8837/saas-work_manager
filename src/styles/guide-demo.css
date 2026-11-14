@@ -1,0 +1,249 @@
+/* ============================================================
+   그림 설명서(/guide) 단계별 자동 시연 — 재생기 guide-demo.tsx, 화면 모형 guide-demo-screens.tsx.
+   색은 theme.css 토큰만 쓴다. 누를 곳 표시만 주황(--gd-tap: 예전 캡처에 그려 넣던 주황 표시와 같은 뜻).
+   모형 안 글자도 12px 이상. 움직임 줄이기면 전환·키프레임을 모두 끈다(맨 아래).
+   휴대폰: 제목·설명 → 모형 → 자막·제어 → 아래에 붙은 이전·다음이 390×844 한 화면에 들어가게 모형 높이를 화면 높이로 맞춘다.
+   ============================================================ */
+.guideDemo {
+  --gd-tap: #ea580c;
+  /* 가장 긴 모형(패키지 받을 자료·질문, 카톡 문구 말풍선)이 330px 안팎이라 그 높이에 맞춘다. 남는 빈칸을 줄인다. */
+  --gd-screen-h: clamp(320px, calc(100svh - 500px), 340px);
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 모형 틀: 흰 카드 하나. 흐름도처럼 글이 그대로 읽히는 모형(free)은 높이를 묶지 않는다. */
+.gdScreen { position: relative; isolation: isolate; overflow: hidden; height: var(--gd-screen-h); padding: 14px; color: var(--ink); background: var(--paper); border-radius: 18px; font-size: 13px; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
+.gdScreen[data-kind="free"] { height: auto; padding: 0; overflow: visible; background: transparent; border-radius: 0; }
+.gdView { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; animation: gdFadeIn .35s ease both; }
+.gdTop { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.gdTop strong { color: var(--ink); font-size: 15px; }
+.gdTop small { font-size: 12px; font-weight: 600; }
+.gdMuted { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.gdHeading { font-size: 15px; line-height: 1.35; letter-spacing: -.01em; }
+
+/* 누를 곳: 지금 장면에서 누를 곳은 흰 틈 + 주황 테두리. */
+.gdScreen [data-demo-target] { transition: box-shadow .3s ease, background-color .3s ease, color .3s ease, border-color .3s ease; }
+.gdScreen [data-hit] { position: relative; z-index: 1; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--gd-tap); }
+
+/* 버튼 모양(눌리지 않는 그림). */
+.gdBtn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 650; white-space: nowrap; }
+.gdBtn svg { flex: none; }
+.gdPrimary { color: var(--on-primary); background: var(--web-accent); }
+.gdPrimary[data-done="true"] { background: var(--green); }
+.gdSoft { color: var(--web-accent-ink); background: var(--web-accent-soft); }
+.gdGray { color: var(--ink-soft); background: var(--canvas); }
+.gdLight { color: var(--ink); background: var(--paper); }
+.gdWide { width: 100%; }
+.gdSmall { min-height: 30px; padding: 0 9px; border-radius: 8px; font-size: 12px; }
+.gdTextBtn { display: inline-flex; align-items: center; gap: 3px; min-height: 30px; padding: 0 5px; color: var(--blue); border-radius: 6px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.gdPair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.gdPair .gdBtn { min-height: 32px; padding: 0 6px; font-size: 12px; }
+
+/* 입력칸 모양. 채워지면 연한 파랑. */
+.gdLabel { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin-bottom: -4px; color: var(--ink); font-size: 12px; font-weight: 700; }
+.gdLabel small { color: var(--muted); font-size: 12px; font-weight: 500; }
+.gdField { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 36px; padding: 6px 10px; color: var(--muted); background: var(--paper); border: 1px solid var(--field-line); border-radius: 10px; }
+.gdField[data-filled="true"] { color: var(--ink); background: var(--web-accent-soft); border-color: var(--blue-line); }
+.gdField svg { flex: none; }
+.gdArea { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0; min-height: 62px; }
+.gdLine { display: block; animation: gdType .45s ease both; }
+.gdLine:nth-child(2) { animation-delay: .15s; }
+.gdLine:nth-child(3) { animation-delay: .3s; }
+
+/* 바뀐 값 반짝임(값이 바뀌면 새로 그려져 다시 돈다). */
+.gdPop { display: inline-block; padding: 0 1px; border-radius: 4px; font-weight: 750; animation: gdPop .7s ease both; }
+
+/* 화면 아래 알림. */
+.gdToast { position: absolute; right: 12px; bottom: 12px; left: 12px; z-index: 2; padding: 8px 12px; color: var(--paper); background: var(--surface-dark); border-radius: 10px; font-size: 12px; font-weight: 600; line-height: 1.45; text-align: center; animation: gdToast .4s ease both; }
+
+/* 가입 */
+.gdAuth { justify-content: center; gap: 10px; padding: 0 2px; }
+.gdAuthIcon { width: 36px; height: 36px; display: grid; place-items: center; color: var(--web-accent-ink); background: var(--web-accent-soft); border-radius: 12px; }
+.gdAuthTitle { font-size: 18px; line-height: 1.3; letter-spacing: -.02em; }
+.gdConsent { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; color: var(--ink-soft); background: var(--canvas); border-radius: 10px; font-size: 12px; line-height: 1.5; }
+.gdBox { flex: none; width: 18px; height: 18px; margin-top: 1px; display: grid; place-items: center; color: var(--on-primary); background: var(--paper); border: 1.5px solid var(--field-line); border-radius: 5px; transition: background-color .25s ease, border-color .25s ease; }
+.gdBox[data-on="true"] { background: var(--web-accent); border-color: var(--web-accent); }
+.gdCard { display: grid; gap: 6px; padding: 12px; background: var(--canvas); border-radius: 12px; }
+.gdCard strong { font-size: 14px; }
+.gdSteps { margin: 0; padding-left: 20px; color: var(--ink-soft); font-size: 13px; line-height: 1.75; }
+.gdTabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: auto -14px -14px; padding: 12px 0; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; font-weight: 600; text-align: center; }
+.gdTabs b { color: var(--web-accent-ink); }
+
+/* 패키지 */
+.gdPkgHead { display: grid; gap: 1px; padding: 6px 10px; background: var(--canvas); border-radius: 10px; }
+.gdActions { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.gdActions .gdBtn { flex: none; }
+.gdSaved { display: flex; align-items: flex-start; gap: 4px; min-width: 0; color: var(--green); font-size: 12px; font-weight: 650; line-height: 1.35; animation: gdFadeIn .35s ease both; }
+.gdSaved svg { flex: none; margin-top: 1px; }
+.gdPkgHead strong { font-size: 14px; }
+.gdPkgHead span { color: var(--ink-soft); font-size: 12px; }
+
+/* 새 일감 */
+.gdChoice { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 10px; background: var(--paper); border: 1px solid var(--line-strong); border-radius: 12px; }
+.gdChoice[data-on="true"] { background: var(--web-accent-soft); border-color: var(--web-accent); }
+.gdChoice > span:last-child { display: grid; min-width: 0; }
+.gdChoice strong { font-size: 13px; }
+.gdChoice small { color: var(--ink-soft); font-size: 12px; }
+.gdTick { flex: none; width: 20px; height: 20px; display: grid; place-items: center; color: var(--on-primary); border: 1.5px solid var(--field-line); border-radius: 6px; transition: background-color .25s ease, border-color .25s ease; }
+.gdChoice[data-on="true"] .gdTick { background: var(--web-accent); border-color: var(--web-accent); }
+.gdDarkBar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: auto -14px -14px; padding: 10px 14px; color: var(--paper); background: var(--surface-dark); }
+.gdDarkBar > span:first-child { display: grid; min-width: 0; }
+.gdDarkBar small { color: var(--line-strong); font-size: 12px; }
+.gdDarkBar strong { font-size: 13px; }
+.gdDarkBar .gdBtn { flex: none; }
+
+/* 카톡 문구 */
+.gdBannerHead { display: flex; align-items: center; gap: 8px; }
+.gdBannerHead strong { font-size: 14px; line-height: 1.35; }
+.gdIconBox { flex: none; width: 30px; height: 30px; display: grid; place-items: center; color: var(--paper); background: var(--surface-dark); border-radius: 9px; }
+.gdMessage { display: flex; flex-direction: column; font-size: 12px; line-height: 1.42; }
+.gdMessage b { font-weight: 700; }
+.gdMessageBox { flex: 0 1 auto; min-height: 0; overflow: hidden; padding: 8px 10px; background: var(--canvas); border-radius: 10px; animation: gdFadeIn .35s ease both; }
+.gdLink { color: var(--web-accent-ink); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.gdChat { gap: 0; height: calc(100% + 28px); margin: -14px; background: var(--canvas); }
+.gdChatTop { display: flex; align-items: baseline; gap: 8px; padding: 10px 14px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.gdChatTop strong { font-size: 14px; }
+.gdChatTop small { color: var(--muted); font-size: 12px; }
+.gdChatBody { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; padding: 10px 12px; overflow: hidden; }
+.gdBubble { max-width: 88%; padding: 7px 10px; border-radius: 14px; font-size: 12px; line-height: 1.42; animation: gdFadeIn .35s ease both; }
+.gdBubble[data-side="them"] { align-self: flex-start; background: var(--paper); border-top-left-radius: 4px; }
+.gdBubble[data-side="me"] { align-self: flex-end; color: var(--ink); background: var(--web-accent-soft); border-top-right-radius: 4px; }
+.gdChatInput { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--paper); border-top: 1px solid var(--line); }
+.gdChatField { flex: 1 1 auto; min-width: 0; min-height: 34px; padding: 8px 12px; overflow: hidden; color: var(--ink); background: var(--canvas); border-radius: 17px; font-size: 12px; line-height: 18px; white-space: nowrap; text-overflow: ellipsis; }
+.gdChatSend { flex: none; width: 34px; height: 34px; display: grid; place-items: center; color: var(--on-primary); background: var(--web-accent); border-radius: 50%; }
+
+/* 받을 자료 체크 */
+.gdNotice { display: flex; align-items: flex-start; gap: 6px; padding: 7px 10px; color: var(--ink); background: var(--amber-soft); border-radius: 10px; font-size: 12px; line-height: 1.45; animation: gdDrop .45s ease both; }
+.gdNotice svg { flex: none; margin-top: 2px; color: var(--amber); }
+.gdNotice b { margin-right: 4px; }
+.gdSectionHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.gdSectionHead > span:first-child { display: grid; min-width: 0; }
+.gdSectionHead strong { font-size: 14px; }
+.gdSectionHead small { color: var(--muted); font-size: 12px; }
+.gdChecklist { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.gdChecklist li { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px; background: var(--paper); border: 1px solid var(--line-strong); border-radius: 10px; font-size: 12px; line-height: 1.4; }
+.gdChecklist li svg { flex: none; color: var(--field-line); }
+.gdChecklist li span { flex: 1 1 auto; min-width: 0; }
+.gdChecklist li small { flex: none; color: var(--muted); font-size: 12px; }
+.gdChecklist li[data-on="true"] { color: var(--muted); background: var(--canvas); border-color: transparent; }
+.gdChecklist li[data-on="true"] span { text-decoration: line-through; }
+.gdChecklist li[data-on="true"] svg { color: var(--green); }
+.gdChecklist li[data-left="true"] { background: var(--web-accent-soft); border-color: var(--web-accent); }
+
+/* 수정 요청 */
+.gdTag { flex: none; display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.gdTag[data-tone="amber"] { color: var(--amber); background: var(--amber-soft); }
+.gdTag[data-tone="blue"] { color: var(--web-accent-ink); background: var(--web-accent-soft); }
+.gdTag[data-tone="gray"] { color: var(--muted); background: var(--canvas); }
+.gdFacts { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 16px; padding: 8px 12px; background: var(--canvas); border-radius: 12px; }
+.gdFacts > span { display: block; min-width: 0; }
+.gdFacts > span:last-child { display: grid; gap: 2px; }
+.gdFacts small { display: block; color: var(--ink-soft); font-size: 12px; }
+.gdFacts > span:first-child b { margin-right: 2px; color: var(--web-accent-ink); font-size: 26px; line-height: 1.15; }
+.gdFacts > span:last-child b { color: var(--ink); font-size: 12px; }
+.gdResult { margin: 0; padding: 10px 12px; color: var(--green); background: var(--green-soft); border-radius: 10px; font-size: 13px; font-weight: 600; line-height: 1.5; animation: gdFadeIn .35s ease both; }
+.gdRemain { flex: none; display: inline-flex; align-items: baseline; gap: 3px; padding: 3px 10px; color: var(--ink-soft); background: var(--canvas); border-radius: 999px; font-size: 12px; font-weight: 600; }
+.gdRemain b { color: var(--web-accent-ink); font-size: 18px; }
+.gdRev { display: flex; align-items: flex-start; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.gdRev > div { flex: 1 1 auto; display: grid; gap: 2px; min-width: 0; }
+.gdRev small { color: var(--muted); font-size: 12px; }
+.gdRev p { margin: 0; font-size: 13px; }
+.gdRev[data-off="true"] p { color: var(--muted); }
+.gdRevActions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
+.gdRevNote { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--muted); font-size: 12px; animation: gdFadeIn .35s ease both; }
+
+/* 추가요청 */
+.gdJobStrip { display: grid; gap: 1px; padding: 7px 10px; background: var(--canvas); border-radius: 10px; }
+.gdJobStrip strong { font-size: 13px; }
+.gdJobStrip span { color: var(--ink-soft); font-size: 12px; }
+.gdAddon { display: flex; align-items: center; gap: 10px; padding-top: 8px; border-top: 1px solid var(--line); animation: gdFadeIn .35s ease both; }
+.gdAddon > div { flex: 1 1 auto; display: grid; gap: 1px; min-width: 0; }
+.gdAddon strong { font-size: 13px; }
+.gdAddon div > span { color: var(--ink-soft); font-size: 12px; }
+.gdAddonState { font-size: 12px; font-weight: 700; }
+.gdAddonState[data-tone="amber"] { color: var(--amber); }
+.gdAddonState[data-tone="green"] { color: var(--green); }
+.gdMiniChat { display: flex; flex-direction: column; gap: 5px; padding: 8px; background: var(--canvas); border-radius: 12px; }
+
+/* 상황별 문구 */
+.gdChips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gdChip { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 11px; color: var(--ink-soft); background: var(--canvas); border-radius: 999px; font-size: 12px; font-weight: 650; }
+.gdChip[data-on="true"] { color: var(--web-accent-ink); background: var(--web-accent-soft); }
+
+/* 월별 정리 */
+.gdJobCard { display: grid; gap: 6px; padding: 10px 12px; background: var(--canvas); border-radius: 12px; }
+.gdJobCard small { color: var(--muted); font-size: 12px; }
+.gdJobCard strong { font-size: 14px; }
+.gdTotals { display: grid; gap: 3px; margin: 0; }
+.gdTotals div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.gdTotals dt { color: var(--ink-soft); font-size: 12px; }
+.gdTotals dd { margin: 0; font-size: 16px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.gdSource { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 12px; padding: 8px 10px; background: var(--canvas); border-radius: 10px; font-size: 12px; }
+.gdSource strong { grid-column: 1 / -1; font-size: 13px; }
+.gdSource b { font-size: 13px; }
+
+/* 흐름도: 장면마다 차례인 칸에 연한 파랑 불이 들어온다. */
+.gdFlow .flowStep { border-radius: 10px; transition: background-color .35s ease, box-shadow .35s ease; }
+.gdFlow[data-flow-on~="order"] [data-testid="flow-step-order"],
+.gdFlow[data-flow-on~="register"] [data-testid="flow-step-register"],
+.gdFlow[data-flow-on~="kickoff"] [data-testid="flow-step-kickoff"],
+.gdFlow[data-flow-on~="materials"] [data-testid="flow-step-materials"],
+.gdFlow[data-flow-on~="work"] [data-testid="flow-step-work"],
+.gdFlow[data-flow-on~="revision"] [data-testid="flow-step-revision"],
+.gdFlow[data-flow-on~="revision-done"] [data-testid="flow-step-revision-done"],
+.gdFlow[data-flow-on~="complete"] [data-testid="flow-step-complete"] { background: var(--web-accent-soft); box-shadow: -6px 0 0 var(--web-accent-soft), 6px 0 0 var(--web-accent-soft); }
+
+/* 가짜 손가락: 누를 곳으로 미끄러져 가서 눌림 파문을 남긴다. 위치(--gd-x/--gd-y)는 재생기가 잰다. */
+.gdPointer { position: absolute; top: 0; left: 0; z-index: 3; width: 28px; height: 28px; margin: -14px 0 0 -14px; pointer-events: none; opacity: 0; transform: translate(var(--gd-x, 180px), var(--gd-y, 340px)); transition: transform .75s cubic-bezier(.33, .8, .25, 1), opacity .25s ease; }
+.gdPointer[data-show="true"] { opacity: 1; }
+.gdPointerDot { position: absolute; inset: 0; background: color-mix(in srgb, var(--ink) 32%, transparent); border: 2px solid var(--paper); border-radius: 50%; box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 30%, transparent); }
+.guideDemo[data-phase="done"] .gdPointerDot { animation: gdPress .35s ease; }
+/* 누른 곳이 바뀐 화면에 없으면 손가락은 눌림 뒤 사라지고 파문만 남는다. */
+.gdPointer[data-gone="true"] .gdPointerDot { opacity: 0; transition: opacity .3s ease .3s; }
+.gdRipple { position: absolute; inset: 0; border: 3px solid var(--gd-tap); border-radius: 50%; animation: gdRipple .7s ease-out both; }
+
+/* 자막·제어: 자막은 두 줄 자리를 늘 잡아 두어 장면이 바뀌어도 아래 버튼이 흔들리지 않는다. */
+.gdBar { display: grid; gap: 0; }
+.gdCaption { min-height: calc(2 * 1.45em); margin: 0; color: var(--ink); font-size: 15px; font-weight: 600; line-height: 1.45; word-break: keep-all; }
+.gdControls { display: flex; align-items: center; gap: 2px; margin: 0 -6px 0 0; }
+.gdDots { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; }
+.gdDots span { width: 8px; height: 8px; background: var(--line-strong); border-radius: 999px; transition: background-color .25s ease, width .25s ease; }
+.gdDots span[data-state="done"] { background: color-mix(in srgb, var(--web-accent) 45%, var(--canvas)); }
+.gdDots span[data-state="current"] { width: 20px; background: var(--web-accent); }
+.gdControl { width: 44px; height: 44px; display: inline-grid; place-items: center; padding: 0; color: var(--ink-soft); background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
+.gdControl:hover { color: var(--ink); background: var(--line); }
+.gdControl:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+@keyframes gdFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes gdType { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@keyframes gdPop { 0% { background: color-mix(in srgb, var(--gd-tap) 30%, transparent); transform: scale(1.12); } 100% { background: transparent; transform: none; } }
+@keyframes gdToast { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes gdDrop { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes gdPress { 40% { transform: scale(.7); } }
+@keyframes gdRipple { from { opacity: .95; transform: scale(.5); } to { opacity: 0; transform: scale(2.6); } }
+
+/* 데스크톱: 예전 그림 자리(가운데 460px 흰 틀)에 모형·자막·제어를 한 카드로. 흐름도는 넓은 오른쪽 칸 그대로. */
+@media (min-width: 900px) {
+  .guideStage .guideDemo { --gd-screen-h: clamp(320px, calc(100svh - 500px), 350px); grid-area: shot; padding: 10px 12px 4px; background: var(--paper); border-radius: 28px; }
+  .guideStage .gdScreen[data-kind="mock"] { box-shadow: inset 0 0 0 1px var(--line); }
+  .guideStage[data-kind="flow"] .guideDemo { padding: 0; background: transparent; border-radius: 0; }
+  .guideStage[data-kind="flow"] .gdBar { padding: 4px 4px 0; }
+}
+
+/* 휴대폰: 흐름도 칸을 조금 더 촘촘히 해 자막·제어까지 한 화면에 들어오게. */
+@media (max-width: 760px) {
+  .guideStage .gdFlow .flowChart { padding: 12px 12px 10px; }
+  .gdFlow .flowChart[data-compact] .flowLegend { margin-bottom: 4px; font-size: 12px; }
+  .gdFlow .flowChart[data-compact] .flowStep { padding: 2px 0; }
+  .gdFlow .flowChart[data-compact] .flowTitle { font-size: 14px; }
+  .gdFlow .flowChart[data-compact] .flowAuto { font-size: 12px; }
+  .gdCaption { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guideDemo *, .guideDemo *::before, .guideDemo *::after { animation: none !important; transition: none !important; }
+  /* 파문이 멈춘 고리로 남으므로, 누른 곳이 사라진 화면에서는 손가락 표시를 통째로 감춘다. */
+  .gdPointer[data-gone="true"] { opacity: 0; }
+}

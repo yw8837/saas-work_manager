@@ -15,11 +15,14 @@ test("그림 사용설명서는 한 장씩 '다음'만 눌러 끝까지 가고, 
   for (let step = 1; step <= 10; step += 1) {
     await expect(progress).toHaveText(`${step} / 10`);
     await expect(page.getByTestId("guide-step")).toHaveCount(1);
-    if (step > 1) {
-      expect(new URL(page.url()).hash).toBe(`#step-${step}`);
-      const image = page.getByTestId("guide-step").locator("img");
-      await expect(image).toHaveCount(1);
-      await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+    if (step > 1) expect(new URL(page.url()).hash).toBe(`#step-${step}`);
+    // 단계마다 저절로 움직이는 시연 하나(그림 파일 대신 화면 모형)와 비지 않은 자막.
+    const demo = page.getByTestId("guide-step").getByTestId("guide-demo");
+    await expect(demo).toHaveCount(1);
+    await expect(demo).toBeVisible();
+    await expect(demo.getByTestId("guide-demo-caption")).not.toHaveText("");
+    for (const control of await demo.locator(".gdControl").all()) {
+      expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     // 가로로 넘치지 않아야 휴대폰에서 읽힌다.
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -36,7 +39,8 @@ test("그림 사용설명서는 한 장씩 '다음'만 눌러 끝까지 가고, 
 
   expect(await page.evaluate(() => (window as typeof window & { __guideStay?: number }).__guideStay)).toBe(1);
   await expect(page.getByTestId("guide-next")).toHaveCount(0);
-  await expect(page.getByTestId("guide-start")).toHaveAttribute("href", "/today");
+  // 시작 버튼은 베타 코드를 붙여 간다(src/lib/signup-start.ts).
+  await expect(page.getByTestId("guide-start")).toHaveAttribute("href", "/today?invite=BETA2026");
   await expect(page.getByTestId("guide-not-yet")).toBeVisible();
   await page.getByTestId("guide-demo-link").click();
   await expect(page).toHaveURL(/\/demo\/r$/);
@@ -110,9 +114,9 @@ test("고객 체험 링크는 검색에 막혀 있고, 요청을 남겨도 서�
   await expect(page.getByTestId("demo-revision-usage")).toHaveText("3회 중 1회 사용");
 });
 
-test("첫 화면에서 설명서와 고객 체험 링크로 갈 수 있다", async ({ page }) => {
+test("첫 화면에서 설명서와 가입 없이 둘러보기로 갈 수 있다", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("landing-guide")).toHaveAttribute("href", "/guide");
-  await page.getByTestId("landing-customer-demo").click();
-  await expect(page).toHaveURL(/\/demo\/r$/);
+  await page.getByTestId("landing-try").click();
+  await expect(page).toHaveURL(/\/try$/);
 });

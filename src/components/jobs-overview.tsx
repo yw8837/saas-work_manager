@@ -142,7 +142,7 @@ export function JobsOverview() {
           return (
             <Link href={`/jobs/${job.id}?list=${encodeURIComponent(returnHref)}`} className="jobTableRow" key={job.id}>
               <div className="jobIdentity">
-                <DueTile dueDate={job.dueDate} today={today} done={job.status === "completed"} />
+                <DueTile dueDate={job.dueDate} today={today} done={job.status === "completed"} completedAt={job.completedAt} />
                 <div>
                   <strong>{job.clientLabel}</strong>
                   <span>

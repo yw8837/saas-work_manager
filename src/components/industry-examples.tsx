@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import type { OptionTemplate } from "@/lib/domain";
+import { SIGNUP_START_HREF, signupStartHref } from "@/lib/signup-start";
 import { INDUSTRY_LABELS, INDUSTRY_ORDER, INDUSTRY_STARTERS } from "@/lib/store/industry-starters";
 import { Brand } from "./brand";
+import { SignupOffer } from "./signup-offer";
 
 const won = new Intl.NumberFormat("ko-KR");
 
@@ -25,7 +27,8 @@ function optionDuration(option: OptionTemplate): string {
 /**
  * 업종별 예시 패키지 공개 페이지(/examples). 로그인 없이 본다.
  * 숫자는 모두 INDUSTRY_STARTERS에서만 가져온다. 새 숫자나 평균을 여기 적지 않는다.
- * 버튼은 `/today?starter=<업종>`으로 가고, 오늘 화면이 업종 칩과 같은 applyIndustryStarter를 한 번 부른다.
+ * 버튼은 `/today?starter=<업종>&invite=BETA2026`으로 가고(signup-start.ts), 오늘 화면이 업종 칩과 같은 applyIndustryStarter를 한 번 부른다.
+ * 블로그 글이 쓰는 옛 구역 주소(`#examples-design` 등)도 각 구역 맨 위의 빈 표시로 이어 준다(기존 `#design`도 그대로).
  */
 export function IndustryExamples() {
   return (
@@ -33,8 +36,9 @@ export function IndustryExamples() {
       <header className="guideHeader">
         <Brand />
         <nav aria-label="예시 페이지 메뉴">
-          <Link href="/guide">사용설명서</Link>
-          <Link href="/today">로그인</Link>
+          <Link href="/guide" className="guideHeaderExtra">사용설명서</Link>
+          <Link href="/today" className="guideHeaderLogin" data-testid="examples-header-login">로그인</Link>
+          <Link href={SIGNUP_START_HREF} className="guideHeaderStart" data-testid="examples-header-start">무료로 시작하기</Link>
         </nav>
       </header>
 
@@ -44,6 +48,8 @@ export function IndustryExamples() {
           주문마다 고르기만 하면 되는 패키지를 업종별로 미리 만들어 뒀어요. 금액·기간·포함 수정 횟수·받을 자료를 보고, 맞는 예시로 시작해요.
         </p>
         <p className="examplesNotice" data-testid="examples-notice">{EXAMPLES_NOTICE}</p>
+        <SignupOffer testId="examples-offer" className="examplesOffer" />
+        <Link href="/try" className="examplesTry" data-testid="examples-try">가입 없이 둘러보기</Link>
 
         <nav className="examplesJump" aria-label="업종 바로 가기">
           {INDUSTRY_ORDER.map((industry) => (
@@ -56,6 +62,7 @@ export function IndustryExamples() {
           const label = INDUSTRY_LABELS[industry];
           return (
             <section key={industry} id={industry} className="examplesIndustry" aria-labelledby={`examples-${industry}-title`} data-testid={`examples-${industry}`}>
+              <span id={`examples-${industry}`} className="examplesAnchor" data-testid={`examples-anchor-${industry}`} />
               <h2 id={`examples-${industry}-title`}>{label}</h2>
 
               <ul className="examplesPackages">
@@ -95,10 +102,11 @@ export function IndustryExamples() {
                 </ul>
               </div>
 
-              <Link href={`/today?starter=${industry}`} className="primaryButton examplesStart" data-testid={`examples-start-${industry}`}>
+              <Link href={signupStartHref(industry)} className="primaryButton examplesStart" data-testid={`examples-start-${industry}`}>
                 이 예시로 시작하기<span className="srOnly"> ({label})</span>
                 <ArrowRight size={18} aria-hidden="true" />
               </Link>
+              <SignupOffer testId={`examples-offer-${industry}`} className="examplesSectionOffer" />
             </section>
           );
         })}

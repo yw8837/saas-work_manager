@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createStarterState, type AppSettings } from "@/lib/store";
+import { applyIndustryStarter, createStarterState, type AppSettings } from "@/lib/store";
 import { PackageManager } from "./package-manager";
 import { useWorkspace } from "./workspace-provider";
 
@@ -34,6 +34,8 @@ function mockWorkspace(settings: Partial<AppSettings> = {}) {
 beforeEach(() => {
   updateSettings.mockReset();
   savePackage.mockReset();
+  // 제공자는 실제로 목록에 반영했을 때만 true를 돌려준다.
+  savePackage.mockReturnValue(true);
   saveOption.mockReset();
   archivePackage.mockReset();
   mockWorkspace();
@@ -259,5 +261,56 @@ describe("착수 전 질문", () => {
     const saved = savePackage.mock.calls[0][0];
     expect(saved.briefQuestions).toHaveLength(4);
     expect(saved.briefQuestions[3]).toBe("오픈 날짜가 정해져 있나요?");
+  });
+});
+
+describe("업종 예시를 바꾼 뒤 연 패키지 화면(2026-11-11 점검 문제 1)", () => {
+  // 화면은 저장본을 불러오기 전(기본 예시)으로 먼저 그려지고, 불러온 뒤 업종 예시(앞 예시는 보관됨)로 바뀐다.
+  function showDesignStarter(view: ReturnType<typeof render>) {
+    const seed = createStarterState("2026-11-02");
+    const design = { ...seed, ...applyIndustryStarter(seed, "design", { packages: 3, options: 3 }, "2026-11-02T00:00:00.000Z") };
+    const current = vi.mocked(useWorkspace).mock.results.at(-1)!.value as ReturnType<typeof useWorkspace>;
+    vi.mocked(useWorkspace).mockReturnValue({ ...current, packages: design.packages, options: design.options });
+    view.rerender(<PackageManager />);
+    return design;
+  }
+
+  it("목록에 없는(보관된) 예전 패키지를 편집 칸에 남기지 않고 목록 첫 패키지로 맞춘다", () => {
+    const view = render(<PackageManager />);
+    expect(screen.getByLabelText("패키지 이름")).toHaveValue("Basic 홈페이지");
+    const design = showDesignStarter(view);
+    const live = design.packages.filter((item) => !item.archivedAt);
+    expect(live.map((item) => item.name)).not.toContain("Basic 홈페이지");
+    expect(screen.getByLabelText("패키지 이름")).toHaveValue(live[0].name);
+    expect(screen.getByRole("heading", { level: 2, name: live[0].name })).toBeInTheDocument();
+  });
+
+  it("그대로 '패키지 저장'을 누르면 목록에 있는 패키지를 저장하고, 보관된 패키지를 보내지 않는다", () => {
+    const view = render(<PackageManager />);
+    const design = showDesignStarter(view);
+    fireEvent.click(screen.getByTestId("save-package"));
+    const saved = savePackage.mock.calls[0][0];
+    expect(design.packages.filter((item) => !item.archivedAt).map((item) => item.id)).toContain(saved.id);
+    expect(saved.archivedAt).toBeUndefined();
+  });
+
+  it("옵션 편집 칸도 목록에 있는 옵션으로 맞춘다", () => {
+    const view = render(<PackageManager />);
+    const design = showDesignStarter(view);
+    fireEvent.click(screen.getByRole("tab", { name: /옵션/ }));
+    const liveOptions = design.options.filter((item) => !item.archivedAt);
+    expect(screen.getByLabelText("옵션 이름")).toHaveValue(liveOptions[0].name);
+  });
+
+  it("실제로 저장되지 않으면 '저장했어요'를 띄우지 않고 저장하지 못했다고 알린다", () => {
+    savePackage.mockReturnValue(false);
+    render(<PackageManager />);
+    fireEvent.change(screen.getByLabelText("기본 금액 (원)"), { target: { value: "450000" } });
+    fireEvent.click(screen.getByTestId("save-package"));
+    expect(screen.queryByText(/저장했어요/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("package-save-error")).toHaveTextContent("패키지를 저장하지 못했어요");
+    // 고치던 내용은 그대로 남아 다시 저장할 수 있다.
+    expect(screen.getByLabelText("기본 금액 (원)")).toHaveValue("450,000");
+    expect(screen.getByTestId("package-unsaved")).toBeInTheDocument();
   });
 });

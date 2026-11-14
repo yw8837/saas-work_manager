@@ -530,3 +530,75 @@
 .appFrame .catalogFullField small,
 .appFrame .briefQuestionField small,
 .appFrame .settingTime small { font-size: 12px; }
+
+/* 2026-11-11 앱 점검 고침 — 일감 화면 '요청 직접 적기'(휴대폰에서 버튼 글자가 두 줄로 깨지고, 남은 수정 안내가
+   칸 높이만큼 늘어난 큰 타원으로 뜨던 것)와 더보기 > '일감 정보 고치기' 양식. */
+.appFrame :is(.revisionQuickForm, .jobInfoForm) .revisionFormActions { flex-wrap: wrap; }
+.appFrame :is(.revisionQuickForm, .jobInfoForm) .revisionFormActions button { white-space: nowrap; }
+.appFrame .revisionQuickForm .revisionFormTop { flex-wrap: wrap; }
+/* 남은 수정 안내는 채널 칸 아래 한 줄 띠로 둔다(알약을 칸 높이로 늘리지 않음). */
+.appFrame .revisionQuickForm .revisionImpact { flex: 1 1 100%; width: auto; align-self: auto; padding: 8px 12px; border-radius: 8px; white-space: normal; }
+.appFrame .jobInfoForm { display: grid; gap: 12px; margin: 0 0 16px; padding: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-card); }
+.appFrame .jobInfoForm h2 { margin: 0; font-size: 17px; }
+.appFrame .jobInfoForm label { display: grid; gap: 6px; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+.appFrame .jobInfoForm input { min-height: 44px; padding: 0 12px; color: var(--ink); font-size: 15px; font-weight: 500; }
+.appFrame .jobInfoDates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.appFrame .jobInfoNote { margin: 0; color: var(--muted); font-size: 13px; }
+.appFrame .jobInfoError { margin: 0; color: var(--red); font-size: 13px; font-weight: 600; }
+@media (max-width: 760px) {
+  /* 더보기 메뉴 항목('일감 정보 고치기'·'일감 삭제')도 휴대폰에서는 44px 높이로 누른다. */
+  .appFrame .detailMoreItem { min-height: 44px; }
+}
+@media (max-width: 520px) {
+  /* 좁은 화면은 버튼을 세로로 쌓는다(주 버튼이 맨 위). 글자는 한 줄, 누르는 높이는 44px 이상. */
+  .appFrame :is(.revisionQuickForm, .jobInfoForm) .revisionFormActions { flex-direction: column-reverse; align-items: stretch; }
+  .appFrame :is(.revisionQuickForm, .jobInfoForm) .revisionFormActions button { width: 100%; min-height: 44px; }
+  .appFrame .jobInfoForm { padding: 16px; }
+  .appFrame .jobInfoDates { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* 2026-11-12 베타 Pro 이용권이 끝난 뒤 설문 팝업. 아래 고정 메뉴(z-index 50)·짧은 안내 상자(actionToast, 80)보다 위에 뜨고,
+   휴대폰에서도 화면 안에 들어오게 높이를 화면에 맞춘다. 버튼은 세로로 쌓고 누르는 높이 44px 이상. */
+.appFrame .betaSurveyOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  background: rgb(25 31 40 / 48%);
+}
+.appFrame .betaSurveyDialog {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 24px 24px 20px;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  animation: betaSurveyIn .18s ease-out;
+}
+.appFrame .betaSurveyDialog:focus { outline: none; }
+.appFrame .betaSurveyDialog h2 { margin: 6px 44px 12px 0; font-size: 20px; line-height: 1.45; letter-spacing: -.02em; }
+.appFrame .betaSurveyBody p { margin: 0 0 6px; color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
+.appFrame .betaSurveyBody .betaSurveyPrivacy { margin-top: 10px; color: var(--muted); font-size: 13px; }
+.appFrame .betaSurveyClose { position: absolute; top: 12px; right: 12px; color: var(--muted); }
+.appFrame .betaSurveyActions { display: grid; gap: 8px; margin-top: 20px; }
+.appFrame .betaSurveyActions > * { width: 100%; min-height: 48px; font-size: 15px; }
+.appFrame .betaSurveyActions .primaryButton { font-weight: 600; }
+.appFrame .betaSurveyNever { color: var(--muted); background: transparent; }
+@keyframes betaSurveyIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 520px) {
+  .appFrame .betaSurveyDialog { padding: 20px 16px 16px; }
+  .appFrame .betaSurveyDialog h2 { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .appFrame .betaSurveyDialog { animation: none; }
+}

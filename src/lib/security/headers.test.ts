@@ -47,6 +47,42 @@ describe("production security headers", () => {
     expect(buildContentSecurityPolicy(false)).not.toContain("attacker.invalid");
   });
 
+  it("기본 CSP는 지금과 같고 Clarity 주소를 열지 않는다", () => {
+    const csp = buildContentSecurityPolicy(false, "https://project-ref.supabase.co");
+    expect(csp).toBe([
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://project-ref.supabase.co wss://project-ref.supabase.co",
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "upgrade-insecure-requests",
+    ].join("; "));
+    expect(csp).not.toMatch(/clarity|bing/);
+  });
+
+  it("Clarity 화면 CSP는 공식 안내 주소를 script·connect·img에만 더하고 나머지는 그대로 둔다", () => {
+    const base = buildContentSecurityPolicy(false, "https://project-ref.supabase.co").split("; ");
+    const clarity = buildContentSecurityPolicy(false, "https://project-ref.supabase.co", { clarity: true }).split("; ");
+    const changed = clarity.filter((directive) => !base.includes(directive));
+
+    expect(changed).toEqual([
+      "script-src 'self' 'unsafe-inline' https://*.clarity.ms",
+      "img-src 'self' data: blob: https://*.clarity.ms https://c.bing.com",
+      "connect-src 'self' https://project-ref.supabase.co wss://project-ref.supabase.co https://*.clarity.ms",
+    ]);
+    expect(clarity).toHaveLength(base.length);
+    expect(clarity.join("; ")).not.toContain("unsafe-eval");
+    expect(clarity).toContain("default-src 'self'");
+    expect(clarity).toContain("frame-ancestors 'none'");
+  });
+
   it("prevents bearer-token customer routes from being indexed or archived", () => {
     const headers = new Map(buildBearerRouteHeaders().map(({ key, value }) => [key, value]));
     expect(headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
@@ -100,6 +136,44 @@ describe("작업 화면 검색 차단 헤더", () => {
     // Next 규칙과 Sites Worker 판정(isPrivateAreaPath)이 같은 경로를 본다.
     for (const source of PRIVATE_AREA_ROUTE_SOURCES) {
       expect(isPrivateAreaPath(source.slice(0, -"/:path*".length)), source).toBe(true);
+    }
+  });
+});
+
+describe("방문 기록 도구(Microsoft Clarity) CSP는 메인·둘러보기 문서에만", () => {
+  /** 같은 이름의 헤더는 뒤 규칙이 이긴다(Next headers 문서·OpenNext getNextConfigHeaders). 그 경로의 최종 CSP. */
+  async function effectiveCsp(path: string): Promise<string | undefined> {
+    const rules = await nextConfig.headers!();
+    return rules
+      .filter((rule) => sourceMatches(rule.source, path))
+      .flatMap((rule) => rule.headers)
+      .filter((header) => header.key === "Content-Security-Policy")
+      .map((header) => header.value)
+      .at(-1);
+  }
+  const OTHER_PATHS = ["/guide", "/examples", "/privacy", "/terms", "/demo/r", "/r/token", ...WORKSPACE_PATHS];
+
+  it("프로젝트 ID가 있으면 / 와 /try 문서만 Clarity 주소를 연다", async () => {
+    process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID = "testproject1";
+    for (const path of ["/", "/try"]) {
+      const csp = await effectiveCsp(path);
+      expect(csp, path).toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp, path).toMatch(/script-src [^;]*https:\/\/\*\.clarity\.ms/);
+      expect(csp, path).toMatch(/connect-src [^;]*https:\/\/\*\.clarity\.ms/);
+      expect(csp, path).toMatch(/img-src [^;]*https:\/\/c\.bing\.com/);
+    }
+    for (const path of OTHER_PATHS) {
+      const csp = await effectiveCsp(path);
+      expect(csp, path).toBeDefined();
+      expect(csp, path).not.toMatch(/clarity|bing/);
+    }
+  });
+
+  it.each([undefined, "", "Bad-ID"])("프로젝트 ID가 없거나 틀리면(%j) 어느 문서도 Clarity 주소를 열지 않는다", async (value) => {
+    if (value === undefined) delete process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
+    else process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID = value;
+    for (const path of ["/", "/try", ...OTHER_PATHS]) {
+      expect(await effectiveCsp(path), path).not.toMatch(/clarity|bing/);
     }
   });
 });

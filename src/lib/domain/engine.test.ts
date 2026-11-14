@@ -15,6 +15,7 @@ import {
   toggleIntakeItem,
   revertRevision,
   toggleJobCompletion,
+  updateJobInfo,
   updateTaskStatus,
   type OptionTemplate,
   type PackageTemplate,
@@ -653,5 +654,85 @@ describe("시작 안내 보낸 시각", () => {
     expect(shared.updatedAt).toBe("2026-08-01T01:00:00.000Z");
     // 처음 한 번만: 다시 복사해도 그대로 둔다.
     expect(markStartShared(shared, "2026-08-02T00:00:00.000Z")).toBe(shared);
+  });
+});
+
+describe("일감 정보 고치기(고객 이름·시작일·마감일)", () => {
+  const base = () => composeJob({
+    jobId: "job_info",
+    revisionPortalToken: "token_info",
+    clientLabel: "한결 세무회계",
+    startDate: "2026-08-01",
+    package: packageTemplate,
+    now: "2026-08-01T00:00:00.000Z",
+  });
+  const NOW = "2026-08-03T00:00:00.000Z";
+  const dates = (job: ReturnType<typeof base>) => Object.fromEntries(job.tasks.map((task) => [task.taskKey, [task.relativeDay, task.dueDate]]));
+
+  it("이름을 고치면 자동 제목의 앞 이름도 바꾸고, 금액·패키지·옵션·수정 한도·고객 링크는 그대로다", () => {
+    const job = base();
+    const next = updateJobInfo(job, { clientLabel: "  한결세무 회계사무소 ", startDate: job.startDate, dueDate: job.dueDate }, NOW);
+    expect(next.clientLabel).toBe("한결세무 회계사무소");
+    expect(next.title).toBe("한결세무 회계사무소 · 스탠다드");
+    expect(next.updatedAt).toBe(NOW);
+    expect(next.tasks).toEqual(job.tasks);
+    for (const key of ["amount", "estimatedCost", "margin", "packageSnapshot", "optionSnapshots", "revisionLimit", "revisionPortalToken", "startDate", "dueDate"] as const) {
+      expect(next[key]).toEqual(job[key]);
+    }
+    // 사용자가 바꾼 제목은 그대로 둔다.
+    const custom = updateJobInfo({ ...job, title: "브랜드 사이트" }, { clientLabel: "새 이름", startDate: job.startDate, dueDate: job.dueDate }, NOW);
+    expect(custom.title).toBe("브랜드 사이트");
+  });
+
+  it("시작일을 옮기면 할 일 날짜가 같은 날수만큼 옮겨지고, 마감일은 적은 날 그대로다(마감 날 할 일은 마감에 남는다)", () => {
+    const job = base();
+    expect(job.dueDate).toBe("2026-08-15");
+    const next = updateJobInfo(job, { clientLabel: job.clientLabel, startDate: "2026-08-03", dueDate: "2026-08-15" }, NOW);
+    expect(next.startDate).toBe("2026-08-03");
+    expect(next.dueDate).toBe("2026-08-15");
+    expect(next.calculatedDueDate).toBe("2026-08-15");
+    expect(dates(next)).toEqual({ brief: [0, "2026-08-03"], design: [5, "2026-08-08"], launch: [12, "2026-08-15"] });
+  });
+
+  it("마감일을 미루면 마감 날 할 일(납품)이 따라가고, 당기면 그 뒤에 남은 안 끝낸 할 일을 마감 날로 당긴다", () => {
+    const job = base();
+    const later = updateJobInfo(job, { clientLabel: job.clientLabel, startDate: job.startDate, dueDate: "2026-08-20" }, NOW);
+    expect(later.dueDate).toBe("2026-08-20");
+    expect(later.calculatedDueDate).toBe("2026-08-20");
+    expect(dates(later)).toEqual({ brief: [0, "2026-08-01"], design: [5, "2026-08-06"], launch: [19, "2026-08-20"] });
+
+    const earlier = updateJobInfo(job, { clientLabel: job.clientLabel, startDate: job.startDate, dueDate: "2026-08-04" }, NOW);
+    expect(dates(earlier)).toEqual({ brief: [0, "2026-08-01"], design: [3, "2026-08-04"], launch: [3, "2026-08-04"] });
+    // 끝낸 할 일은 기록이라 당기지 않는다.
+    const doneDesign = updateTaskStatus(job, `${job.id}:task:design`, "done", NOW);
+    expect(dates(updateJobInfo(doneDesign, { clientLabel: job.clientLabel, startDate: job.startDate, dueDate: "2026-08-04" }, NOW)).design).toEqual([5, "2026-08-06"]);
+  });
+
+  it("고친 마감 위에서도 추가요청 확정·취소가 날수만큼 밀고 되돌린다", () => {
+    const edited = updateJobInfo(base(), { clientLabel: "한결 세무회계", startDate: "2026-08-01", dueDate: "2026-08-20" }, NOW);
+    const addon = createAddon(edited, { addonId: "addon_info", title: "추가 페이지", amountDelta: 100_000, durationDaysDelta: 2 });
+    const confirmed = confirmAddon({ ...edited, addons: [addon] }, "addon_info", NOW);
+    expect(confirmed.dueDate).toBe("2026-08-22");
+    expect(dates(confirmed).launch).toEqual([21, "2026-08-22"]);
+    const cancelled = cancelAddon(confirmed, "addon_info", NOW);
+    expect(cancelled.dueDate).toBe("2026-08-20");
+    expect(dates(cancelled).launch).toEqual([19, "2026-08-20"]);
+  });
+
+  it("빈 이름과 시작일보다 앞선 마감일은 막고, 바뀐 게 없으면 같은 일감을 돌려준다", () => {
+    const job = base();
+    expect(() => updateJobInfo(job, { clientLabel: "   ", startDate: job.startDate, dueDate: job.dueDate })).toThrow("고객 이름을 적어 주세요.");
+    expect(() => updateJobInfo(job, { clientLabel: job.clientLabel, startDate: "2026-08-10", dueDate: "2026-08-09" })).toThrow(DomainValidationError);
+    expect(() => updateJobInfo(job, { clientLabel: job.clientLabel, startDate: "2026-02-30", dueDate: job.dueDate })).toThrow(DomainValidationError);
+    expect(updateJobInfo(job, { clientLabel: job.clientLabel, startDate: job.startDate, dueDate: job.dueDate })).toBe(job);
+    // 시작일과 마감일이 같은 날은 된다(기간 0일 패키지와 같음).
+    expect(updateJobInfo(job, { clientLabel: job.clientLabel, startDate: "2026-08-09", dueDate: "2026-08-09" }).dueDate).toBe("2026-08-09");
+  });
+
+  it("완료 시각이 없던 예전 완료 일감을 고치면 마지막 수정 시각을 완료 시각으로 굳힌다(월별 정리의 달이 안 바뀌게)", () => {
+    const legacy = { ...base(), status: "completed" as const, updatedAt: "2026-08-10T03:00:00.000Z" };
+    const next = updateJobInfo(legacy, { clientLabel: "새 이름", startDate: legacy.startDate, dueDate: legacy.dueDate }, NOW);
+    expect(next.completedAt).toBe("2026-08-10T03:00:00.000Z");
+    expect(next.status).toBe("completed");
   });
 });

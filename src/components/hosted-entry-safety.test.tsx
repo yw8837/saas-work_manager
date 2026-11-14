@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SIGNUP_START_HREF } from "@/lib/signup-start";
 import { createSeedState } from "@/lib/store";
 import { MarketingHome } from "./marketing-home";
 import { TodayDashboard } from "./today-dashboard";
@@ -60,12 +61,14 @@ describe("Hosted entry safety", () => {
     expect(screen.getByRole("link", { name: "자주 묻는 질문" })).toHaveAttribute("href", "#faq");
     expect(screen.getByRole("link", { name: "어떻게 편해지나요?" })).toHaveAttribute("href", "#workflow");
 
-    const workspaceEntries = [
-      screen.getByRole("link", { name: "로그인" }),
-      ...screen.getAllByRole("link", { name: "무료로 시작하기" }),
-    ];
-    expect(workspaceEntries).toHaveLength(3);
-    for (const entry of workspaceEntries) expect(entry).toHaveAttribute("href", "/today");
+    // 로그인은 기존 사용자용이라 /today 그대로, 시작 버튼(위·아래)은 베타 코드를 붙여 간다.
+    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/today");
+    // 아래 고정 줄은 첫 화면에서 숨어 있어(aria-hidden) 여기 세지 않는다.
+    const startEntries = screen.getAllByRole("link", { name: "무료로 시작하기" });
+    expect(startEntries).toHaveLength(2);
+    for (const entry of startEntries) expect(entry).toHaveAttribute("href", "/today?invite=BETA2026");
+    expect(screen.getByTestId("landing-demo")).toHaveAttribute("href", SIGNUP_START_HREF);
+    expect(screen.getByTestId("landing-final-start")).toHaveAttribute("href", SIGNUP_START_HREF);
   });
 
   it("keeps the landing-page pricing and speed copy factual for the beta", () => {
@@ -73,6 +76,8 @@ describe("Hosted entry safety", () => {
 
     expect(screen.getAllByText(/네 가지만 고르면/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/평균 30초/)).not.toBeInTheDocument();
+    // 재 본 적 없는 시간 숫자(30초면 끝 등)는 홈 어디에도 쓰지 않는다(2026-11-11, 메일·블로그 금지어와 같은 기준).
+    expect(document.body.textContent ?? "").not.toMatch(/\d+\s*초/);
     expect(screen.getByText(/베타 이용 코드를 적용한 계정/)).toBeInTheDocument();
     expect(screen.getByText(/Basic 정가 월 14,900원을 월 9,900원에 12개월/)).toBeInTheDocument();
   });

@@ -1,5 +1,5 @@
--- 정책 버전 2026-11-11-beta.5(유입 경로 수집 항목 추가)의 동의 기록을 확인한다(migration 20261103190000).
--- 새 버전으로는 가입·동의가 되고, 옛 버전(2026-08-24-beta.3, 2026-11-03-beta.4)으로는 거절되는지, 기존 가입자는 다시 동의해야 하는지 본다.
+-- 정책 버전 2026-11-13-beta.6(방문 기록 도구 Microsoft Clarity 항목 추가)의 동의 기록을 확인한다(migration 20261103200000).
+-- 새 버전으로는 가입·동의가 되고, 옛 버전(2026-08-24-beta.3, 2026-11-03-beta.4, 2026-11-11-beta.5)으로는 거절되는지, 기존 가입자는 다시 동의해야 하는지 본다.
 -- 가짜 사용자만 쓰고, 끝에서 예외로 모두 되돌린다.
 do $test$
 declare
@@ -11,13 +11,13 @@ declare
   contract jsonb;
 begin
   begin
-    -- 1) 기존 가입자: beta.3 동의 기록만 있다 → 앱이 찾는 beta.5 기록은 없다(다시 동의 화면).
+    -- 1) 기존 가입자: beta.3 동의 기록만 있다 → 앱이 찾는 beta.6 기록은 없다(다시 동의 화면).
     insert into auth.users (id, raw_user_meta_data) values (existing_user, '{}'::jsonb);
     insert into public.policy_acceptances (owner_id, terms_version, privacy_version, source)
     values (existing_user, '2026-08-24-beta.3', '2026-08-24-beta.3', 'in_app');
     select count(*) into row_count from public.policy_acceptances
-    where owner_id = existing_user and terms_version = '2026-11-11-beta.5' and privacy_version = '2026-11-11-beta.5';
-    if row_count <> 0 then raise exception 'existing_user_already_on_beta5'; end if;
+    where owner_id = existing_user and terms_version = '2026-11-13-beta.6' and privacy_version = '2026-11-13-beta.6';
+    if row_count <> 0 then raise exception 'existing_user_already_on_beta6'; end if;
 
     -- 2) 옛 버전 동의는 거절된다(22023 outdated_policy_version).
     perform set_config('request.jwt.claim.sub', existing_user::text, true);
@@ -27,46 +27,53 @@ begin
     exception when sqlstate '22023' then
       if sqlerrm <> 'outdated_policy_version' then raise; end if;
     end;
-    -- 바로 앞 버전(beta.4)도 거절된다.
+    -- 앞 버전(beta.4)도 거절된다.
     begin
       perform public.accept_current_policies('2026-11-03-beta.4', '2026-11-03-beta.4');
+      raise exception 'older_version_accepted';
+    exception when sqlstate '22023' then
+      if sqlerrm <> 'outdated_policy_version' then raise; end if;
+    end;
+    -- 바로 앞 버전(beta.5)도 거절된다.
+    begin
+      perform public.accept_current_policies('2026-11-11-beta.5', '2026-11-11-beta.5');
       raise exception 'previous_version_accepted';
     exception when sqlstate '22023' then
       if sqlerrm <> 'outdated_policy_version' then raise; end if;
     end;
     -- 버전이 섞여도 거절된다.
     begin
-      perform public.accept_current_policies('2026-11-11-beta.5', '2026-08-24-beta.3');
+      perform public.accept_current_policies('2026-11-13-beta.6', '2026-08-24-beta.3');
       raise exception 'mixed_version_accepted';
     exception when sqlstate '22023' then
       if sqlerrm <> 'outdated_policy_version' then raise; end if;
     end;
 
     -- 3) 새 버전 동의는 기록되고, 옛 기록은 그대로 남는다(증빙 보존).
-    accepted := public.accept_current_policies('2026-11-11-beta.5', '2026-11-11-beta.5');
-    if accepted is null then raise exception 'beta5_acceptance_missing'; end if;
+    accepted := public.accept_current_policies('2026-11-13-beta.6', '2026-11-13-beta.6');
+    if accepted is null then raise exception 'beta6_acceptance_missing'; end if;
     select count(*) into row_count from public.policy_acceptances
-    where owner_id = existing_user and terms_version = '2026-11-11-beta.5' and source = 'in_app';
-    if row_count <> 1 then raise exception 'beta5_in_app_row_count: %', row_count; end if;
+    where owner_id = existing_user and terms_version = '2026-11-13-beta.6' and source = 'in_app';
+    if row_count <> 1 then raise exception 'beta6_in_app_row_count: %', row_count; end if;
     select count(*) into row_count from public.policy_acceptances
     where owner_id = existing_user and terms_version = '2026-08-24-beta.3';
     if row_count <> 1 then raise exception 'beta3_evidence_lost'; end if;
     -- 같은 동의를 다시 눌러도 첫 시각을 돌려주고 행이 늘지 않는다.
-    if public.accept_current_policies('2026-11-11-beta.5', '2026-11-11-beta.5') <> accepted then
+    if public.accept_current_policies('2026-11-13-beta.6', '2026-11-13-beta.6') <> accepted then
       raise exception 'repeat_acceptance_changed_time';
     end if;
 
     -- 4) 새 가입자(Google 로그인 직후, 기록 없음)도 새 버전으로 동의가 된다.
     insert into auth.users (id, raw_user_meta_data) values (new_user, '{}'::jsonb);
     perform set_config('request.jwt.claim.sub', new_user::text, true);
-    if public.accept_current_policies('2026-11-11-beta.5', '2026-11-11-beta.5') is null then
-      raise exception 'new_user_beta5_missing';
+    if public.accept_current_policies('2026-11-13-beta.6', '2026-11-13-beta.6') is null then
+      raise exception 'new_user_beta6_missing';
     end if;
 
     -- 5) 로그인 없이는 거절된다.
     perform set_config('request.jwt.claim.sub', '', true);
     begin
-      perform public.accept_current_policies('2026-11-11-beta.5', '2026-11-11-beta.5');
+      perform public.accept_current_policies('2026-11-13-beta.6', '2026-11-13-beta.6');
       raise exception 'anonymous_acceptance_allowed';
     exception when sqlstate '42501' then
       if sqlerrm <> 'authentication_required' then raise; end if;
@@ -75,12 +82,12 @@ begin
     -- 6) 가입 메타데이터 트리거: 새 버전만 'signup'으로 남기고, 옛 버전 메타데이터는 남기지 않는다.
     insert into auth.users (id, raw_user_meta_data) values (gen_random_uuid(), jsonb_build_object(
       'ilgamcheck_policy_accepted', true,
-      'ilgamcheck_terms_version', '2026-11-11-beta.5',
-      'ilgamcheck_privacy_version', '2026-11-11-beta.5'
+      'ilgamcheck_terms_version', '2026-11-13-beta.6',
+      'ilgamcheck_privacy_version', '2026-11-13-beta.6'
     ));
     select count(*) into row_count from public.policy_acceptances
-    where source = 'signup' and terms_version = '2026-11-11-beta.5';
-    if row_count <> 1 then raise exception 'signup_trigger_beta5_count: %', row_count; end if;
+    where source = 'signup' and terms_version = '2026-11-13-beta.6';
+    if row_count <> 1 then raise exception 'signup_trigger_beta6_count: %', row_count; end if;
     insert into auth.users (id, raw_user_meta_data) values (stale_signup, jsonb_build_object(
       'ilgamcheck_policy_accepted', true,
       'ilgamcheck_terms_version', '2026-08-24-beta.3',
@@ -91,9 +98,9 @@ begin
 
     -- 7) 공개 계약 함수가 새 버전을 돌려준다(앱 /api/health가 이 값과 manifest를 비교).
     contract := public.get_ilgamcheck_policy_publication_contract();
-    if contract ->> 'bundleDigest' <> 'sha256:11feb9c1f524ebc45012c9422b598b2bdcc80614a7bed3da5d42a233d2ba322a'
-      or contract ->> 'termsVersion' <> '2026-11-11-beta.5'
-      or contract ->> 'privacyVersion' <> '2026-11-11-beta.5'
+    if contract ->> 'bundleDigest' <> 'sha256:a1fe1f6019647a2f9cd785562c138c5f76d1529622b7c3b99380ef6e87d604e3'
+      or contract ->> 'termsVersion' <> '2026-11-13-beta.6'
+      or contract ->> 'privacyVersion' <> '2026-11-13-beta.6'
       or (contract ->> 'finalized')::boolean is distinct from false then
       raise exception 'publication_contract_mismatch: %', contract;
     end if;
@@ -120,9 +127,9 @@ begin
       raise exception 'policy_privilege_changed';
     end if;
 
-    raise exception 'policy_beta5_ok';
+    raise exception 'policy_beta6_ok';
   exception when others then
-    if sqlerrm <> 'policy_beta5_ok' then raise; end if;
+    if sqlerrm <> 'policy_beta6_ok' then raise; end if;
   end;
 end;
 $test$;

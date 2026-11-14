@@ -14,18 +14,30 @@ describe("랜딩 히어로", () => {
     expect(title.querySelectorAll(".heroAccent")).toHaveLength(2);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("수정 몇 번까지였는지, 다시 찾지 않아도 돼요.");
     expect(screen.getByTestId("landing-hero-lead")).toHaveTextContent(
-      "고객·시작일·패키지만 고르면 금액·마감·포함 수정 횟수가 정해져요. 고객 수정 요청은 링크로 모이고, 수정 완료를 누를 때마다 몇 번째인지 남아요.",
+      "외주 주문마다 약속한 수정 횟수와 마감을 적어 두면, 고객은 링크 하나로 수정 요청을 남기고 남은 횟수를 같이 봐요. 카톡으로 오는 요청을 따로 셀 필요가 없어요.",
     );
     // 예전 문구가 남아 있지 않다.
     expect(document.body.textContent).not.toContain("운영까지 혼자 할");
   });
 
-  it("보조 버튼은 가입 없이 고객 화면 체험으로 간다", () => {
+  it("큰 글자 위 한 줄로 누구를 위한 무엇인지 먼저 말한다(첫 화면만 보고도 알 수 있게)", () => {
     render(<MarketingHome />);
-    const demo = screen.getByTestId("landing-customer-demo");
-    expect(demo).toHaveAttribute("href", "/demo/r");
-    expect(demo).toHaveTextContent("가입 없이 고객 화면 체험");
-    expect(demo.closest(".heroActions")).not.toBeNull();
+    const eyebrow = screen.getByTestId("landing-hero-eyebrow");
+    expect(eyebrow).toHaveTextContent("디자인·영상·웹 외주 제작자를 위한 작업 관리 도구");
+    // 제목보다 먼저 읽힌다.
+    const title = screen.getByTestId("landing-hero-title");
+    expect(eyebrow.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 설명에 '외주'가 들어가 맥락 없이 읽어도 뜻이 통한다.
+    expect(screen.getByTestId("landing-hero-lead")).toHaveTextContent("외주 주문마다");
+  });
+
+  it("보조 버튼은 가입 없이 둘러보기(/try)로 간다", () => {
+    render(<MarketingHome />);
+    const tryLink = screen.getByTestId("landing-try");
+    expect(tryLink).toHaveAttribute("href", "/try");
+    expect(tryLink).toHaveTextContent("가입 없이 둘러보기");
+    expect(tryLink.closest(".heroActions")).not.toBeNull();
+    expect(screen.queryByTestId("landing-customer-demo")).toBeNull();
   });
 
   it("CTA 아래 안심 줄은 사실만, 무료 한도는 플랜 값 그대로", () => {
@@ -99,36 +111,40 @@ describe("그림 사용설명서(한 장씩 보기)", () => {
     });
   };
 
-  it("무기 3개 순서의 장 4개(장마다 그림 2장)가 가입 그림 뒤에 이어진다", () => {
+  it("무기 3개 순서의 장 4개(장마다 화면 시연 2개)가 가입 시연 뒤에 이어진다", () => {
     const chapters = GUIDE_STEPS.filter((step) => step.chapter).map((step) => step.chapter);
-    expect(chapters).toEqual(["주문 30초 등록", "주문 30초 등록", "시작 안내 한 방", "시작 안내 한 방", "수정 범위 정리", "수정 범위 정리", "더 편하게", "더 편하게"]);
-    expect(GUIDE_STEPS.filter((step) => step.image)).toHaveLength(9);
+    expect(chapters).toEqual(["주문 등록", "주문 등록", "시작 안내 한 방", "시작 안내 한 방", "수정 범위 정리", "수정 범위 정리", "더 편하게", "더 편하게"]);
+    expect(GUIDE_STEPS.filter((step) => step.demo.alt)).toHaveLength(9);
+    // 장 제목·그림 제목·설명에 재 본 적 없는 시간 숫자를 쓰지 않는다.
+    for (const step of GUIDE_STEPS) expect(JSON.stringify(step)).not.toMatch(/\d+\s*초/);
   });
 
-  it("단계마다 그림(또는 흐름도)은 하나, 설명(alt)이 있고 '로그'를 쓰지 않는다", () => {
+  it("단계마다 시연(화면 모형 또는 흐름도)은 하나, 모형은 그림 설명(alt)이 있고 '로그'를 쓰지 않는다", () => {
     walk((index) => {
       const stage = screen.getByTestId("guide-step");
-      const images = stage.querySelectorAll("img");
       const step = GUIDE_STEPS[index];
-      if (step.image) {
-        expect(images).toHaveLength(1);
-        expect(images[0].getAttribute("alt")?.trim()).toBeTruthy();
-        expect(images[0].alt).not.toMatch(/로그(?!인|아웃)/);
+      expect(stage.querySelectorAll("img")).toHaveLength(0);
+      expect(within(stage).getAllByTestId("guide-demo")).toHaveLength(1);
+      const shot = within(stage).getByTestId("guide-demo-screen");
+      if (step.demo.alt) {
+        expect(shot).toHaveAttribute("role", "img");
+        expect(shot.getAttribute("aria-label")?.trim()).toBeTruthy();
+        expect(shot.getAttribute("aria-label")).not.toMatch(/로그(?!인|아웃)/);
       } else {
-        expect(images).toHaveLength(0);
-        expect(within(stage).getByTestId("work-flow-chart")).toBeInTheDocument();
+        expect(shot).not.toHaveAttribute("role");
+        expect(within(shot).getByTestId("work-flow-chart")).toBeInTheDocument();
       }
     });
   });
 
-  it("제목 → 설명 → 그림 순서, 긴 글은 '자세히' 접기에만", () => {
+  it("제목 → 설명 → 시연 순서, 긴 글은 '자세히' 접기에만", () => {
     walk((index) => {
       const step = GUIDE_STEPS[index];
       const stage = screen.getByTestId("guide-step");
       expect(screen.getByTestId("guide-step-title")).toHaveTextContent(step.title);
       expect(stage.querySelector(".guideStageCaption")).toHaveTextContent(step.caption);
       const title = screen.getByTestId("guide-step-title");
-      const media = stage.querySelector("img, [data-testid=work-flow-chart]")!;
+      const media = stage.querySelector("[data-testid=guide-demo]")!;
       expect(title.compareDocumentPosition(media) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       const details = stage.querySelector("details");
       if (step.detail) {
@@ -171,8 +187,12 @@ describe("그림 사용설명서(한 장씩 보기)", () => {
       const chart = shown.querySelector('[data-testid="work-flow-chart"]');
       if (chart) {
         expect((chart.textContent ?? "").replace(/\s+/g, " ").trim().length).toBeLessThan(450);
-        chart.remove();
       }
+      // 시연(화면 모형 + 장면 자막)은 예전 그림 자리라 따로 묶는다: 모형 글은 그림 속 글과 같고,
+      // 자막은 한 번에 한 줄만 보이며 장면마다 40자 아래(guide-demo-screens.test.tsx)로 묶는다.
+      const caption = shown.querySelector('[data-testid="guide-demo-caption"]');
+      expect((caption?.textContent ?? "").trim().length, GUIDE_STEPS[index].id).toBeLessThanOrEqual(40);
+      shown.querySelectorAll('[data-testid="guide-demo"]').forEach((node) => node.remove());
       total += (shown.textContent ?? "").replace(/\s+/g, " ").trim().length;
     });
     expect(total).toBeLessThan(1094);

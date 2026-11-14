@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TRY_START_HREF, TryTour } from "./try-tour";
 import { SAMPLE_PACKAGES } from "@/lib/demo/sample-order";
+import { BETA_OFFER_TEXT, FREE_PLAN_TEXT, SIGNUP_START_HREF } from "@/lib/signup-start";
 
 describe("가입 없이 둘러보기(/try)", () => {
   afterEach(() => {
@@ -36,6 +37,41 @@ describe("가입 없이 둘러보기(/try)", () => {
     expect(screen.getByTestId("try-step-1")).toBeInTheDocument();
   });
 
+  it("4단계 '수정 완료' 뒤 완료 상자 안에 주 버튼 'Google로 시작하기'가 있고, '처음부터 다시'는 글자 버튼으로 낮춘다", () => {
+    render(<TryTour />);
+    fireEvent.click(screen.getByTestId("try-next-1"));
+    fireEvent.click(screen.getByTestId("try-next-2"));
+    fireEvent.click(screen.getByTestId("try-submit-request"));
+    fireEvent.click(screen.getByTestId("try-next-3"));
+    // 완료 전에는 가입 버튼이 체험 칸 안에 없다.
+    expect(screen.queryByTestId("try-done")).toBeNull();
+    expect(screen.getByTestId("try-restart")).toHaveClass("secondaryButton");
+    fireEvent.click(screen.getByTestId("try-complete"));
+    const done = screen.getByTestId("try-done");
+    const start = within(done).getByTestId("try-done-start");
+    expect(start).toHaveTextContent("Google로 시작하기");
+    expect(start).toHaveAttribute("href", TRY_START_HREF);
+    expect(start).toHaveClass("primaryButton");
+    expect(within(done).getByTestId("try-result")).toHaveTextContent("1회 썼어요");
+    const restart = within(done).getByTestId("try-restart");
+    expect(restart).not.toHaveClass("primaryButton");
+    expect(restart).not.toHaveClass("secondaryButton");
+    // 주 버튼이 먼저 나온다.
+    expect(start.compareDocumentPosition(restart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(restart);
+    expect(screen.getByTestId("try-step-1")).toBeInTheDocument();
+  });
+
+  it("가입 버튼 아래에 베타 코드·무료 범위 안내 두 줄이 있다", () => {
+    render(<TryTour />);
+    const offer = within(screen.getByTestId("try-start")).getByTestId("try-offer");
+    expect(offer).toHaveTextContent(BETA_OFFER_TEXT);
+    expect(offer).toHaveTextContent(FREE_PLAN_TEXT);
+    expect(screen.getByTestId("try-start-button").compareDocumentPosition(offer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 같은 혜택 문장을 위 문단에서 또 말하지 않는다.
+    expect((screen.getByTestId("try-start").textContent ?? "").split("Pro를 14일 동안 무료로 써요").length - 1).toBe(1);
+  });
+
   it("고른 패키지의 포함 수정 횟수를 따라간다", () => {
     render(<TryTour />);
     const basic = SAMPLE_PACKAGES[0];
@@ -47,8 +83,16 @@ describe("가입 없이 둘러보기(/try)", () => {
   it("시작 버튼은 베타 코드가 자동 적용되는 초대 링크로 간다", () => {
     render(<TryTour />);
     expect(TRY_START_HREF).toBe("/today?invite=BETA2026");
+    expect(TRY_START_HREF).toBe(SIGNUP_START_HREF);
     expect(within(screen.getByTestId("try-start")).getByTestId("try-start-button")).toHaveAttribute("href", TRY_START_HREF);
     expect(screen.getByTestId("try-start")).toHaveTextContent("BETA2026");
+  });
+
+  it("베타 코드 안내 문장의 조사가 코드 글자에 따라 틀리지 않는다(코드 뒤에 바로 조사를 붙이지 않음)", () => {
+    render(<TryTour />);
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("베타 코드(BETA2026)가 자동으로 들어가요.");
+    expect(text).not.toContain("BETA2026가");
   });
 
   it("체험을 눌러도 링크 안에 링크가 생기지 않는다(서버 화면과 브라우저 화면이 어긋나지 않게)", () => {
@@ -99,5 +143,18 @@ describe("가입 없이 둘러보기(/try)", () => {
     expect(maker).toHaveTextContent("주소");
     expect(within(maker).getByRole("link", { name: /@/ })).toHaveAttribute("href", expect.stringMatching(/^mailto:/));
     expect(within(maker).getByRole("link", { name: /010/ })).toHaveAttribute("href", expect.stringMatching(/^tel:\d+$/));
+  });
+
+  it("방문자가 적은 요청 글은 입력 칸과 다시 보여 주는 목록 모두 방문 기록 도구에서 가린다(data-clarity-mask)", () => {
+    render(<TryTour />);
+    fireEvent.click(screen.getByTestId("try-next-1"));
+    fireEvent.click(screen.getByTestId("try-next-2"));
+    const field = screen.getByRole("textbox");
+    expect(field.closest("[data-clarity-mask='true']")).not.toBeNull();
+    fireEvent.change(field, { target: { value: "제 연락처로 다시 보내 주세요" } });
+    fireEvent.click(screen.getByTestId("try-submit-request"));
+    fireEvent.click(screen.getByTestId("try-next-3"));
+    const echoed = screen.getByText("제 연락처로 다시 보내 주세요");
+    expect(echoed.closest("[data-clarity-mask='true']")).not.toBeNull();
   });
 });
