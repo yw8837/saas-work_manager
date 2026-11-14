@@ -111,38 +111,40 @@ describe("그림 사용설명서(한 장씩 보기)", () => {
     });
   };
 
-  it("무기 3개 순서의 장 4개(장마다 그림 2장)가 가입 그림 뒤에 이어진다", () => {
+  it("무기 3개 순서의 장 4개(장마다 화면 시연 2개)가 가입 시연 뒤에 이어진다", () => {
     const chapters = GUIDE_STEPS.filter((step) => step.chapter).map((step) => step.chapter);
     expect(chapters).toEqual(["주문 등록", "주문 등록", "시작 안내 한 방", "시작 안내 한 방", "수정 범위 정리", "수정 범위 정리", "더 편하게", "더 편하게"]);
-    expect(GUIDE_STEPS.filter((step) => step.image)).toHaveLength(9);
+    expect(GUIDE_STEPS.filter((step) => step.demo.alt)).toHaveLength(9);
     // 장 제목·그림 제목·설명에 재 본 적 없는 시간 숫자를 쓰지 않는다.
     for (const step of GUIDE_STEPS) expect(JSON.stringify(step)).not.toMatch(/\d+\s*초/);
   });
 
-  it("단계마다 그림(또는 흐름도)은 하나, 설명(alt)이 있고 '로그'를 쓰지 않는다", () => {
+  it("단계마다 시연(화면 모형 또는 흐름도)은 하나, 모형은 그림 설명(alt)이 있고 '로그'를 쓰지 않는다", () => {
     walk((index) => {
       const stage = screen.getByTestId("guide-step");
-      const images = stage.querySelectorAll("img");
       const step = GUIDE_STEPS[index];
-      if (step.image) {
-        expect(images).toHaveLength(1);
-        expect(images[0].getAttribute("alt")?.trim()).toBeTruthy();
-        expect(images[0].alt).not.toMatch(/로그(?!인|아웃)/);
+      expect(stage.querySelectorAll("img")).toHaveLength(0);
+      expect(within(stage).getAllByTestId("guide-demo")).toHaveLength(1);
+      const shot = within(stage).getByTestId("guide-demo-screen");
+      if (step.demo.alt) {
+        expect(shot).toHaveAttribute("role", "img");
+        expect(shot.getAttribute("aria-label")?.trim()).toBeTruthy();
+        expect(shot.getAttribute("aria-label")).not.toMatch(/로그(?!인|아웃)/);
       } else {
-        expect(images).toHaveLength(0);
-        expect(within(stage).getByTestId("work-flow-chart")).toBeInTheDocument();
+        expect(shot).not.toHaveAttribute("role");
+        expect(within(shot).getByTestId("work-flow-chart")).toBeInTheDocument();
       }
     });
   });
 
-  it("제목 → 설명 → 그림 순서, 긴 글은 '자세히' 접기에만", () => {
+  it("제목 → 설명 → 시연 순서, 긴 글은 '자세히' 접기에만", () => {
     walk((index) => {
       const step = GUIDE_STEPS[index];
       const stage = screen.getByTestId("guide-step");
       expect(screen.getByTestId("guide-step-title")).toHaveTextContent(step.title);
       expect(stage.querySelector(".guideStageCaption")).toHaveTextContent(step.caption);
       const title = screen.getByTestId("guide-step-title");
-      const media = stage.querySelector("img, [data-testid=work-flow-chart]")!;
+      const media = stage.querySelector("[data-testid=guide-demo]")!;
       expect(title.compareDocumentPosition(media) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       const details = stage.querySelector("details");
       if (step.detail) {
@@ -185,8 +187,12 @@ describe("그림 사용설명서(한 장씩 보기)", () => {
       const chart = shown.querySelector('[data-testid="work-flow-chart"]');
       if (chart) {
         expect((chart.textContent ?? "").replace(/\s+/g, " ").trim().length).toBeLessThan(450);
-        chart.remove();
       }
+      // 시연(화면 모형 + 장면 자막)은 예전 그림 자리라 따로 묶는다: 모형 글은 그림 속 글과 같고,
+      // 자막은 한 번에 한 줄만 보이며 장면마다 40자 아래(guide-demo-screens.test.tsx)로 묶는다.
+      const caption = shown.querySelector('[data-testid="guide-demo-caption"]');
+      expect((caption?.textContent ?? "").trim().length, GUIDE_STEPS[index].id).toBeLessThanOrEqual(40);
+      shown.querySelectorAll('[data-testid="guide-demo"]').forEach((node) => node.remove());
       total += (shown.textContent ?? "").replace(/\s+/g, " ").trim().length;
     });
     expect(total).toBeLessThan(1094);

@@ -24,7 +24,8 @@ import {
 import { createSeedState, STORAGE_KEY } from "../../src/lib/store";
 
 /**
- * 사용설명서 그림 9장(가입 1장 + 장마다 2장씩 8장). 로컬 모드(브라우저 localStorage)에 가짜 예시 데이터만 깔고 찍는다.
+ * 사용설명서 그림 9장(가입 1장 + 장마다 2장씩 8장). 지금 /guide는 화면 모형 시연(guide-demo-screens.tsx)을 쓰고, 이 그림 중 셋은 첫 실행 안내가 쓴다.
+ * 로컬 모드(브라우저 localStorage)에 가짜 예시 데이터만 깔고 찍는다.
  * 실제 계정·고객·Supabase는 쓰지 않으며, 로그인 화면은 가짜 프로젝트 주소로 hosted 화면만 띄우고
  * supabase.co로 가는 요청은 모두 끊는다. Google 버튼은 누르지 않는다.
  * 그림마다 누를 곳을 annotate()로 표시하고, 필요한 부분만 잘라 저장한다.
@@ -329,7 +330,7 @@ async function saveImage(name: string, pieces: Buffer[]) {
     .composite(layers)
     .webp({ quality: 82 })
     .toFile(output);
-  // 찍은 크기를 알려 준다. user-guide.tsx·first-run-checklist.tsx의 width·height를 이 값으로 맞춘다.
+  // 찍은 크기를 알려 준다. first-run-checklist.tsx의 width·height를 이 값으로 맞춘다(설명서 /guide는 그림 대신 움직이는 시연을 쓴다).
   console.log(`[guide] ${name}.webp ${info.width}x${info.height} (조각 ${pieces.map((_, index) => metas[index].height).join("+")})`);
   expect(info.height, `${name}은 휴대폰 한 화면(${MAX_IMAGE_HEIGHT}px) 안이어야 해요`).toBeLessThanOrEqual(MAX_IMAGE_HEIGHT);
 }
