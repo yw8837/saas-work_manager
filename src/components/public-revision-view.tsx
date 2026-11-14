@@ -16,6 +16,8 @@ import type { RevisionUsage } from "@/lib/domain/types";
 import { getPublicServiceConfig } from "@/lib/policies";
 
 const REQUEST_FORM_ID = "revision-request-form";
+/** 고객 화면에서 소개로 넘어온 방문을 세려고 유입 표시를 붙인다(값 규칙은 acquisition-link.ts). 고객을 구분하는 값은 넣지 않는다. */
+export const PUBLIC_REVISION_ABOUT_HREF = "/?utm_source=client-link&utm_medium=referral&utm_campaign=revision-page";
 
 /**
  * 고객 수정요청 화면의 겉모습만 담는다.
@@ -66,7 +68,7 @@ export function PublicRevisionUnavailable({ message }: { message: string }) {
           <strong>이렇게 해 보세요</strong>
           <p>이 링크를 보낸 작업자에게 새 수정 요청 링크를 보내 달라고 말해 주세요. 작업자가 링크를 다시 만들면 예전 주소는 열리지 않아요.</p>
         </div>
-        <p className="publicRevisionAbout"><Link href="/">일감체크가 무엇인지 보기</Link></p>
+        <p className="publicRevisionAbout"><Link href={PUBLIC_REVISION_ABOUT_HREF}>일감체크가 무엇인지 보기</Link></p>
         <PublicRevisionPrivacyNotice />
       </section>
     </main>
@@ -149,7 +151,7 @@ export function PublicRevisionCompleted({ title, packageName, completedLabel, wo
           <p>추가 요청은 평소 대화창으로 말씀해 주세요. 이 링크로는 새 요청을 받지 않아요.</p>
         </div>
         <PublicRevisionRequestList requests={requests} />
-        <p className="publicRevisionAbout"><Link href="/">일감체크가 무엇인지 보기</Link></p>
+        <p className="publicRevisionAbout"><Link href={PUBLIC_REVISION_ABOUT_HREF}>일감체크가 무엇인지 보기</Link></p>
         <PublicRevisionPrivacyNotice />
       </section>
     </main>
