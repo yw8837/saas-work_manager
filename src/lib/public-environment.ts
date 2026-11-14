@@ -17,6 +17,7 @@ export const ILGAMCHECK_PUBLIC_ENV_KEYS = [
   "NEXT_PUBLIC_FEEDBACK_ENTRY_SCALE",
   "NEXT_PUBLIC_FEEDBACK_ENTRY_PRICE",
   "NEXT_PUBLIC_FEEDBACK_ENTRY_FOUNDER",
+  "NEXT_PUBLIC_CLARITY_PROJECT_ID",
 ] as const;
 
 export type IlgamcheckPublicEnvironmentKey = typeof ILGAMCHECK_PUBLIC_ENV_KEYS[number];
@@ -46,6 +47,7 @@ function getBuildTimePublicEnvironmentValue(key: IlgamcheckPublicEnvironmentKey)
     case "NEXT_PUBLIC_FEEDBACK_ENTRY_SCALE": return process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_SCALE;
     case "NEXT_PUBLIC_FEEDBACK_ENTRY_PRICE": return process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_PRICE;
     case "NEXT_PUBLIC_FEEDBACK_ENTRY_FOUNDER": return process.env.NEXT_PUBLIC_FEEDBACK_ENTRY_FOUNDER;
+    case "NEXT_PUBLIC_CLARITY_PROJECT_ID": return process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
   }
 }
 

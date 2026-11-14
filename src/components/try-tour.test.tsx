@@ -144,4 +144,17 @@ describe("가입 없이 둘러보기(/try)", () => {
     expect(within(maker).getByRole("link", { name: /@/ })).toHaveAttribute("href", expect.stringMatching(/^mailto:/));
     expect(within(maker).getByRole("link", { name: /010/ })).toHaveAttribute("href", expect.stringMatching(/^tel:\d+$/));
   });
+
+  it("방문자가 적은 요청 글은 입력 칸과 다시 보여 주는 목록 모두 방문 기록 도구에서 가린다(data-clarity-mask)", () => {
+    render(<TryTour />);
+    fireEvent.click(screen.getByTestId("try-next-1"));
+    fireEvent.click(screen.getByTestId("try-next-2"));
+    const field = screen.getByRole("textbox");
+    expect(field.closest("[data-clarity-mask='true']")).not.toBeNull();
+    fireEvent.change(field, { target: { value: "제 연락처로 다시 보내 주세요" } });
+    fireEvent.click(screen.getByTestId("try-submit-request"));
+    fireEvent.click(screen.getByTestId("try-next-3"));
+    const echoed = screen.getByText("제 연락처로 다시 보내 주세요");
+    expect(echoed.closest("[data-clarity-mask='true']")).not.toBeNull();
+  });
 });

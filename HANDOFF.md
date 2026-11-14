@@ -12,6 +12,14 @@
 
 ## 지금 상태
 
+### 2026-11-13 방문 기록 도구(Microsoft Clarity) · 정책 beta.6 (브랜치 `claude/clarity-policy`, origin/main `7ed442c` 기준, 미배포)
+- **불러오기**: `NEXT_PUBLIC_CLARITY_PROJECT_ID`(영문 소문자·숫자 6~32자)가 있을 때만 메인(/)·둘러보기(/try)에서 `https://www.clarity.ms/tag/<ID>`를 붙인다(`src/lib/clarity.ts`, 인라인 스크립트 없음). GPC·DNT가 켜져 있거나, 다른 화면으로 처음 연 문서면 안 붙인다. 두 화면 밖으로 화면 안 이동(pushState·뒤로 가기)하면 주소가 바뀌기 전에 `clarity("stop")`으로 멈추고 그 문서에선 다시 안 켠다.
+- **CSP**: 전역 CSP는 그대로, ID가 있을 때만 `/`·`/try` 문서에 `https://*.clarity.ms`(script·connect·img)와 `https://c.bing.com`(img)을 더한다(`next.config.ts`, `buildClarityPageHeaders`).
+- **유입 경로**: 이 탭에 보관한 utm source·medium·campaign만 `clarity("set", "utm_source", …)` 맞춤 태그로 넘긴다. 둘러보기 요청 글 칸·목록은 `data-clarity-mask`.
+- **쿠키 저장 안 함**(사용자 결정 11-13, 방침 '맞춤 광고에 제공하지 않습니다' 유지): 대기열 맨 앞에 `clarity("consentv2", { ad_Storage: "denied", analytics_Storage: "denied" })`. 공식 문서상 거부 상태에서도 쿠키 없이 기록은 이어지고 화면을 열 때마다 새 ID를 쓴다. 공개 소스상 거부 신호는 본체 시작 뒤에 처리되므로, 프로젝트 설정 Cookies가 켜져 있으면 시작 순간 `_clck`를 썼다가 바로 지운다 → 운영 전에 Clarity 설정 Settings → Setup의 Cookies를 끈다.
+- **정책 beta.6**: 개인정보처리방침에 방문 기록 도구 항목(1·2·3·4절)과 Microsoft 링크 3개, 버전 `2026-11-13-beta.6`(약관 본문은 그대로, 버전 값만 함께). migration `20261103200000_policy_beta6_clarity`(PR #21의 `20261104010000` 앞), 시험 `supabase/tests/policy_beta6_acceptance.sql`.
+- **배포 순서**: 배포 폴더 `.env.local`에 `NEXT_PUBLIC_CLARITY_PROJECT_ID` 추가 → migration 먼저 → 곧바로 앱 배포(beta.5 때와 같음). 운영 DB·Cloudflare에는 아무것도 적용하지 않았다.
+
 ### 2026-11-11 모바일·코드·보안 점검 반영 (브랜치 `claude/hardening-1111`)
 - **점검 범위**: 화면 15개 × 화면 폭 9개(320~1440, 가로 휴대폰 포함) 전수, 코드 리뷰(기능 버그), 보안 리뷰(제로데이 포함), `npm audit`(운영·전체 0건), Supabase 보안·성능 점검기.
 - **운영 영향 버그**: `/demo/r`이 빌드 때 만든 HTML에 '오늘' 기준 예시 날짜를 담아, 배포 다음 날부터 React 418(서버·브라우저 화면 불일치)이 났다. 날짜가 든 내용은 브라우저에서만 그리게 바꿈. 빌드+3일·+40일로 시계를 옮겨 오류 0 확인.
@@ -284,6 +292,11 @@
 - 2026-09-30: 코드의 기본 운영 주소를 `https://ilgam.studioyeolmae.com`으로 바꿨다(링크 미리보기 등). DNS는 연결됨. 남은 일: ChatGPT Sites에 다시 배포, 새 주소 HTTPS·로그인 확인, Supabase Auth Site URL/Redirect URLs를 supabase/config.toml과 같게 맞추기.
 
 ## 다음 작업
+
+### 방문 기록 도구·정책 beta.6 배포 (2026-11-13 브랜치 `claude/clarity-policy`)
+
+1. 결정 끝(11-13): 쿠키를 저장하지 않는 방식. 운영 전에 사용자가 Clarity 프로젝트 설정 Settings → Setup의 Cookies를 끈다(코드의 거부 신호만으로는 시작 순간 `_clck`가 잠깐 써졌다 지워질 수 있음, 공개 소스 기준).
+2. PR·병합 뒤 `docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 9번 순서로: `.env.local`에 Clarity 프로젝트 ID, migration `20261103200000` 먼저, 곧바로 앱 배포. 배포 뒤 `/`·`/try`의 CSP와 실제 Clarity 기록 수신, `/today`에서 요청 0을 확인한다(로컬에서는 가짜 응답으로만 확인).
 
 ### 벤치마킹 적용 배포 대기 (2026-11-05)
 

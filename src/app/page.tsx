@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ClarityLoader, ClarityNotice } from "@/components/clarity";
 import { MarketingHome } from "@/components/marketing-home";
 import { LANDING_DESCRIPTION, LANDING_TITLE, landingJsonLd, SITE_OPEN_GRAPH } from "@/lib/site-meta";
 
@@ -15,7 +16,8 @@ export default function HomePage() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: landingJsonLd() }} />
-      <MarketingHome />
+      <MarketingHome footerNote={<ClarityNotice />} />
+      <ClarityLoader />
     </>
   );
 }

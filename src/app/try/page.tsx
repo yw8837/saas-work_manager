@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ClarityLoader, ClarityNotice } from "@/components/clarity";
 import { TryTour } from "@/components/try-tour";
 
 export const metadata: Metadata = {
@@ -9,5 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default function TryPage() {
-  return <TryTour />;
+  return (
+    <>
+      <TryTour footerNote={<ClarityNotice />} />
+      <ClarityLoader />
+    </>
+  );
 }
