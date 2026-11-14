@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 import {
   buildBearerRouteHeaders,
+  buildClarityPageHeaders,
   buildPrivateAreaHeaders,
   buildSecurityHeaders,
   PRIVATE_AREA_ROUTE_SOURCES,
 } from "./src/lib/security/headers";
+import { CLARITY_PAGE_PATHS, parseClarityProjectId } from "./src/lib/clarity-config";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -16,6 +18,11 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: buildSecurityHeaders(),
       },
+      // 방문 기록 도구(Microsoft Clarity) 프로젝트 ID가 있을 때만 메인·둘러보기 문서의 CSP에 Clarity 주소를 연다.
+      // 위 전역 규칙보다 뒤에 둬야 같은 이름의 헤더를 덮어쓴다.
+      ...(parseClarityProjectId(process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID)
+        ? CLARITY_PAGE_PATHS.map((source) => ({ source, headers: buildClarityPageHeaders() }))
+        : []),
       {
         source: "/r/:path*",
         headers: buildBearerRouteHeaders(),

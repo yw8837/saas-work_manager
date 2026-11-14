@@ -17,9 +17,9 @@ begin
     update auth.users set created_at = now() - interval '3 days' where id = old_user;
     update public.profiles set created_at = now() - interval '3 days' where id = old_user;
     insert into public.policy_acceptances (owner_id, terms_version, privacy_version, source) values
-      (new_user, '2026-11-11-beta.5', '2026-11-11-beta.5', 'in_app'),
-      (old_user, '2026-11-11-beta.5', '2026-11-11-beta.5', 'in_app'),
-      (messy_user, '2026-11-11-beta.5', '2026-11-11-beta.5', 'in_app');
+      (new_user, '2026-11-13-beta.6', '2026-11-13-beta.6', 'in_app'),
+      (old_user, '2026-11-13-beta.6', '2026-11-13-beta.6', 'in_app'),
+      (messy_user, '2026-11-13-beta.6', '2026-11-13-beta.6', 'in_app');
 
     -- 1) 로그인 없이는 거절된다.
     perform set_config('request.jwt.claim.sub', '', true);

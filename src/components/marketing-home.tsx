@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   ArrowRight,
   BellRing,
@@ -19,7 +20,8 @@ import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
 import { BUSINESS_IDENTITY, publicBusinessIdentity } from "@/lib/business-identity";
 import { SIGNUP_START_HREF } from "@/lib/signup-start";
 
-export function MarketingHome() {
+/** footerNote: 바닥글 맨 아래 한 줄(웹 메인 화면의 방문 기록 도구 안내). Sites·앱 경로는 넘기지 않는다. */
+export function MarketingHome({ footerNote }: { footerNote?: ReactNode } = {}) {
   const service = getPublicServiceConfig();
   // 전자상거래법 사업자 정보 고지 — 배포 시 NEXT_PUBLIC_* 가 있으면 그 값, 없으면 사업자등록 기준 값
   const legal = publicBusinessIdentity();
@@ -215,6 +217,7 @@ export function MarketingHome() {
           <div><dt>연락처</dt><dd>{legal.phone}</dd></div>
           <div><dt>문의</dt><dd><a href={`mailto:${supportEmail}`}>{supportEmail}</a></dd></div>
         </dl>
+        {footerNote}
       </footer>
       <MarketingStickyStart href={SIGNUP_START_HREF} />
     </div>

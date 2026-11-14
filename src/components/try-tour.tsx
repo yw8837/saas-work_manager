@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, Check, CheckCircle2, MessageSquareText, RotateCcw, Send } from "lucide-react";
 
 import { SAMPLE_PACKAGES } from "@/lib/demo/sample-order";
@@ -25,8 +25,11 @@ type Request = { body: string; status: "pending" | "done" };
  * 콜드메일 받은 사람이 가입 전에 여는 소개+체험 한 페이지(/try).
  * 체험은 이 화면 안의 예시 데이터로만 움직인다. 서버·브라우저 저장소에 아무것도 쓰지 않는다.
  * 숫자는 예시 패키지(sample-order.ts)에서만 가져온다. 새 숫자를 여기 적지 않는다.
+ * 방문 기록 도구(Microsoft Clarity)가 이 화면을 기록하므로, 방문자가 직접 적는 요청 글과 그 글을 다시 보여 주는 목록은
+ * `data-clarity-mask`로 가린다(입력 칸은 Clarity가 기본으로 가리지만, 적은 글이 일반 글자로 다시 나오는 곳은 가리지 않는다).
+ * footerNote: 바닥글 한 줄(웹 둘러보기 화면의 방문 기록 도구 안내). Sites·앱 경로는 넘기지 않는다.
  */
-export function TryTour() {
+export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
   const [step, setStep] = useState(0);
   const [packageId, setPackageId] = useState(SAMPLE_PACKAGES[1].id);
   const [draft, setDraft] = useState(SAMPLE_REQUEST);
@@ -145,7 +148,7 @@ export function TryTour() {
                   <p className="tryRemaining">남은 수정 <strong data-testid="try-remaining-customer">{remaining}</strong>회</p>
                   {pending === 0 ? (
                     <>
-                      <label className="tryField">
+                      <label className="tryField" data-clarity-mask="true">
                         <span>수정 요청 내용</span>
                         <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={3} />
                       </label>
@@ -179,7 +182,7 @@ export function TryTour() {
                 <p className="tryHint">요청만 남겼을 때는 줄지 않아요. 질문이나 중복 요청은 반려하면 횟수가 그대로예요.</p>
                 <div className="tryWorker" aria-label="작업자 화면">
                   <p className="tryCustomerTag">작업자 화면</p>
-                  <ul className="tryRequests">
+                  <ul className="tryRequests" data-clarity-mask="true">
                     {requests.map((request, index) => (
                       <li key={index}>
                         <MessageSquareText size={16} aria-hidden="true" />
@@ -270,6 +273,7 @@ export function TryTour() {
         <Link href="/guide">사용설명서</Link>
         <Link href="/terms">이용약관</Link>
         <Link href="/privacy">개인정보처리방침</Link>
+        {footerNote}
       </footer>
     </div>
   );

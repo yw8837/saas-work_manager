@@ -471,6 +471,9 @@ h2 { letter-spacing: -.02em; line-height: 1.22; }
 .marketingFooterLegal dt { color: var(--muted); }
 .marketingFooterLegal dd { margin: 0; color: var(--ink-soft); }
 .marketingFooterLegal dd a { color: inherit; }
+/* 메인·둘러보기 바닥글의 방문 기록 도구 안내 한 줄. 둘러보기 바닥글(가로 줄)에서는 자기 줄을 차지한다. 문장 속 링크라 줄 높이를 늘리지 않는다. */
+.clarityNotice { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; word-break: keep-all; }
+p.clarityNotice a { display: inline; min-height: 0; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

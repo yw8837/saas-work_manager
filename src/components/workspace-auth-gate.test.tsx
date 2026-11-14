@@ -145,7 +145,7 @@ describe("WorkspaceAuthGate Google login", () => {
     expect(screen.queryByText("private workspace")).not.toBeInTheDocument();
     await screen.findByRole("heading", { name: "첫 사용 전 동의가 필요해요" });
     expect(auth.acceptanceState).toHaveBeenCalledWith(auth.client);
-    expect(screen.queryByText("가입할 때 들어온 링크의 유입 경로(메일·블로그 등)를 한 번 기록하는 항목 추가")).not.toBeInTheDocument();
+    expect(screen.queryByText("메인·둘러보기 화면에서 쓰는 방문 기록 도구(Microsoft Clarity) 항목 추가")).not.toBeInTheDocument();
 
     const consent = screen.getByRole("checkbox");
     fireEvent.click(consent);
@@ -164,7 +164,7 @@ describe("WorkspaceAuthGate Google login", () => {
     render(<WorkspaceAuthGate><div>private workspace</div></WorkspaceAuthGate>);
 
     await screen.findByRole("heading", { name: "약관이 바뀌었어요" });
-    expect(screen.getByText("가입할 때 들어온 링크의 유입 경로(메일·블로그 등)를 한 번 기록하는 항목 추가")).toBeInTheDocument();
+    expect(screen.getByText("메인·둘러보기 화면에서 쓰는 방문 기록 도구(Microsoft Clarity) 항목 추가")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "첫 사용 전 동의가 필요해요" })).not.toBeInTheDocument();
     expect(screen.queryByText("private workspace")).not.toBeInTheDocument();
 

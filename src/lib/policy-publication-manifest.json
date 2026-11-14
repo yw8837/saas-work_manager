@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "finalized": false,
-  "effectiveDate": "2026-11-11",
-  "effectiveDateLabel": "2026년 11월 11일",
-  "bundleDigest": "sha256:11feb9c1f524ebc45012c9422b598b2bdcc80614a7bed3da5d42a233d2ba322a",
+  "effectiveDate": "2026-11-13",
+  "effectiveDateLabel": "2026년 11월 13일",
+  "bundleDigest": "sha256:b65f85f4cd339cabcf3828c6fdbb7306c88b126fe6b062ed85f2560cbc653b54",
   "shared": {
     "draftNoticeTitle": "베타 서비스 정책 안내",
     "draftNoticeBody": "일감체크는 Google 계정으로 가입하고 로그인할 수 있는 베타 서비스입니다. 베타 이용 코드는 가입 후 14일 Pro 권한을 제공하며, 유료 결제·정기결제·환불 정책은 실제 도입 전에 별도로 확정해 안내합니다.",
@@ -19,8 +19,8 @@
       "eyebrow": "Privacy",
       "title": "개인정보처리방침",
       "metadataDescription": "일감체크 베타의 개인정보 처리 기준",
-      "version": "2026-11-11-beta.5",
-      "contentDigest": "sha256:92a1f0c3cf995666e5a9e4954886cea9da8a154ac9473812695f677521dcd037",
+      "version": "2026-11-13-beta.6",
+      "contentDigest": "sha256:aa4f6d3017195fc14f0a8da011b65dbeada359ae41f3e11da1326d43a4b8cc94",
       "lead": "일감체크는 1인 사업자의 일감 관리를 돕는 베타 서비스입니다. 아래 내용은 현재 구현된 인증·작업공간·고객 수정 링크 흐름을 기준으로 작성했으며, 결제 정보는 아직 수집하지 않습니다.",
       "sections": [
         {
@@ -34,12 +34,17 @@
                 ["일감 관리", "사용자가 입력한 고객 표시명, 패키지·옵션·금액, 일정·할 일, 연락·작업 링크, 메모와 설정", "사용자 직접 입력"],
                 ["고객 수정 요청", "요청 내용, 고객이 선택 입력한 표시명, 접수 시각, 요청 횟수와 처리 기록", "사용자가 발급한 공개 링크"],
                 ["유입 경로 확인", "가입할 때 들어온 링크에 붙은 유입 경로 표시(예: 메일, 블로그). 받는 사람을 구분하는 값은 붙이지 않음", "링크로 접속해 가입할 때 한 번 기록"],
+                ["화면 개선(방문 기록)", "메인(/)·둘러보기(/try) 화면에서의 클릭·스크롤·마우스 이동·창 크기 변경 같은 조작 기록과 화면 구성, 기기·브라우저·운영체제 정보, IP 주소로 추정한 대략적 위치, 방문자를 구분하는 쿠키(_clck·_clsk 등) 값, 링크에 붙은 유입 경로 표시(있을 때만). 입력 칸에 적은 글은 가려져 전송되지 않음", "두 화면에 접속할 때 Microsoft Clarity가 자동 수집"],
                 ["보안·장애 대응", "접속 시각, IP 주소, 브라우저·기기 정보 등 호스팅 사업자가 생성하는 기술 로그", "서비스 접속 시 자동 생성"]
               ]
             },
             {
               "type": "note",
               "text": "로컬 데모 모드의 샘플 일감과 사용자가 만든 변경은 해당 브라우저 저장소에만 저장됩니다. Hosted 모드에서만 Supabase 계정과 서버 작업공간을 사용합니다."
+            },
+            {
+              "type": "note",
+              "text": "방문 기록 도구(Microsoft Clarity)는 메인(/)과 둘러보기(/try) 화면에서만 씁니다. 로그인한 작업 화면, 고객 수정 요청 화면(/r/…)과 그 체험 화면, 사용설명서·예시·약관 화면에서는 쓰지 않으며, 두 화면에서 다른 화면으로 옮기면 기록을 멈춥니다. 모은 조작 기록은 화면 재생(세션 녹화)과 히트맵으로 보고 화면을 고치는 데 씁니다. 쿠키에는 이 사이트에 저장되는 _clck·_clsk와 Microsoft 주소에 저장되는 쿠키(MUID 등)가 있습니다."
             }
           ]
         },
@@ -52,7 +57,8 @@
                 "계정·작업공간: 회원 탈퇴 또는 서비스 종료 시까지",
                 "고객 수정 요청: 연결된 일감 또는 계정이 삭제될 때까지",
                 "동의 기록: 동의 사실 확인과 분쟁 대응에 필요한 기간 동안 보관하며, 관련 의무가 없으면 계정 삭제 시 함께 삭제",
-                "기술 로그·백업 사본: 각 처리 수탁자의 보안·복구 설정 기간이 지난 뒤 순차 삭제"
+                "기술 로그·백업 사본: 각 처리 수탁자의 보안·복구 설정 기간이 지난 뒤 순차 삭제",
+                "방문 기록(Microsoft Clarity): 화면 재생용 기록은 30일, 클릭·히트맵 집계 자료와 따로 표시해 둔 기록은 9개월 동안 Microsoft Clarity에 보관되며 기간이 지나면 백업을 포함해 삭제(Microsoft Clarity 보관 정책 기준)"
               ]
             },
             {
@@ -73,12 +79,17 @@
               "headers": ["처리자", "업무", "처리 범위와 위치"],
               "rows": [
                 ["Supabase", "Google OAuth 인증, 데이터베이스, 실시간 동기화", "계정·작업공간 데이터 / 주 데이터베이스는 서울(ap-northeast-2), 지원·백업 하위처리자는 국외 가능"],
-                ["Cloudflare", "Cloudflare Workers 웹 호스팅, CDN, 보안·오류 로그", "요청·기술 로그 / 글로벌 전송망"]
+                ["Cloudflare", "Cloudflare Workers 웹 호스팅, CDN, 보안·오류 로그", "요청·기술 로그 / 글로벌 전송망"],
+                ["Microsoft Corporation", "Microsoft Clarity 방문 기록 분석(메인·둘러보기 화면의 화면 재생·히트맵)", "조작 기록·기기 정보·쿠키 값·유입 경로 표시 / Microsoft Azure 클라우드, 국외 처리"]
               ]
             },
             {
               "type": "note",
               "text": "Supabase 주 데이터베이스는 서울 리전으로 생성하는 것을 배포 조건으로 삼습니다. 다만 Supabase와 Cloudflare의 지원·보안·전송망 및 하위처리자가 국외에서 일부 정보를 처리할 수 있습니다. 실제 이전 국가·시점·방법과 거부 절차는 서비스 제공자와 운영 주체의 최신 문서를 확인한 뒤 법률 검토를 거쳐 유료 출시 전에 구체적으로 갱신합니다."
+            },
+            {
+              "type": "note",
+              "text": "Microsoft Clarity로 보내는 정보는 미국 법인 Microsoft Corporation이 Microsoft Azure 클라우드에서 처리합니다(국외 이전). 두 화면에 접속해 있는 동안 브라우저에서 Microsoft로 바로 전송되며, Clarity 안내 문서에 저장 국가가 적혀 있지 않아 확인되면 갱신합니다. Microsoft가 이 정보를 다루는 방식은 Microsoft 개인정보처리방침을 따릅니다."
             },
             {
               "type": "links",
@@ -87,7 +98,10 @@
                 { "label": "Supabase 리전 안내", "href": "https://supabase.com/docs/guides/platform/regions" },
                 { "label": "Supabase DPA", "href": "https://supabase.com/downloads/docs/Supabase%2BDPA%2B260601.pdf" },
                 { "label": "Cloudflare 개인정보처리방침", "href": "https://www.cloudflare.com/privacypolicy/" },
-                { "label": "Cloudflare DPA", "href": "https://www.cloudflare.com/cloudflare-customer-dpa/" }
+                { "label": "Cloudflare DPA", "href": "https://www.cloudflare.com/cloudflare-customer-dpa/" },
+                { "label": "Microsoft 개인정보처리방침", "href": "https://www.microsoft.com/ko-kr/privacy/privacystatement" },
+                { "label": "Microsoft Clarity 보관 기간", "href": "https://learn.microsoft.com/en-us/clarity/setup-and-installation/data-retention" },
+                { "label": "Microsoft Clarity 쿠키", "href": "https://learn.microsoft.com/en-us/clarity/setup-and-installation/clarity-cookies" }
               ]
             }
           ]
@@ -101,6 +115,7 @@
                 "설정 화면에서 작업공간 데이터를 JSON 파일로 내보낼 수 있습니다.",
                 "고객 수정 링크는 일감별로 끄거나 새 토큰으로 교체할 수 있습니다.",
                 "브라우저 알림 권한은 브라우저 설정에서 언제든 철회할 수 있습니다.",
+                "방문 기록 도구(Microsoft Clarity)를 원하지 않으면 브라우저의 추적 거부 신호(Global Privacy Control 또는 Do Not Track)를 켜 주세요. 신호가 켜져 있으면 메인·둘러보기 화면에서도 불러오지 않습니다. 브라우저에서 쿠키를 막으면 Microsoft Clarity 쿠키가 저장되지 않으며, 이미 저장된 쿠키는 브라우저 설정에서 지울 수 있습니다.",
                 "열람·정정·삭제·처리정지 또는 계정 삭제는 앱의 제공 기능이나 아래 문의 채널로 요청할 수 있습니다."
               ]
             }
@@ -131,8 +146,8 @@
       "eyebrow": "Terms",
       "title": "이용약관",
       "metadataDescription": "일감체크 베타 이용약관",
-      "version": "2026-11-11-beta.5",
-      "contentDigest": "sha256:e38cdaf52ec2a4fb1acf99bc1484935f1e5564eea425960b5e2f821df649ba4a",
+      "version": "2026-11-13-beta.6",
+      "contentDigest": "sha256:cf925ff6c4f1689bbba5dceb0968aa0fc5902795247a3f47a9587aba4460b7bb",
       "lead": "이 약관은 일감체크 베타의 이용 조건을 정합니다. 누구나 Google 계정으로 가입하고 로그인할 수 있으며, 현재는 유료 결제나 외부 플랫폼의 주문 중개 기능을 제공하지 않습니다.",
       "sections": [
         {

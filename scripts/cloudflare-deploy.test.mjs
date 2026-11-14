@@ -57,3 +57,10 @@ it("서버 비밀키는 빌드 환경에 넣지 않고 Worker secret으로 분�
   assert.ok(args.includes("ilgamcheck-preview"));
   assert.ok(!args.join(" ").includes("SUPABASE_SERVICE_ROLE_KEY"));
 });
+
+it("방문 기록 도구 프로젝트 ID가 있으면 다른 공개값처럼 Worker 변수로 넘기고, 없으면 넘기지 않는다", () => {
+  const withClarity = cloudflareDeployArgs(parseCloudflareDeployArgs([]), { ...baseEnv, NEXT_PUBLIC_CLARITY_PROJECT_ID: " testproject1 " });
+  assert.ok(withClarity.includes("NEXT_PUBLIC_CLARITY_PROJECT_ID:testproject1"));
+  const without = cloudflareDeployArgs(parseCloudflareDeployArgs([]), baseEnv);
+  assert.ok(!without.join(" ").includes("NEXT_PUBLIC_CLARITY_PROJECT_ID"));
+});
