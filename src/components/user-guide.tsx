@@ -41,7 +41,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "signup",
     title: "Google 계정으로 가입해요",
-    caption: "누르면 바로 내 작업공간이 열려요.",
+    caption: "처음이면 약관에 동의하고, 내 작업공간이 열려요.",
     demo: GUIDE_DEMOS.signup,
   },
   {
