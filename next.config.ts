@@ -32,6 +32,19 @@ const nextConfig: NextConfig = {
         source: "/demo/:path*",
         headers: buildBearerRouteHeaders(),
       },
+      {
+        // 베타 신청 주소 확인·수신거부 링크는 메일로만 전달하는 토큰 주소다. 운영자 화면도 검색에 노출하지 않는다.
+        source: "/apply/confirm/:path*",
+        headers: buildBearerRouteHeaders(),
+      },
+      {
+        source: "/u/:path*",
+        headers: buildBearerRouteHeaders(),
+      },
+      {
+        source: "/ops/:path*",
+        headers: buildBearerRouteHeaders(),
+      },
       // 작업 화면·API(초대 주소 `/today?invite=`, JSON 포함)는 검색에서 뺀다. 공개 페이지(/, /guide, /privacy, /terms)는 그대로 둔다.
       ...PRIVATE_AREA_ROUTE_SOURCES.map((source) => ({ source, headers: buildPrivateAreaHeaders() })),
     ];

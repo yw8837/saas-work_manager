@@ -1,4 +1,4 @@
--- Read-only regression test. Expected result: 24 rows, all passed=true.
+-- Read-only regression test. Expected result: 36 rows, all passed=true.
 -- Checks effective privileges, including PUBLIC and role inheritance, not SQL text.
 with expected(signature, anon_allowed, authenticated_allowed) as (
   values
@@ -17,6 +17,15 @@ with expected(signature, anon_allowed, authenticated_allowed) as (
     ('public.submit_manual_revision_request(uuid,text,text,text,text,uuid)', false, true),
     ('public.update_job_links(uuid,text,text)', false, true),
     ('public.redeem_invite_code(text)', false, true),
+    ('public.beta_ops_list_applications()', false, true),
+    ('public.beta_ops_list_notices()', false, true),
+    ('public.beta_ops_mark_notice_emailed(uuid)', false, true),
+    ('public.beta_ops_record_milestone(uuid,text,text)', false, true),
+    ('public.beta_ops_delete_application(uuid)', false, true),
+    ('public.beta_ops_list_deletions()', false, true),
+    ('public.beta_ops_mark_deletion_emailed(uuid)', false, true),
+    ('public.beta_ops_purge_expired()', false, true),
+    ('public.beta_ops_prune_call_counters()', false, true),
     ('public.record_signup_source(text,text,text)', false, true),
     ('public.handle_new_user()', false, false),
     ('public.protect_revision_request_evidence()', false, false),
@@ -26,7 +35,10 @@ with expected(signature, anon_allowed, authenticated_allowed) as (
     ('public.get_workspace_revision_summary(text)', true, true),
     ('public.get_workspace_revision_view(text)', true, true),
     ('public.submit_revision_request(text,text,text,uuid,text)', true, true),
-    ('public.submit_workspace_revision_request(text,text,text,uuid)', true, true)
+    ('public.submit_workspace_revision_request(text,text,text,uuid)', true, true),
+    ('public.submit_beta_application(text,text,boolean,text,text[],text,boolean,boolean,text)', true, true),
+    ('public.confirm_beta_email(text)', true, true),
+    ('public.unsubscribe_beta_ads(text)', true, true)
 )
 select signature,
   coalesce(

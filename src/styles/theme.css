@@ -1817,6 +1817,75 @@ p.clarityNotice a { display: inline; min-height: 0; color: var(--ink-soft); text
 /* 초대 링크로 들어온 사람에게 로그인 화면에서 코드가 준비됐다고 알린다. */
 .authCard > p.authInviteNotice { margin: 0; padding: 10px 12px; color: var(--ink); background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius-sm); font-size: 13px; line-height: 1.6; word-break: keep-all; }
 
+/* 베타 신청·주소 확인·수신거부·운영자 화면. 공개 화면 틀(publicRevision*)을 그대로 쓰고, 글자는 12px 아래로 내리지 않는다. */
+.betaPublicCard { display: grid; gap: 18px; }
+.betaPublicCard .publicRevisionHeader { padding-bottom: 16px; }
+.betaPublicIntro h1 { margin: 0 0 10px; font-size: 26px; line-height: 1.25; word-break: keep-all; }
+.betaPublicIntro p { margin: 0 0 10px; color: var(--ink-soft); line-height: 1.6; word-break: keep-all; }
+.betaPublicMuted { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; word-break: keep-all; }
+.betaPreviewNote { margin: 0; padding: 12px 14px; color: var(--amber); background: var(--amber-soft); border-radius: var(--radius); font-size: 14px; font-weight: 600; line-height: 1.5; word-break: keep-all; }
+.betaOperatorFooter { padding-top: 14px; color: var(--muted); border-top: 1px solid var(--line); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.betaOperatorFooter a, .betaNextStep a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
+.betaApplyForm { display: grid; gap: 18px; }
+.betaField { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.betaField > span, .betaField > legend { padding: 0; font-weight: 600; }
+.betaField em { margin-left: 4px; color: var(--red); font-size: 12px; font-style: normal; font-weight: 600; }
+.betaField small { margin-left: 4px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.betaField input[type="email"], .betaField input[type="url"] { width: 100%; height: 46px; padding: 0 12px; }
+.betaChoiceRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.betaChoice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--paper); }
+.betaChoice:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.betaConsent { display: grid; gap: 10px; padding: 16px; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius); font-size: 14px; line-height: 1.6; }
+.betaConsent h2 { margin: 0; font-size: 16px; }
+.betaConsent p, .betaConsent dl { margin: 0; }
+.betaConsent dl, .betaNotice dl { display: grid; gap: 6px; }
+.betaConsent dl > div, .betaNotice dl > div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px; }
+.betaConsent dt, .betaNotice dt { color: var(--muted); font-weight: 600; }
+.betaConsent dd, .betaNotice dd { margin: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.betaRetentionTable { width: 100%; border-collapse: collapse; background: var(--paper); font-size: 14px; }
+.betaRetentionTable caption { padding-bottom: 6px; text-align: left; font-weight: 600; }
+.betaRetentionTable th, .betaRetentionTable td { padding: 8px 10px; text-align: left; border: 1px solid var(--line); word-break: keep-all; }
+.betaConsentCheck { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; }
+.betaConsentCheck input, .betaChoice input { width: 18px; height: 18px; flex: 0 0 auto; }
+.betaErrors { padding: 12px 14px; color: var(--red); background: var(--red-soft); border-radius: var(--radius); font-size: 14px; }
+.betaErrors ul { margin: 0; padding-left: 18px; }
+.betaSubmit { width: 100%; min-height: 48px; }
+.betaNotice { display: grid; gap: 10px; padding: 16px; background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--radius); font-size: 14px; line-height: 1.6; }
+.betaNotice h2 { margin: 0; font-size: 16px; }
+.betaNotice p { margin: 0; color: var(--ink-soft); word-break: keep-all; }
+.betaNextStep { padding: 12px 14px; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius); font-size: 14px; line-height: 1.6; }
+.betaNextStep strong { display: block; margin-bottom: 4px; }
+.betaNextStep p { margin: 0; color: var(--ink-soft); word-break: keep-all; overflow-wrap: anywhere; }
+.betaOpsPage { width: min(1080px, 100%); margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 18px; }
+.betaOpsHeader { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.betaOpsHeader h1 { margin: 0; font-size: 22px; }
+.betaOpsMessage { margin: 0; padding: 10px 12px; background: var(--canvas); border-radius: var(--radius); font-size: 14px; }
+.betaOpsSection { display: grid; gap: 12px; min-width: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.betaOpsSection h2 { margin: 0; font-size: 17px; }
+.betaOpsInputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.betaOpsList { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.betaOpsItem { display: grid; gap: 10px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); }
+.betaOpsItem details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.betaOpsFacts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; overflow-wrap: anywhere; }
+.betaOverdue { color: var(--red); font-weight: 700; }
+.betaBadge { padding: 2px 8px; color: var(--green); background: var(--green-soft); border-radius: 5px; font-size: 13px; font-weight: 600; }
+.betaBadgeMuted { color: var(--muted); background: var(--canvas); }
+.betaDraft { display: grid; gap: 8px; min-width: 0; margin-top: 10px; padding: 12px; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--radius); }
+.betaDraftHead { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; overflow-wrap: anywhere; }
+.betaDraftHead span { color: var(--muted); }
+.betaDraftProblems { margin: 0; color: var(--red); font-size: 14px; font-weight: 600; }
+.betaDraftSubject { margin: 0; font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.betaDraftBody { margin: 0; max-width: 100%; padding: 12px; overflow-x: hidden; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: 14px; line-height: 1.6; }
+.betaActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+.betaConfirmPair { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.betaOpsItem > button, .betaOpsItem > .betaConfirmPair, .betaOpsSection > button { justify-self: start; }
+.betaInlineSelect { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.betaInlineSelect select { min-height: 40px; padding: 0 10px; }
+@media (max-width: 560px) {
+  .publicRevisionCard.betaPublicCard { padding: 20px 16px; }
+  .betaConsent dl > div, .betaNotice dl > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
 /* 받은 곳(작업 6): 새 일감·일감 화면의 칩(하나만 고르거나 비우는 누름 버튼), 목록 거르기 칩, 제목 윗줄의 글 버튼. 색은 중립(체리 안 씀). */
 .sourceChoices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .sourceChoicesLabel { flex: 1 1 100%; color: var(--ink-soft); font-size: 13px; font-weight: 600; }
