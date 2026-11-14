@@ -12,10 +12,13 @@ import { configuredClarityProjectId, isClarityPagePath } from "./clarity-config"
  * - Clarity는 한 번 불러오면 화면 안 이동(pushState·뒤로 가기) 뒤의 새 화면도 기록한다(공개 소스 core/history.ts).
  *   그래서 두 화면 밖으로 옮기기 직전, 주소가 바뀌기 전에 멈추고 이 문서에서는 다시 시작하지 않는다.
  * - 유입 경로는 acquisition-link.ts가 이 탭에 보관한 source·medium·campaign만 맞춤 태그로 넘긴다(개인을 구분하는 값 없음).
+ * - 쿠키는 저장하지 않는다: 본체가 뜨기 전 대기열 맨 앞에 쿠키 저장 거부(consentv2, 광고·분석 둘 다 denied)를 쌓는다.
  */
 
 export const CLARITY_TAG_URL = "https://www.clarity.ms/tag/";
 export const CLARITY_SCRIPT_ID = "clarity-script";
+/** 광고 저장·분석 저장 둘 다 거부. 공식 문서 예시 'Informing Clarity of denied consent'와 같은 값. */
+export const CLARITY_CONSENT_DENIED = Object.freeze({ ad_Storage: "denied", analytics_Storage: "denied" });
 
 /** q: 본체가 오기 전 쌓아 둔 호출, v: 본체가 실행 중이면 붙는 버전, ilgamcheck: 우리가 만든 대기열 표시. */
 type ClarityFunction = ((...args: unknown[]) => void) & { q?: unknown[][]; v?: string; ilgamcheck?: true };
@@ -135,6 +138,10 @@ export function startClarityOnPage(): void {
   };
   queue.ilgamcheck = true;
   w.clarity = queue;
+  // 쿠키를 저장하지 않는다(사용자 결정 2026-11-13, 방침 '맞춤 광고에 제공하지 않습니다' 유지). 공식 Consent API v2의 '거부' 호출.
+  // 거부 상태에서 Clarity는 쿠키 없이(화면을 열 때마다 새 ID) 기록을 이어 간다(learn.microsoft.com clarity-consent-api-v2).
+  // 맞춤 태그보다 먼저 쌓는다: 공개 소스상 거부로 바뀌면 Clarity가 한 번 멈췄다 다시 시작하므로 그 뒤에 태그가 들어가야 남는다.
+  queue("consentv2", CLARITY_CONSENT_DENIED);
   for (const [key, value] of tags) queue("set", key, value);
 
   const script = document.createElement("script");

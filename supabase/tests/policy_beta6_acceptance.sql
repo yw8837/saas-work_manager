@@ -98,7 +98,7 @@ begin
 
     -- 7) 공개 계약 함수가 새 버전을 돌려준다(앱 /api/health가 이 값과 manifest를 비교).
     contract := public.get_ilgamcheck_policy_publication_contract();
-    if contract ->> 'bundleDigest' <> 'sha256:b65f85f4cd339cabcf3828c6fdbb7306c88b126fe6b062ed85f2560cbc653b54'
+    if contract ->> 'bundleDigest' <> 'sha256:a1fe1f6019647a2f9cd785562c138c5f76d1529622b7c3b99380ef6e87d604e3'
       or contract ->> 'termsVersion' <> '2026-11-13-beta.6'
       or contract ->> 'privacyVersion' <> '2026-11-13-beta.6'
       or (contract ->> 'finalized')::boolean is distinct from false then

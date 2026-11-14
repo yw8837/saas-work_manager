@@ -4,6 +4,9 @@ import type {} from "vitest/jsdom";
 import { PENDING_ACQUISITION_KEY } from "./acquisition-link";
 import { CLARITY_SCRIPT_ID, clarityAcquisitionTags, startClarityOnPage, trackingOptOutRequested } from "./clarity";
 
+/** 공식 Consent API v2의 쿠키 저장 거부(광고·분석 둘 다 denied). 대기열 맨 앞에 있어야 한다. */
+const DENY_COOKIES = ["consentv2", { ad_Storage: "denied", analytics_Storage: "denied" }];
+
 type FakeClarity = ((...args: unknown[]) => void) & { q?: unknown[][]; v?: string; ilgamcheck?: true };
 type TestWindow = Window & { clarity?: FakeClarity; __ILGAMCHECK_CLARITY__?: string; doNotTrack?: string };
 
@@ -74,7 +77,7 @@ describe("Clarity 불러오기 조건", () => {
     expect(script.parentElement).toBe(document.head);
     expect(typeof w.clarity).toBe("function");
     w.clarity!("event", "x");
-    expect(w.clarity!.q).toEqual([["event", "x"]]);
+    expect(w.clarity!.q).toEqual([DENY_COOKIES, ["event", "x"]]);
 
     startClarityOnPage();
     expect(scripts()).toHaveLength(1);
@@ -156,6 +159,7 @@ describe("유입 경로 맞춤 태그", () => {
     startClarityOnPage();
 
     expect(w.clarity!.q).toEqual([
+      DENY_COOKIES,
       ["set", "utm_source", "mail"],
       ["set", "utm_medium", "email"],
       ["set", "utm_campaign", "cold1"],
@@ -168,22 +172,45 @@ describe("유입 경로 맞춤 태그", () => {
     storage.setItem(PENDING_ACQUISITION_KEY, JSON.stringify({ source: "blog", medium: null, campaign: "Post_2" }));
     openDocument("https://ilgam.example/");
     startClarityOnPage();
-    expect(w.clarity!.q).toEqual([["set", "utm_source", "blog"], ["set", "utm_campaign", "post_2"]]);
+    expect(w.clarity!.q).toEqual([DENY_COOKIES, ["set", "utm_source", "blog"], ["set", "utm_campaign", "post_2"]]);
   });
 
   it("utm이 없는 방문은 태그를 넘기지 않는다", () => {
     openDocument("https://ilgam.example/");
     startClarityOnPage();
     expect(scripts()).toHaveLength(1);
-    expect(w.clarity!.q).toBeUndefined();
+    expect(w.clarity!.q).toEqual([DENY_COOKIES]);
   });
 
   it("형식이 틀리거나 전화번호처럼 긴 숫자인 값은 넘기지 않는다(acquisition-link.ts 규칙)", () => {
     openDocument("https://ilgam.example/?utm_source=01012345678&utm_medium=email");
     startClarityOnPage();
-    expect(w.clarity!.q).toBeUndefined();
+    expect(w.clarity!.q).toEqual([DENY_COOKIES]);
     expect(clarityAcquisitionTags({ source: "mail", medium: null, campaign: null })).toEqual([["utm_source", "mail"]]);
     expect(clarityAcquisitionTags(null)).toEqual([]);
+  });
+});
+
+describe("쿠키 저장 거부", () => {
+  it("본체가 뜨기 전 대기열 맨 앞에 쿠키 저장 거부를 쌓고, 유입 경로 태그는 그 뒤에 둔다", () => {
+    openDocument("https://ilgam.example/?utm_source=mail&utm_campaign=cold1");
+    startClarityOnPage();
+    const queue = w.clarity!;
+    expect(queue.q![0]).toEqual(DENY_COOKIES);
+    expect(queue.q!.slice(1)).toEqual([["set", "utm_source", "mail"], ["set", "utm_campaign", "cold1"]]);
+
+    // 공식 불러오기 스크립트처럼 start를 쌓고 맨 앞으로 옮겨도(2026-11-13 확인한 동작) 거부는 start 바로 다음에 처리된다.
+    queue("metadata", () => undefined, false, true, true);
+    queue("start", { projectId: "testproject1" });
+    queue.q!.unshift(queue.q!.pop()!);
+    expect(queue.q!.map((call) => call[0])).toEqual(["start", "consentv2", "set", "set", "metadata"]);
+    expect(document.cookie).not.toMatch(/_clck|_clsk/);
+  });
+
+  it("둘러보기에서도 같은 순서로 쌓는다", () => {
+    openDocument("https://ilgam.example/try");
+    startClarityOnPage();
+    expect(w.clarity!.q).toEqual([DENY_COOKIES]);
   });
 });
 
@@ -236,7 +263,7 @@ describe("두 화면 밖으로 옮길 때 멈추기", () => {
     openDocument("https://ilgam.example/?utm_source=mail");
     startClarityOnPage();
     const queue = w.clarity!;
-    expect(queue.q).toEqual([["set", "utm_source", "mail"]]);
+    expect(queue.q).toEqual([DENY_COOKIES, ["set", "utm_source", "mail"]]);
 
     window.history.pushState({}, "", "/r/abc123");
 

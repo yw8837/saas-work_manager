@@ -65,7 +65,8 @@ describe("beta terms responsibility boundary", () => {
     expect(row?.[1]).toContain("메인(/)·둘러보기(/try) 화면");
     expect(row?.[1]).toContain("클릭·스크롤·마우스 이동");
     expect(row?.[1]).toContain("기기·브라우저·운영체제 정보");
-    expect(row?.[1]).toContain("쿠키(_clck·_clsk 등)");
+    expect(row?.[1]).toContain("쿠키는 저장하지 않도록 설정해 쓰고 화면을 열 때마다 새 식별값을 씀");
+    expect(row?.[1]).not.toContain("쿠키 값");
     expect(row?.[1]).toContain("유입 경로 표시(있을 때만)");
     expect(row?.[1]).toContain("입력 칸에 적은 글은 가려져 전송되지 않음");
     expect(row?.[2]).toBe("두 화면에 접속할 때 Microsoft Clarity가 자동 수집");
@@ -74,6 +75,12 @@ describe("beta terms responsibility boundary", () => {
     expect(section("처리 위탁")).toContain("미국 법인 Microsoft Corporation이 Microsoft Azure 클라우드에서 처리합니다(국외 이전)");
     expect(section("처리 위탁")).toContain("https://www.microsoft.com/ko-kr/privacy/privacystatement");
     expect(section("선택과 권리")).toContain("추적 거부 신호(Global Privacy Control 또는 Do Not Track)를 켜 주세요");
+    // 쿠키 저장 거부로 쓴다(2026-11-13 사용자 결정): 쿠키를 저장한다고 읽히는 문장이 남지 않는다.
+    expect(section("처리 목적")).toContain("Microsoft Clarity는 쿠키(이 사이트의 _clck·_clsk, Microsoft 주소의 MUID 등)를 저장하지 않도록 설정해 씁니다. 그래서 화면을 열 때마다 새 식별값을 쓰고, 같은 방문자가 다른 화면으로 옮기거나 다시 와도 이어 붙이지 않습니다.");
+    expect(section("처리 위탁")).toContain("조작 기록·기기 정보·유입 경로 표시 / Microsoft Azure 클라우드, 국외 처리");
+    expect(section("선택과 권리")).toContain("이 도구는 쿠키를 저장하지 않도록 설정해 씁니다.");
+    expect(JSON.stringify(privacy)).not.toMatch(/쿠키 값|쿠키를 막으면|쿠키가 있습니다/);
+    expect(section("처리 위탁")).toContain("개인정보를 광고 사업자에게 판매하거나 맞춤 광고에 제공하지 않습니다.");
     // 이용약관 본문은 바꾸지 않는다(버전 값만 함께 올린다).
     expect(JSON.stringify(POLICY_PUBLICATION_MANIFEST.documents.terms)).not.toContain("Clarity");
   });

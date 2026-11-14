@@ -60,7 +60,7 @@ Auth URL 계약은 다음과 같다.
 - `NEXT_PUBLIC_SUPPORT_EMAIL`
 - `NEXT_PUBLIC_BETA_SIGNUP_ENABLED=true`
 - `NEXT_PUBLIC_FEEDBACK_FORM_URL`
-- `NEXT_PUBLIC_CLARITY_PROJECT_ID`(선택): 방문 기록 도구 Microsoft Clarity 프로젝트 ID. 있을 때만 메인(/)·둘러보기(/try)에서 불러오고 두 화면 CSP에 Clarity 주소를 연다. CSP와 화면 코드에 빌드 때 들어가므로 바꾸면 다시 빌드·배포한다. Cloudflare 운영은 배포 폴더 `.env.local`에 넣는다(`docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 3·9번, `scripts/cloudflare-deploy.mjs`가 Worker 변수로도 넘긴다).
+- `NEXT_PUBLIC_CLARITY_PROJECT_ID`(선택): 방문 기록 도구 Microsoft Clarity 프로젝트 ID. 있을 때만 메인(/)·둘러보기(/try)에서 불러오고 두 화면 CSP에 Clarity 주소를 연다. CSP와 화면 코드에 빌드 때 들어가므로 바꾸면 다시 빌드·배포한다. Cloudflare 운영은 배포 폴더 `.env.local`에 넣는다(`docs/CLOUDFLARE-INDEPENDENT-DEPLOY.md` 3·9번, `scripts/cloudflare-deploy.mjs`가 Worker 변수로도 넘긴다). 쿠키는 저장하지 않는다: 코드가 쿠키 저장 거부(`consentv2` 둘 다 denied)를 보내고, Clarity 프로젝트 설정 Settings → Setup의 Cookies도 끈다(공식 consent-mode 문서의 '기본으로 쿠키를 쓰지 않게' 설정).
 
 서버 비밀값:
 

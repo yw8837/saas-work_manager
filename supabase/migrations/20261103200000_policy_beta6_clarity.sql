@@ -77,7 +77,7 @@ set search_path = ''
 as $$
   select jsonb_build_object(
     'finalized', false,
-    'bundleDigest', 'sha256:b65f85f4cd339cabcf3828c6fdbb7306c88b126fe6b062ed85f2560cbc653b54',
+    'bundleDigest', 'sha256:a1fe1f6019647a2f9cd785562c138c5f76d1529622b7c3b99380ef6e87d604e3',
     'termsVersion', '2026-11-13-beta.6',
     'privacyVersion', '2026-11-13-beta.6'
   );

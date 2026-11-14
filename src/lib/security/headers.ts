@@ -48,7 +48,7 @@ function configuredSupabaseSources(value = process.env.NEXT_PUBLIC_SUPABASE_URL)
  * `https://*.clarity.ms https://c.bing.com`을 default-src에 넣으라고 한다. 우리 CSP는 script-src·connect-src·img-src를 따로 두므로
  * 그 셋에만 넣는다. 불러오기 스크립트(www.clarity.ms/tag/ID)와 본체(scripts.clarity.ms)는 script, 기록 전송([a-z].clarity.ms/collect)은
  * connect, 불러오기 스크립트가 부르는 c.clarity.ms/c.gif 그림은 img로 쓴다(2026-11-13 공개 불러오기 스크립트에서 확인).
- * c.bing.com은 안내 목록에 있어 그림으로만 연다(어디서 부르는지는 확인하지 못했다).
+ * c.bing.com은 안내 목록에 있어 그림으로만 연다. 쿠키 저장을 거부해 쓰는 지금 이 주소가 필요 없다는 문서는 찾지 못해 남겨 둔다.
  */
 const CLARITY_SCRIPT_SOURCES = ["https://*.clarity.ms"];
 const CLARITY_CONNECT_SOURCES = ["https://*.clarity.ms"];
