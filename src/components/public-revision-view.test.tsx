@@ -242,7 +242,10 @@ describe("고객 링크 화면", () => {
     render(<PublicRevisionUnavailable message="링크가 꺼졌거나 작업이 완료됐어요." />);
     expect(screen.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();
     expect(screen.getByTestId("unavailable-next-step")).toHaveTextContent("새 수정 요청 링크를 보내 달라고");
-    expect(screen.getByRole("link", { name: "일감체크가 무엇인지 보기" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "일감체크가 무엇인지 보기" })).toHaveAttribute(
+      "href",
+      "/?utm_source=client-link&utm_medium=referral&utm_campaign=revision-page",
+    );
     const header = document.querySelector(".publicRevisionEmpty > .publicRevisionHeader");
     expect(header?.querySelector("svg.lucide-lock-keyhole")).toBeNull();
     expect(document.querySelector(".publicRevisionEmptyIcon svg")).not.toBeNull();
