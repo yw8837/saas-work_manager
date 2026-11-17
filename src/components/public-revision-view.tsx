@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Check, CheckCircle2, LockKeyhole, Send, ShieldCheck } from "lucide-react";
+import { Check, CheckCircle2, LockKeyhole, RefreshCw, Send, ShieldCheck } from "lucide-react";
 
 import { Brand } from "@/components/brand";
 import {
@@ -69,6 +69,29 @@ export function PublicRevisionUnavailable({ message }: { message: string }) {
           <p>이 링크를 보낸 작업자에게 새 수정 요청 링크를 보내 달라고 말해 주세요. 작업자가 링크를 다시 만들면 예전 주소는 열리지 않아요.</p>
         </div>
         <p className="publicRevisionAbout"><Link href={PUBLIC_REVISION_ABOUT_HREF}>일감체크가 무엇인지 보기</Link></p>
+        <PublicRevisionPrivacyNotice />
+      </section>
+    </main>
+  );
+}
+
+/**
+ * 불러오다 실패했을 때(통신 오류 등). 링크가 꺼진 것과 구분한다.
+ * 멀쩡한 링크를 '사용할 수 없는 링크'라고 하면 고객이 작업자에게 새 링크를 달라고 헛걸음한다.
+ */
+export function PublicRevisionLoadFailed({ onRetry }: { onRetry: () => void }) {
+  return (
+    <main className="publicRevisionPage">
+      <section className="publicRevisionCard publicRevisionEmpty">
+        <header className="publicRevisionHeader"><Brand /></header>
+        <span className="publicRevisionEmptyIcon" aria-hidden="true"><RefreshCw size={28} /></span>
+        <h1>화면을 불러오지 못했어요</h1>
+        <p>링크가 꺼진 것은 아닐 수 있어요. 인터넷 연결을 확인하고 다시 불러와 주세요.</p>
+        <p><button type="button" className="primaryButton" onClick={onRetry} data-testid="public-revision-retry">다시 불러오기</button></p>
+        <div className="publicRevisionNextStep" data-testid="load-failed-next-step">
+          <strong>계속 안 되면</strong>
+          <p>잠시 뒤 같은 링크를 다시 열어 보세요. 그래도 안 열리면 링크를 보낸 작업자에게 알려 주세요.</p>
+        </div>
         <PublicRevisionPrivacyNotice />
       </section>
     </main>
