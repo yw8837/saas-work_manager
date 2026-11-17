@@ -133,6 +133,25 @@ describe("PublicRevisionForm 운영 모드", () => {
     expect(await screen.findByRole("heading", { name: "화면을 불러오지 못했어요" })).toBeInTheDocument();
   });
 
+  it("서버가 확정된 추가 작업을 알려 주면 건수와 늘어난 기간을 보여 준다", async () => {
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+    summaryMock.mockResolvedValueOnce({ ...base, used: 0, remaining: 3, pending: 0, requests: [], addonsConfirmed: 2, addonDays: 5 });
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+
+    expect(await screen.findByTestId("revision-addons")).toHaveTextContent("추가 작업 2건이 확정됐어요. 추가 작업으로 5일이 더해졌어요.");
+  });
+
+  it("옛 서버라 추가 작업을 모르면 그 줄 없이 그린다", async () => {
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+    summaryMock.mockResolvedValueOnce({ ...base, used: 0, remaining: 3, pending: 0, requests: [] });
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+
+    expect(await screen.findByLabelText("수정 요청 내용")).toBeInTheDocument();
+    expect(screen.queryByTestId("revision-addons")).not.toBeInTheDocument();
+  });
+
   it("진행 중인 일감은 서버가 준 요청 목록과 '자료 받는 중' 단계를 보여 준다", async () => {
     vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
     summaryMock.mockResolvedValueOnce({

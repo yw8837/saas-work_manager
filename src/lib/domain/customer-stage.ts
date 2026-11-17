@@ -114,3 +114,19 @@ export function customerDueLabel(dueDate: string, today: string): string | undef
   if (days === 0) return `${date} · 오늘`;
   return date;
 }
+
+/** 고객 화면에 보일 추가 작업: 확정된 건수와 그로 늘어난 기간(일). 금액·이름은 담지 않는다. */
+export type CustomerAddons = { count: number; days: number };
+
+/**
+ * 확정된 추가 작업만 센다(초안·취소 제외). 기간은 0 이상 정수만 더한다.
+ * 서버 함수(get_workspace_revision_view, migration 20261117120000)와 같은 규칙이다.
+ */
+export function customerAddonsOf(job: Pick<Job, "addons">): CustomerAddons {
+  const confirmed = (job.addons ?? []).filter((addon) => addon.status === "confirmed");
+  const days = confirmed.reduce((sum, addon) => {
+    const delta = addon.durationDaysDelta;
+    return Number.isInteger(delta) && delta >= 0 && delta <= 9999 ? sum + delta : sum;
+  }, 0);
+  return { count: confirmed.length, days };
+}
