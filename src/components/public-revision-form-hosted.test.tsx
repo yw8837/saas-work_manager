@@ -139,7 +139,7 @@ describe("PublicRevisionForm 운영 모드", () => {
 
     render(<PublicRevisionForm token={"a".repeat(43)} />);
 
-    expect(await screen.findByTestId("revision-addons")).toHaveTextContent("추가 작업 2건이 확정됐어요. 마감이 5일 늘었어요.");
+    expect(await screen.findByTestId("revision-addons")).toHaveTextContent("추가 작업 2건이 확정됐어요. 추가 작업으로 5일이 더해졌어요.");
   });
 
   it("옛 서버라 추가 작업을 모르면 그 줄 없이 그린다", async () => {

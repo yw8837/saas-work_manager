@@ -31,6 +31,8 @@ begin
             jsonb_build_object('id', 'b1', 'status', 'confirmed', 'durationDaysDelta', '이틀'),
             jsonb_build_object('id', 'b2', 'status', 'confirmed', 'durationDaysDelta', -5),
             jsonb_build_object('id', 'b3', 'status', 'confirmed', 'durationDaysDelta', 99999999),
+            jsonb_build_object('id', 'b5', 'status', 'confirmed', 'durationDaysDelta', '3'),
+            jsonb_build_object('id', 'b6', 'status', 'confirmed', 'durationDaysDelta', 10000),
             jsonb_build_object('id', 'b4', 'status', 'confirmed', 'durationDaysDelta', 4)))
       )
     ));
@@ -53,9 +55,9 @@ begin
       raise exception 'no_addons_should_be_zero: % %', view_row.addons_confirmed, view_row.addon_days;
     end if;
 
-    -- 모양이 틀린 값이 있어도 함수 전체가 깨지지 않는다. 숫자가 아니거나 음수·터무니없이 큰 기간은 더하지 않는다.
+    -- 모양이 틀린 값이 있어도 함수 전체가 깨지지 않는다. 숫자가 아니거나(글자 '3' 포함) 음수·10000일 이상인 기간은 더하지 않는다.
     select * into view_row from public.get_workspace_revision_view(token_broken);
-    if view_row.addons_confirmed <> 4 then raise exception 'broken_count_wrong: %', view_row.addons_confirmed; end if;
+    if view_row.addons_confirmed <> 6 then raise exception 'broken_count_wrong: %', view_row.addons_confirmed; end if;
     if view_row.addon_days <> 4 then raise exception 'broken_days_wrong: %', view_row.addon_days; end if;
 
     raise exception 'public_revision_addons_rollback';

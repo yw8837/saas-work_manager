@@ -167,12 +167,14 @@ begin
       from jsonb_array_elements(v_addons) as addon
       where jsonb_typeof(addon) = 'object'
         and addon ->> 'status' = 'confirmed'),
-    -- 확정된 추가 작업으로 늘어난 기간(일). 1~4자리 숫자만 더한다(음수·글자·터무니없이 큰 값은 건너뛴다).
+    -- 확정된 추가 작업으로 더해진 기간(일). JSON 숫자이면서 0~9999인 정수만 더한다(글자·음수·소수·10000 이상은 건너뛴다).
+    -- 앱의 customerAddonsOf와 같은 규칙이다.
     (select coalesce(sum((addon ->> 'durationDaysDelta')::integer), 0)::integer
       from jsonb_array_elements(v_addons) as addon
       where jsonb_typeof(addon) = 'object'
         and addon ->> 'status' = 'confirmed'
-        and coalesce(addon ->> 'durationDaysDelta', '') ~ '^\d{1,4}$');
+        and jsonb_typeof(addon -> 'durationDaysDelta') = 'number'
+        and coalesce(addon ->> 'durationDaysDelta', '') ~ '^[0-9]{1,4}$');
 end;
 $$;
 

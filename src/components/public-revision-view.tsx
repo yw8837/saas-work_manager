@@ -336,7 +336,7 @@ export function PublicRevisionView({
             <PendingOverNotice revision={revision} />
             {addons && addons.count > 0 && (
               <p className="publicRevisionAddons" data-testid="revision-addons">
-                추가 작업 {addons.count}건이 확정됐어요.{addons.days > 0 ? ` 마감이 ${addons.days}일 늘었어요.` : ""}
+                추가 작업 {addons.count}건이 확정됐어요.{addons.days > 0 ? ` 추가 작업으로 ${addons.days}일이 더해졌어요.` : ""}
               </p>
             )}
 

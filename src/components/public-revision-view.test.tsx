@@ -271,7 +271,9 @@ describe("고객 링크 화면: 확정된 추가 작업", () => {
     render(<PublicRevisionView {...base} dueLabel="12월 15일 · 7일 남음" addons={{ count: 2, days: 5 }} />);
     const line = screen.getByTestId("revision-addons");
     expect(line).toHaveTextContent("추가 작업 2건이 확정됐어요.");
-    expect(line).toHaveTextContent("마감이 5일 늘었어요.");
+    // 마감은 작업자가 나중에 손으로 바꿀 수 있다. 그래서 지금 마감이 얼마나 늘었다고 말하지 않고, 있었던 일(추가 작업으로 더해진 기간)만 말한다.
+    expect(line).toHaveTextContent("추가 작업으로 5일이 더해졌어요.");
+    expect(line).not.toHaveTextContent("늘었어요");
     expect(document.body.textContent).not.toMatch(/₩|\d원/);
   });
 
@@ -279,7 +281,7 @@ describe("고객 링크 화면: 확정된 추가 작업", () => {
     render(<PublicRevisionView {...base} addons={{ count: 1, days: 0 }} />);
     const line = screen.getByTestId("revision-addons");
     expect(line).toHaveTextContent("추가 작업 1건이 확정됐어요.");
-    expect(line).not.toHaveTextContent("늘었어요");
+    expect(line).not.toHaveTextContent("더해졌어요");
   });
 
   it("확정된 추가 작업이 없거나 서버가 모르면(옛 서버) 그 줄을 그리지 않는다", () => {

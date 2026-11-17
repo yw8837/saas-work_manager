@@ -81,7 +81,7 @@ try {
   const access = await db.query(await readFile(resolve("supabase/tests/rpc_execution_surface.sql"), "utf8"));
   assert.equal(access.rows.length, 25);
   assert.ok(access.rows.every((row) => row.passed), JSON.stringify(access.rows.filter((row) => !row.passed)));
-  console.log("PASS: native SQL contract, deletion regression, pending revision submit, fee fields round trip, public link status view, policy beta.6 acceptance, signup source, 25 RPC privilege checks (ephemeral PGlite).");
+  console.log("PASS: native SQL contract, deletion regression, pending revision submit, fee fields round trip, public link status view, policy beta.6 acceptance, signup source, public link addons, 25 RPC privilege checks (ephemeral PGlite).");
 } catch (error) {
   console.error(`FAIL: ${error.message}`);
   if (error.where) console.error(error.where);

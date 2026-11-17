@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { completeRevision, composeJob, markRevisionExtraScope, recordRevision, revertRevision, toggleIntakeItem, updateTaskStatus } from "./engine";
+import { cancelAddon, completeRevision, composeJob, confirmAddon, createAddon, markRevisionExtraScope, recordRevision, revertRevision, toggleIntakeItem, updateTaskStatus } from "./engine";
 import {
   CUSTOMER_STAGE_LABELS,
   customerAddonsOf,
@@ -153,6 +153,24 @@ describe("고객 화면에 보일 추가 작업(customerAddonsOf)", () => {
   it("확정된 것만 세고 기간을 더한다. 초안·취소는 뺀다", () => {
     expect(customerAddonsOf({ addons: [addon("confirmed", 2), addon("confirmed", 3), addon("draft", 10), addon("cancelled", 20)] }))
       .toEqual({ count: 2, days: 5 });
+  });
+
+  it("실제 흐름: 초안은 안 세고, 확정하면 세고, 확정을 취소하면 다시 뺀다", () => {
+    const base = job();
+    const draft = createAddon(base, { addonId: "addon_flow", title: "배너 추가", amountDelta: 50_000, durationDaysDelta: 3, createdAt: "2026-10-30T02:00:00.000Z" });
+    const withDraft = { ...base, addons: [...base.addons, draft] };
+    expect(customerAddonsOf(withDraft)).toEqual({ count: 0, days: 0 });
+
+    const confirmed = confirmAddon(withDraft, draft.id, "2026-10-30T03:00:00.000Z");
+    expect(customerAddonsOf(confirmed)).toEqual({ count: 1, days: 3 });
+
+    const cancelled = cancelAddon(confirmed, draft.id, "2026-10-30T04:00:00.000Z");
+    expect(customerAddonsOf(cancelled)).toEqual({ count: 0, days: 0 });
+  });
+
+  it("기간은 9999일까지만 더한다(서버의 네 자리 규칙과 같다)", () => {
+    expect(customerAddonsOf({ addons: [addon("confirmed", 9999)] })).toEqual({ count: 1, days: 9999 });
+    expect(customerAddonsOf({ addons: [addon("confirmed", 10000)] })).toEqual({ count: 1, days: 0 });
   });
 
   it("추가 작업이 없으면 0건 0일", () => {
