@@ -12,6 +12,24 @@
 
 ## 지금 상태
 
+### 2026-11-17 Claude — Clarity 쿠키 안전장치·Next.js 16.4.6 운영 배포 (PR #53)
+- 경과: 11-16 저녁 Claude가 프로젝트 ID를 넣어 처음 배포했을 때 대시보드 쿠키 설정이 켜져 있어, 코드의 거부 신호를 보내는데도 Microsoft 주소 쿠키 8개(MUID·CLID·MR·SRM_B·SM·ANONCHK)가 남았다. 방침("쿠키를 저장하지 않도록 설정해 쓴다")과 어긋나 바로 껐고, 대시보드 설정을 끈 뒤(아래 Codex 기록) 같은 실험에서 0개가 됐다.
+- 안전장치(main `1a786f0`, Worker `d760f937`): 불러오기 스크립트 `crossOrigin="anonymous"`, `/`·`/try` CSP의 img-src에서 Clarity·Bing 주소 제거. 11-16 실험에서 이 두 가지면 대시보드 설정이 켜져 있어도 쿠키 0개·기록 전송 정상이었다. 대시보드 설정이 켜진 상태에서의 재현은 11-17에 다시 하지 못했다(설정이 꺼져 있음).
+- Next.js 16.4.2 → 16.4.6: 보안 권고 GHSA-mfr8-8qww-v76h(16.3.0~16.4.4, 중간 등급)로 `audit:prod`가 막혔다. 이 저장소는 해당 기능('use cache' + unstable_cache)을 쓰지 않는다.
+- 운영 확인(창 없는 브라우저): Clarity 30개, 안전장치 11개, 공개 화면 42개, 설명서·방침 22개, 유입 표시 31개 모두 통과. 쿠키 0개.
+- **끌 때 주의**: 배포 스크립트가 `--keep-vars`라 `.env.local`에서 `NEXT_PUBLIC_CLARITY_PROJECT_ID` 줄을 지우기만 하면 Worker에는 옛 값이 남는다. 서버만 안내 문구를 그려 `/`·`/try`에서 React 418 오류가 난다(11-16 실제로 겪음). 끄려면 `NEXT_PUBLIC_CLARITY_PROJECT_ID=off`로 덮어쓴다.
+- **배포 폴더 주의**: 배포 폴더에 커밋 안 된 변경이 있으면 `git checkout -B main origin/main`이 실패하고 옛 코드로 점검이 돈다(11-17 실제로 겪음, 점검이 막아 배포는 되지 않음). 배포 전에 `git status --short`가 비어 있는지 본다. 아래 Codex 기록은 그때 배포 폴더에 커밋 없이 있던 것을 그대로 옮긴 것이다.
+
+### 2026-11-16 Codex — Clarity 재활성화 운영 완료
+- 사용자 직접 요청 `작동하게 해라고`에 따라 기존 연동 재활성화. 제품 소스 변경 없이 무시된 `.env.local`의 NEXT_PUBLIC_CLARITY_PROJECT_ID=off를 zeialmd7kj로 변경.
+- 앱 브라우저에서 프로젝트 Settings > Setup > 고급 설정 > Cookies 끄기 확인. 봇 감지 켜짐 유지.
+- main b4b1138, check:release 통과: 175파일/1538테스트, PC·모바일 E2E 80개, lint 오류0(기존 경고2), typecheck, audit 취약점0, local/hosted build. Cloudflare production dry-run 및 배포 통과.
+- 운영 Worker 버전 44ecc676-d3ad-499b-9a4a-c29afabd8af1. 서버·브라우저 동일 프로젝트 ID 전달. DB/DNS/인증 변경 없음.
+- 운영 앱 브라우저 `/`·`/try`에서 tag/zeialmd7kj 및 clarity.js HTTP200, collect HTTP204. 확인한 두 화면 console error 0. remote-smoke 전체 통과.
+- `/` 재방문 전후 관련 도메인 쿠키 비교: 신규/값/만료 변경0, _clck/_clsk 없음. 기존 Microsoft 쿠키를 삭제하지 않음. 새 브라우저 프로필 전수 시험은 아님.
+- Clarity 레코딩 화면 실시간 표시 6, 레코딩 목록은 아직 없음. 시험 방문 포함 가능하므로 실제 고객 6명으로 해석 금지. 녹화 처리 완료는 미확인.
+- 기존 범위 `/`·`/try`만 활성화. 로그인·실고객 요청 페이지로 확대하지 않음. 다음 확인: 처리된 레코딩 표시. off 재배포 시 서버·브라우저 값을 반드시 일치시킬 것.
+
 ### 2026-11-13 방문 기록 도구(Microsoft Clarity) · 정책 beta.6 (브랜치 `claude/clarity-policy`, origin/main `7ed442c` 기준, 미배포)
 - **불러오기**: `NEXT_PUBLIC_CLARITY_PROJECT_ID`(영문 소문자·숫자 6~32자)가 있을 때만 메인(/)·둘러보기(/try)에서 `https://www.clarity.ms/tag/<ID>`를 붙인다(`src/lib/clarity.ts`, 인라인 스크립트 없음). GPC·DNT가 켜져 있거나, 다른 화면으로 처음 연 문서면 안 붙인다. 두 화면 밖으로 화면 안 이동(pushState·뒤로 가기)하면 주소가 바뀌기 전에 `clarity("stop")`으로 멈추고 그 문서에선 다시 안 켠다.
 - **CSP**: 전역 CSP는 그대로, ID가 있을 때만 `/`·`/try` 문서에 `https://*.clarity.ms`를 script·connect에만 더한다(`next.config.ts`, `buildClarityPageHeaders`). 그림 출처(img)에는 Clarity·Bing 주소를 열지 않는다(2026-11-17): 쿠키 맞추기용 `c.clarity.ms/c.gif → c.bing.com/c.gif` 요청을 막기 위해서다. 불러오기 스크립트는 `crossOrigin="anonymous"`로 붙여 응답의 쿠키(CLID)를 저장하지 않는다. 11-16 실측에서 Clarity 대시보드의 쿠키 설정이 켜져 있으면 코드의 거부 신호만으로는 Microsoft 쿠키 8개가 남았고, 이 두 가지를 적용하면 0개였다. 대시보드 설정(Settings → Setup → Cookies)은 꺼 둔다.
