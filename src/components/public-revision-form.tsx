@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   PublicRevisionCompleted,
+  PublicRevisionLoadFailed,
   PublicRevisionLoading,
   PublicRevisionUnavailable,
   PublicRevisionView,
@@ -39,6 +40,10 @@ export function PublicRevisionForm({ token }: { token: string }) {
   const [hostedSummary, setHostedSummary] = useState<PublicRevisionSummary | null>(null);
   const [loading, setLoading] = useState(hosted);
   const [error, setError] = useState<string | null>(null);
+  // 불러오다 실패한 것(통신 오류)은 링크가 꺼진 것과 다르다. 다시 불러오기를 누르면 attempt가 올라가 다시 읽는다.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [retrying, setRetrying] = useState(false);
   const retryIdentityRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
   useEffect(() => {
@@ -54,10 +59,11 @@ export function PublicRevisionForm({ token }: { token: string }) {
     let cancelled = false;
     void getHostedPublicRevisionSummary(client, token)
       .then((summary) => { if (!cancelled) setHostedSummary(summary); })
-      .catch(() => { if (!cancelled) setHostedSummary(null); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .then(() => { if (!cancelled) setLoadFailed(false); })
+      .catch(() => { if (!cancelled) { setHostedSummary(null); setLoadFailed(true); } })
+      .finally(() => { if (!cancelled) { setLoading(false); setRetrying(false); } });
     return () => { cancelled = true; };
-  }, [hosted, token]);
+  }, [hosted, token, attempt]);
 
   async function submit({ name, content }: { name: string; content: string }) {
     if (hosted) {
@@ -100,6 +106,10 @@ export function PublicRevisionForm({ token }: { token: string }) {
 
   if (loading || (!hosted && !hydrated)) {
     return <PublicRevisionLoading />;
+  }
+
+  if (hosted && loadFailed && !hostedSummary) {
+    return <PublicRevisionLoadFailed retrying={retrying} onRetry={() => { setRetrying(true); setAttempt((value) => value + 1); }} />;
   }
 
   if ((hosted && !hostedSummary) || (!hosted && !localJob)) {
