@@ -146,6 +146,9 @@ export function startClarityOnPage(): void {
 
   const script = document.createElement("script");
   script.async = true;
+  // 자격 없이 불러온다(쿠키를 보내지도 받지도 않음). 2026-11-16 실측: 이 응답이 Set-Cookie CLID를 주는데,
+  // anonymous로 불러오면 저장되지 않고 본체 실행·기록 전송은 그대로다(응답에 Access-Control-Allow-Origin: * 있음).
+  script.crossOrigin = "anonymous";
   script.src = `${CLARITY_TAG_URL}${projectId}`;
   script.id = CLARITY_SCRIPT_ID;
   document.head.appendChild(script);

@@ -67,17 +67,19 @@ describe("production security headers", () => {
     expect(csp).not.toMatch(/clarity|bing/);
   });
 
-  it("Clarity 화면 CSP는 공식 안내 주소를 script·connect·img에만 더하고 나머지는 그대로 둔다", () => {
+  it("Clarity 화면 CSP는 Clarity 주소를 script·connect에만 더하고 그림 출처를 포함한 나머지는 그대로 둔다", () => {
     const base = buildContentSecurityPolicy(false, "https://project-ref.supabase.co").split("; ");
     const clarity = buildContentSecurityPolicy(false, "https://project-ref.supabase.co", { clarity: true }).split("; ");
     const changed = clarity.filter((directive) => !base.includes(directive));
 
     expect(changed).toEqual([
       "script-src 'self' 'unsafe-inline' https://*.clarity.ms",
-      "img-src 'self' data: blob: https://*.clarity.ms https://c.bing.com",
       "connect-src 'self' https://project-ref.supabase.co wss://project-ref.supabase.co https://*.clarity.ms",
     ]);
     expect(clarity).toHaveLength(base.length);
+    // 쿠키 맞추기용 그림 요청을 막으려고 그림 출처에는 Clarity·Bing 주소를 열지 않는다.
+    expect(clarity).toContain("img-src 'self' data: blob:");
+    expect(clarity.join("; ")).not.toContain("c.bing.com");
     expect(clarity.join("; ")).not.toContain("unsafe-eval");
     expect(clarity).toContain("default-src 'self'");
     expect(clarity).toContain("frame-ancestors 'none'");
@@ -160,7 +162,9 @@ describe("방문 기록 도구(Microsoft Clarity) CSP는 메인·둘러보기 �
       expect(csp, path).toContain("script-src 'self' 'unsafe-inline'");
       expect(csp, path).toMatch(/script-src [^;]*https:\/\/\*\.clarity\.ms/);
       expect(csp, path).toMatch(/connect-src [^;]*https:\/\/\*\.clarity\.ms/);
-      expect(csp, path).toMatch(/img-src [^;]*https:\/\/c\.bing\.com/);
+      // 쿠키 맞추기용 그림(c.clarity.ms/c.gif → c.bing.com)은 열지 않는다: 그림 출처에 Clarity·Bing 주소가 없다.
+      expect(csp, path).not.toMatch(/img-src [^;]*clarity\.ms/);
+      expect(csp, path).not.toContain("c.bing.com");
     }
     for (const path of OTHER_PATHS) {
       const csp = await effectiveCsp(path);
