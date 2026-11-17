@@ -242,7 +242,10 @@ describe("고객 링크 화면", () => {
     render(<PublicRevisionUnavailable message="링크가 꺼졌거나 작업이 완료됐어요." />);
     expect(screen.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();
     expect(screen.getByTestId("unavailable-next-step")).toHaveTextContent("새 수정 요청 링크를 보내 달라고");
-    expect(screen.getByRole("link", { name: "일감체크가 무엇인지 보기" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "일감체크가 무엇인지 보기" })).toHaveAttribute(
+      "href",
+      "/?utm_source=client-link&utm_medium=referral&utm_campaign=revision-page",
+    );
     const header = document.querySelector(".publicRevisionEmpty > .publicRevisionHeader");
     expect(header?.querySelector("svg.lucide-lock-keyhole")).toBeNull();
     expect(document.querySelector(".publicRevisionEmptyIcon svg")).not.toBeNull();
@@ -257,5 +260,35 @@ describe("고객 링크 화면 — 짧은 요청(2026-11-11)", () => {
     fireEvent.submit(screen.getByRole("button", { name: /요청 남기기/ }).closest("form")!);
     expect(await screen.findByRole("alert")).toHaveTextContent(SHORT_REQUEST_MESSAGE);
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+// 2026-11-17: 제작자가 확정한 추가 작업을 고객도 같은 화면에서 안다. 금액은 보여 주지 않는다(사용자 결정).
+describe("고객 링크 화면: 확정된 추가 작업", () => {
+  const base = { title: "브랜드 사이트", packageName: "Standard", revision, badgeLabel: "보안 링크", footnote: "안내", onSubmit: vi.fn() };
+
+  it("확정된 추가 작업이 있으면 건수와 늘어난 기간을 보여 주고, 금액은 보여 주지 않는다", () => {
+    render(<PublicRevisionView {...base} dueLabel="12월 15일 · 7일 남음" addons={{ count: 2, days: 5 }} />);
+    const line = screen.getByTestId("revision-addons");
+    expect(line).toHaveTextContent("추가 작업 2건이 확정됐어요.");
+    // 마감은 작업자가 나중에 손으로 바꿀 수 있다. 그래서 지금 마감이 얼마나 늘었다고 말하지 않고, 있었던 일(추가 작업으로 더해진 기간)만 말한다.
+    expect(line).toHaveTextContent("추가 작업으로 5일이 더해졌어요.");
+    expect(line).not.toHaveTextContent("늘었어요");
+    expect(document.body.textContent).not.toMatch(/₩|\d원/);
+  });
+
+  it("기간이 늘지 않은 추가 작업은 건수만 말한다", () => {
+    render(<PublicRevisionView {...base} addons={{ count: 1, days: 0 }} />);
+    const line = screen.getByTestId("revision-addons");
+    expect(line).toHaveTextContent("추가 작업 1건이 확정됐어요.");
+    expect(line).not.toHaveTextContent("더해졌어요");
+  });
+
+  it("확정된 추가 작업이 없거나 서버가 모르면(옛 서버) 그 줄을 그리지 않는다", () => {
+    const first = render(<PublicRevisionView {...base} addons={{ count: 0, days: 0 }} />);
+    expect(screen.queryByTestId("revision-addons")).not.toBeInTheDocument();
+    first.unmount();
+    render(<PublicRevisionView {...base} />);
+    expect(screen.queryByTestId("revision-addons")).not.toBeInTheDocument();
   });
 });

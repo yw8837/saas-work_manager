@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Check, CheckCircle2, LockKeyhole, Send, ShieldCheck } from "lucide-react";
+import { Check, CheckCircle2, LockKeyhole, RefreshCw, Send, ShieldCheck } from "lucide-react";
 
 import { Brand } from "@/components/brand";
 import {
   CUSTOMER_DRAFT_STAGE,
   CUSTOMER_STAGE_LABELS,
   customerCompletedLabel,
+  type CustomerAddons,
   type CustomerRequest,
   type CustomerStage,
 } from "@/lib/domain/customer-stage";
@@ -16,6 +17,8 @@ import type { RevisionUsage } from "@/lib/domain/types";
 import { getPublicServiceConfig } from "@/lib/policies";
 
 const REQUEST_FORM_ID = "revision-request-form";
+/** 고객 화면에서 소개로 넘어온 방문을 세려고 유입 표시를 붙인다(값 규칙은 acquisition-link.ts). 고객을 구분하는 값은 넣지 않는다. */
+export const PUBLIC_REVISION_ABOUT_HREF = "/?utm_source=client-link&utm_medium=referral&utm_campaign=revision-page";
 
 /**
  * 고객 수정요청 화면의 겉모습만 담는다.
@@ -66,7 +69,43 @@ export function PublicRevisionUnavailable({ message }: { message: string }) {
           <strong>이렇게 해 보세요</strong>
           <p>이 링크를 보낸 작업자에게 새 수정 요청 링크를 보내 달라고 말해 주세요. 작업자가 링크를 다시 만들면 예전 주소는 열리지 않아요.</p>
         </div>
-        <p className="publicRevisionAbout"><Link href="/">일감체크가 무엇인지 보기</Link></p>
+        <p className="publicRevisionAbout"><Link href={PUBLIC_REVISION_ABOUT_HREF}>일감체크가 무엇인지 보기</Link></p>
+        <PublicRevisionPrivacyNotice />
+      </section>
+    </main>
+  );
+}
+
+/**
+ * 불러오다 실패했을 때(통신 오류 등). 링크가 꺼진 것과 구분한다.
+ * 멀쩡한 링크를 '사용할 수 없는 링크'라고 하면 고객이 작업자에게 새 링크를 달라고 헛걸음한다.
+ */
+export function PublicRevisionLoadFailed({ onRetry, retrying = false }: { onRetry: () => void; retrying?: boolean }) {
+  return (
+    <main className="publicRevisionPage">
+      <section className="publicRevisionCard publicRevisionEmpty">
+        <header className="publicRevisionHeader"><Brand /></header>
+        <span className="publicRevisionEmptyIcon" aria-hidden="true"><RefreshCw size={28} /></span>
+        {/* 화면낭독기가 실패를 바로 읽도록 알림 역할을 단다. 다시 불러오는 동안에도 이 화면을 그대로 둔다(버튼 초점 유지). */}
+        <div role="alert">
+          <h1>화면을 불러오지 못했어요</h1>
+          <p>링크가 꺼진 것은 아닐 수 있어요. 인터넷 연결을 확인하거나 잠시 뒤 다시 불러와 주세요.</p>
+        </div>
+        <p>
+          <button
+            type="button"
+            className="primaryButton"
+            aria-disabled={retrying}
+            onClick={() => { if (!retrying) onRetry(); }}
+            data-testid="public-revision-retry"
+          >
+            {retrying ? "불러오는 중이에요" : "다시 불러오기"}
+          </button>
+        </p>
+        <div className="publicRevisionNextStep" data-testid="load-failed-next-step">
+          <strong>계속 안 되면</strong>
+          <p>잠시 뒤 같은 링크를 다시 열어 보세요. 그래도 안 열리면 링크를 보낸 작업자에게 알려 주세요.</p>
+        </div>
         <PublicRevisionPrivacyNotice />
       </section>
     </main>
@@ -149,7 +188,7 @@ export function PublicRevisionCompleted({ title, packageName, completedLabel, wo
           <p>추가 요청은 평소 대화창으로 말씀해 주세요. 이 링크로는 새 요청을 받지 않아요.</p>
         </div>
         <PublicRevisionRequestList requests={requests} />
-        <p className="publicRevisionAbout"><Link href="/">일감체크가 무엇인지 보기</Link></p>
+        <p className="publicRevisionAbout"><Link href={PUBLIC_REVISION_ABOUT_HREF}>일감체크가 무엇인지 보기</Link></p>
         <PublicRevisionPrivacyNotice />
       </section>
     </main>
@@ -176,6 +215,8 @@ export type PublicRevisionViewProps = {
   progress?: { done: number; total: number };
   /** 고객이 링크로 남긴 요청과 처리 상태. 모르면(옛 서버) 비워 두고, 그러면 목록을 그리지 않는다. */
   requests?: CustomerRequest[];
+  /** 작업자가 확정한 추가 작업의 건수와 늘어난 기간. 금액은 받지도 보여 주지도 않는다. 모르면(옛 서버) 비워 둔다. */
+  addons?: CustomerAddons;
   badgeLabel: string;
   footnote: string;
   /** 성공하면 차감 결과를 돌려주고, 실패하면 고객에게 보여줄 문구로 throw한다. */
@@ -197,6 +238,7 @@ export function PublicRevisionView({
   stage,
   progress,
   requests,
+  addons,
   badgeLabel,
   footnote,
   onSubmit,
@@ -292,6 +334,11 @@ export function PublicRevisionView({
               )}
             </dl>
             <PendingOverNotice revision={revision} />
+            {addons && addons.count > 0 && (
+              <p className="publicRevisionAddons" data-testid="revision-addons">
+                추가 작업 {addons.count}건이 확정됐어요.{addons.days > 0 ? ` 추가 작업으로 ${addons.days}일이 더해졌어요.` : ""}
+              </p>
+            )}
 
             {stage !== undefined && (
               <ol className="customerStageChips" aria-label="진행 단계">

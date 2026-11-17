@@ -585,7 +585,6 @@
 .appFrame .betaSurveyDialog:focus { outline: none; }
 .appFrame .betaSurveyDialog h2 { margin: 6px 44px 12px 0; font-size: 20px; line-height: 1.45; letter-spacing: -.02em; }
 .appFrame .betaSurveyBody p { margin: 0 0 6px; color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
-.appFrame .betaSurveyBody .betaSurveyPrivacy { margin-top: 10px; color: var(--muted); font-size: 13px; }
 .appFrame .betaSurveyClose { position: absolute; top: 12px; right: 12px; color: var(--muted); }
 .appFrame .betaSurveyActions { display: grid; gap: 8px; margin-top: 20px; }
 .appFrame .betaSurveyActions > * { width: 100%; min-height: 48px; font-size: 15px; }

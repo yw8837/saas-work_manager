@@ -4,12 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   PublicRevisionCompleted,
+  PublicRevisionLoadFailed,
   PublicRevisionLoading,
   PublicRevisionUnavailable,
   PublicRevisionView,
 } from "@/components/public-revision-view";
 import { getRevisionSummary, useWorkspace } from "@/components/workspace-provider";
 import {
+  customerAddonsOf,
   customerCompletedLabel,
   customerDueLabel,
   customerProgressOf,
@@ -39,6 +41,10 @@ export function PublicRevisionForm({ token }: { token: string }) {
   const [hostedSummary, setHostedSummary] = useState<PublicRevisionSummary | null>(null);
   const [loading, setLoading] = useState(hosted);
   const [error, setError] = useState<string | null>(null);
+  // 불러오다 실패한 것(통신 오류)은 링크가 꺼진 것과 다르다. 다시 불러오기를 누르면 attempt가 올라가 다시 읽는다.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [retrying, setRetrying] = useState(false);
   const retryIdentityRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
   useEffect(() => {
@@ -54,10 +60,11 @@ export function PublicRevisionForm({ token }: { token: string }) {
     let cancelled = false;
     void getHostedPublicRevisionSummary(client, token)
       .then((summary) => { if (!cancelled) setHostedSummary(summary); })
-      .catch(() => { if (!cancelled) setHostedSummary(null); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .then(() => { if (!cancelled) setLoadFailed(false); })
+      .catch(() => { if (!cancelled) { setHostedSummary(null); setLoadFailed(true); } })
+      .finally(() => { if (!cancelled) { setLoading(false); setRetrying(false); } });
     return () => { cancelled = true; };
-  }, [hosted, token]);
+  }, [hosted, token, attempt]);
 
   async function submit({ name, content }: { name: string; content: string }) {
     if (hosted) {
@@ -102,6 +109,10 @@ export function PublicRevisionForm({ token }: { token: string }) {
     return <PublicRevisionLoading />;
   }
 
+  if (hosted && loadFailed && !hostedSummary) {
+    return <PublicRevisionLoadFailed retrying={retrying} onRetry={() => { setRetrying(true); setAttempt((value) => value + 1); }} />;
+  }
+
   if ((hosted && !hostedSummary) || (!hosted && !localJob)) {
     // 로컬 모드에는 서버가 없다. 이 브라우저에 그 일감이 아예 없으면 링크가 꺼진 게 아니라
     // 애초에 다른 기기에서 열린 것이다. 고객에게 잘못된 이유를 말하면 작업자에게 헛물을 켠다.
@@ -129,6 +140,12 @@ export function PublicRevisionForm({ token }: { token: string }) {
   const workerName = (hostedSummary ? hostedSummary.workerName : settings.publicWorkerName)?.trim().slice(0, 40) || undefined;
   const requests = hostedSummary ? hostedSummary.requests : customerRequestsOf(localJob!);
   const intakePending = hostedSummary ? hostedSummary.intakePending : pendingIntakeLabels(localJob!);
+  // 옛 서버는 추가 작업을 알려 주지 않는다. 그때는 비워 두고 화면은 그 줄을 그리지 않는다.
+  const addons = hostedSummary
+    ? hostedSummary.addonsConfirmed === undefined
+      ? undefined
+      : { count: hostedSummary.addonsConfirmed, days: hostedSummary.addonDays ?? 0 }
+    : customerAddonsOf(localJob!);
 
   const completed = hostedSummary ? hostedSummary.jobStatus === "completed" : localJob!.status === "completed";
   if (completed) {
@@ -154,6 +171,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
       stage={progress ? customerStageFromProgress(progress) : undefined}
       progress={progress}
       requests={requests}
+      addons={addons}
       badgeLabel={hosted ? "보안 링크로 직접 전달" : "이 브라우저에 저장"}
       footnote={hosted ? "링크를 받은 사람만 요청할 수 있어요. 연락처·금액·다른 고객 정보는 공개하지 않아요." : "보내주신 내용은 지금 이 브라우저에만 저장돼요."}
       onSubmit={submit}

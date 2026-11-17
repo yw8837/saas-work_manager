@@ -36,6 +36,63 @@ describe("고객 링크 공개 RPC(get_workspace_revision_view)", () => {
   });
 });
 
+// 고객 화면은 '예외 = 불러오기 실패', 'null = 꺼졌거나 없는 링크'로 갈라 안내한다. 이 구분이 바뀌면 화면 안내가 틀어진다.
+describe("고객 링크 요약: 실패와 없는 링크의 구분", () => {
+  it("두 서버 함수가 모두 오류를 주면(통신 오류 등) 예외를 던진다", async () => {
+    const { client, rpc } = clientWith({
+      get_workspace_revision_view: { data: null, error: { message: "TypeError: Failed to fetch" } },
+      get_workspace_revision_summary: { data: null, error: { message: "TypeError: Failed to fetch" } },
+    });
+
+    await expect(getHostedPublicRevisionSummary(client, token)).rejects.toThrow("고객 화면을 불러오지 못했어요.");
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("서버가 오류 없이 빈 결과를 주면(끈 링크·다시 만든 링크·틀린 주소) 예외 없이 null을 준다", async () => {
+    const { client } = clientWith({ get_workspace_revision_view: { data: [], error: null } });
+
+    await expect(getHostedPublicRevisionSummary(client, token)).resolves.toBeNull();
+  });
+});
+
+describe("확정된 추가 작업 migration(20261117120000)", () => {
+  const addonSql = readFileSync(
+    resolve(process.cwd(), "supabase/migrations/20261117120000_public_revision_addons.sql"),
+    "utf8",
+  );
+  const row = { job_key: "job_1", title: "랜딩", package_name: "기본", included: 3, used: 1, remaining: 2, due_date: "2026-12-15", tasks_total: 4, tasks_done: 1, has_open_revision: false, worker_name: null };
+
+  it("확정된 것만 세고, 금액·원가·추가 작업 이름은 내보내지 않는다", () => {
+    expect(addonSql).toContain("addons_confirmed integer");
+    expect(addonSql).toContain("addon_days integer");
+    expect(addonSql).toContain("addon ->> 'status' = 'confirmed'");
+    expect(addonSql).not.toMatch(/amountDelta|estimatedCostDelta|'amount'|'margin'|addon ->> 'title'/);
+    expect(addonSql).toContain("security definer");
+    expect(addonSql).toContain("set search_path = ''");
+    expect(addonSql).toContain("revoke all on function public.get_workspace_revision_view(text) from public");
+    expect(addonSql).toContain("notify pgrst, 'reload schema'");
+  });
+
+  it("서버가 준 건수·기간을 읽는다", async () => {
+    const { client } = clientWith({ get_workspace_revision_view: { data: [{ ...row, addons_confirmed: 2, addon_days: 5 }], error: null } });
+    const summary = await getHostedPublicRevisionSummary(client, token);
+    expect(summary?.addonsConfirmed).toBe(2);
+    expect(summary?.addonDays).toBe(5);
+  });
+
+  it("옛 서버(열 없음)면 비워 둔다. 이상한 값(음수·소수·글자)은 0으로 본다", async () => {
+    const old = clientWith({ get_workspace_revision_view: { data: [row], error: null } });
+    const oldSummary = await getHostedPublicRevisionSummary(old.client, token);
+    expect(oldSummary?.addonsConfirmed).toBeUndefined();
+    expect(oldSummary?.addonDays).toBeUndefined();
+
+    const odd = clientWith({ get_workspace_revision_view: { data: [{ ...row, addons_confirmed: -3, addon_days: "많이" }], error: null } });
+    const oddSummary = await getHostedPublicRevisionSummary(odd.client, token);
+    expect(oddSummary?.addonsConfirmed).toBe(0);
+    expect(oddSummary?.addonDays).toBe(0);
+  });
+});
+
 describe("수정 완료 때 차감 migration(20261101140000)", () => {
   const pendingSql = readFileSync(
     resolve(process.cwd(), "supabase/migrations/20261101140000_revision_pending_and_intake.sql"),

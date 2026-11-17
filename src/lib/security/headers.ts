@@ -47,12 +47,13 @@ function configuredSupabaseSources(value = process.env.NEXT_PUBLIC_SUPABASE_URL)
  * Microsoft Clarity(방문 기록 도구)에 여는 주소. 공식 CSP 안내(learn.microsoft.com/clarity/setup-and-installation/clarity-csp)는
  * `https://*.clarity.ms https://c.bing.com`을 default-src에 넣으라고 한다. 우리 CSP는 script-src·connect-src·img-src를 따로 두므로
  * 그 셋에만 넣는다. 불러오기 스크립트(www.clarity.ms/tag/ID)와 본체(scripts.clarity.ms)는 script, 기록 전송([a-z].clarity.ms/collect)은
- * connect, 불러오기 스크립트가 부르는 c.clarity.ms/c.gif 그림은 img로 쓴다(2026-11-13 공개 불러오기 스크립트에서 확인).
- * c.bing.com은 안내 목록에 있어 그림으로만 연다. 쿠키 저장을 거부해 쓰는 지금 이 주소가 필요 없다는 문서는 찾지 못해 남겨 둔다.
+ * connect로 쓴다.
+ * 그림 출처(img-src)에는 Clarity·Bing 주소를 열지 않는다. 불러오기 스크립트가 부르는 c.clarity.ms/c.gif → c.bing.com/c.gif는
+ * Microsoft 쿠키(MUID 등)를 맞추는 요청이다. 2026-11-16 실측에서 이 요청을 막아도 본체 실행과 기록 전송은 그대로였고,
+ * 막으면 Clarity 대시보드의 쿠키 설정이 켜져 있어도 쿠키가 남지 않았다(방침: 쿠키를 저장하지 않도록 설정해 쓴다).
  */
 const CLARITY_SCRIPT_SOURCES = ["https://*.clarity.ms"];
 const CLARITY_CONNECT_SOURCES = ["https://*.clarity.ms"];
-const CLARITY_IMAGE_SOURCES = ["https://*.clarity.ms", "https://c.bing.com"];
 
 export type ContentSecurityPolicyOptions = {
   /** Clarity를 쓰는 화면(메인·둘러보기) 문서에만 true. 다른 화면 문서는 Clarity 주소를 열지 않는다. */
@@ -65,7 +66,7 @@ export function buildContentSecurityPolicy(
   { clarity = false }: ContentSecurityPolicyOptions = {},
 ): string {
   const scriptSources = ["'self'", "'unsafe-inline'", ...(isDevelopment ? ["'unsafe-eval'"] : []), ...(clarity ? CLARITY_SCRIPT_SOURCES : [])];
-  const imageSources = ["'self'", "data:", "blob:", ...(clarity ? CLARITY_IMAGE_SOURCES : [])];
+  const imageSources = ["'self'", "data:", "blob:"];
   const connectSources = ["'self'", ...configuredSupabaseSources(supabaseUrl), ...(clarity ? CLARITY_CONNECT_SOURCES : [])];
   const directives = [
     "default-src 'self'",
