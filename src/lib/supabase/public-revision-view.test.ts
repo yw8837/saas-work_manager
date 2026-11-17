@@ -36,6 +36,25 @@ describe("고객 링크 공개 RPC(get_workspace_revision_view)", () => {
   });
 });
 
+// 고객 화면은 '예외 = 불러오기 실패', 'null = 꺼졌거나 없는 링크'로 갈라 안내한다. 이 구분이 바뀌면 화면 안내가 틀어진다.
+describe("고객 링크 요약: 실패와 없는 링크의 구분", () => {
+  it("두 서버 함수가 모두 오류를 주면(통신 오류 등) 예외를 던진다", async () => {
+    const { client, rpc } = clientWith({
+      get_workspace_revision_view: { data: null, error: { message: "TypeError: Failed to fetch" } },
+      get_workspace_revision_summary: { data: null, error: { message: "TypeError: Failed to fetch" } },
+    });
+
+    await expect(getHostedPublicRevisionSummary(client, token)).rejects.toThrow("고객 화면을 불러오지 못했어요.");
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("서버가 오류 없이 빈 결과를 주면(끈 링크·다시 만든 링크·틀린 주소) 예외 없이 null을 준다", async () => {
+    const { client } = clientWith({ get_workspace_revision_view: { data: [], error: null } });
+
+    await expect(getHostedPublicRevisionSummary(client, token)).resolves.toBeNull();
+  });
+});
+
 describe("수정 완료 때 차감 migration(20261101140000)", () => {
   const pendingSql = readFileSync(
     resolve(process.cwd(), "supabase/migrations/20261101140000_revision_pending_and_intake.sql"),

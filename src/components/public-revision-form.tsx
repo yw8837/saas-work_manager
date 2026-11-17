@@ -43,6 +43,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
   // 불러오다 실패한 것(통신 오류)은 링크가 꺼진 것과 다르다. 다시 불러오기를 누르면 attempt가 올라가 다시 읽는다.
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [retrying, setRetrying] = useState(false);
   const retryIdentityRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
       .then((summary) => { if (!cancelled) setHostedSummary(summary); })
       .then(() => { if (!cancelled) setLoadFailed(false); })
       .catch(() => { if (!cancelled) { setHostedSummary(null); setLoadFailed(true); } })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!cancelled) { setLoading(false); setRetrying(false); } });
     return () => { cancelled = true; };
   }, [hosted, token, attempt]);
 
@@ -108,7 +109,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
   }
 
   if (hosted && loadFailed && !hostedSummary) {
-    return <PublicRevisionLoadFailed onRetry={() => { setLoading(true); setAttempt((value) => value + 1); }} />;
+    return <PublicRevisionLoadFailed retrying={retrying} onRetry={() => { setRetrying(true); setAttempt((value) => value + 1); }} />;
   }
 
   if ((hosted && !hostedSummary) || (!hosted && !localJob)) {

@@ -79,15 +79,28 @@ export function PublicRevisionUnavailable({ message }: { message: string }) {
  * 불러오다 실패했을 때(통신 오류 등). 링크가 꺼진 것과 구분한다.
  * 멀쩡한 링크를 '사용할 수 없는 링크'라고 하면 고객이 작업자에게 새 링크를 달라고 헛걸음한다.
  */
-export function PublicRevisionLoadFailed({ onRetry }: { onRetry: () => void }) {
+export function PublicRevisionLoadFailed({ onRetry, retrying = false }: { onRetry: () => void; retrying?: boolean }) {
   return (
     <main className="publicRevisionPage">
       <section className="publicRevisionCard publicRevisionEmpty">
         <header className="publicRevisionHeader"><Brand /></header>
         <span className="publicRevisionEmptyIcon" aria-hidden="true"><RefreshCw size={28} /></span>
-        <h1>화면을 불러오지 못했어요</h1>
-        <p>링크가 꺼진 것은 아닐 수 있어요. 인터넷 연결을 확인하고 다시 불러와 주세요.</p>
-        <p><button type="button" className="primaryButton" onClick={onRetry} data-testid="public-revision-retry">다시 불러오기</button></p>
+        {/* 화면낭독기가 실패를 바로 읽도록 알림 역할을 단다. 다시 불러오는 동안에도 이 화면을 그대로 둔다(버튼 초점 유지). */}
+        <div role="alert">
+          <h1>화면을 불러오지 못했어요</h1>
+          <p>링크가 꺼진 것은 아닐 수 있어요. 인터넷 연결을 확인하거나 잠시 뒤 다시 불러와 주세요.</p>
+        </div>
+        <p>
+          <button
+            type="button"
+            className="primaryButton"
+            aria-disabled={retrying}
+            onClick={() => { if (!retrying) onRetry(); }}
+            data-testid="public-revision-retry"
+          >
+            {retrying ? "불러오는 중이에요" : "다시 불러오기"}
+          </button>
+        </p>
         <div className="publicRevisionNextStep" data-testid="load-failed-next-step">
           <strong>계속 안 되면</strong>
           <p>잠시 뒤 같은 링크를 다시 열어 보세요. 그래도 안 열리면 링크를 보낸 작업자에게 알려 주세요.</p>

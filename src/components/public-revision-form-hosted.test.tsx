@@ -76,6 +76,8 @@ describe("PublicRevisionForm 운영 모드", () => {
     expect(await screen.findByRole("heading", { name: "화면을 불러오지 못했어요" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "사용할 수 없는 링크예요" })).not.toBeInTheDocument();
     expect(document.body).toHaveTextContent("링크가 꺼진 것은 아닐 수 있어요.");
+    // 화면낭독기가 실패를 읽어 주도록 알림 역할을 단다.
+    expect(screen.getByRole("alert")).toHaveTextContent("화면을 불러오지 못했어요");
 
     summaryMock.mockResolvedValueOnce({ ...base, used: 0, remaining: 3, pending: 0, requests: [] });
     fireEvent.click(screen.getByRole("button", { name: "다시 불러오기" }));
@@ -83,6 +85,41 @@ describe("PublicRevisionForm 운영 모드", () => {
     expect(await screen.findByLabelText("수정 요청 내용")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "화면을 불러오지 못했어요" })).not.toBeInTheDocument();
     expect(summaryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("실패한 뒤 다시 불러왔더니 서버가 그런 링크가 없다고 하면 사용할 수 없는 링크로 바뀐다", async () => {
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+    summaryMock.mockRejectedValueOnce(new Error("network"));
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+    summaryMock.mockResolvedValueOnce(null);
+    fireEvent.click(await screen.findByRole("button", { name: "다시 불러오기" }));
+
+    expect(await screen.findByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "화면을 불러오지 못했어요" })).not.toBeInTheDocument();
+  });
+
+  it("다시 불러오는 동안 실패 화면을 그대로 두고 버튼만 '불러오는 중'으로 바꾼다(초점이 사라지지 않게)", async () => {
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+    summaryMock.mockRejectedValueOnce(new Error("network"));
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+    const button = await screen.findByRole("button", { name: "다시 불러오기" });
+    let release: (value: null) => void = () => undefined;
+    summaryMock.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
+    button.focus();
+    fireEvent.click(button);
+
+    const busy = await screen.findByRole("button", { name: "불러오는 중이에요" });
+    expect(busy).toHaveAttribute("aria-disabled", "true");
+    expect(busy).toBe(button);
+    expect(document.activeElement).toBe(button);
+    expect(screen.getByRole("heading", { name: "화면을 불러오지 못했어요" })).toBeInTheDocument();
+    // 불러오는 중에 또 눌러도 요청을 더 보내지 않는다.
+    fireEvent.click(busy);
+    expect(summaryMock).toHaveBeenCalledTimes(2);
+    release(null);
+    expect(await screen.findByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();
   });
 
   it("다시 불러와도 실패하면 같은 안내를 계속 보여 준다", async () => {

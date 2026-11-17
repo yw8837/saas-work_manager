@@ -338,7 +338,8 @@ export async function getHostedPublicRevisionSummary(
   }
   // 새 함수가 아직 없는 DB(migration 적용 전)에서는 기존 요약 함수로 되돌아간다.
   const { data, error } = await client.rpc("get_workspace_revision_summary", { p_token: token });
-  if (error) throw new Error("사용할 수 없는 링크예요.");
+  // 두 함수가 모두 오류면 링크가 꺼진 게 아니라 불러오기에 실패한 것이다(끈 링크·틀린 주소는 오류 없이 빈 결과).
+  if (error) throw new Error("고객 화면을 불러오지 못했어요.");
   const row = firstRow<{
     job_key: string;
     title: string;
