@@ -74,6 +74,8 @@ describe("Clarity 불러오기 조건", () => {
     expect(scripts()).toHaveLength(1);
     expect(script.src).toBe("https://www.clarity.ms/tag/testproject1");
     expect(script.async).toBe(true);
+    // 자격 없이 불러온다: 이 응답이 주는 Microsoft 쿠키(CLID)를 브라우저가 저장하지 않는다.
+    expect(script.crossOrigin).toBe("anonymous");
     expect(script.parentElement).toBe(document.head);
     expect(typeof w.clarity).toBe("function");
     w.clarity!("event", "x");

@@ -14,7 +14,7 @@
 
 ### 2026-11-13 방문 기록 도구(Microsoft Clarity) · 정책 beta.6 (브랜치 `claude/clarity-policy`, origin/main `7ed442c` 기준, 미배포)
 - **불러오기**: `NEXT_PUBLIC_CLARITY_PROJECT_ID`(영문 소문자·숫자 6~32자)가 있을 때만 메인(/)·둘러보기(/try)에서 `https://www.clarity.ms/tag/<ID>`를 붙인다(`src/lib/clarity.ts`, 인라인 스크립트 없음). GPC·DNT가 켜져 있거나, 다른 화면으로 처음 연 문서면 안 붙인다. 두 화면 밖으로 화면 안 이동(pushState·뒤로 가기)하면 주소가 바뀌기 전에 `clarity("stop")`으로 멈추고 그 문서에선 다시 안 켠다.
-- **CSP**: 전역 CSP는 그대로, ID가 있을 때만 `/`·`/try` 문서에 `https://*.clarity.ms`(script·connect·img)와 `https://c.bing.com`(img)을 더한다(`next.config.ts`, `buildClarityPageHeaders`).
+- **CSP**: 전역 CSP는 그대로, ID가 있을 때만 `/`·`/try` 문서에 `https://*.clarity.ms`를 script·connect에만 더한다(`next.config.ts`, `buildClarityPageHeaders`). 그림 출처(img)에는 Clarity·Bing 주소를 열지 않는다(2026-11-17): 쿠키 맞추기용 `c.clarity.ms/c.gif → c.bing.com/c.gif` 요청을 막기 위해서다. 불러오기 스크립트는 `crossOrigin="anonymous"`로 붙여 응답의 쿠키(CLID)를 저장하지 않는다. 11-16 실측에서 Clarity 대시보드의 쿠키 설정이 켜져 있으면 코드의 거부 신호만으로는 Microsoft 쿠키 8개가 남았고, 이 두 가지를 적용하면 0개였다. 대시보드 설정(Settings → Setup → Cookies)은 꺼 둔다.
 - **유입 경로**: 이 탭에 보관한 utm source·medium·campaign만 `clarity("set", "utm_source", …)` 맞춤 태그로 넘긴다. 둘러보기 요청 글 칸·목록은 `data-clarity-mask`.
 - **쿠키 저장 안 함**(사용자 결정 11-13, 방침 '맞춤 광고에 제공하지 않습니다' 유지): 대기열 맨 앞에 `clarity("consentv2", { ad_Storage: "denied", analytics_Storage: "denied" })`. 공식 문서상 거부 상태에서도 쿠키 없이 기록은 이어지고 화면을 열 때마다 새 ID를 쓴다. 공개 소스상 거부 신호는 본체 시작 뒤에 처리되므로, 프로젝트 설정 Cookies가 켜져 있으면 시작 순간 `_clck`를 썼다가 바로 지운다 → 운영 전에 Clarity 설정 Settings → Setup의 Cookies를 끈다.
 - **정책 beta.6**: 개인정보처리방침에 방문 기록 도구 항목(1·2·3·4절)과 Microsoft 링크 3개, 버전 `2026-11-13-beta.6`(약관 본문은 그대로, 버전 값만 함께). migration `20261103200000_policy_beta6_clarity`(PR #21의 `20261104010000` 앞), 시험 `supabase/tests/policy_beta6_acceptance.sql`.
