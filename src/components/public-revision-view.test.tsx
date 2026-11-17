@@ -262,3 +262,31 @@ describe("고객 링크 화면 — 짧은 요청(2026-11-11)", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });
+
+// 2026-11-17: 제작자가 확정한 추가 작업을 고객도 같은 화면에서 안다. 금액은 보여 주지 않는다(사용자 결정).
+describe("고객 링크 화면: 확정된 추가 작업", () => {
+  const base = { title: "브랜드 사이트", packageName: "Standard", revision, badgeLabel: "보안 링크", footnote: "안내", onSubmit: vi.fn() };
+
+  it("확정된 추가 작업이 있으면 건수와 늘어난 기간을 보여 주고, 금액은 보여 주지 않는다", () => {
+    render(<PublicRevisionView {...base} dueLabel="12월 15일 · 7일 남음" addons={{ count: 2, days: 5 }} />);
+    const line = screen.getByTestId("revision-addons");
+    expect(line).toHaveTextContent("추가 작업 2건이 확정됐어요.");
+    expect(line).toHaveTextContent("마감이 5일 늘었어요.");
+    expect(document.body.textContent).not.toMatch(/₩|\d원/);
+  });
+
+  it("기간이 늘지 않은 추가 작업은 건수만 말한다", () => {
+    render(<PublicRevisionView {...base} addons={{ count: 1, days: 0 }} />);
+    const line = screen.getByTestId("revision-addons");
+    expect(line).toHaveTextContent("추가 작업 1건이 확정됐어요.");
+    expect(line).not.toHaveTextContent("늘었어요");
+  });
+
+  it("확정된 추가 작업이 없거나 서버가 모르면(옛 서버) 그 줄을 그리지 않는다", () => {
+    const first = render(<PublicRevisionView {...base} addons={{ count: 0, days: 0 }} />);
+    expect(screen.queryByTestId("revision-addons")).not.toBeInTheDocument();
+    first.unmount();
+    render(<PublicRevisionView {...base} />);
+    expect(screen.queryByTestId("revision-addons")).not.toBeInTheDocument();
+  });
+});

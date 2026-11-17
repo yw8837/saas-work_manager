@@ -9,6 +9,7 @@ import {
   CUSTOMER_DRAFT_STAGE,
   CUSTOMER_STAGE_LABELS,
   customerCompletedLabel,
+  type CustomerAddons,
   type CustomerRequest,
   type CustomerStage,
 } from "@/lib/domain/customer-stage";
@@ -214,6 +215,8 @@ export type PublicRevisionViewProps = {
   progress?: { done: number; total: number };
   /** 고객이 링크로 남긴 요청과 처리 상태. 모르면(옛 서버) 비워 두고, 그러면 목록을 그리지 않는다. */
   requests?: CustomerRequest[];
+  /** 작업자가 확정한 추가 작업의 건수와 늘어난 기간. 금액은 받지도 보여 주지도 않는다. 모르면(옛 서버) 비워 둔다. */
+  addons?: CustomerAddons;
   badgeLabel: string;
   footnote: string;
   /** 성공하면 차감 결과를 돌려주고, 실패하면 고객에게 보여줄 문구로 throw한다. */
@@ -235,6 +238,7 @@ export function PublicRevisionView({
   stage,
   progress,
   requests,
+  addons,
   badgeLabel,
   footnote,
   onSubmit,
@@ -330,6 +334,11 @@ export function PublicRevisionView({
               )}
             </dl>
             <PendingOverNotice revision={revision} />
+            {addons && addons.count > 0 && (
+              <p className="publicRevisionAddons" data-testid="revision-addons">
+                추가 작업 {addons.count}건이 확정됐어요.{addons.days > 0 ? ` 마감이 ${addons.days}일 늘었어요.` : ""}
+              </p>
+            )}
 
             {stage !== undefined && (
               <ol className="customerStageChips" aria-label="진행 단계">

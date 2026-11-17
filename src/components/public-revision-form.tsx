@@ -11,6 +11,7 @@ import {
 } from "@/components/public-revision-view";
 import { getRevisionSummary, useWorkspace } from "@/components/workspace-provider";
 import {
+  customerAddonsOf,
   customerCompletedLabel,
   customerDueLabel,
   customerProgressOf,
@@ -139,6 +140,12 @@ export function PublicRevisionForm({ token }: { token: string }) {
   const workerName = (hostedSummary ? hostedSummary.workerName : settings.publicWorkerName)?.trim().slice(0, 40) || undefined;
   const requests = hostedSummary ? hostedSummary.requests : customerRequestsOf(localJob!);
   const intakePending = hostedSummary ? hostedSummary.intakePending : pendingIntakeLabels(localJob!);
+  // 옛 서버는 추가 작업을 알려 주지 않는다. 그때는 비워 두고 화면은 그 줄을 그리지 않는다.
+  const addons = hostedSummary
+    ? hostedSummary.addonsConfirmed === undefined
+      ? undefined
+      : { count: hostedSummary.addonsConfirmed, days: hostedSummary.addonDays ?? 0 }
+    : customerAddonsOf(localJob!);
 
   const completed = hostedSummary ? hostedSummary.jobStatus === "completed" : localJob!.status === "completed";
   if (completed) {
@@ -164,6 +171,7 @@ export function PublicRevisionForm({ token }: { token: string }) {
       stage={progress ? customerStageFromProgress(progress) : undefined}
       progress={progress}
       requests={requests}
+      addons={addons}
       badgeLabel={hosted ? "보안 링크로 직접 전달" : "이 브라우저에 저장"}
       footnote={hosted ? "링크를 받은 사람만 요청할 수 있어요. 연락처·금액·다른 고객 정보는 공개하지 않아요." : "보내주신 내용은 지금 이 브라우저에만 저장돼요."}
       onSubmit={submit}

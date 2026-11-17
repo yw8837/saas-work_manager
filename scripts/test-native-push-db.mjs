@@ -77,6 +77,7 @@ try {
   await db.exec(await readFile(resolve("supabase/tests/account_delete_with_requests.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/review_hardening.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/signup_source.sql"), "utf8"));
+  await db.exec(await readFile(resolve("supabase/tests/public_revision_addons.sql"), "utf8"));
   const access = await db.query(await readFile(resolve("supabase/tests/rpc_execution_surface.sql"), "utf8"));
   assert.equal(access.rows.length, 25);
   assert.ok(access.rows.every((row) => row.passed), JSON.stringify(access.rows.filter((row) => !row.passed)));

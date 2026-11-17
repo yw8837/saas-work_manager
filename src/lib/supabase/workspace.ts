@@ -32,7 +32,17 @@ export type PublicRevisionSummary = {
   completedAt?: string;
   /** 고객이 링크로 남긴 요청과 처리 상태(최근 것부터, 원문만). */
   requests?: CustomerRequest[];
+  /** 아래는 20261117120000 migration 뒤에만 채워진다. 확정된 추가 작업의 건수와 그로 늘어난 기간(일). 금액은 받지 않는다. */
+  addonsConfirmed?: number;
+  addonDays?: number;
 };
+
+/** 서버가 준 개수·일수: 열이 없으면(옛 서버) 비워 두고, 0 이상 정수가 아니면 0으로 본다. */
+function parseCount(value: unknown): number | undefined {
+  if (value == null) return undefined;
+  const count = typeof value === "number" ? value : Number.NaN;
+  return Number.isInteger(count) && count >= 0 ? count : 0;
+}
 
 const CUSTOMER_REQUEST_STATUSES = new Set<CustomerRequest["status"]>(["pending", "done", "extra", "rejected"]);
 
@@ -312,6 +322,8 @@ export async function getHostedPublicRevisionSummary(
       job_status?: string | null;
       completed_at?: string | null;
       requests?: unknown;
+      addons_confirmed?: unknown;
+      addon_days?: unknown;
     }>(view.data);
     return row ? {
       jobKey: row.job_key,
@@ -334,6 +346,8 @@ export async function getHostedPublicRevisionSummary(
       jobStatus: row.job_status === "completed" || row.job_status === "active" ? row.job_status : undefined,
       completedAt: typeof row.completed_at === "string" && row.completed_at ? row.completed_at : undefined,
       requests: parseCustomerRequests(row.requests),
+      addonsConfirmed: parseCount(row.addons_confirmed),
+      addonDays: parseCount(row.addon_days),
     } : null;
   }
   // 새 함수가 아직 없는 DB(migration 적용 전)에서는 기존 요약 함수로 되돌아간다.

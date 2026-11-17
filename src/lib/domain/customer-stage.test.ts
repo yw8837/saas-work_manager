@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { completeRevision, composeJob, markRevisionExtraScope, recordRevision, revertRevision, toggleIntakeItem, updateTaskStatus } from "./engine";
 import {
   CUSTOMER_STAGE_LABELS,
+  customerAddonsOf,
   customerCompletedLabel,
   customerDueLabel,
   customerProgressOf,
@@ -140,5 +141,26 @@ describe("고객 화면 마감 표시", () => {
   it("형식이 틀린 날짜는 표시하지 않는다", () => {
     expect(customerDueLabel("", "2026-11-07")).toBeUndefined();
     expect(customerDueLabel("2026/11/07", "2026-11-07")).toBeUndefined();
+  });
+});
+
+describe("고객 화면에 보일 추가 작업(customerAddonsOf)", () => {
+  const addon = (status: "draft" | "confirmed" | "cancelled", durationDaysDelta: number) => ({
+    id: `a-${status}-${durationDaysDelta}`, jobId: "job", title: "추가", amountDelta: 50000, estimatedCostDelta: 0,
+    durationDaysDelta, tasks: [], status, createdAt: "2026-11-17T00:00:00.000Z",
+  });
+
+  it("확정된 것만 세고 기간을 더한다. 초안·취소는 뺀다", () => {
+    expect(customerAddonsOf({ addons: [addon("confirmed", 2), addon("confirmed", 3), addon("draft", 10), addon("cancelled", 20)] }))
+      .toEqual({ count: 2, days: 5 });
+  });
+
+  it("추가 작업이 없으면 0건 0일", () => {
+    expect(customerAddonsOf({ addons: [] })).toEqual({ count: 0, days: 0 });
+  });
+
+  it("음수·소수 기간은 더하지 않는다(서버 함수와 같은 규칙)", () => {
+    expect(customerAddonsOf({ addons: [addon("confirmed", -4), addon("confirmed", 1.5), addon("confirmed", 4)] }))
+      .toEqual({ count: 3, days: 4 });
   });
 });
