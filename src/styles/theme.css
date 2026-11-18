@@ -1733,6 +1733,8 @@ p.clarityNotice a { display: inline; min-height: 0; color: var(--ink-soft); text
 .publicRevisionRequests li[data-status="done"] .publicRevisionRequestMeta strong { color: var(--green); background: var(--green-soft); border-color: transparent; }
 .publicRevisionRequests li[data-status="rejected"] .publicRevisionRequestMeta strong { color: var(--muted); }
 .publicRevisionRequestBody { display: -webkit-box; margin: 0; overflow: hidden; color: var(--ink); font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+/* 2026-11-18 작업자가 직접 적은 요청: 원문 대신 받은 경로만("카카오톡으로 주신 요청"). */
+.publicRevisionRequestChannel { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.55; word-break: keep-all; }
 .publicRevisionDoneIntro { padding: 30px 0 4px; text-align: center; }
 .publicRevisionDoneIcon { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 12px; color: var(--green); background: var(--green-soft); border-radius: 50%; }
 .publicRevisionDoneIntro h1 { margin: 6px 0; font-size: 28px; }

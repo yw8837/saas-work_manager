@@ -13,7 +13,7 @@ import {
   type CustomerRequest,
   type CustomerStage,
 } from "@/lib/domain/customer-stage";
-import type { RevisionUsage } from "@/lib/domain/types";
+import type { RevisionChannel, RevisionUsage } from "@/lib/domain/types";
 import { getPublicServiceConfig } from "@/lib/policies";
 
 const REQUEST_FORM_ID = "revision-request-form";
@@ -124,24 +124,42 @@ const REQUEST_STATUS_TEXT: Record<CustomerRequest["status"], { label: string; de
   rejected: { label: "반려", detail: "포함 수정으로 세지 않았어요" },
 };
 
-/** 고객이 링크로 남긴 요청과 처리 상태. 원문만 보이고 작업자 메모·내부 분류명은 없다. */
+/** 작업자가 직접 적은 요청의 받은 경로. 뒤에 '주신 요청'을 붙여 읽는다. */
+const REQUEST_CHANNEL_TEXT: Record<RevisionChannel, string> = {
+  kakao: "카카오톡으로",
+  kmong: "크몽으로",
+  soomgo: "숨고로",
+  instagram: "인스타그램으로",
+  discord: "디스코드로",
+  phone: "전화로",
+  other: "다른 경로로",
+};
+
+/**
+ * 요청과 처리 상태. 고객이 링크로 남긴 요청은 원문을, 작업자가 직접 적은 요청은 받은 경로만 보인다.
+ * 작업자 메모·직접 적은 요청의 원문·내부 분류명은 없다.
+ */
 function PublicRevisionRequestList({ requests }: { requests?: CustomerRequest[] }) {
   if (!requests || requests.length === 0) return null;
+  // 직접 적은 요청이 섞이면 고객이 이 링크로 '남긴' 건수가 아니므로 '요청 기록'이라고 부른다.
+  const heading = requests.some((request) => request.source === "manual") ? "요청 기록" : "남기신 요청";
   return (
     <section className="publicRevisionRequests" aria-labelledby="public-revision-requests-title">
-      <h2 id="public-revision-requests-title">남기신 요청 <span>{requests.length}건</span></h2>
-      <ul aria-label="남기신 요청">
+      <h2 id="public-revision-requests-title">{heading} <span>{requests.length}건</span></h2>
+      <ul aria-label={heading}>
         {requests.map((request, index) => {
           const text = REQUEST_STATUS_TEXT[request.status];
           const date = customerCompletedLabel(request.submittedAt);
           return (
-            <li key={`${index}-${request.submittedAt ?? ""}`} data-status={request.status}>
+            <li key={`${index}-${request.submittedAt ?? ""}`} data-status={request.status} data-source={request.source === "manual" ? "manual" : undefined}>
               <p className="publicRevisionRequestMeta">
                 <strong>{text.label}</strong>
                 <span>{request.status === "done" && request.sequence ? `${text.detail} ${request.sequence}회차` : text.detail}</span>
                 {date && <span>{date} 접수</span>}
               </p>
-              <p className="publicRevisionRequestBody">{request.body}</p>
+              {request.source === "manual"
+                ? <p className="publicRevisionRequestChannel">{REQUEST_CHANNEL_TEXT[request.channel] ?? REQUEST_CHANNEL_TEXT.other} 주신 요청</p>
+                : <p className="publicRevisionRequestBody">{request.body}</p>}
             </li>
           );
         })}

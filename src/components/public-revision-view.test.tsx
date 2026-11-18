@@ -263,6 +263,56 @@ describe("고객 링크 화면 — 짧은 요청(2026-11-11)", () => {
   });
 });
 
+// 2026-11-18: 카톡·전화로 말한 요청을 작업자가 직접 적으면 고객 화면 목록에도 보인다. 작업자가 적은 원문은 보이지 않는다.
+describe("고객 링크 화면: 작업자가 직접 적은 요청", () => {
+  const base = { title: "브랜드 사이트", packageName: "Standard", revision, badgeLabel: "보안 링크", footnote: "안내", onSubmit: vi.fn() };
+
+  it("직접 적은 요청은 받은 경로·날짜·상태만 한 줄로 보이고, 섞이면 제목이 '요청 기록 N건'이 된다", () => {
+    render(<PublicRevisionView {...base} requests={[
+      { status: "done", sequence: 2, submittedAt: "2026-11-18T03:00:00.000Z", source: "manual", channel: "kakao" },
+      { status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "메인 문구를 바꿔 주세요" },
+      { status: "pending", submittedAt: "2026-11-16T03:00:00.000Z", source: "manual", channel: "soomgo" },
+      { status: "extra", submittedAt: "2026-11-15T03:00:00.000Z", source: "manual", channel: "phone" },
+      { status: "rejected", submittedAt: "2026-11-14T03:00:00.000Z", source: "manual", channel: "other" },
+    ]} />);
+    expect(screen.getByRole("heading", { name: "요청 기록 5건" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "남기신 요청" })).not.toBeInTheDocument();
+    const items = within(screen.getByRole("list", { name: "요청 기록" })).getAllByRole("listitem");
+    expect(items).toHaveLength(5);
+    expect(items[0]).toHaveTextContent("카카오톡으로 주신 요청");
+    expect(items[0]).toHaveTextContent("11월 18일");
+    expect(items[0]).toHaveTextContent("수정 완료 2회차");
+    expect(items[0]).toHaveAttribute("data-source", "manual");
+    expect(items[0].querySelector(".publicRevisionRequestBody")).toBeNull();
+    expect(items[1]).toHaveTextContent("메인 문구를 바꿔 주세요");
+    expect(items[1]).not.toHaveAttribute("data-source");
+    expect(items[2]).toHaveTextContent("숨고로 주신 요청");
+    expect(items[2]).toHaveTextContent("확인 대기");
+    expect(items[3]).toHaveTextContent("전화로 주신 요청");
+    expect(items[3]).toHaveTextContent("추가 작업 검토");
+    expect(items[4]).toHaveTextContent("다른 경로로 주신 요청");
+    expect(items[4]).toHaveTextContent("반려");
+    expect(document.body).not.toHaveTextContent(/manual|kakao|soomgo|other/);
+  });
+
+  it("고객이 카톡으로만 말했어도 링크를 열면 기록이 보인다", () => {
+    render(<PublicRevisionView {...base} requests={[{ status: "pending", submittedAt: "2026-11-18T03:00:00.000Z", source: "manual", channel: "instagram" }]} />);
+    expect(screen.getByRole("heading", { name: "요청 기록 1건" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "요청 기록" })).toHaveTextContent("인스타그램으로 주신 요청");
+  });
+
+  it("고객 링크 요청만 있으면 지금처럼 '남기신 요청 N건'", () => {
+    render(<PublicRevisionView {...base} requests={[{ status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "사진을 밝게" }]} />);
+    expect(screen.getByRole("heading", { name: "남기신 요청 1건" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "요청 기록" })).not.toBeInTheDocument();
+  });
+
+  it("완료 화면에서도 직접 적은 요청을 같은 모양으로 보여 준다", () => {
+    render(<PublicRevisionCompleted title="로고" packageName="Standard" requests={[{ status: "done", sequence: 1, submittedAt: "2026-11-18T03:00:00.000Z", source: "manual", channel: "discord" }]} />);
+    expect(screen.getByRole("list", { name: "요청 기록" })).toHaveTextContent("디스코드로 주신 요청");
+  });
+});
+
 // 2026-11-17: 제작자가 확정한 추가 작업을 고객도 같은 화면에서 안다. 금액은 보여 주지 않는다(사용자 결정).
 describe("고객 링크 화면: 확정된 추가 작업", () => {
   const base = { title: "브랜드 사이트", packageName: "Standard", revision, badgeLabel: "보안 링크", footnote: "안내", onSubmit: vi.fn() };

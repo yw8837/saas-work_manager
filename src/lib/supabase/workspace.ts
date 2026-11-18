@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { normalizeAppState, type AppState } from "@/lib/store";
-import type { CustomerRequest, Job, RevisionUsage } from "@/lib/domain";
+import { customerRequestChannelOf, type CustomerRequest, type Job, type RevisionUsage } from "@/lib/domain";
 
 export type HostedWorkspaceDocument = {
   state: AppState;
@@ -30,7 +30,7 @@ export type PublicRevisionSummary = {
   jobStatus?: "active" | "completed";
   /** 일감을 완료한 시각(ISO). 완료 화면 날짜에 쓴다. */
   completedAt?: string;
-  /** 고객이 링크로 남긴 요청과 처리 상태(최근 것부터, 원문만). */
+  /** 고객이 링크로 남긴 요청과 처리 상태(최근 것부터, 원문만). 20261118120000 뒤에는 작업자가 직접 적은 요청도 원문 없이 받은 경로만 섞여 온다. */
   requests?: CustomerRequest[];
   /** 아래는 20261117120000 migration 뒤에만 채워진다. 확정된 추가 작업의 건수와 그로 늘어난 기간(일). 금액은 받지 않는다. */
   addonsConfirmed?: number;
@@ -46,7 +46,11 @@ function parseCount(value: unknown): number | undefined {
 
 const CUSTOMER_REQUEST_STATUSES = new Set<CustomerRequest["status"]>(["pending", "done", "extra", "rejected"]);
 
-/** 서버가 준 요청 목록에서 모양이 맞는 것만 남긴다. 모르는 상태·빈 원문은 버린다. */
+/**
+ * 서버가 준 요청 목록에서 모양이 맞는 것만 남긴다. 모르는 상태는 버린다.
+ * source가 "manual"이면 작업자가 직접 적은 요청이다(20261118120000 뒤). 받은 경로만 읽고, 원문이 실려 와도 읽지 않는다.
+ * 그 밖은 고객 링크 요청으로 읽고 원문이 비면 버린다(옛 서버는 source를 보내지 않는다).
+ */
 function parseCustomerRequests(value: unknown): CustomerRequest[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const result: CustomerRequest[] = [];
@@ -54,14 +58,18 @@ function parseCustomerRequests(value: unknown): CustomerRequest[] | undefined {
     if (!isRecord(item)) continue;
     const status = item.status as CustomerRequest["status"];
     if (!CUSTOMER_REQUEST_STATUSES.has(status)) continue;
-    if (typeof item.body !== "string" || !item.body.trim()) continue;
     const sequence = typeof item.sequence === "number" && Number.isInteger(item.sequence) && item.sequence > 0 ? item.sequence : undefined;
-    result.push({
+    const base = {
       status,
       ...(status === "done" && sequence ? { sequence } : {}),
       ...(typeof item.submittedAt === "string" && item.submittedAt ? { submittedAt: item.submittedAt } : {}),
-      body: item.body.trim().slice(0, 4000),
-    });
+    };
+    if (item.source === "manual") {
+      result.push({ ...base, source: "manual", channel: customerRequestChannelOf(item.channel) });
+    } else {
+      if (typeof item.body !== "string" || !item.body.trim()) continue;
+      result.push({ ...base, body: item.body.trim().slice(0, 4000) });
+    }
     if (result.length === 20) break;
   }
   return result;

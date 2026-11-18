@@ -73,7 +73,7 @@ describe("PublicRevisionForm 로컬 모드 안내", () => {
     expect(screen.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();
   });
 
-  it("진행 중인 일감에는 고객이 남긴 요청 목록을 상태와 함께 보여 준다", () => {
+  it("진행 중인 일감에는 요청 목록을 상태와 함께 보여 주고, 작업자가 직접 적은 요청은 원문 없이 받은 경로만 보인다", () => {
     const job = {
       ...seed.jobs[0],
       revisionPortalToken: "token_list",
@@ -86,8 +86,9 @@ describe("PublicRevisionForm 로컬 모드 안내", () => {
     };
     mountWith([job], "token_list");
 
-    const list = screen.getByRole("list", { name: "남기신 요청" });
+    const list = screen.getByRole("list", { name: "요청 기록" });
     expect(list).toHaveTextContent("메인 사진 교체");
+    expect(list).toHaveTextContent("카카오톡으로 주신 요청");
     expect(list).not.toHaveTextContent("작업자 메모");
   });
 });
