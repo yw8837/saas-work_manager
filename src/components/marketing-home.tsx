@@ -56,7 +56,7 @@ export function MarketingHome({ footerNote }: { footerNote?: ReactNode } = {}) {
               <span className="heroLine heroAccent">않아도 돼요.</span>
             </h1>
             <p className="heroLead" data-testid="landing-hero-lead">
-              외주 주문마다 약속한 수정 횟수와 마감을 적어 두면, 고객은 링크 하나로 수정 요청을 남기고 남은 횟수를 같이 봐요. 카톡으로 오는 요청을 따로 셀 필요가 없어요.
+              크몽·카톡·소개처럼 여러 곳에서 받은 외주를 한곳에 모아 관리해요. 주문마다 약속한 수정 횟수와 마감을 적어 두면, 고객은 링크 하나로 수정 요청을 남기고 남은 횟수를 같이 봐요.
             </p>
             {/* 시작 버튼은 베타 코드를 붙여 간다(signup-start.ts). 머리글 '로그인'은 기존 사용자용이라 /today 그대로. */}
             <div className="heroActions" id={LANDING_HERO_ACTIONS_ID}>
