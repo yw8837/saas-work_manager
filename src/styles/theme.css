@@ -790,6 +790,7 @@ p.clarityNotice a { display: inline; min-height: 0; color: var(--ink-soft); text
 .revisionQuickForm { padding: 13px; border: 1px solid var(--line); background: var(--canvas); }
 .revisionFormTop { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
 .revisionTextField textarea { padding: 10px 11px; min-height: 88px; }
+.revisionFormNote { margin: 6px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.5; word-break: keep-all; }
 .revisionFormActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .revisionLogList { display: grid; }
 .revisionLogRow { display: grid; grid-template-columns: 13px minmax(0, 1fr) auto; gap: 10px; padding: 13px 0; border-top: 1px solid #edf0f4; }

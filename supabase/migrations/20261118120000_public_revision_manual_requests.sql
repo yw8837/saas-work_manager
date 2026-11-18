@@ -6,9 +6,12 @@
 --   1) 직접 적은 요청(source 'manual')도 담는다. 원문(body)은 담지 않는다. 작업자가 자기 말로 적은 메모라
 --      고객에게 보일 글이 아닐 수 있다. 대신 'source': 'manual'과 받은 경로 'channel'만 담는다.
 --      경로는 앱의 선택지 일곱 개(kakao·kmong·soomgo·instagram·discord·phone·other)만 내보내고, 그 밖의 값은 'other'로 바꾼다.
---   2) 고객 링크 요청 항목은 지금과 같은 모양이다(source·channel 없음, 원문 포함).
---   3) 두 가지를 접수 시각이 늦은 것부터 20건. 시각이 같거나 형식이 틀리면 문서에 적힌 순서(나중 것 먼저)로 둔다.
---      시각은 변환하지 않고 글자 그대로 비교한다(앱이 쓰는 ISO 형식만 통과시키고, collate "C"로 바이트 순서).
+--   2) 고객 링크 요청 항목은 지금과 같은 모양이다(source·channel 없음, 원문 포함). 되돌린 것도 지금처럼 '반려'로 담는다.
+--   3) 직접 적은 요청 가운데 되돌린 것(revertedAt이 있는 것)은 담지 않는다. 직접 기록은 지울 방법이 없고 되돌리기만 있어서,
+--      잘못 적어 되돌린 기록이 고객에게 '반려'로 보이면 안 된다(2026-11-18 코드 리뷰). 20건은 뺀 뒤에 센다.
+--   4) 두 가지를 접수 시각이 늦은 것부터 20건. 시각이 같거나 형식이 틀리면 문서에 적힌 순서(나중 것 먼저)로 둔다.
+--      시각은 변환하지 않고 글자 그대로 비교한다. 정렬에는 앱의 toISOString 모양(YYYY-MM-DDTHH:MM:SS.sssZ)만 쓴다.
+--      길이·시간대가 같아야 글자 순서가 시각 순서와 같기 때문이다(collate "C"로 바이트 순서). 표시용 시각 검사(c_iso)는 직전 판 그대로다.
 -- 배포 순서와 상관없이 깨지지 않게:
 --   - 옛 화면은 원문이 없는 항목을 버리므로 새 함수가 와도 지금처럼 고객 링크 요청만 보인다.
 --   - 새 화면은 source가 없으면 고객 링크 요청으로 읽으므로 옛 함수가 와도 지금처럼 동작한다.
@@ -56,6 +59,8 @@ declare
   v_completed_at text;
   -- 앱이 쓰는 ISO 시각(toISOString)만 통과시킨다. 형식이 틀린 값은 null로 내보내고 변환하지 않는다.
   c_iso constant text := '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$';
+  -- 요청 목록 정렬에만 쓴다. 앱의 toISOString 모양 하나만 통과시켜, 글자 순서가 곧 시각 순서가 되게 한다.
+  c_sort_iso constant text := '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$';
 begin
   if coalesce(char_length(p_token), 0) not between 43 and 128
     or p_token !~ '^[A-Za-z0-9_-]+$' then
@@ -144,7 +149,7 @@ begin
     v_status,
     v_completed_at,
     -- 고객 링크 요청과 작업자가 직접 적은 요청, 접수 시각이 늦은 것부터 20건. 상태 이름·회차·접수 시각을 담는다.
-    -- 고객 링크 요청은 원문을, 직접 적은 요청은 원문 대신 source·channel(정해진 값)만 담는다.
+    -- 고객 링크 요청은 원문을, 직접 적은 요청은 원문 대신 source·channel(정해진 값)만 담는다. 되돌린 직접 기록은 뺀다.
     coalesce((
       select jsonb_agg(entry order by sort_at collate "C" desc nulls last, position desc)
       from (
@@ -174,13 +179,15 @@ begin
           'body', case when revision ->> 'source' = 'public' then left(btrim(revision ->> 'body'), 4000) end
         )) as entry,
         (case
-          when coalesce(revision ->> 'submittedAt', '') ~ c_iso then revision ->> 'submittedAt'
+          when coalesce(revision ->> 'submittedAt', '') ~ c_sort_iso then revision ->> 'submittedAt'
         end) collate "C" as sort_at,
         position
         from jsonb_array_elements(v_revisions) with ordinality as entries(revision, position)
         where jsonb_typeof(revision) = 'object'
           and revision ->> 'source' in ('public', 'manual')
           and coalesce(btrim(revision ->> 'body'), '') <> ''
+          -- 잘못 적어 되돌린 직접 기록은 고객에게 보이지 않는다(limit 20보다 먼저 뺀다).
+          and not (revision ->> 'source' = 'manual' and revision ? 'revertedAt')
         order by sort_at desc nulls last, position desc
         limit 20
       ) as recent

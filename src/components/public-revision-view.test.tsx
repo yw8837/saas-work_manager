@@ -313,13 +313,45 @@ describe("고객 링크 화면: 작업자가 직접 적은 요청", () => {
     expect(screen.queryByTestId("revision-link-note")).not.toBeInTheDocument();
   });
 
-  it("요청 입력칸 바로 아래에 '링크는 끝까지 그대로, 대화창 요청도 여기에 기록' 안내가 한 줄 있다", () => {
-    render(<PublicRevisionView {...base} />);
+  // 2026-11-18 코드 리뷰: 재발급하면 주소가 바뀌므로 '작업이 끝날 때까지 그대로'라고 약속하지 않는다.
+  it("링크 안내를 켜면 요청 입력칸 바로 아래에 '새 링크를 받기 전까지 계속 쓰면 되고, 대화창 요청도 여기에 기록' 한 줄이 있다", () => {
+    render(<PublicRevisionView {...base} showLinkNote />);
     const note = screen.getByTestId("revision-link-note");
-    expect(note).toHaveTextContent("이 링크는 작업이 끝날 때까지 그대로예요. 평소 대화창으로 말씀하신 요청도 작업자가 여기에 함께 기록해요.");
+    expect(note).toHaveTextContent("작업자가 새 링크를 보내기 전까지 이 링크를 계속 쓰시면 돼요. 평소 대화창으로 말씀하신 요청도 작업자가 여기에 함께 기록해요.");
+    expect(note).not.toHaveTextContent("작업이 끝날 때까지 그대로");
     const form = screen.getByLabelText("수정 요청 내용").closest("form")!;
     expect(form.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(note.previousElementSibling).toBe(form);
+  });
+
+  // 이 브라우저 저장 모드의 링크는 고객에게 보낼 수 없어서, 넘기는 쪽이 켜지 않으면 그리지 않는다.
+  it("링크 안내를 켜지 않으면 그 줄을 그리지 않는다", () => {
+    render(<PublicRevisionView {...base} />);
+    expect(screen.queryByTestId("revision-link-note")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("함께 기록해요");
+  });
+
+  // 직접 적은 요청의 시각은 고객이 보낸 때가 아니라 작업자가 적은 때다.
+  it("직접 적은 요청의 날짜는 'O월 O일 기록', 고객 링크 요청은 지금처럼 'O월 O일 접수'", () => {
+    render(<PublicRevisionView {...base} requests={[
+      { status: "done", sequence: 1, submittedAt: "2026-11-18T03:00:00.000Z", source: "manual", channel: "kakao" },
+      { status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "메인 문구를 바꿔 주세요" },
+    ]} />);
+    const [manual, link] = within(screen.getByRole("list", { name: "요청 기록" })).getAllByRole("listitem");
+    expect(manual).toHaveTextContent("11월 18일 기록");
+    expect(manual).not.toHaveTextContent("접수");
+    expect(link).toHaveTextContent("11월 17일 접수");
+    expect(link).not.toHaveTextContent("기록");
+  });
+
+  it("완료 화면에서도 직접 적은 요청은 '기록', 고객 링크 요청은 '접수'", () => {
+    render(<PublicRevisionCompleted title="로고" packageName="Standard" requests={[
+      { status: "done", sequence: 2, submittedAt: "2026-11-18T03:00:00.000Z", source: "manual", channel: "phone" },
+      { status: "done", sequence: 1, submittedAt: "2026-11-17T03:00:00.000Z", body: "사진을 밝게" },
+    ]} />);
+    const [manual, link] = within(screen.getByRole("list", { name: "요청 기록" })).getAllByRole("listitem");
+    expect(manual).toHaveTextContent("11월 18일 기록");
+    expect(link).toHaveTextContent("11월 17일 접수");
   });
 });
 

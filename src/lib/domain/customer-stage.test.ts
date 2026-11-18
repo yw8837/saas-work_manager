@@ -159,6 +159,75 @@ describe("고객이 남긴 요청 목록", () => {
     expect(JSON.stringify(requests)).not.toContain("메모");
   });
 
+  // 2026-11-18 코드 리뷰: 직접 기록은 지울 방법이 없고 되돌리기만 있다. 잘못 적어 되돌린 기록이 고객에게 '반려'로 보이면 안 된다.
+  it("되돌린 직접 기록은 담지 않는다. 되돌린 고객 링크 요청은 지금처럼 '반려'로 담는다", () => {
+    let value = job();
+    value = recordRevision(value, { source: "public", body: "고객 질문", revisionId: "p1", submittedAt: "2026-11-17T01:00:00.000Z" }).job;
+    value = recordRevision(value, { source: "manual", channel: "kakao", body: "다른 일감 것을 잘못 적음", revisionId: "m1", submittedAt: "2026-11-18T01:00:00.000Z" }).job;
+    value = recordRevision(value, { source: "manual", channel: "phone", body: "전화 메모", revisionId: "m2", submittedAt: "2026-11-16T01:00:00.000Z" }).job;
+    value = revertRevision(value, "p1", "질문이라 대화창으로 답함", "2026-11-17T02:00:00.000Z");
+    value = revertRevision(value, "m1", "잘못 적음", "2026-11-18T01:05:00.000Z");
+
+    const requests = customerRequestsOf(value);
+    expect(requests).toEqual([
+      { status: "rejected", submittedAt: "2026-11-17T01:00:00.000Z", body: "고객 질문" },
+      { status: "pending", submittedAt: "2026-11-16T01:00:00.000Z", source: "manual", channel: "phone" },
+    ]);
+    expect(requests.some((request) => request.source === "manual" && request.status === "rejected")).toBe(false);
+    expect(JSON.stringify(requests)).not.toMatch(/kakao|잘못 적|대화창으로 답함/);
+  });
+
+  it("되돌린 직접 기록만 있으면 직접 기록 줄이 하나도 없다", () => {
+    let value = recordRevision(job(), { source: "public", body: "사진을 밝게", revisionId: "p1", submittedAt: "2026-11-17T01:00:00.000Z" }).job;
+    value = recordRevision(value, { source: "manual", channel: "kakao", body: "잘못 적은 메모", revisionId: "m1", submittedAt: "2026-11-18T01:00:00.000Z" }).job;
+    value = revertRevision(value, "m1", "잘못 적음", "2026-11-18T01:05:00.000Z");
+    const requests = customerRequestsOf(value);
+    expect(requests).toEqual([{ status: "pending", submittedAt: "2026-11-17T01:00:00.000Z", body: "사진을 밝게" }]);
+    expect(requests.some((request) => request.source === "manual")).toBe(false);
+  });
+
+  it("20건은 되돌린 직접 기록을 뺀 뒤에 센다", () => {
+    let value = job();
+    for (let index = 0; index < 25; index += 1) {
+      const minute = String(index).padStart(2, "0");
+      value = recordRevision(value, { source: index % 5 === 0 ? "manual" : "public", channel: "kakao", body: `요청 ${index}`, revisionId: `r${index}`, submittedAt: `2026-10-30T02:${minute}:00.000Z` }).job;
+    }
+    // 가장 늦은 직접 기록 두 건(20·15분)을 되돌린다.
+    value = revertRevision(value, "r20", "잘못 적음", "2026-10-30T03:00:00.000Z");
+    value = revertRevision(value, "r15", "잘못 적음", "2026-10-30T03:00:00.000Z");
+    const requests = customerRequestsOf(value);
+    expect(requests).toHaveLength(20);
+    expect(requests[0]).toMatchObject({ submittedAt: "2026-10-30T02:24:00.000Z" });
+    expect(requests[19]).toMatchObject({ submittedAt: "2026-10-30T02:03:00.000Z" });
+    expect(requests.map((request) => request.submittedAt)).not.toContain("2026-10-30T02:20:00.000Z");
+    expect(requests.map((request) => request.submittedAt)).not.toContain("2026-10-30T02:15:00.000Z");
+    expect(requests.filter((request) => request.source === "manual")).toHaveLength(2);
+  });
+
+  it("저장본의 고객 링크 요청에 channel이 들어 있어도 밖으로 내보내지 않는다", () => {
+    const base = job();
+    const stored = {
+      ...base,
+      revisions: [{ id: "p1", jobId: base.id, source: "public" as const, channel: "kakao" as const, clientLabel: "김담당", body: "문구 수정", status: "new" as const, usage: "pending" as const, sequence: null, submittedAt: "2026-11-17T01:00:00.000Z" }],
+    };
+    const requests = customerRequestsOf(stored);
+    expect(requests).toEqual([{ status: "pending", submittedAt: "2026-11-17T01:00:00.000Z", body: "문구 수정" }]);
+    expect(requests[0]).not.toHaveProperty("channel");
+    expect(requests[0]).not.toHaveProperty("source");
+  });
+
+  it("Z가 아닌 시간대(+09:00)·밀리초 없는 시각이 섞이면 그 기록은 정렬에서 문서 순서(나중 것 먼저)로 뒤에 간다", () => {
+    let value = job();
+    // 글자 비교로는 +09:00이 붙은 t1이 가장 늦어 보인다. 정렬에는 .sssZ 모양만 쓴다(서버 함수와 같은 규칙).
+    value = recordRevision(value, { source: "public", body: "시간대 붙은 요청", revisionId: "t1", submittedAt: "2026-11-20T01:00:00.000+09:00" }).job;
+    value = recordRevision(value, { source: "manual", channel: "soomgo", body: "숨고 메모", revisionId: "t2", submittedAt: "2026-11-10T01:00:00.000Z" }).job;
+    value = recordRevision(value, { source: "public", body: "밀리초 없는 요청", revisionId: "t3", submittedAt: "2026-11-05T01:00:00Z" }).job;
+    value = recordRevision(value, { source: "public", body: "보통 요청", revisionId: "t4", submittedAt: "2026-11-12T01:00:00.000Z" }).job;
+    expect(customerRequestsOf(value).map((request) => request.source === "manual" ? request.channel : request.body)).toEqual([
+      "보통 요청", "soomgo", "밀리초 없는 요청", "시간대 붙은 요청",
+    ]);
+  });
+
   it("최대 20건까지만 돌려준다", () => {
     let value = job();
     for (let index = 0; index < 25; index += 1) {

@@ -56,7 +56,7 @@ export function customerStageOf(job: Pick<Job, "status" | "tasks" | "revisions" 
  * - 작업자가 직접 적은 요청(source "manual"): 받은 경로(channel)만 담고 원문은 담지 않는다.
  *   작업자가 자기 말로 옮겨 적은 메모라 고객에게 보일 글이 아닐 수 있다.
  * 작업자 메모(반려 사유)·이름·참고 링크·내부 분류명은 어느 쪽에도 넣지 않는다.
- * pending 확인 대기 / done 수정 완료(회차) / extra 추가 작업 검토 / rejected 반려(되돌림 포함)
+ * pending 확인 대기 / done 수정 완료(회차) / extra 추가 작업 검토 / rejected 반려(되돌림 포함, 고객 링크 요청만 — 되돌린 직접 기록은 목록에서 뺀다)
  */
 export type CustomerRequestStatus = "pending" | "done" | "extra" | "rejected";
 type CustomerRequestBase = {
@@ -76,8 +76,9 @@ export function customerRequestChannelOf(value: unknown): RevisionChannel {
   return CUSTOMER_REQUEST_CHANNELS.includes(value as RevisionChannel) ? (value as RevisionChannel) : "other";
 }
 
-// 서버 함수가 통과시키는 접수 시각 형식(앱의 toISOString). 이 형식이 아니면 정렬에서 맨 뒤로 보낸다.
-const CUSTOMER_REQUEST_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
+// 정렬에 쓰는 접수 시각 형식. 앱의 toISOString 모양(YYYY-MM-DDTHH:MM:SS.sssZ)만 통과시킨다.
+// 길이·시간대가 같아야 글자 순서가 시각 순서와 같다. 이 형식이 아니면 정렬에서 맨 뒤로 보낸다(서버 함수의 c_sort_iso와 같다).
+const CUSTOMER_REQUEST_SORT_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 export function customerRequestStatusOf(revision: Pick<Revision, "usage" | "revertedAt">): CustomerRequestStatus {
   if (revision.revertedAt) return "rejected";
@@ -89,13 +90,15 @@ export function customerRequestStatusOf(revision: Pick<Revision, "usage" | "reve
 /**
  * 서버(get_workspace_revision_view의 requests, migration 20261118120000)와 같은 규칙:
  * 고객 링크 요청과 작업자가 직접 적은 요청을 접수 시각이 늦은 것부터 20건. 시각이 같거나 형식이 틀리면 나중에 기록한 것 먼저.
- * 직접 적은 요청은 원문 없이 받은 경로만 담는다.
+ * 직접 적은 요청은 원문 없이 받은 경로만 담는다. 되돌린 직접 기록은 담지 않는다(지울 방법이 없어 잘못 적은 기록이 '반려'로 보이면 안 된다).
+ * 20건은 뺀 뒤에 센다. 고객 링크 요청은 되돌려도 지금처럼 '반려'로 담는다.
  */
 export function customerRequestsOf(job: Pick<Job, "revisions">): CustomerRequest[] {
   const listed: { request: CustomerRequest; sortAt?: string; index: number }[] = [];
   job.revisions.forEach((revision, index) => {
     const body = revision.body.trim();
     if ((revision.source !== "public" && revision.source !== "manual") || !body) return;
+    if (revision.source === "manual" && revision.revertedAt) return;
     const status = customerRequestStatusOf(revision);
     const base = {
       status,
@@ -106,7 +109,7 @@ export function customerRequestsOf(job: Pick<Job, "revisions">): CustomerRequest
       request: revision.source === "manual"
         ? { ...base, source: "manual", channel: customerRequestChannelOf(revision.channel) }
         : { ...base, body },
-      sortAt: CUSTOMER_REQUEST_ISO.test(revision.submittedAt ?? "") ? revision.submittedAt : undefined,
+      sortAt: CUSTOMER_REQUEST_SORT_ISO.test(revision.submittedAt ?? "") ? revision.submittedAt : undefined,
       index,
     });
   });

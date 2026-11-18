@@ -126,6 +126,22 @@ describe("직접 적은 요청 migration(20261118120000)", () => {
     expect(viewSql).not.toMatch(/task ->> 'title'/);
   });
 
+  // 2026-11-18 코드 리뷰: 되돌린 직접 기록은 빼고(20건은 뺀 뒤에 셈), 정렬은 앱의 toISOString 모양만 쓴다. 표시용 시각 검사는 직전 판 그대로.
+  it("되돌린 직접 기록은 limit 20보다 먼저 빼고, 정렬에는 .sssZ 모양만 쓴다", () => {
+    // Windows 작업 사본은 줄 끝이 CRLF일 수 있어 맞춰서 본다.
+    const view = viewSql.replace(/\r\n/g, "\n");
+    const filter = "and not (revision ->> 'source' = 'manual' and revision ? 'revertedAt')";
+    expect(view).toContain(filter);
+    expect(view.indexOf("limit 20\n      ) as recent")).toBeGreaterThan(view.indexOf(filter));
+    expect(view).toContain("c_sort_iso constant text := '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$';");
+    expect(view).toContain("when coalesce(revision ->> 'submittedAt', '') ~ c_sort_iso then revision ->> 'submittedAt'");
+    const previous = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117120000_public_revision_addons.sql"), "utf8");
+    const isoOf = (sql: string) => /c_iso constant text := '([^']+)';/.exec(sql)?.[1];
+    expect(isoOf(manualSql)).toBeDefined();
+    expect(isoOf(manualSql)).toBe(isoOf(previous));
+    expect(view).toContain("'submittedAt', case\n            when coalesce(revision ->> 'submittedAt', '') ~ c_iso then revision ->> 'submittedAt'");
+  });
+
   it("서버가 준 직접 적은 요청은 받은 경로만 읽고, 원문이 실려 와도 버린다. 모르는 경로는 '기타'로 본다", async () => {
     const { client } = clientWith({
       get_workspace_revision_view: {
@@ -161,6 +177,18 @@ describe("직접 적은 요청 migration(20261118120000)", () => {
     });
     const summary = await getHostedPublicRevisionSummary(client, token);
     expect(summary?.requests).toEqual([{ status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "문구 수정" }]);
+  });
+
+  it("고객 링크 요청 항목에 channel이 실려 와도 읽지 않는다", async () => {
+    const { client } = clientWith({
+      get_workspace_revision_view: {
+        data: [{ ...row, requests: [{ status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "문구 수정", channel: "kakao" }] }],
+        error: null,
+      },
+    });
+    const summary = await getHostedPublicRevisionSummary(client, token);
+    expect(summary?.requests).toEqual([{ status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "문구 수정" }]);
+    expect(summary?.requests?.[0]).not.toHaveProperty("channel");
   });
 });
 

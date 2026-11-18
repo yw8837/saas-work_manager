@@ -155,7 +155,8 @@ function PublicRevisionRequestList({ requests }: { requests?: CustomerRequest[] 
               <p className="publicRevisionRequestMeta">
                 <strong>{text.label}</strong>
                 <span>{request.status === "done" && request.sequence ? `${text.detail} ${request.sequence}회차` : text.detail}</span>
-                {date && <span>{date} 접수</span>}
+                {/* 직접 적은 요청의 시각은 고객이 보낸 때가 아니라 작업자가 적은 때라 '기록'이라고 쓴다. */}
+                {date && <span>{date} {request.source === "manual" ? "기록" : "접수"}</span>}
               </p>
               {request.source === "manual"
                 ? <p className="publicRevisionRequestChannel">{REQUEST_CHANNEL_TEXT[request.channel] ?? REQUEST_CHANNEL_TEXT.other} 주신 요청</p>
@@ -242,6 +243,11 @@ export type PublicRevisionViewProps = {
   /** 카드 위에 붙는 안내(체험 화면 표시 등). 실제 링크에서는 비워 둔다. */
   before?: ReactNode;
   pageClassName?: string;
+  /**
+   * 입력칸 아래 '이 링크를 계속 쓰면 되고, 대화창 요청도 여기에 기록한다' 안내를 그릴지.
+   * 고객에게 링크를 보낼 수 있는 로그인 모드와 체험 링크에서만 켠다. 이 브라우저 저장 모드는 링크를 고객에게 못 보내서 끈다.
+   */
+  showLinkNote?: boolean;
 };
 
 export const SHORT_REQUEST_MESSAGE = "수정 요청 내용을 두 글자 이상 적어 주세요.";
@@ -262,6 +268,7 @@ export function PublicRevisionView({
   onSubmit,
   before,
   pageClassName,
+  showLinkNote = false,
 }: PublicRevisionViewProps) {
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
@@ -418,10 +425,13 @@ export function PublicRevisionView({
               </button>
               {error && <p className="publicRevisionError" role="alert">{error}</p>}
             </form>
-            {/* 링크를 매번 새로 받아야 하는지, 대화창으로 말한 요청은 어디에 남는지 묻지 않아도 되게 입력칸 바로 아래에 한 줄로 둔다. */}
-            <p className="publicRevisionLinkNote" data-testid="revision-link-note">
-              이 링크는 작업이 끝날 때까지 그대로예요. 평소 대화창으로 말씀하신 요청도 작업자가 여기에 함께 기록해요.
-            </p>
+            {/* 링크를 매번 새로 받아야 하는지, 대화창으로 말한 요청은 어디에 남는지 묻지 않아도 되게 입력칸 바로 아래에 한 줄로 둔다.
+                작업자가 재발급하면 이 주소는 닫히므로 '끝까지 그대로'라고 약속하지 않는다. */}
+            {showLinkNote && (
+              <p className="publicRevisionLinkNote" data-testid="revision-link-note">
+                작업자가 새 링크를 보내기 전까지 이 링크를 계속 쓰시면 돼요. 평소 대화창으로 말씀하신 요청도 작업자가 여기에 함께 기록해요.
+              </p>
+            )}
             <p className="publicRevisionFootnote">{footnote}</p>
           </>
         )}
