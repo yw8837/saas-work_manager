@@ -507,6 +507,21 @@ describe("JobDetail 고객 링크 쉬운 말", () => {
     confirm.mockRestore();
   });
 
+  // 2026-11-18 콜드메일 회신: 판매자가 요청마다 링크를 다시 복사해 보내야 하는 줄 안다. 링크는 일감마다 하나이고 만료가 없다.
+  it("로그인 모드의 진행 중 일감은 고객 링크 구획에 '링크는 일감마다 하나, 한 번만 보내면 돼요'를 한 줄로 알린다", () => {
+    renderDetail(baseJob(), { runtimeMode: "hosted" });
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(within(portal).getByTestId("portal-link-hint")).toHaveTextContent("링크는 일감마다 하나예요. 한 번만 보내면 돼요.");
+  });
+
+  it("고객에게 못 보내는 이 브라우저 저장 모드와 완료한 일감에는 그 한 줄을 그리지 않는다", () => {
+    const first = renderDetail();
+    expect(screen.queryByTestId("portal-link-hint")).not.toBeInTheDocument();
+    first.unmount();
+    renderDetail({ ...baseJob(), status: "completed" as const, completedAt: "2026-08-05T00:00:00.000Z" }, { runtimeMode: "hosted" });
+    expect(screen.queryByTestId("portal-link-hint")).not.toBeInTheDocument();
+  });
+
   it("이 브라우저 저장 모드에서 재발급하면 이전 주소는 더 못 쓴다고 알린다", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     renderDetail();

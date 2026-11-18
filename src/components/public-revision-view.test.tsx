@@ -310,6 +310,16 @@ describe("고객 링크 화면: 작업자가 직접 적은 요청", () => {
   it("완료 화면에서도 직접 적은 요청을 같은 모양으로 보여 준다", () => {
     render(<PublicRevisionCompleted title="로고" packageName="Standard" requests={[{ status: "done", sequence: 1, submittedAt: "2026-11-18T03:00:00.000Z", source: "manual", channel: "discord" }]} />);
     expect(screen.getByRole("list", { name: "요청 기록" })).toHaveTextContent("디스코드로 주신 요청");
+    expect(screen.queryByTestId("revision-link-note")).not.toBeInTheDocument();
+  });
+
+  it("요청 입력칸 바로 아래에 '링크는 끝까지 그대로, 대화창 요청도 여기에 기록' 안내가 한 줄 있다", () => {
+    render(<PublicRevisionView {...base} />);
+    const note = screen.getByTestId("revision-link-note");
+    expect(note).toHaveTextContent("이 링크는 작업이 끝날 때까지 그대로예요. 평소 대화창으로 말씀하신 요청도 작업자가 여기에 함께 기록해요.");
+    const form = screen.getByLabelText("수정 요청 내용").closest("form")!;
+    expect(form.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(note.previousElementSibling).toBe(form);
   });
 });
 

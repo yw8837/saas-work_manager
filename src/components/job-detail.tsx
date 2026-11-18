@@ -1131,6 +1131,10 @@ export function JobDetail({ jobId }: { jobId: string }) {
               <Copy size={16} />
             </button>
             {copied && <span className="copyFeedback" role="status"><Check size={14} /> 링크를 복사했어요</span>}
+            {/* 링크는 만료가 없고 일감마다 하나다. 요청마다 다시 복사해 보낼 필요가 없다는 걸 알린다(이 브라우저 저장 모드는 고객에게 못 보내서 뺀다). */}
+            {job.status === "active" && runtimeMode === "hosted" && (
+              <p className="portalLinkHint" data-testid="portal-link-hint">링크는 일감마다 하나예요. 한 번만 보내면 돼요.</p>
+            )}
             <div className="portalControlActions">
               <button
                 type="button"

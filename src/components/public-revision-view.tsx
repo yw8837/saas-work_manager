@@ -418,6 +418,10 @@ export function PublicRevisionView({
               </button>
               {error && <p className="publicRevisionError" role="alert">{error}</p>}
             </form>
+            {/* 링크를 매번 새로 받아야 하는지, 대화창으로 말한 요청은 어디에 남는지 묻지 않아도 되게 입력칸 바로 아래에 한 줄로 둔다. */}
+            <p className="publicRevisionLinkNote" data-testid="revision-link-note">
+              이 링크는 작업이 끝날 때까지 그대로예요. 평소 대화창으로 말씀하신 요청도 작업자가 여기에 함께 기록해요.
+            </p>
             <p className="publicRevisionFootnote">{footnote}</p>
           </>
         )}
