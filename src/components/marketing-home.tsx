@@ -13,6 +13,7 @@ import {
 import { Brand } from "./brand";
 import { LANDING_FINAL_CTA_ID, LANDING_HERO_ACTIONS_ID, MarketingStickyStart } from "./marketing-sticky-start";
 import { ProductPreview } from "./product-preview";
+import { SetupHelpLine } from "./setup-help-line";
 import { SignupOffer } from "./signup-offer";
 import { WorkFlowChart } from "./work-flow-chart";
 import { getPublicServiceConfig } from "@/lib/policies";
@@ -186,6 +187,7 @@ export function MarketingHome({ footerNote }: { footerNote?: ReactNode } = {}) {
           <div>
               <p>직원을 뽑기엔 아직 이르고, 잡일은 이미 많다면</p>
             <h2>운영은 덜고, 작업에 더 집중하세요.</h2>
+            <SetupHelpLine testId="landing-setup-help" />
           </div>
           <Link href={SIGNUP_START_HREF} className="primaryButton" data-testid="landing-final-start">
             무료로 시작하기

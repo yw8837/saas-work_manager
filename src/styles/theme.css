@@ -2326,3 +2326,10 @@ p.clarityNotice a { display: inline; min-height: 0; color: var(--ink-soft); text
 .authPage .primaryButton:hover { background: var(--primary-active); }
 /* 예시 구역의 옛 주소(#examples-design 등)가 닿는 빈 표시. 구역 맨 위와 같은 자리, 같은 위 여백. */
 .examplesAnchor { display: block; scroll-margin-top: 16px; }
+
+/* 첫 일감 같이 등록 신청 줄(2026-11-19) */
+.setupHelpLine { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--blue-soft); color: var(--ink); font-size: 14px; line-height: 1.55; }
+.setupHelpLine svg { flex: 0 0 auto; margin-top: 2px; }
+.setupHelpLine .inlineLink { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.setupHelpAddress { display: block; color: var(--ink-soft); overflow-wrap: anywhere; }
+.finalCta .setupHelpLine { margin: 18px 0 0; padding: 0; background: none; color: var(--ink-soft); }
