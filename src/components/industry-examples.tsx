@@ -3,11 +3,20 @@ import { ArrowRight } from "lucide-react";
 
 import type { OptionTemplate } from "@/lib/domain";
 import { SIGNUP_START_HREF, signupStartHref } from "@/lib/signup-start";
-import { INDUSTRY_LABELS, INDUSTRY_ORDER, INDUSTRY_STARTERS } from "@/lib/store/industry-starters";
+import { INDUSTRY_LABELS, INDUSTRY_ORDER, INDUSTRY_STARTERS, type Industry } from "@/lib/store/industry-starters";
 import { Brand } from "./brand";
+import { SetupHelpLine } from "./setup-help-line";
 import { SignupOffer } from "./signup-offer";
 
 const won = new Intl.NumberFormat("ko-KR");
+
+/** 업종 전용 페이지(/examples/<업종>)와 소개 화면 업종 카드의 한 줄. 예시 패키지 이름에 있는 일만 적는다. */
+export const INDUSTRY_PAGE_LEAD: Record<Industry, string> = {
+  web: "홈페이지 제작 주문에 맞춘 예시 패키지예요.",
+  design: "로고·브랜딩 주문에 맞춘 예시 패키지예요.",
+  video: "숏폼·유튜브·홍보 영상 편집 주문에 맞춘 예시 패키지예요.",
+  photo: "프로필·제품·행사 촬영 주문에 맞춘 예시 패키지예요.",
+};
 
 export const EXAMPLES_NOTICE = "금액과 횟수는 예시예요. 업계 평균이 아니에요. 가입 뒤 패키지 화면에서 고쳐 써요.";
 
@@ -30,7 +39,8 @@ function optionDuration(option: OptionTemplate): string {
  * 버튼은 `/today?starter=<업종>&invite=BETA2026`으로 가고(signup-start.ts), 오늘 화면이 업종 칩과 같은 applyIndustryStarter를 한 번 부른다.
  * 블로그 글이 쓰는 옛 구역 주소(`#examples-design` 등)도 각 구역 맨 위의 빈 표시로 이어 준다(기존 `#design`도 그대로).
  */
-export function IndustryExamples() {
+export function IndustryExamples({ only }: { only?: Industry } = {}) {
+  const industries = only ? [only] : INDUSTRY_ORDER;
   return (
     <div className="guidePage examplesPage">
       <header className="guideHeader">
@@ -38,26 +48,37 @@ export function IndustryExamples() {
         <nav aria-label="예시 페이지 메뉴">
           <Link href="/guide" className="guideHeaderExtra">사용설명서</Link>
           <Link href="/today" className="guideHeaderLogin" data-testid="examples-header-login">로그인</Link>
-          <Link href={SIGNUP_START_HREF} className="guideHeaderStart" data-testid="examples-header-start">무료로 시작하기</Link>
+          <Link href={only ? signupStartHref(only) : SIGNUP_START_HREF} className="guideHeaderStart" data-testid="examples-header-start">무료로 시작하기</Link>
         </nav>
       </header>
 
       <main className="guideMain examplesMain">
-        <h1>업종별 예시 패키지</h1>
-        <p className="examplesLead">
-          주문마다 고르기만 하면 되는 패키지를 업종별로 미리 만들어 뒀어요. 금액·기간·포함 수정 횟수·받을 자료를 보고, 맞는 예시로 시작해요.
+        <h1>{only ? `${INDUSTRY_LABELS[only]} 예시 패키지` : "업종별 예시 패키지"}</h1>
+        <p className="examplesLead" data-testid="examples-lead">
+          {only
+            ? `${INDUSTRY_PAGE_LEAD[only]} 금액·기간·포함 수정 횟수·받을 자료를 보고 그대로 시작해요.`
+            : "주문마다 고르기만 하면 되는 패키지를 업종별로 미리 만들어 뒀어요. 금액·기간·포함 수정 횟수·받을 자료를 보고, 맞는 예시로 시작해요."}
         </p>
         <p className="examplesNotice" data-testid="examples-notice">{EXAMPLES_NOTICE}</p>
         <SignupOffer testId="examples-offer" className="examplesOffer" />
         <Link href="/try" className="examplesTry" data-testid="examples-try">가입 없이 둘러보기</Link>
 
-        <nav className="examplesJump" aria-label="업종 바로 가기">
-          {INDUSTRY_ORDER.map((industry) => (
-            <a key={industry} href={`#${industry}`}>{INDUSTRY_LABELS[industry]}</a>
-          ))}
-        </nav>
+        {only ? (
+          <nav className="examplesJump" aria-label="업종별 예시" data-testid="examples-other-industries">
+            {INDUSTRY_ORDER.map((industry) => (
+              <Link key={industry} href={`/examples/${industry}`} aria-current={industry === only ? "page" : undefined}>{INDUSTRY_LABELS[industry]}</Link>
+            ))}
+            <Link href="/examples">전체 보기</Link>
+          </nav>
+        ) : (
+          <nav className="examplesJump" aria-label="업종 바로 가기">
+            {INDUSTRY_ORDER.map((industry) => (
+              <a key={industry} href={`#${industry}`}>{INDUSTRY_LABELS[industry]}</a>
+            ))}
+          </nav>
+        )}
 
-        {INDUSTRY_ORDER.map((industry) => {
+        {industries.map((industry) => {
           const starter = INDUSTRY_STARTERS[industry];
           const label = INDUSTRY_LABELS[industry];
           return (
@@ -110,6 +131,8 @@ export function IndustryExamples() {
             </section>
           );
         })}
+        {/* 예시를 본 뒤 혼자 옮기기 어려운 사람을 세팅 신청으로 잇는다(2026-11-20). */}
+        <SetupHelpLine testId="examples-setup-help" />
       </main>
 
       <footer className="guideFooter">

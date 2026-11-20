@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import {
   ArrowRight,
   BellRing,
+  BookOpen,
+  Handshake,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -16,9 +18,25 @@ import { ProductPreview } from "./product-preview";
 import { SignupOffer } from "./signup-offer";
 import { WorkFlowChart } from "./work-flow-chart";
 import { getPublicServiceConfig } from "@/lib/policies";
-import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/domain";
+import { PLAN_LIMITS, PLAN_NAMES, PLAN_PRICES, type Plan } from "@/lib/domain";
+import { SETUP_HELP_FALLBACK, SETUP_HELP_LINK_LABEL, SETUP_HELP_TEXT, setupHelpEmail, setupHelpMailto } from "@/lib/setup-help";
+import { INDUSTRY_LABELS, INDUSTRY_ORDER, INDUSTRY_STARTERS } from "@/lib/store/industry-starters";
+import { INDUSTRY_PAGE_LEAD } from "./industry-examples";
 import { BUSINESS_IDENTITY, publicBusinessIdentity } from "@/lib/business-identity";
-import { SIGNUP_START_HREF } from "@/lib/signup-start";
+import { BETA_PRO_BENEFIT, SIGNUP_START_HREF } from "@/lib/signup-start";
+
+// 요금 표의 숫자는 모두 entitlements(PLAN_LIMITS·PLAN_PRICES)에서 온다. 여기 새 숫자를 적지 않는다.
+const PLAN_ORDER: Plan[] = ["free", "basic", "pro"];
+const PLAN_FOR: Record<Plan, string> = {
+  free: "먼저 써 보는 분",
+  basic: "동시에 여러 건을 진행하는 분",
+  pro: "진행 건수를 세지 않고 쓰는 분",
+};
+
+function limitText(value: number, unit: string): string {
+  // 설정 화면의 요금제 표와 같은 말을 쓴다.
+  return Number.isFinite(value) ? `${value}${unit}` : "무제한";
+}
 
 /** footerNote: 바닥글 맨 아래 한 줄(웹 메인 화면의 방문 기록 도구 안내). Sites·앱 경로는 넘기지 않는다. */
 export function MarketingHome({ footerNote }: { footerNote?: ReactNode } = {}) {
@@ -26,6 +44,7 @@ export function MarketingHome({ footerNote }: { footerNote?: ReactNode } = {}) {
   // 전자상거래법 사업자 정보 고지 — 배포 시 NEXT_PUBLIC_* 가 있으면 그 값, 없으면 사업자등록 기준 값
   const legal = publicBusinessIdentity();
   const supportEmail = service.supportEmail ?? BUSINESS_IDENTITY.email;
+  const setupEmail = setupHelpEmail();
 
   return (
     <div className="marketingPage">
@@ -143,6 +162,50 @@ export function MarketingHome({ footerNote }: { footerNote?: ReactNode } = {}) {
           </div>
         </section>
 
+        {/* 2026-11-20 허니북 벤치마킹: 홈의 업종 카드가 그 업종 전용 페이지로 간다. 패키지 이름은 예시 데이터 그대로. */}
+        <section className="industrySection" id="industries" aria-labelledby="landing-industries-title">
+          <div className="industryInner">
+            <h2 id="landing-industries-title">하는 일에 맞는 예시로 시작해요.</h2>
+            <ul className="industryCards">
+              {INDUSTRY_ORDER.map((industry) => (
+                <li key={industry}>
+                  <Link href={`/examples/${industry}`} className="industryCard" aria-label={`${INDUSTRY_LABELS[industry]} 예시 보기`} data-testid={`landing-industry-${industry}`}>
+                    <h3>{INDUSTRY_LABELS[industry]}</h3>
+                    <span className="industryCardLead">{INDUSTRY_PAGE_LEAD[industry]}</span>
+                    <span className="industryCardPackages">{INDUSTRY_STARTERS[industry].packages.map((item) => item.name).join(" · ")}</span>
+                    <span className="industryCardGo">예시 보기 <ArrowRight size={16} aria-hidden="true" /></span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* 2026-11-20 허니북 벤치마킹: 홈에 요금 카드를 둔다. 결제가 아직 없다는 사실을 표 바로 아래에 적는다. */}
+        <section className="pricingSection" id="pricing" aria-labelledby="landing-pricing-title">
+          <div className="pricingInner">
+            <h2 id="landing-pricing-title">요금은 동시·누적 일감 수로 나뉘어요.</h2>
+            <ul className="pricingCards">
+              {PLAN_ORDER.map((plan) => (
+                <li key={plan} className="pricingCard" data-plan={plan} data-testid={`landing-plan-${plan}`}>
+                  <h3>{PLAN_NAMES[plan]}</h3>
+                  <p className="pricingFor">{PLAN_FOR[plan]}</p>
+                  <p className="pricingPrice">{plan === "free" ? "0원" : PLAN_PRICES[plan].label}</p>
+                  <dl>
+                    <div><dt>동시 진행</dt><dd>{limitText(PLAN_LIMITS[plan].activeJobs, "건")}</dd></div>
+                    <div><dt>누적 일감</dt><dd>{limitText(PLAN_LIMITS[plan].totalJobs, "건")}</dd></div>
+                    <div><dt>패키지</dt><dd>{limitText(PLAN_LIMITS[plan].packages, "개")}</dd></div>
+                    <div><dt>옵션</dt><dd>{limitText(PLAN_LIMITS[plan].options, "개")}</dd></div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+            <p className="pricingNote" data-testid="landing-pricing-note">
+              결제는 아직 준비 중이라 지금은 어떤 금액도 청구되지 않아요. 시작 버튼으로 가입하면 베타 코드가 들어가 {BETA_PRO_BENEFIT}
+            </p>
+          </div>
+        </section>
+
         <section className="faqSection" id="faq">
           <div className="faqInner">
             <div className="faqIntro">
@@ -176,9 +239,37 @@ export function MarketingHome({ footerNote }: { footerNote?: ReactNode } = {}) {
               </details>
               <details className="faqItem">
                 <summary>요금은 어떻게 되나요?<span className="faqChevron"><ChevronRight size={16} /></span></summary>
-                <p>무료 플랜은 동시에 진행하는 의뢰 {PLAN_LIMITS.free.activeJobs}건, 지금까지 만든 의뢰 누적 {PLAN_LIMITS.free.totalJobs}건까지예요. 완료한 의뢰는 동시 진행 수에서는 빠지지만 누적 수에서는 빠지지 않아요. 더 필요하면 Basic({PLAN_PRICES.basic.label}) 또는 Pro({PLAN_PRICES.pro.label})로 넓힐 수 있어요. 결제는 아직 준비 중입니다. 베타 이용 코드를 적용한 계정은 결제 오픈 후 Basic 정가 월 14,900원을 월 9,900원에 12개월 이용할 수 있어요.</p>
+                <p>요금제별 금액과 한도는 위 <a href="#pricing">요금 표</a>에 있어요. 완료한 의뢰는 동시 진행 수에서는 빠지지만 누적 수에서는 빠지지 않아요. 베타 이용 코드를 적용한 계정은 결제 오픈 후 Basic 정가 월 14,900원을 월 9,900원에 12개월 이용할 수 있어요.</p>
               </details>
             </div>
+          </div>
+        </section>
+
+        {/* 2026-11-20 허니북 벤치마킹: 홈 맨 아래의 세 칸(시연 보기·사람이 돕는 지원·배우는 자료). */}
+        <section className="startHelpSection" aria-labelledby="landing-start-help-title">
+          <div className="startHelpInner">
+            <h2 id="landing-start-help-title">처음이어도 혼자 시작하지 않아도 돼요.</h2>
+            <ul className="startHelpCards">
+              <li data-primary="true" data-testid="landing-setup-help">
+                <Handshake size={22} aria-hidden="true" />
+                <h3>세팅은 대신 해 드려요</h3>
+                <p>{SETUP_HELP_TEXT}</p>
+                <a href={setupHelpMailto(setupEmail)} className="inlineLink" data-testid="landing-setup-help-link">{SETUP_HELP_LINK_LABEL}</a>
+                <small>{SETUP_HELP_FALLBACK} {setupEmail}</small>
+              </li>
+              <li>
+                <MousePointerClick size={22} aria-hidden="true" />
+                <h3>가입 없이 먼저 눌러 보기</h3>
+                <p>패키지 고르기부터 고객 요청, 횟수 차감까지 네 단계를 직접 눌러 봐요.</p>
+                <Link href="/try" className="inlineLink" data-testid="landing-help-try">둘러보기 열기</Link>
+              </li>
+              <li>
+                <BookOpen size={22} aria-hidden="true" />
+                <h3>그림으로 보는 사용설명서</h3>
+                <p>패키지 저장부터 고객에게 링크 보내기까지 화면 그림으로 따라 해요.</p>
+                <Link href="/guide" className="inlineLink" data-testid="landing-help-guide">사용설명서 보기</Link>
+              </li>
+            </ul>
           </div>
         </section>
 

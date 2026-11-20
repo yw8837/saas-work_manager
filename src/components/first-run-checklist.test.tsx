@@ -40,6 +40,29 @@ beforeEach(() => {
 });
 
 describe("오늘 화면 첫 실행 체크리스트", () => {
+  it("일감이 없을 때: 운영자와 같이 등록 신청 줄이 메일 링크로 보인다", () => {
+    show();
+    const line = screen.getByTestId("first-run-setup-help");
+    expect(line).toHaveTextContent("쓰던 견적서나 패키지 표를 보내 주시면 운영자가 패키지로 넣어 드려요");
+    expect(line).toHaveTextContent("첫 일감도 통화나 화면 공유로 같이 등록해 드려요");
+        // 재 본 적 없는 시간 숫자는 쓰지 않는다.
+    expect(line.textContent).not.toMatch(/\d+\s*(분|초)/);
+    const link = within(line).getByRole("link", { name: "메일로 세팅 신청하기" });
+    expect(link.getAttribute("href")).toMatch(/^mailto:\S+@\S+\?subject=/);
+  });
+
+  it("일감을 만들었다가 지운 작업공간에는 같이 등록 신청 줄을 넣지 않는다", () => {
+    show({ jobs: [], jobsCreatedTotal: 1 });
+    expect(screen.getByTestId("first-run-checklist")).toBeInTheDocument();
+    expect(screen.queryByTestId("first-run-setup-help")).not.toBeInTheDocument();
+  });
+
+  it("첫 일감을 만든 뒤의 작은 안내에는 같이 등록 신청 줄을 넣지 않는다", () => {
+    show({ jobs: [job()], compact: true });
+    expect(screen.getByTestId("first-run-checklist")).toBeInTheDocument();
+    expect(screen.queryByTestId("first-run-setup-help")).not.toBeInTheDocument();
+  });
+
   it("새 작업공간: 웹 예시 그대로면 1단계는 끝난 것으로 접고, 첫 일감 만들기를 지금 할 일로 둔다", () => {
     show();
     expect(screen.getByTestId("first-run-progress")).toHaveTextContent("1/3 완료");
