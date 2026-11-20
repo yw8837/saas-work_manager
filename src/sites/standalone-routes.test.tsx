@@ -41,6 +41,14 @@ describe("Sites 공개 단독 경로", () => {
     expect(WorkspaceProvider).not.toHaveBeenCalled();
   });
 
+  it.each([["web", "웹·홈페이지"], ["design", "디자인"], ["video", "영상"], ["photo", "촬영"]])("/examples/%s 는 그 업종 예시만, WorkspaceProvider 없이 그린다", (industry, label) => {
+    expect(isStandaloneRoutePath(`/examples/${industry}`)).toBe(true);
+    window.history.pushState({}, "", `/examples/${industry}`);
+    render(<SiteShell />);
+    expect(screen.getByRole("heading", { level: 1, name: `${label} 예시 패키지` })).toBeInTheDocument();
+    expect(WorkspaceProvider).not.toHaveBeenCalled();
+  });
+
   it("/guide 에서도 WorkspaceProvider를 띄우지 않는다", () => {
     window.history.pushState({}, "", "/guide");
     render(<SiteShell />);

@@ -20,6 +20,7 @@ import {
   usesOnlyStarterPackages,
   type Industry,
 } from "@/lib/store/industry-starters";
+import { SetupHelpLine } from "./setup-help-line";
 import { useWorkspace } from "./workspace-provider";
 
 // 그림은 사용설명서와 같은 캡처(e2e/capture/guide-screens.capture.ts)를 다시 쓴다. 크기는 그 파일 그대로.
@@ -194,6 +195,8 @@ export function FirstRunChecklist({ compact = false }: { compact?: boolean }) {
           );
         })}
       </ol>
+      {/* 첫 일감을 만들기 전에만 보여 준다. 만든 뒤의 작은 안내에는 넣지 않는다. */}
+      {!compact && jobs.length === 0 && jobsCreatedTotal === 0 && <SetupHelpLine testId="first-run-setup-help" />}
     </section>
   );
 }
