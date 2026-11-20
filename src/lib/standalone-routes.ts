@@ -2,7 +2,8 @@
  * 작업공간 없이 그리는 공개 화면. 체험 링크는 서버·DB·브라우저 저장소를 쓰지 않아야 하므로
  * Next 루트 레이아웃과 Sites 셸 모두 이 경로에서는 WorkspaceProvider(Supabase 세션·Realtime·localStorage)를 띄우지 않는다.
  */
-export const STANDALONE_ROUTE_PATHS = ["/guide", "/examples", "/try", "/demo/r"] as const;
+// 업종 전용 예시 페이지는 industry-starters의 업종 키와 같아야 한다(marketing-home-sections.test와 sites/standalone-routes.test가 대조한다).
+export const STANDALONE_ROUTE_PATHS = ["/guide", "/examples", "/examples/web", "/examples/design", "/examples/video", "/examples/photo", "/try", "/demo/r"] as const;
 
 export function isStandaloneRoutePath(pathname: string): boolean {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;

@@ -19,6 +19,7 @@ import { TodayDashboard } from "@/components/today-dashboard";
 import { UserGuide } from "@/components/user-guide";
 import { WorkspaceAuthGate } from "@/components/workspace-auth-gate";
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
+import { INDUSTRY_ORDER, type Industry } from "@/lib/store/industry-starters";
 
 export { isStandaloneRoutePath, STANDALONE_ROUTE_PATHS } from "@/lib/standalone-routes";
 
@@ -37,15 +38,23 @@ export const SITE_ROUTE_PATHS = [
   "/terms",
   "/guide",
   "/examples",
+  "/examples/:industry",
   "/try",
   "/demo/r",
 ] as const;
+
+function IndustryExamplesRoute() {
+  const { industry = "" } = useParams<{ industry: string }>();
+  // 모르는 업종이면 전체 예시를 보여 준다(standalone 경로 목록에 있는 네 업종만 여기로 온다).
+  return <IndustryExamples only={(INDUSTRY_ORDER as string[]).includes(industry) ? (industry as Industry) : undefined} />;
+}
 
 export function StandaloneRoutes() {
   return (
     <Routes>
       <Route path="/guide" element={<UserGuide />} />
       <Route path="/examples" element={<IndustryExamples />} />
+      <Route path="/examples/:industry" element={<IndustryExamplesRoute />} />
       <Route path="/try" element={<TryTour />} />
       <Route path="/demo/r" element={<CustomerRevisionDemo />} />
     </Routes>

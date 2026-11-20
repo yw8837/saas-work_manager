@@ -8,6 +8,11 @@ import { getPublicServiceConfig } from "@/lib/policies";
  */
 export const SETUP_HELP_SUBJECT = "일감체크 세팅 신청";
 
+/** 화면에 보이는 안내 문장과 링크 이름. 첫 실행 체크리스트와 소개 화면이 같은 문장을 쓴다. 재 본 적 없는 시간 숫자는 넣지 않는다. */
+export const SETUP_HELP_TEXT = "쓰던 견적서나 패키지 표를 보내 주시면 운영자가 패키지로 넣어 드려요. 첫 일감도 통화나 화면 공유로 같이 등록해 드려요. 무료예요.";
+export const SETUP_HELP_LINK_LABEL = "메일로 세팅 신청하기";
+export const SETUP_HELP_FALLBACK = "메일 앱이 안 열리면 이 주소로 보내 주세요:";
+
 // 고객 이름·연락처·작업 파일은 받지 않는다. 가명과 흐름 설명만으로 같이 등록할 수 있다.
 export const SETUP_HELP_BODY = [
   "아래 세 가지를 적어 보내 주세요. 고객 이름이나 연락처는 적지 않으셔도 돼요.",

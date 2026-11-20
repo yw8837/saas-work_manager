@@ -29,7 +29,7 @@ export function signupStartHref(starter?: Industry): string {
 export const SIGNUP_START_HREF = signupStartHref();
 
 // 조사는 지금 코드(BETA2026, '육'으로 끝남)에 맞춘 것이다. 코드를 바꾸면 '을/를'·'이/가'도 같이 본다.
-const BETA_PRO_BENEFIT = `Pro를 ${BETA_GRANT_DAYS}일 동안 무료로 써요(계정당 한 번).`;
+export const BETA_PRO_BENEFIT = `Pro를 ${BETA_GRANT_DAYS}일 동안 무료로 써요(계정당 한 번).`;
 
 /** 네 공개 화면에 같은 문장으로 들어가는 안내 두 줄. */
 export const BETA_OFFER_TEXT = `베타 코드 ${START_INVITE_CODE}을 넣으면 ${BETA_PRO_BENEFIT}`;

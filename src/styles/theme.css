@@ -2065,6 +2065,7 @@ p.clarityNotice a { display: inline; min-height: 0; color: var(--ink-soft); text
 .examplesJump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .examplesJump a { min-height: 44px; display: inline-flex; align-items: center; padding: 0 14px; color: var(--ink); background: var(--paper); border-radius: 999px; font-size: 14px; font-weight: 600; }
 .examplesJump a:hover { background: var(--line); }
+.examplesJump a[aria-current="page"] { color: var(--paper); background: var(--ink); }
 .examplesIndustry { margin-top: 28px; scroll-margin-top: 16px; }
 .examplesIndustry > h2 { margin: 0 0 12px; font-size: 22px; font-weight: 650; letter-spacing: -.02em; }
 .examplesPackages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
@@ -2333,4 +2334,44 @@ p.clarityNotice a { display: inline; min-height: 0; color: var(--ink-soft); text
 .setupHelpLine svg { flex: 0 0 auto; margin-top: 2px; }
 .setupHelpLine .inlineLink { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .setupHelpAddress { display: block; color: var(--ink-soft); overflow-wrap: anywhere; }
-.finalCta .setupHelpLine { margin: 18px 0 0; padding: 0; background: none; color: var(--ink-soft); }
+
+/* 소개 화면: 업종 카드 · 요금 표 · 맨 아래 세 칸 (2026-11-20 허니북 벤치마킹) */
+.industrySection, .pricingSection, .startHelpSection { padding: 88px max(24px, calc((100vw - 1120px)/2)); }
+.industrySection { background: var(--paper); }
+.pricingSection { background: var(--canvas); }
+.startHelpSection { background: var(--canvas); }
+.industryInner h2, .pricingInner h2, .startHelpInner h2 { margin: 0 0 28px; color: var(--ink); font-family: var(--font-display); font-size: clamp(26px, 2.6vw, 33px); font-weight: 500; letter-spacing: -.015em; line-height: 1.25; word-break: keep-all; }
+.industryCards, .pricingCards, .startHelpCards { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.industryCards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pricingCards, .startHelpCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.industryCards li { min-width: 0; display: flex; }
+.industryCard { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 22px; color: var(--ink); background: var(--canvas); border-radius: var(--web-card-radius, 18px); text-decoration: none; }
+.industryCard:hover { background: var(--blue-soft); }
+.industryCard h3 { margin: 0; font-size: 18px; font-weight: 650; }
+.industryCardLead { color: var(--ink-soft); font-size: 14px; line-height: 1.5; word-break: keep-all; }
+.industryCardPackages { color: var(--muted); font-size: 13px; line-height: 1.5; word-break: keep-all; }
+.industryCardGo { margin-top: auto; padding-top: 8px; display: inline-flex; align-items: center; gap: 6px; color: var(--blue); font-size: 14px; font-weight: 600; }
+.pricingCard { min-width: 0; padding: 24px; background: var(--paper); border-radius: var(--web-card-radius, 18px); }
+.pricingCard h3 { margin: 0; font-size: 18px; font-weight: 650; }
+.pricingFor { margin: 6px 0 14px; color: var(--ink-soft); font-size: 14px; word-break: keep-all; }
+.pricingPrice { margin: 0 0 16px; color: var(--ink); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.pricingCard dl { margin: 0; display: grid; gap: 8px; }
+.pricingCard dl div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.pricingCard dt { color: var(--ink-soft); }
+.pricingCard dd { margin: 0; color: var(--ink); font-weight: 600; }
+.pricingNote { margin: 18px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }
+.startHelpCards li { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px; background: var(--paper); border-radius: var(--web-card-radius, 18px); }
+.startHelpCards li[data-primary="true"] { background: var(--blue-soft); }
+.startHelpCards svg { color: var(--blue); }
+.startHelpCards h3 { margin: 4px 0 0; font-size: 17px; font-weight: 650; word-break: keep-all; }
+.startHelpCards p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.6; word-break: keep-all; }
+.startHelpCards .inlineLink { min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; font-weight: 600; }
+.startHelpCards small { color: var(--ink-soft); font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .industrySection, .pricingSection, .startHelpSection { padding: 62px 18px; }
+  .industryCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pricingCards, .startHelpCards { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .industryCards { grid-template-columns: minmax(0, 1fr); }
+}
