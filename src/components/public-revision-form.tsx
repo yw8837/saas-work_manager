@@ -174,6 +174,8 @@ export function PublicRevisionForm({ token }: { token: string }) {
       addons={addons}
       badgeLabel={hosted ? "보안 링크로 직접 전달" : "이 브라우저에 저장"}
       footnote={hosted ? "링크를 받은 사람만 요청할 수 있어요. 연락처·금액·다른 고객 정보는 공개하지 않아요." : "보내주신 내용은 지금 이 브라우저에만 저장돼요."}
+      // 이 브라우저 저장 모드의 링크는 작업자 브라우저에서만 열려 고객에게 보낼 수 없다. '이 링크를 계속 쓰시면 돼요' 안내는 로그인 모드에서만.
+      showLinkNote={hosted}
       onSubmit={submit}
     />
   );

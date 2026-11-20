@@ -52,6 +52,8 @@ describe("CustomerRevisionDemo", () => {
     // 어제 고친 첫 요청이 '반영됨 · 수정 완료 1회차'로 보인다.
     expect(screen.getByRole("list", { name: "남기신 요청" })).toHaveTextContent("수정 완료 1회차");
     expect(screen.getByTestId("demo-preview-only")).toHaveTextContent("설정에서 적은 경우에만");
+    // 실제 고객 링크(로그인 모드)와 같은 안내가 입력칸 아래에 보인다.
+    expect(screen.getByTestId("revision-link-note")).toHaveTextContent("작업자가 새 링크를 보내기 전까지 이 링크를 계속 쓰시면 돼요.");
 
     fireEvent.change(screen.getByLabelText("수정 요청 내용"), { target: { value: "메뉴판 글씨를 키워주세요." } });
     fireEvent.click(screen.getByRole("button", { name: /요청 남기기/ }));

@@ -507,6 +507,29 @@ describe("JobDetail 고객 링크 쉬운 말", () => {
     confirm.mockRestore();
   });
 
+  // 2026-11-18 콜드메일 회신: 판매자가 요청마다 링크를 다시 복사해 보내야 하는 줄 안다. 링크는 일감마다 하나이고 만료가 없다.
+  // 2026-11-18 코드 리뷰: 재발급하면 새 주소를 다시 보내야 하므로 그 경우를 함께 말한다.
+  it("로그인 모드의 진행 중 일감은 고객 링크 구획에 '링크는 일감마다 하나, 재발급하지 않으면 한 번만 보내면 돼요'를 한 줄로 알린다", () => {
+    renderDetail(baseJob(), { runtimeMode: "hosted" });
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(within(portal).getByTestId("portal-link-hint")).toHaveTextContent("링크는 일감마다 하나예요. 재발급하지 않으면 한 번만 보내면 돼요.");
+  });
+
+  it("링크가 꺼져 있으면 보낼 링크가 없으니 그 한 줄을 그리지 않는다", () => {
+    renderDetail({ ...baseJob(), revisionPortalEnabled: false }, { runtimeMode: "hosted" });
+    const portal = screen.getByRole("heading", { name: "고객 수정 요청 링크" }).closest("section")!;
+    expect(within(portal).getByRole("status")).toHaveTextContent("링크 꺼짐");
+    expect(screen.queryByTestId("portal-link-hint")).not.toBeInTheDocument();
+  });
+
+  it("고객에게 못 보내는 이 브라우저 저장 모드와 완료한 일감에는 그 한 줄을 그리지 않는다", () => {
+    const first = renderDetail();
+    expect(screen.queryByTestId("portal-link-hint")).not.toBeInTheDocument();
+    first.unmount();
+    renderDetail({ ...baseJob(), status: "completed" as const, completedAt: "2026-08-05T00:00:00.000Z" }, { runtimeMode: "hosted" });
+    expect(screen.queryByTestId("portal-link-hint")).not.toBeInTheDocument();
+  });
+
   it("이 브라우저 저장 모드에서 재발급하면 이전 주소는 더 못 쓴다고 알린다", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     renderDetail();
@@ -522,6 +545,27 @@ describe("JobDetail 수정 요청 기록 구획", () => {
     expect(screen.getByRole("heading", { name: "수정 요청 기록" })).toBeInTheDocument();
     expect(screen.getByTestId("record-revision")).toHaveTextContent("요청 직접 적기");
     expect(screen.queryByRole("button", { name: "수정 요청 기록" })).not.toBeInTheDocument();
+  });
+
+  // 2026-11-18 코드 리뷰: 직접 적은 요청은 고객 링크 목록에도 한 줄로 보인다. 적는 사람이 원문이 보일까 걱정하지 않게 양식에서 알린다.
+  it("로그인 모드에서 링크가 켜진 일감은 '요청 직접 적기' 양식에 '고객 링크에는 받은 경로·날짜·상태만' 안내가 있다", () => {
+    renderDetail(baseJob(), { runtimeMode: "hosted" });
+    fireEvent.click(screen.getByTestId("record-revision"));
+    const form = document.getElementById("revision-entry-form")!;
+    expect(within(form).getByTestId("revision-entry-note")).toHaveTextContent("고객 링크에는 받은 경로·날짜·상태만 보여요. 적은 내용은 보이지 않아요.");
+  });
+
+  it("이 브라우저 저장 모드나 링크가 꺼진 일감에는 그 안내를 그리지 않는다", () => {
+    const local = renderDetail();
+    fireEvent.click(screen.getByTestId("record-revision"));
+    expect(document.getElementById("revision-entry-form")).not.toBeNull();
+    expect(screen.queryByTestId("revision-entry-note")).not.toBeInTheDocument();
+    local.unmount();
+
+    renderDetail({ ...baseJob(), revisionPortalEnabled: false }, { runtimeMode: "hosted" });
+    fireEvent.click(screen.getByTestId("record-revision"));
+    expect(document.getElementById("revision-entry-form")).not.toBeNull();
+    expect(screen.queryByTestId("revision-entry-note")).not.toBeInTheDocument();
   });
 });
 

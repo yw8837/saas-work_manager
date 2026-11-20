@@ -93,6 +93,105 @@ describe("확정된 추가 작업 migration(20261117120000)", () => {
   });
 });
 
+// 2026-11-18: 작업자가 카톡·전화로 받아 직접 적은 요청도 고객 화면 목록에 보인다. 원문은 내보내지 않는다.
+describe("직접 적은 요청 migration(20261118120000)", () => {
+  const manualSql = readFileSync(
+    resolve(process.cwd(), "supabase/migrations/20261118120000_public_revision_manual_requests.sql"),
+    "utf8",
+  );
+  const viewSql = manualSql.slice(manualSql.indexOf("create function public.get_workspace_revision_view"));
+  const row = { job_key: "job_1", title: "랜딩", package_name: "기본", included: 3, used: 1, remaining: 2, due_date: null, tasks_total: 4, tasks_done: 1, has_open_revision: true, worker_name: null };
+
+  it("반환 열은 직전 판과 같고, 좁은 권한·고정 search_path·토큰 검증·20건 제한을 지킨다", () => {
+    const columnsOf = (sql: string) => /returns table\(([\s\S]*?)\)\s*language/.exec(sql)?.[1].replace(/\s+/g, " ").trim();
+    const previous = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117120000_public_revision_addons.sql"), "utf8");
+    expect(columnsOf(manualSql)).toBeDefined();
+    expect(columnsOf(manualSql)).toBe(columnsOf(previous));
+    expect(viewSql).toContain("security definer");
+    expect(viewSql).toContain("set search_path = ''");
+    expect(manualSql).toContain("revoke all on function public.get_workspace_revision_view(text) from public");
+    expect(manualSql).toContain("grant execute on function public.get_workspace_revision_view(text) to anon, authenticated, service_role");
+    expect(viewSql).toContain("portal.token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')");
+    expect(viewSql).toContain("and job ->> 'revisionPortalToken' = p_token");
+    expect(viewSql).toContain("limit 20");
+    expect(manualSql.trimEnd().endsWith("notify pgrst, 'reload schema';")).toBe(true);
+  });
+
+  it("직접 적은 요청은 원문 없이 정해진 경로 값만 내보내고, 메모·이름·참고 링크·금액은 없다", () => {
+    expect(viewSql).toContain("revision ->> 'source' in ('public', 'manual')");
+    expect(viewSql).toContain("'body', case when revision ->> 'source' = 'public' then left(btrim(revision ->> 'body'), 4000) end");
+    expect(viewSql).toContain("revision ->> 'channel' in ('kakao', 'kmong', 'soomgo', 'instagram', 'discord', 'phone')");
+    expect(viewSql).toContain("else 'other'");
+    expect(viewSql).not.toMatch(/'revertReason'|'clientLabel'|'referenceUrl'|'amount'|'estimatedCost'|'margin'|'links'|amountDelta|estimatedCostDelta|addon ->> 'title'/);
+    expect(viewSql).not.toMatch(/task ->> 'title'/);
+  });
+
+  // 2026-11-18 코드 리뷰: 되돌린 직접 기록은 빼고(20건은 뺀 뒤에 셈), 정렬은 앱의 toISOString 모양만 쓴다. 표시용 시각 검사는 직전 판 그대로.
+  it("되돌린 직접 기록은 limit 20보다 먼저 빼고, 정렬에는 .sssZ 모양만 쓴다", () => {
+    // Windows 작업 사본은 줄 끝이 CRLF일 수 있어 맞춰서 본다.
+    const view = viewSql.replace(/\r\n/g, "\n");
+    const filter = "and not (revision ->> 'source' = 'manual' and revision ? 'revertedAt')";
+    expect(view).toContain(filter);
+    expect(view.indexOf("limit 20\n      ) as recent")).toBeGreaterThan(view.indexOf(filter));
+    expect(view).toContain("c_sort_iso constant text := '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$';");
+    expect(view).toContain("when coalesce(revision ->> 'submittedAt', '') ~ c_sort_iso then revision ->> 'submittedAt'");
+    const previous = readFileSync(resolve(process.cwd(), "supabase/migrations/20261117120000_public_revision_addons.sql"), "utf8");
+    const isoOf = (sql: string) => /c_iso constant text := '([^']+)';/.exec(sql)?.[1];
+    expect(isoOf(manualSql)).toBeDefined();
+    expect(isoOf(manualSql)).toBe(isoOf(previous));
+    expect(view).toContain("'submittedAt', case\n            when coalesce(revision ->> 'submittedAt', '') ~ c_iso then revision ->> 'submittedAt'");
+  });
+
+  it("서버가 준 직접 적은 요청은 받은 경로만 읽고, 원문이 실려 와도 버린다. 모르는 경로는 '기타'로 본다", async () => {
+    const { client } = clientWith({
+      get_workspace_revision_view: {
+        data: [{
+          ...row,
+          requests: [
+            { status: "done", sequence: 2, submittedAt: "2026-11-18T03:00:00.000Z", source: "manual", channel: "kakao" },
+            { status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "고객이 쓴 요청" },
+            { status: "pending", source: "manual", channel: "카톡 010-1234-5678", body: "작업자 메모가 실려 옴" },
+            { status: "rejected", source: "manual" },
+            { status: "void", source: "manual", channel: "phone" },
+          ],
+        }],
+        error: null,
+      },
+    });
+    const summary = await getHostedPublicRevisionSummary(client, token);
+    expect(summary?.requests).toEqual([
+      { status: "done", sequence: 2, submittedAt: "2026-11-18T03:00:00.000Z", source: "manual", channel: "kakao" },
+      { status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "고객이 쓴 요청" },
+      { status: "pending", source: "manual", channel: "other" },
+      { status: "rejected", source: "manual", channel: "other" },
+    ]);
+    expect(JSON.stringify(summary?.requests)).not.toMatch(/작업자 메모|010-/);
+  });
+
+  it("옛 서버(source 없음)의 목록은 지금처럼 고객 링크 요청으로 읽는다", async () => {
+    const { client } = clientWith({
+      get_workspace_revision_view: {
+        data: [{ ...row, requests: [{ status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "문구 수정" }] }],
+        error: null,
+      },
+    });
+    const summary = await getHostedPublicRevisionSummary(client, token);
+    expect(summary?.requests).toEqual([{ status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "문구 수정" }]);
+  });
+
+  it("고객 링크 요청 항목에 channel이 실려 와도 읽지 않는다", async () => {
+    const { client } = clientWith({
+      get_workspace_revision_view: {
+        data: [{ ...row, requests: [{ status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "문구 수정", channel: "kakao" }] }],
+        error: null,
+      },
+    });
+    const summary = await getHostedPublicRevisionSummary(client, token);
+    expect(summary?.requests).toEqual([{ status: "pending", submittedAt: "2026-11-17T03:00:00.000Z", body: "문구 수정" }]);
+    expect(summary?.requests?.[0]).not.toHaveProperty("channel");
+  });
+});
+
 describe("수정 완료 때 차감 migration(20261101140000)", () => {
   const pendingSql = readFileSync(
     resolve(process.cwd(), "supabase/migrations/20261101140000_revision_pending_and_intake.sql"),

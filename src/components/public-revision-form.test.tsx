@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createSeedState } from "@/lib/store";
@@ -73,7 +73,7 @@ describe("PublicRevisionForm 로컬 모드 안내", () => {
     expect(screen.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();
   });
 
-  it("진행 중인 일감에는 고객이 남긴 요청 목록을 상태와 함께 보여 준다", () => {
+  it("진행 중인 일감에는 요청 목록을 상태와 함께 보여 주고, 작업자가 직접 적은 요청은 원문 없이 받은 경로만 보인다", () => {
     const job = {
       ...seed.jobs[0],
       revisionPortalToken: "token_list",
@@ -86,8 +86,40 @@ describe("PublicRevisionForm 로컬 모드 안내", () => {
     };
     mountWith([job], "token_list");
 
-    const list = screen.getByRole("list", { name: "남기신 요청" });
+    const list = screen.getByRole("list", { name: "요청 기록" });
     expect(list).toHaveTextContent("메인 사진 교체");
+    expect(list).toHaveTextContent("카카오톡으로 주신 요청");
     expect(list).not.toHaveTextContent("작업자 메모");
+  });
+
+  // 2026-11-18 코드 리뷰: 잘못 적어 되돌린 직접 기록이 고객에게 '반려'로 보이면 안 된다.
+  it("되돌린 직접 기록은 목록에 없고, 남은 것이 고객 링크 요청뿐이면 제목은 '남기신 요청 N건'", () => {
+    const job = {
+      ...seed.jobs[0],
+      revisionPortalToken: "token_reverted",
+      revisionPortalEnabled: true,
+      status: "active" as const,
+      revisions: [
+        { id: "r1", jobId: seed.jobs[0].id, source: "public" as const, body: "메인 사진 교체", status: "new" as const, usage: "pending" as const, sequence: null, submittedAt: "2026-11-03T05:00:00.000Z" },
+        { id: "m1", jobId: seed.jobs[0].id, source: "manual" as const, channel: "kakao" as const, body: "잘못 적은 메모", status: "void" as const, usage: "pending" as const, sequence: null, submittedAt: "2026-11-03T06:00:00.000Z", revertedAt: "2026-11-03T06:05:00.000Z", revertReason: "잘못 적음" },
+      ],
+    };
+    mountWith([job], "token_reverted");
+
+    expect(screen.getByRole("heading", { name: "남기신 요청 1건" })).toBeInTheDocument();
+    const items = within(screen.getByRole("list", { name: "남기신 요청" })).getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent("메인 사진 교체");
+    expect(screen.queryByRole("list", { name: "요청 기록" })).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/카카오톡으로 주신 요청|반려|잘못 적/);
+  });
+
+  // 이 브라우저 저장 모드의 링크는 작업자 브라우저에서만 열려 고객에게 보낼 수 없다.
+  it("이 브라우저 저장 모드에서는 '이 링크를 계속 쓰시면 돼요' 안내를 그리지 않는다", () => {
+    const job = { ...seed.jobs[0], revisionPortalToken: "token_local", revisionPortalEnabled: true, status: "active" as const };
+    mountWith([job], "token_local");
+
+    expect(screen.getByLabelText("수정 요청 내용")).toBeInTheDocument();
+    expect(screen.queryByTestId("revision-link-note")).not.toBeInTheDocument();
   });
 });
