@@ -1738,6 +1738,7 @@ p.clarityNotice a { display: inline; min-height: 0; color: var(--ink-soft); text
 .publicRevisionDoneIntro h1 { margin: 6px 0; font-size: 28px; }
 .publicRevisionDoneDate { margin: 0; color: var(--ink-soft); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .publicRevisionDone .publicRevisionAbout { text-align: center; }
+.publicRevisionMadeWith { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; color: var(--muted); }
 
 /* 3. 오늘 화면 첫 실행 체크리스트 */
 .firstRunChecklist { max-width: 880px; padding: clamp(20px, 3vw, 32px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); }

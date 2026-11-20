@@ -43,11 +43,11 @@ describe("오늘 화면 첫 실행 체크리스트", () => {
   it("일감이 없을 때: 운영자와 같이 등록 신청 줄이 메일 링크로 보인다", () => {
     show();
     const line = screen.getByTestId("first-run-setup-help");
-    expect(line).toHaveTextContent("운영자가 첫 일감을 같이 등록해 드려요");
-    expect(line).toHaveTextContent("통화나 화면 공유로 하고 무료예요");
-    // 재 본 적 없는 시간 숫자는 쓰지 않는다.
+    expect(line).toHaveTextContent("쓰던 견적서나 패키지 표를 보내 주시면 운영자가 패키지로 넣어 드려요");
+    expect(line).toHaveTextContent("첫 일감도 통화나 화면 공유로 같이 등록해 드려요");
+        // 재 본 적 없는 시간 숫자는 쓰지 않는다.
     expect(line.textContent).not.toMatch(/\d+\s*(분|초)/);
-    const link = within(line).getByRole("link", { name: "메일로 같이 등록 신청하기" });
+    const link = within(line).getByRole("link", { name: "메일로 세팅 신청하기" });
     expect(link.getAttribute("href")).toMatch(/^mailto:\S+@\S+\?subject=/);
   });
 

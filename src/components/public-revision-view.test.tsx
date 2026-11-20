@@ -238,6 +238,14 @@ describe("고객 링크 화면", () => {
     expect(screen.queryByTestId("completed-date")).not.toBeInTheDocument();
   });
 
+  it("진행 중 화면: 맨 아래에 일감체크로 만든 화면이라는 표시와 소개 링크가 있다", () => {
+    render(<PublicRevisionView title="브랜드 사이트" packageName="Standard" revision={revision} badgeLabel="보안 링크" footnote="안내" onSubmit={vi.fn()} />);
+    const line = screen.getByTestId("public-revision-made-with");
+    expect(line).toHaveTextContent("이 화면은 일감체크로 만들었어요.");
+    // 끝난 화면의 링크와 구분해 세도록 유입 표시가 다르다.
+    expect(line.querySelector("a")).toHaveAttribute("href", "/?utm_source=client-link&utm_medium=referral&utm_campaign=revision-active");
+  });
+
   it("꺼진 링크: 다음 행동과 소개 링크를 주고, 자물쇠는 로고 줄과 떨어져 있다", () => {
     render(<PublicRevisionUnavailable message="링크가 꺼졌거나 작업이 완료됐어요." />);
     expect(screen.getByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();

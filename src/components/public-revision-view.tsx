@@ -19,6 +19,8 @@ import { getPublicServiceConfig } from "@/lib/policies";
 const REQUEST_FORM_ID = "revision-request-form";
 /** 고객 화면에서 소개로 넘어온 방문을 세려고 유입 표시를 붙인다(값 규칙은 acquisition-link.ts). 고객을 구분하는 값은 넣지 않는다. */
 export const PUBLIC_REVISION_ABOUT_HREF = "/?utm_source=client-link&utm_medium=referral&utm_campaign=revision-page";
+// 진행 중 화면의 표시(2026-11-19 허니북 벤치마킹: 고객이 받는 화면에 서비스 이름이 붙어 유입 통로가 된다). 끝난 화면과 구분해 센다.
+export const PUBLIC_REVISION_MADE_WITH_HREF = "/?utm_source=client-link&utm_medium=referral&utm_campaign=revision-active";
 
 /**
  * 고객 수정요청 화면의 겉모습만 담는다.
@@ -404,6 +406,10 @@ export function PublicRevisionView({
           </>
         )}
         <PublicRevisionPrivacyNotice />
+        <p className="publicRevisionAbout publicRevisionMadeWith" data-testid="public-revision-made-with">
+          <span>이 화면은 일감체크로 만들었어요.</span>{" "}
+          <Link href={PUBLIC_REVISION_MADE_WITH_HREF}>일감체크가 무엇인지 보기</Link>
+        </p>
       </section>
     </main>
   );

@@ -12,8 +12,8 @@ export function SetupHelpLine({ testId = "setup-help" }: { testId?: string }) {
     <p className="setupHelpLine" data-testid={testId}>
       <Handshake size={18} aria-hidden="true" />
       <span>
-        처음이라 막히면 운영자가 첫 일감을 같이 등록해 드려요. 통화나 화면 공유로 하고 무료예요.{" "}
-        <a href={setupHelpMailto(email)} className="inlineLink" data-testid={`${testId}-link`}>메일로 같이 등록 신청하기</a>
+        쓰던 견적서나 패키지 표를 보내 주시면 운영자가 패키지로 넣어 드려요. 첫 일감도 통화나 화면 공유로 같이 등록해 드려요. 무료예요.{" "}
+        <a href={setupHelpMailto(email)} className="inlineLink" data-testid={`${testId}-link`}>메일로 세팅 신청하기</a>
         <span className="setupHelpAddress">메일 앱이 안 열리면 이 주소로 보내 주세요: {email}</span>
       </span>
     </p>

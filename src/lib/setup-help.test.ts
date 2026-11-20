@@ -15,6 +15,7 @@ describe("첫 일감 같이 등록 신청 메일", () => {
     expect(href).not.toContain("+");
     expect(href).toContain("%0D%0A");
     expect(SETUP_HELP_BODY).toContain("3. 편한 시간과 방법");
+    expect(SETUP_HELP_BODY).toContain("쓰던 견적서나 패키지 표가 있으면 붙여 주세요. 고객 이름은 지우고 보내 주세요.");
   });
 
   it("고객 이름·연락처는 받지 않는다고 본문 첫 줄에 적는다", () => {
