@@ -14,7 +14,7 @@ describe("랜딩 히어로", () => {
     expect(title.querySelectorAll(".heroAccent")).toHaveLength(2);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("수정 몇 번까지였는지, 다시 찾지 않아도 돼요.");
     expect(screen.getByTestId("landing-hero-lead")).toHaveTextContent(
-      "외주 주문마다 약속한 수정 횟수와 마감을 적어 두면, 고객은 링크 하나로 수정 요청을 남기고 남은 횟수를 같이 봐요. 카톡으로 오는 요청을 따로 셀 필요가 없어요.",
+      "크몽·카톡·소개처럼 여러 곳에서 받은 외주를 한곳에 모아 관리해요. 주문마다 약속한 수정 횟수와 마감을 적어 두면, 고객은 링크 하나로 수정 요청을 남기고 남은 횟수를 같이 봐요.",
     );
     // 예전 문구가 남아 있지 않다.
     expect(document.body.textContent).not.toContain("운영까지 혼자 할");
@@ -28,7 +28,7 @@ describe("랜딩 히어로", () => {
     const title = screen.getByTestId("landing-hero-title");
     expect(eyebrow.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // 설명에 '외주'가 들어가 맥락 없이 읽어도 뜻이 통한다.
-    expect(screen.getByTestId("landing-hero-lead")).toHaveTextContent("외주 주문마다");
+    expect(screen.getByTestId("landing-hero-lead")).toHaveTextContent("여러 곳에서 받은 외주를 한곳에");
   });
 
   it("보조 버튼은 가입 없이 둘러보기(/try)로 간다", () => {
