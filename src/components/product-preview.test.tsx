@@ -22,6 +22,18 @@ describe("ProductPreview", () => {
     expect(screen.getByRole("group", { name: "일감체크 화면 미리보기" })).toBeInTheDocument();
   });
 
+  it("shows a new-job preview that adds up the package and both selected options", () => {
+    render(<ProductPreview />);
+
+    // Deluxe 1,200,000원·15일·수정 3회 + 옵션 2개(+120,000원·+5일·수정 +1, +90,000원·+3일).
+    // 앱과 같은 규칙(시작일 8월 18일 + 23일)으로 계산한 값이어야 한다(2026-11-22 MonoGPT 검토에서 어긋남 발견).
+    const auto = document.querySelector(".ppAuto");
+    expect(auto).not.toBeNull();
+    expect(auto).toHaveTextContent("1,410,000원");
+    expect(auto).toHaveTextContent("9월 10일");
+    expect(auto).toHaveTextContent("4회");
+  });
+
   it("keeps each dense product scene visible for 4.5 seconds", () => {
     vi.useFakeTimers();
     render(<ProductPreview />);

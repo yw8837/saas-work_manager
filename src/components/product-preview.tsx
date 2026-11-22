@@ -225,19 +225,19 @@ const slides: Slide[] = [
                 <span>
                   <Coins size={13} /> 계약 금액
                 </span>
-                <strong>1,320,000원</strong>
+                <strong>1,410,000원</strong>
               </li>
               <li>
                 <span>
                   <CalendarClock size={13} /> 자동 마감
                 </span>
-                <strong>9월 2일</strong>
+                <strong>9월 10일</strong>
               </li>
               <li>
                 <span>
                   <RotateCcw size={13} /> 수정 한도
                 </span>
-                <strong>3회</strong>
+                <strong>4회</strong>
               </li>
             </ul>
             <div className="ppChecklist">
