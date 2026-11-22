@@ -933,6 +933,10 @@ export function JobDetail({ jobId }: { jobId: string }) {
                     required
                   />
                 </label>
+                {/* 직접 적은 요청은 고객 링크 목록에도 한 줄로 보인다(원문 제외). 고객에게 링크를 보낼 수 있는 로그인 모드에서 링크가 켜져 있을 때만 알린다. */}
+                {runtimeMode === "hosted" && portalEnabled && (
+                  <p className="revisionFormNote" data-testid="revision-entry-note">고객 링크에는 받은 경로·날짜·상태만 보여요. 적은 내용은 보이지 않아요.</p>
+                )}
                 <div className="revisionFormActions">
                   <button type="button" className="textOnlyButton" onClick={() => setRevisionOpen(false)}>취소</button>
                   <button
@@ -1131,6 +1135,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
               <Copy size={16} />
             </button>
             {copied && <span className="copyFeedback" role="status"><Check size={14} /> 링크를 복사했어요</span>}
+            {/* 링크는 만료가 없고 일감마다 하나다. 요청마다 다시 복사해 보낼 필요가 없다는 걸 알린다(이 브라우저 저장 모드는 고객에게 못 보내서 뺀다).
+                재발급하면 새 주소를 다시 보내야 하므로 그 경우를 함께 말하고, 링크가 꺼져 있으면 보낼 링크가 없어 숨긴다(portalEnabled는 진행 중 일감만 참). */}
+            {portalEnabled && runtimeMode === "hosted" && (
+              <p className="portalLinkHint" data-testid="portal-link-hint">링크는 일감마다 하나예요. 재발급하지 않으면 한 번만 보내면 돼요.</p>
+            )}
             <div className="portalControlActions">
               <button
                 type="button"

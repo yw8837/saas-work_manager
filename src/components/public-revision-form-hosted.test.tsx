@@ -168,6 +168,15 @@ describe("PublicRevisionForm 운영 모드", () => {
     expect(screen.getByRole("list", { name: "남기신 요청" })).toHaveTextContent("메인 문구");
   });
 
+  it("로그인 모드의 고객 링크에는 입력칸 아래 '새 링크를 받기 전까지 계속 쓰면 된다' 안내가 있다", async () => {
+    vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);
+    summaryMock.mockResolvedValueOnce({ ...base, used: 0, remaining: 3, pending: 0, requests: [] });
+
+    render(<PublicRevisionForm token={"a".repeat(43)} />);
+
+    expect(await screen.findByTestId("revision-link-note")).toHaveTextContent("작업자가 새 링크를 보내기 전까지 이 링크를 계속 쓰시면 돼요. 평소 대화창으로 말씀하신 요청도 작업자가 여기에 함께 기록해요.");
+  });
+
   // Codex 4차 P2: 링크를 연 사이 작업자가 다른 요청을 '수정 완료'하면, 처음 읽은 값으로 계산한 숫자가 서버와 어긋난다.
   it("제출 뒤 서버 요약을 다시 읽어 사용·대기·남은 횟수를 서버와 맞춘다", async () => {
     vi.mocked(useWorkspace).mockReturnValue({ jobs: [], settings: {}, hydrated: true, recordPublicRevision: vi.fn() } as unknown as ReturnType<typeof useWorkspace>);

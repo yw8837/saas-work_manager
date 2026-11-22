@@ -62,13 +62,15 @@ begin
       (owner_a, 'job-rotated', encode(extensions.digest(token_old, 'sha256'), 'hex'), false),
       (owner_a, 'job-archived', encode(extensions.digest(token_archived, 'sha256'), 'hex'), false);
 
-    -- 1) 진행 중: 상태 active, 요청은 고객 링크 것만 최근 것부터, 상태 이름과 원문만.
+    -- 1) 진행 중: 상태 active, 요청은 최근 것부터, 상태 이름과 원문만.
+    -- 20261118120000부터 작업자가 직접 적은 요청(m1)도 원문 없이 받은 경로만 섞여 나온다(supabase/tests/public_revision_manual_requests.sql).
     select * into view_row from public.get_workspace_revision_view(token_active);
     if view_row.job_status is distinct from 'active' or view_row.completed_at is not null then
       raise exception 'active_status_mismatch: % %', view_row.job_status, view_row.completed_at;
     end if;
     if view_row.requests <> jsonb_build_array(
       jsonb_build_object('status', 'pending', 'submittedAt', '2026-11-01T06:00:00.000Z', 'body', '최근 요청'),
+      jsonb_build_object('status', 'pending', 'submittedAt', '2026-11-01T03:30:00.000Z', 'source', 'manual', 'channel', 'kakao'),
       jsonb_build_object('status', 'rejected', 'submittedAt', '2026-11-01T03:00:00.000Z', 'body', '질문'),
       jsonb_build_object('status', 'extra', 'submittedAt', '2026-11-01T02:00:00.000Z', 'body', '범위 밖 요청'),
       jsonb_build_object('status', 'done', 'sequence', 1, 'submittedAt', '2026-11-01T01:00:00.000Z', 'body', '첫 요청')

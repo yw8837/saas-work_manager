@@ -99,6 +99,8 @@ export function CustomerRevisionDemo({ initialState }: { initialState?: Customer
       requests={customerRequestsOf(state.order)}
       badgeLabel="체험용 · 전송 안 됨"
       footnote="체험 화면이라 남긴 내용은 어디에도 전송·저장되지 않아요. 새로고침하면 처음 상태로 돌아가요."
+      // 실제 고객 링크(로그인 모드)와 같은 안내를 보여 준다.
+      showLinkNote
       onSubmit={submit}
     />
   );
