@@ -157,4 +157,80 @@ describe("가입 없이 둘러보기(/try)", () => {
     const echoed = screen.getByText("제 연락처로 다시 보내 주세요");
     expect(echoed.closest("[data-clarity-mask='true']")).not.toBeNull();
   });
+  it("위쪽 단계 목록을 누르면 그 단계로 바로 넘어간다(안내 글이 '직접 눌러 보세요'라서 눌려야 한다)", () => {
+    render(<TryTour />);
+    const steps = screen.getAllByTestId(/^try-step-button-/);
+    expect(steps).toHaveLength(4);
+    for (const button of steps) expect(button.tagName).toBe("BUTTON");
+    // 2단계로 바로
+    fireEvent.click(screen.getByTestId("try-step-button-2"));
+    expect(screen.getByTestId("try-step-2")).toBeInTheDocument();
+    expect(screen.getByTestId("try-step-button-2")).toHaveAttribute("aria-current", "step");
+    expect(screen.getByTestId("try-step-button-1")).not.toHaveAttribute("aria-current");
+    // 단계가 바뀌면 새 단계 제목으로 포커스가 간다
+    expect(screen.getByRole("heading", { level: 3 })).toHaveFocus();
+    // 3단계로 바로: 고객 화면의 요청 칸이 보인다
+    fireEvent.click(screen.getByTestId("try-step-button-3"));
+    expect(screen.getByTestId("try-submit-request")).toBeInTheDocument();
+    // 1단계로 되돌아가기
+    fireEvent.click(screen.getByTestId("try-step-button-1"));
+    expect(screen.getByTestId("try-next-1")).toBeInTheDocument();
+  });
+
+  it("요청을 남기지 않고 4단계를 바로 누르면 예시 요청 1건이 들어 있어 '수정 완료'를 눌러 볼 수 있다", () => {
+    render(<TryTour />);
+    const standard = SAMPLE_PACKAGES[1];
+    fireEvent.click(screen.getByTestId("try-step-button-4"));
+    expect(screen.getByTestId("try-step-4")).toBeInTheDocument();
+    expect(screen.getAllByTestId("try-complete")).toHaveLength(1);
+    fireEvent.click(screen.getByTestId("try-complete"));
+    expect(screen.getByTestId("try-result")).toHaveTextContent(`남은 수정 ${standard.revisionLimit - 1}회`);
+  });
+
+  it("요청을 이미 남긴 뒤 4단계를 누르면 예시 요청을 더 넣지 않는다", () => {
+    render(<TryTour />);
+    fireEvent.click(screen.getByTestId("try-step-button-3"));
+    fireEvent.click(screen.getByTestId("try-submit-request"));
+    fireEvent.click(screen.getByTestId("try-step-button-4"));
+    expect(screen.getAllByTestId("try-complete")).toHaveLength(1);
+  });
+  it("단계 목록으로 되돌아가 요청을 되풀이해도 포함 횟수보다 더 쓰지 못한다", () => {
+    render(<TryTour />);
+    const standard = SAMPLE_PACKAGES[1];
+    for (let round = 0; round < standard.revisionLimit; round += 1) {
+      fireEvent.click(screen.getByTestId("try-step-button-3"));
+      fireEvent.click(screen.getByTestId("try-submit-request"));
+      fireEvent.click(screen.getByTestId("try-step-button-4"));
+      fireEvent.click(screen.getByTestId("try-complete"));
+    }
+    expect(screen.getByTestId("try-result")).toHaveTextContent("남은 수정 0회");
+    fireEvent.click(screen.getByTestId("try-step-button-3"));
+    expect(screen.getByTestId("try-remaining-customer")).toHaveTextContent("0");
+    expect(screen.queryByTestId("try-submit-request")).toBeNull();
+    expect(screen.getByTestId("try-limit-reached")).toHaveTextContent(`포함 수정 ${standard.revisionLimit}회를 모두 썼어요`);
+    fireEvent.click(screen.getByTestId("try-restart"));
+    expect(screen.getByTestId("try-next-1")).toBeInTheDocument();
+  });
+
+  it("1단계로 돌아가 패키지를 바꾸면 앞서 남긴 예시 요청이 비워져 남은 횟수가 새 패키지 기준이 된다", () => {
+    render(<TryTour />);
+    const basic = SAMPLE_PACKAGES[0];
+    fireEvent.click(screen.getByTestId("try-step-button-4"));
+    fireEvent.click(screen.getByTestId("try-complete"));
+    fireEvent.click(screen.getByTestId("try-step-button-1"));
+    fireEvent.click(screen.getByRole("radio", { name: new RegExp(basic.name) }));
+    fireEvent.click(screen.getByTestId("try-step-button-3"));
+    expect(screen.getByTestId("try-remaining-customer")).toHaveTextContent(String(basic.revisionLimit));
+    expect(screen.getByTestId("try-submit-request")).toBeInTheDocument();
+  });
+
+  it("고친 요청 글을 남기지 않고 4단계로 가면 그 글이 가려진 목록 안에만 나온다", () => {
+    render(<TryTour />);
+    fireEvent.click(screen.getByTestId("try-step-button-3"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "글자 크기를 키워 주세요" } });
+    fireEvent.click(screen.getByTestId("try-step-button-4"));
+    const shown = screen.getAllByText("글자 크기를 키워 주세요");
+    expect(shown).toHaveLength(1);
+    expect(shown[0].closest("[data-clarity-mask='true']")).not.toBeNull();
+  });
 });
