@@ -6,6 +6,7 @@ import {
   type SecurityHeader,
 } from "@/lib/security/headers";
 import { deploymentOrigin } from "@/lib/deployment-origin";
+import { isNoindexRoutePath } from "@/lib/standalone-routes";
 import { POLICY_PUBLICATION_MANIFEST } from "@/lib/policies";
 import { withCustomerLinkShareMeta } from "@/lib/site-meta";
 import {
@@ -67,7 +68,8 @@ function isHtmlNavigation(request: Request) {
  * 경로 판정은 라우터와 같게 대소문자를 가리지 않고 끝 슬래시도 받는다(판정만 하고 토큰 값은 건드리지 않는다).
  */
 function robotsHeaders(url: URL): SecurityHeader[] {
-  if (/^\/r\/[^/]+\/?$/i.test(url.pathname) || /^\/demo(?:\/|$)/i.test(url.pathname)) return buildBearerRouteHeaders();
+  // 고객 링크·체험 링크·베타 주소 확인·수신거부·운영자 화면(isNoindexRoutePath, 끝 슬래시·대소문자 무시).
+  if (isNoindexRoutePath(url.pathname)) return buildBearerRouteHeaders();
   if (isPrivateAreaPath(url.pathname) || url.host !== new URL(deploymentOrigin()).host) return buildPrivateAreaHeaders();
   return [];
 }

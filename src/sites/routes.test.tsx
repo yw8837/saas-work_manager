@@ -31,6 +31,10 @@ describe("Sites route contract", () => {
       "/examples/:industry",
       "/try",
       "/demo/r",
+      "/apply",
+      "/apply/confirm/:token",
+      "/u/:token",
+      "/ops/applications",
     ]);
   });
 

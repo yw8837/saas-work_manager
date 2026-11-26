@@ -80,9 +80,9 @@ try {
   await db.exec(await readFile(resolve("supabase/tests/public_revision_addons.sql"), "utf8"));
   await db.exec(await readFile(resolve("supabase/tests/public_revision_manual_requests.sql"), "utf8"));
   const access = await db.query(await readFile(resolve("supabase/tests/rpc_execution_surface.sql"), "utf8"));
-  assert.equal(access.rows.length, 25);
+  assert.equal(access.rows.length, 37);
   assert.ok(access.rows.every((row) => row.passed), JSON.stringify(access.rows.filter((row) => !row.passed)));
-  console.log("PASS: native SQL contract, deletion regression, pending revision submit, fee fields round trip, public link status view, policy beta.6 acceptance, signup source, public link addons, public link manual requests, 25 RPC privilege checks (ephemeral PGlite).");
+  console.log("PASS: native SQL contract, deletion regression, pending revision submit, fee fields round trip, public link status view, policy beta.6 acceptance, signup source, public link addons, public link manual requests, 37 RPC privilege checks (ephemeral PGlite).");
 } catch (error) {
   console.error(`FAIL: ${error.message}`);
   if (error.where) console.error(error.where);
