@@ -66,6 +66,21 @@ export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
       ? `수정 완료. 포함 수정 ${chosen.revisionLimit}회 중 ${used}회 썼어요. 남은 수정 ${remaining}회.`
       : "";
 
+  /** 위쪽 단계 목록을 눌러 바로 옮긴다. 요청 없이 4단계로 가면 눌러 볼 것이 없으므로 예시 요청 1건을 넣어 둔다. */
+  function goToStep(index: number) {
+    if (index === 3 && requests.length === 0) {
+      setRequests([{ body: draft.trim() || SAMPLE_REQUEST, status: "pending" }]);
+    }
+    setStep(index);
+  }
+
+  /** 패키지를 바꾸면 새 일감이다. 앞서 남긴 예시 요청을 비워야 남은 횟수가 포함 횟수를 넘지 않는다. */
+  function choosePackage(id: string) {
+    if (id === packageId) return;
+    setPackageId(id);
+    setRequests([]);
+  }
+
   function restart() {
     setStep(0);
     setDraft(SAMPLE_REQUEST);
@@ -96,9 +111,17 @@ export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
           <h2 id="try-tour-title" className="srOnly">써 보기</h2>
           <ol className="trySteps">
             {STEPS.map((label, index) => (
-              <li key={label} aria-current={index === step ? "step" : undefined} data-done={index < step}>
-                <span className="tryStepNum" aria-hidden="true">{index < step ? <Check size={14} strokeWidth={3} /> : index + 1}</span>
-                <span>{label}</span>
+              <li key={label} data-current={index === step} data-done={index < step}>
+                <button
+                  type="button"
+                  className="tryStepButton"
+                  aria-current={index === step ? "step" : undefined}
+                  onClick={() => goToStep(index)}
+                  data-testid={`try-step-button-${index + 1}`}
+                >
+                  <span className="tryStepNum" aria-hidden="true">{index < step ? <Check size={14} strokeWidth={3} /> : index + 1}</span>
+                  <span>{label}</span>
+                </button>
               </li>
             ))}
           </ol>
@@ -112,7 +135,7 @@ export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
                   <legend className="srOnly">예시 패키지</legend>
                   {SAMPLE_PACKAGES.map((item) => (
                     <label key={item.id} className="tryPackage" data-selected={item.id === packageId}>
-                      <input type="radio" name="try-package" value={item.id} checked={item.id === packageId} onChange={() => setPackageId(item.id)} />
+                      <input type="radio" name="try-package" value={item.id} checked={item.id === packageId} onChange={() => choosePackage(item.id)} />
                       <span className="tryPackageName">{item.name}</span>
                       <span className="tryPackageFacts">{won.format(item.price)}원 · {item.durationDays}일 · 수정 {item.revisionLimit}회</span>
                     </label>
@@ -146,7 +169,12 @@ export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
                 <div className="tryCustomer" aria-label="고객 화면">
                   <p className="tryCustomerTag">고객 화면</p>
                   <p className="tryRemaining">남은 수정 <strong data-testid="try-remaining-customer">{remaining}</strong>회</p>
-                  {pending === 0 ? (
+                  {pending === 0 && remaining <= 0 ? (
+                    // 위쪽 단계 목록으로 되돌아와 요청을 되풀이해도 포함 횟수보다 더 쓰지 않게 막는다.
+                    <p className="tryResult" data-testid="try-limit-reached">
+                      {`포함 수정 ${chosen.revisionLimit}회를 모두 썼어요. 아래 버튼으로 처음부터 다시 눌러 볼 수 있어요.`}
+                    </p>
+                  ) : pending === 0 ? (
                     <>
                       <label className="tryField" data-clarity-mask="true">
                         <span>수정 요청 내용</span>
@@ -168,6 +196,11 @@ export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
                     </p>
                   )}
                 </div>
+                {pending === 0 && remaining <= 0 && (
+                  <button type="button" className="secondaryButton tryNext" onClick={restart} data-testid="try-restart">
+                    <RotateCcw size={16} aria-hidden="true" /> 처음부터 다시
+                  </button>
+                )}
                 {pending > 0 && (
                   <button type="button" className="primaryButton tryNext" onClick={() => setStep(3)} data-testid="try-next-3">
                     작업자 화면으로 <ArrowRight size={17} aria-hidden="true" />
