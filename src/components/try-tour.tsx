@@ -81,6 +81,18 @@ export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
     setRequests([]);
   }
 
+  /**
+   * 마우스·손가락으로 패키지를 누르면 고르면서 바로 2단계로 넘긴다(방문 기록에서 고르기만 되풀이하다 나가는 방문이 많았다).
+   * 키보드 화살표·스페이스가 만드는 클릭은 detail이 0이라 여기서 넘기지 않는다. 그때는 고르기만 되고 아래 버튼으로 넘어간다.
+   * 화면 읽기 프로그램은 조합마다 detail이 달라 넘어갈 수도, 안 넘어갈 수도 있다. 그래서 안내 글에 "누르면 넘어간다"고 미리 적어 둔다.
+   * label 클릭이 input으로 한 번 더 넘어와 두 번 불릴 수 있다. 되풀이에 민감한 일(기록 전송 등)은 여기 넣지 않는다.
+   */
+  function pickPackageByPointer(id: string, detail: number) {
+    if (detail < 1) return;
+    choosePackage(id);
+    setStep(1);
+  }
+
   function restart() {
     setStep(0);
     setDraft(SAMPLE_REQUEST);
@@ -130,11 +142,17 @@ export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
             {step === 0 && (
               <>
                 <h3 ref={headingRef} tabIndex={-1}>1. 주문이 오면 패키지를 골라요</h3>
-                <p className="tryHint">패키지에 금액·기간·포함 수정 횟수를 한 번 적어 두면, 주문마다 고르기만 하면 돼요.</p>
+                <p className="tryHint">패키지에 금액·기간·포함 수정 횟수를 한 번 적어 두면, 주문마다 고르기만 하면 돼요. 패키지를 누르면 바로 다음 단계로 넘어가요.</p>
                 <fieldset className="tryPackages">
                   <legend className="srOnly">예시 패키지</legend>
                   {SAMPLE_PACKAGES.map((item) => (
-                    <label key={item.id} className="tryPackage" data-selected={item.id === packageId}>
+                    <label
+                      key={item.id}
+                      className="tryPackage"
+                      data-selected={item.id === packageId}
+                      data-testid={`try-package-${item.id}`}
+                      onClick={(event) => pickPackageByPointer(item.id, event.detail)}
+                    >
                       <input type="radio" name="try-package" value={item.id} checked={item.id === packageId} onChange={() => choosePackage(item.id)} />
                       <span className="tryPackageName">{item.name}</span>
                       <span className="tryPackageFacts">{won.format(item.price)}원 · {item.durationDays}일 · 수정 {item.revisionLimit}회</span>
@@ -157,7 +175,7 @@ export function TryTour({ footerNote }: { footerNote?: ReactNode } = {}) {
                   남은 포함 수정은 {chosen.revisionLimit}회예요.{"\n"}
                   https://ilgam.studioyeolmae.com/r/예시
                 </div>
-                <button type="button" className="primaryButton tryNext" onClick={() => setStep(2)} data-testid="try-next-2">
+                <button type="button" className="primaryButton tryNext" onClick={(event) => { if (event.detail > 1) return; setStep(2); }} data-testid="try-next-2">
                   <Send size={16} aria-hidden="true" /> 보냈다고 치고 고객 화면 보기
                 </button>
               </>

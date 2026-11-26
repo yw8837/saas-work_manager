@@ -80,6 +80,76 @@ describe("가입 없이 둘러보기(/try)", () => {
     expect(screen.getByTestId("try-message")).toHaveTextContent(`남은 포함 수정은 ${basic.revisionLimit}회예요.`);
   });
 
+  it("마우스·손가락으로 패키지를 누르면 고르면서 바로 2단계로 넘어간다", () => {
+    render(<TryTour />);
+    const basic = SAMPLE_PACKAGES[0];
+    fireEvent.click(screen.getByTestId(`try-package-${basic.id}`), { detail: 1 });
+    expect(screen.getByTestId("try-step-2")).toBeInTheDocument();
+    expect(screen.getByTestId("try-message")).toHaveTextContent(`남은 포함 수정은 ${basic.revisionLimit}회예요.`);
+  });
+
+  it("이미 골라져 있는 패키지를 눌러도 2단계로 넘어간다", () => {
+    render(<TryTour />);
+    const standard = SAMPLE_PACKAGES[1];
+    fireEvent.click(screen.getByTestId(`try-package-${standard.id}`), { detail: 1 });
+    expect(screen.getByTestId("try-message")).toHaveTextContent(`남은 포함 수정은 ${standard.revisionLimit}회예요.`);
+  });
+
+  it("동그라미를 직접 눌러도 넘어간다", () => {
+    render(<TryTour />);
+    const deluxe = SAMPLE_PACKAGES[2];
+    fireEvent.click(screen.getByRole("radio", { name: new RegExp(deluxe.name) }), { detail: 1 });
+    expect(screen.getByTestId("try-message")).toHaveTextContent(`남은 포함 수정은 ${deluxe.revisionLimit}회예요.`);
+  });
+
+  it("키보드로 고를 때(클릭 detail 0)는 고르기만 되고 1단계에 머문다", () => {
+    render(<TryTour />);
+    const basic = SAMPLE_PACKAGES[0];
+    fireEvent.click(screen.getByRole("radio", { name: new RegExp(basic.name) }));
+    expect(screen.getByTestId("try-step-1")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: new RegExp(basic.name) })).toBeChecked();
+    expect(screen.getByTestId("try-next-1")).toBeInTheDocument();
+  });
+
+  it("패키지 이름 글자를 눌러도 넘어가고, 새 단계 제목으로 포커스가 간다", () => {
+    render(<TryTour />);
+    const basic = SAMPLE_PACKAGES[0];
+    fireEvent.click(within(screen.getByTestId(`try-package-${basic.id}`)).getByText(basic.name), { detail: 1 });
+    expect(screen.getByTestId("try-step-2")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3 })).toHaveFocus();
+  });
+
+  it("패키지를 두 번 톡톡 눌러도 2단계를 건너뛰지 않는다", () => {
+    render(<TryTour />);
+    fireEvent.click(screen.getByTestId(`try-package-${SAMPLE_PACKAGES[2].id}`), { detail: 1 });
+    // 두 번째 클릭(detail 2)은 같은 자리에 새로 나온 2단계 버튼에 떨어진다.
+    fireEvent.click(screen.getByTestId("try-next-2"), { detail: 2 });
+    expect(screen.getByTestId("try-step-2")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("try-next-2"), { detail: 1 });
+    expect(screen.getByTestId("try-step-3")).toBeInTheDocument();
+  });
+
+  it("1단계로 돌아와 같은 패키지를 누르면 남긴 요청이 그대로고, 다른 패키지를 누르면 비운다", () => {
+    render(<TryTour />);
+    const standard = SAMPLE_PACKAGES[1];
+    fireEvent.click(screen.getByTestId("try-step-button-4"));
+    fireEvent.click(screen.getByTestId("try-complete"));
+    fireEvent.click(screen.getByTestId("try-step-button-1"));
+    fireEvent.click(screen.getByTestId(`try-package-${standard.id}`), { detail: 1 });
+    fireEvent.click(screen.getByTestId("try-step-button-3"));
+    expect(screen.getByTestId("try-remaining-customer")).toHaveTextContent(String(standard.revisionLimit - 1));
+    fireEvent.click(screen.getByTestId("try-step-button-1"));
+    const basic = SAMPLE_PACKAGES[0];
+    fireEvent.click(screen.getByTestId(`try-package-${basic.id}`), { detail: 1 });
+    fireEvent.click(screen.getByTestId("try-step-button-3"));
+    expect(screen.getByTestId("try-remaining-customer")).toHaveTextContent(String(basic.revisionLimit));
+  });
+
+  it("1단계 안내 글이 누르면 넘어간다는 것을 미리 알린다", () => {
+    render(<TryTour />);
+    expect(screen.getByTestId("try-step-1")).toHaveTextContent("패키지를 누르면 바로 다음 단계로 넘어가요.");
+  });
+
   it("시작 버튼은 베타 코드가 자동 적용되는 초대 링크로 간다", () => {
     render(<TryTour />);
     expect(TRY_START_HREF).toBe("/today?invite=BETA2026");
